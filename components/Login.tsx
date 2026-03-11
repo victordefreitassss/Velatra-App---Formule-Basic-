@@ -11,8 +11,8 @@ import {
 const AppLogo = () => (
   <div className="flex flex-col items-center">
     <div className="flex items-center gap-3">
-      <div className="w-12 h-12 bg-velatra-accent rounded-xl flex items-center justify-center shadow-inner">
-        <span className="font-black text-white text-2xl tracking-tighter">V</span>
+      <div className="w-16 h-16 rounded-xl shadow-inner overflow-hidden flex items-center justify-center shrink-0">
+        <img src="https://i.postimg.cc/DZTCpHnf/Design-sans-titre.png" alt="Velatra Logo" className="w-full h-full object-cover scale-[1.8] invert mix-blend-screen" />
       </div>
       <div className="font-display font-bold text-5xl tracking-tight leading-none text-white">VELA<span className="text-velatra-accent">TRA</span></div>
     </div>
