@@ -34,6 +34,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   });
 
   const planRequests = members.filter(u => u.planRequested);
+  const isPremium = state.user?.role === 'superadmin' || state.currentClub?.plan === 'premium';
 
   // Chart Data for Prospects
   const prospectStats = [
@@ -120,8 +121,8 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
         <div className="lg:col-span-8 space-y-8">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <StatBox label="Membres" value={members.length} />
-              <StatBox label="Prospects" value={state.prospects.filter(p => p.status === 'lead' || p.status === 'contacted' || p.status === 'trial').length} locked onClick={() => setState(s => ({ ...s, page: 'crm_pipeline' }))} />
-              <StatBox label="Tâches" value={state.tasks.filter(t => t.status === 'todo').length} className={state.tasks.filter(t => t.status === 'todo').length > 0 ? "ring-2 ring-yellow-500/50" : ""} locked onClick={() => setState(s => ({ ...s, page: 'crm_tasks' }))} />
+              <StatBox label="Prospects" value={state.prospects.filter(p => p.status === 'lead' || p.status === 'contacted' || p.status === 'trial').length} locked={!isPremium} onClick={() => setState(s => ({ ...s, page: 'crm_pipeline' }))} />
+              <StatBox label="Tâches" value={state.tasks.filter(t => t.status === 'todo').length} className={state.tasks.filter(t => t.status === 'todo').length > 0 ? "ring-2 ring-yellow-500/50" : ""} locked={!isPremium} onClick={() => setState(s => ({ ...s, page: 'crm_tasks' }))} />
               <StatBox label="Demandes Plan" value={planRequests.length} className={planRequests.length > 0 ? "ring-2 ring-velatra-accent animate-pulse" : ""} />
             </div>
 

@@ -147,7 +147,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                 {currentDay.isCoaching ? 'SÉANCE COACHÉE' : 'AUTONOME'}
              </Badge>
              {currentDay.duration && (
-               <Badge variant="gray" className="italic">
+               <Badge variant="dark" className="italic">
                  ~{currentDay.duration} MIN
                </Badge>
              )}
@@ -189,7 +189,18 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                   </div>
                   <div className="flex-1">
                     <div className="text-[10px] text-velatra-accent font-black uppercase tracking-[3px] mb-2">{baseEx?.cat}</div>
-                    <div className="font-black text-3xl tracking-tighter leading-none text-white italic uppercase">{baseEx?.name}</div>
+                    <div className="font-black text-3xl tracking-tighter leading-none text-white italic uppercase mb-3">{baseEx?.name}</div>
+                    <div className="flex flex-wrap gap-2">
+                      {exEntry.setType && exEntry.setType !== 'normal' && (
+                        <Badge variant="orange" className="uppercase">{exEntry.setType}</Badge>
+                      )}
+                      {exEntry.tempo && (
+                        <Badge variant="dark" className="uppercase">Tempo: {exEntry.tempo}</Badge>
+                      )}
+                      {exEntry.rest && (
+                        <Badge variant="dark" className="uppercase">Repos: {exEntry.rest}s</Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-6 mb-10">

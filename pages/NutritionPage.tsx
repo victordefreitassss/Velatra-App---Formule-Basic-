@@ -3,6 +3,8 @@ import { AppState, User, NutritionPlan, ActivityLevel, Goal, Gender, Meal } from
 import { Card, Button, Input, Badge } from '../components/UI';
 import { AppleIcon, PlusIcon, SearchIcon, SaveIcon, UserIcon, TargetIcon, FlameIcon, ChevronLeftIcon, Trash2Icon } from '../components/Icons';
 import { db, doc, setDoc } from '../firebase';
+import { SparklesIcon, RefreshCwIcon } from 'lucide-react';
+import { GoogleGenAI } from '@google/genai';
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   "Sédentaire": 1.2,
@@ -35,7 +37,9 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
   const [gender, setGender] = useState<Gender>('M');
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('Modérément actif');
   const [goal, setGoal] = useState<Goal>('Sport santé bien-être');
+  const [dietPreference, setDietPreference] = useState<string>('Standard');
   const [meals, setMeals] = useState<Meal[]>([]);
+  const [generatingMealId, setGeneratingMealId] = useState<string | null>(null);
   
   const [isSaving, setIsSaving] = useState(false);
 
@@ -56,6 +60,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       setGender(existingPlan.gender);
       setActivityLevel(existingPlan.activityLevel);
       setGoal(existingPlan.goal);
+      setDietPreference(existingPlan.dietPreference || 'Standard');
       setMeals(existingPlan.meals || []);
     } else {
       setWeight(member.weight || 70);
@@ -63,6 +68,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       setAge(member.age || 30);
       setGender(member.gender || 'M');
       setGoal(member.objectifs?.[0] || 'Sport santé bien-être');
+      setDietPreference('Standard');
       setMeals([
         { id: Date.now().toString() + '1', name: 'Petit-déjeuner', description: '', calories: 0, protein: 0, carbs: 0, fat: 0 },
         { id: Date.now().toString() + '2', name: 'Déjeuner', description: '', calories: 0, protein: 0, carbs: 0, fat: 0 },
@@ -129,6 +135,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
         gender,
         activityLevel,
         goal,
+        dietPreference,
         bmr,
         tdee,
         targetCalories,
@@ -147,6 +154,83 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       showToast("Erreur lors de l'enregistrement du plan.", "error");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleInitializeMeals = () => {
+    const initializedMeals: Meal[] = [
+      {
+        id: Date.now().toString() + '1',
+        name: 'Petit-déjeuner',
+        description: '',
+        calories: Math.round(targetCalories * 0.25),
+        protein: Math.round(macros.protein * 0.25),
+        carbs: Math.round(macros.carbs * 0.25),
+        fat: Math.round(macros.fat * 0.25)
+      },
+      {
+        id: Date.now().toString() + '2',
+        name: 'Déjeuner',
+        description: '',
+        calories: Math.round(targetCalories * 0.35),
+        protein: Math.round(macros.protein * 0.35),
+        carbs: Math.round(macros.carbs * 0.35),
+        fat: Math.round(macros.fat * 0.35)
+      },
+      {
+        id: Date.now().toString() + '3',
+        name: 'Collation',
+        description: '',
+        calories: Math.round(targetCalories * 0.10),
+        protein: Math.round(macros.protein * 0.10),
+        carbs: Math.round(macros.carbs * 0.10),
+        fat: Math.round(macros.fat * 0.10)
+      },
+      {
+        id: Date.now().toString() + '4',
+        name: 'Dîner',
+        description: '',
+        calories: Math.round(targetCalories * 0.30),
+        protein: Math.round(macros.protein * 0.30),
+        carbs: Math.round(macros.carbs * 0.30),
+        fat: Math.round(macros.fat * 0.30)
+      }
+    ];
+    setMeals(initializedMeals);
+  };
+
+  const handleGenerateMeal = async (meal: Meal) => {
+    setGeneratingMealId(meal.id);
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+      
+      const prompt = `Je suis un(e) ${gender === 'M' ? 'homme' : 'femme'} de ${age} ans, ${weight}kg. Mon objectif est: ${goal}.
+Mon régime alimentaire est : ${dietPreference}.
+Génère-moi UNE idée de repas pour mon "${meal.name}" qui respecte EXACTEMENT ces macros :
+- Calories : ${meal.calories} kcal
+- Protéines : ${meal.protein}g
+- Glucides : ${meal.carbs}g
+- Lipides : ${meal.fat}g
+
+Donne-moi le nom du plat et la recette courte avec les quantités exactes des ingrédients. Ne mets pas de texte d'introduction ou de conclusion, juste le nom du plat en gras, suivi des ingrédients et des instructions rapides.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+      });
+
+      const newDescription = response.text || "";
+
+      setMeals(meals.map(m => 
+        m.id === meal.id ? { ...m, description: newDescription } : m
+      ));
+      showToast(`Repas "${meal.name}" généré !`, "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la génération du repas", "error");
+    } finally {
+      setGeneratingMealId(null);
     }
   };
 
@@ -242,6 +326,22 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                   ))}
                 </select>
               </div>
+
+              <div className="space-y-1 pt-2">
+                <label className="text-[10px] uppercase font-bold text-velatra-textMuted">Régime Alimentaire</label>
+                <select 
+                  className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-velatra-accent"
+                  value={dietPreference}
+                  onChange={(e) => setDietPreference(e.target.value)}
+                >
+                  <option value="Standard">Standard</option>
+                  <option value="Végétarien">Végétarien</option>
+                  <option value="Vegan">Vegan</option>
+                  <option value="Sans gluten">Sans gluten</option>
+                  <option value="Cétogène">Cétogène</option>
+                  <option value="Pescétarien">Pescétarien</option>
+                </select>
+              </div>
             </Card>
 
             <Card className="p-6 bg-gradient-to-br from-velatra-accent/20 to-black border-velatra-accent/30 space-y-6">
@@ -300,9 +400,16 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
               <h3 className="text-sm font-black uppercase tracking-widest text-white flex items-center gap-2">
                 <AppleIcon size={16} className="text-velatra-accent" /> Répartition des Repas
               </h3>
-              <Button variant="glass" onClick={addMeal} className="!py-1.5 !px-3 !text-[10px]">
-                <PlusIcon size={14} className="mr-1" /> AJOUTER UN REPAS
-              </Button>
+              <div className="flex gap-2">
+                {(meals.length === 0 || meals.every(m => m.calories === 0)) && (
+                  <Button onClick={handleInitializeMeals} variant="primary" className="!py-1.5 !px-3 !text-[10px]">
+                    INITIALISER MES REPAS
+                  </Button>
+                )}
+                <Button variant="glass" onClick={addMeal} className="!py-1.5 !px-3 !text-[10px]">
+                  <PlusIcon size={14} className="mr-1" /> AJOUTER UN REPAS
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -323,12 +430,29 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                         className="!py-2 !font-bold"
                         placeholder="Nom du repas"
                       />
-                      <textarea
-                        value={meal.description}
-                        onChange={e => updateMeal(meal.id, 'description', e.target.value)}
-                        className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-velatra-accent h-20 resize-none"
-                        placeholder="Exemples d'aliments, instructions..."
-                      />
+                      <div className="space-y-2">
+                        <textarea
+                          value={meal.description}
+                          onChange={e => updateMeal(meal.id, 'description', e.target.value)}
+                          className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-velatra-accent h-20 resize-none"
+                          placeholder="Exemples d'aliments, instructions..."
+                        />
+                        <Button 
+                          variant={meal.description ? "secondary" : "primary"} 
+                          className="w-full !py-1.5 !px-3 !text-[10px] flex items-center justify-center gap-2"
+                          onClick={() => handleGenerateMeal(meal)}
+                          disabled={generatingMealId === meal.id}
+                        >
+                          {generatingMealId === meal.id ? (
+                            <RefreshCwIcon size={12} className="animate-spin" />
+                          ) : meal.description ? (
+                            <RefreshCwIcon size={12} />
+                          ) : (
+                            <SparklesIcon size={12} />
+                          )}
+                          {meal.description ? "AUTRE PROPOSITION" : "GÉNÉRER UN REPAS (IA)"}
+                        </Button>
+                      </div>
                     </div>
                     
                     <div className="md:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3 content-start">

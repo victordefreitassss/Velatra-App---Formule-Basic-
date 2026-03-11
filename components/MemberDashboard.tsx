@@ -37,7 +37,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
   const getAiAdvice = async () => {
     setAiLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
       const recentPerfs = state.performances
         .filter(p => Number(p.memberId) === Number(user.id))
         .slice(-5)
@@ -269,8 +269,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
 
         <div className="lg:col-span-4 space-y-8">
            <Card 
-             onClick={() => setState(s => ({ ...s, page: 'loyalty' }))}
-             className="bg-black border-white/5 ring-1 ring-white/10 !p-8 relative overflow-hidden group cursor-pointer hover:ring-velatra-accent/50 transition-all"
+             className="bg-black border-white/5 ring-1 ring-white/10 !p-8 relative overflow-hidden group transition-all"
            >
              <div className="absolute top-0 right-0 w-32 h-32 bg-velatra-accent/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-1000" />
              <div className="relative z-10 space-y-6">
@@ -345,39 +344,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                 icon={<TrophyIcon size={14}/>} 
                 onClick={() => setState(s => ({ ...s, page: 'performances' }))}
               />
-              <StatBox 
-                label="Points Fidélité" 
-                value={user.pointsFidelite || 0} 
-                icon={<GiftIcon size={14} className="text-velatra-accent" />} 
-                onClick={() => setState(s => ({ ...s, page: 'loyalty' }))}
-              />
-              <StatBox 
-                label="Achats Shop" 
-                value={`${totalSpent}€`} 
-                icon={<ShoppingCartIcon size={14} className="text-emerald-500" />} 
-                onClick={() => setState(s => ({ ...s, page: 'supplements' }))}
-              />
            </div>
-
-           <Button 
-             variant="glass" 
-             fullWidth 
-             onClick={() => setState(s => ({ ...s, page: 'supplements' }))}
-             className="!py-4 !rounded-2xl border-white/5 hover:border-velatra-accent/30 group"
-           >
-             <div className="flex items-center justify-between w-full px-2">
-               <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent group-hover:bg-velatra-accent group-hover:text-white transition-all">
-                   <ShoppingCartIcon size={20} />
-                 </div>
-                 <div className="text-left">
-                   <div className="text-[10px] font-black text-white uppercase italic">Boutique Nutripure</div>
-                   <div className="text-[8px] text-velatra-textDark font-black uppercase tracking-widest">Commander mes compléments</div>
-                 </div>
-               </div>
-               <Badge variant="accent" className="!text-[8px] animate-pulse">SHOP</Badge>
-             </div>
-           </Button>
 
            <Card 
              onClick={() => setState(s => ({ ...s, page: 'messages' }))}
