@@ -1,5 +1,5 @@
 
-export type Role = "owner" | "coach" | "member";
+export type Role = "superadmin" | "owner" | "coach" | "member";
 export type Gender = "F" | "M";
 export type Goal = "Perte de poids" | "Prise de masse" | "Sport santé bien-être" | "Prépa physique" | "Remise en forme" | "Performance sportive" | "Renforcement musculaire" | "Souplesse et mobilité" | "Autre";
 
@@ -17,6 +17,8 @@ export interface Club {
   logo?: string;
   primaryColor?: string;
   createdAt: string;
+  plan?: 'basic' | 'classic' | 'premium';
+  isActive?: boolean;
   coaches?: CoachInfo[];
   settings?: {
     defaultProgramDuration?: number;
@@ -286,7 +288,7 @@ export interface Newsletter {
   author: string;
 }
 
-export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition";
+export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin";
 
 export type ActivityLevel = "Sédentaire" | "Légèrement actif" | "Modérément actif" | "Très actif" | "Extrêmement actif";
 
@@ -313,6 +315,7 @@ export interface NutritionPlan {
   gender: Gender;
   activityLevel: ActivityLevel;
   goal: Goal;
+  dietPreference?: string;
   
   bmr: number;
   tdee: number;

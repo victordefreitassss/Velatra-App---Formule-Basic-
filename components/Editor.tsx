@@ -375,7 +375,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                           </button>
                         </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 bg-white/[0.02] p-5 rounded-2xl border border-white/5">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-6 bg-white/[0.02] p-5 rounded-2xl border border-white/5">
                         <div className="space-y-1">
                           <label className="text-[9px] font-black text-velatra-textDark uppercase tracking-widest text-center block">SÉRIES</label>
                           <Input 
@@ -393,13 +393,37 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                             onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'reps', e.target.value)}
                           />
                         </div>
-                        <div className="space-y-1 col-span-2 sm:col-span-1">
+                        <div className="space-y-1">
                           <label className="text-[9px] font-black text-velatra-textDark uppercase tracking-widest text-center block">REPOS (SEC)</label>
                           <Input 
                             className="text-center !rounded-xl !text-base font-black !bg-black"
                             value={ex.rest}
                             onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'rest', e.target.value)}
                           />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-velatra-textDark uppercase tracking-widest text-center block">TEMPO</label>
+                          <Input 
+                            className="text-center !rounded-xl !text-base font-black !bg-black"
+                            value={ex.tempo || ''}
+                            placeholder="Ex: 2010"
+                            onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'tempo', e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-velatra-textDark uppercase tracking-widest text-center block">TYPE</label>
+                          <select 
+                            className="w-full bg-black border border-white/10 rounded-xl p-3 text-center text-sm font-black text-white focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
+                            value={ex.setType || 'normal'}
+                            onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setType', e.target.value)}
+                          >
+                            <option value="normal">Normal</option>
+                            <option value="superset">Superset</option>
+                            <option value="biset">Bi-set</option>
+                            <option value="triset">Tri-set</option>
+                            <option value="giantset">Giant-set</option>
+                            <option value="dropset">Drop-set</option>
+                          </select>
                         </div>
                       </div>
                     </div>

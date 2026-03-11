@@ -3,7 +3,7 @@ import React from 'react';
 import { User, Page, Club } from '../types';
 import { 
   HomeIcon, UsersIcon, LayersIcon, BarChartIcon, 
-  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon
+  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon
 } from './Icons';
 import { Timer } from './Timer';
 
@@ -39,33 +39,54 @@ const AppLogo: React.FC<{ club: Club | null }> = ({ club }) => (
 );
 
 export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageChange, onLogout, children }) => {
-  const coachItems: { id: string, icon: React.FC<any>, label: string, isPremium?: boolean }[] = [
+  const coachItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium' }[] = [
     { id: 'home', icon: HomeIcon, label: 'Tableau' },
     { id: 'users', icon: UsersIcon, label: 'Membres' },
     { id: 'presets', icon: LayersIcon, label: 'Modèles' },
     { id: 'exercises', icon: DumbbellIcon, label: 'Exos' },
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition' },
-    { id: 'crm_pipeline', icon: TargetIcon, label: 'ProspectFlow', isPremium: true },
-    { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances', isPremium: true },
-    { id: 'loyalty', icon: ShoppingCartIcon, label: 'Boutique', isPremium: true },
-    { id: 'calendar', icon: CalendarIcon, label: 'Planning', isPremium: true },
-    { id: 'marketing', icon: MegaphoneIcon, label: 'Marketing', isPremium: true },
+    { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances', requiredPlan: 'classic' },
+    { id: 'calendar', icon: CalendarIcon, label: 'Planning', requiredPlan: 'classic' },
+    { id: 'crm_pipeline', icon: TargetIcon, label: 'ProspectFlow', requiredPlan: 'premium' },
+    { id: 'marketing', icon: MegaphoneIcon, label: 'Marketing', requiredPlan: 'premium' },
+    { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', requiredPlan: 'premium' },
+    { id: 'loyalty', icon: GiftIcon, label: 'Fidélité', requiredPlan: 'premium' },
     { id: 'about', icon: InfoIcon, label: 'Club' },
     { id: 'settings', icon: SettingsIcon, label: 'Paramètres' },
   ];
 
-  const memberItems: { id: string, icon: React.FC<any>, label: string, isPremium?: boolean }[] = [
+  const memberItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium' }[] = [
     { id: 'home', icon: HomeIcon, label: 'Espace' },
     { id: 'calendar', icon: CalendarIcon, label: 'Séance' },
     { id: 'performances', icon: BarChartIcon, label: 'Records' },
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition' },
     { id: 'ai_coach', icon: BotIcon, label: 'Coach IA' },
     { id: 'history', icon: HistoryIcon, label: 'Archives' },
+    { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', requiredPlan: 'premium' },
+    { id: 'loyalty', icon: GiftIcon, label: 'Fidélité', requiredPlan: 'premium' },
     { id: 'about', icon: InfoIcon, label: 'Club' },
   ];
 
-  const menuItems = (user.role === 'coach' || user.role === 'owner') ? coachItems : memberItems;
+  const superadminItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium' }[] = [
+    { id: 'admin', icon: ShieldIcon, label: 'Admin' }
+  ];
+
+  const hasRequiredPlan = (requiredPlan?: 'basic' | 'classic' | 'premium') => {
+    if (!requiredPlan || requiredPlan === 'basic') return true;
+    const currentPlan = club?.plan || 'basic';
+    if (currentPlan === 'premium') return true;
+    if (currentPlan === 'classic' && requiredPlan === 'classic') return true;
+    return false;
+  };
+
+  const menuItems = user.role === 'superadmin' 
+    ? superadminItems 
+    : (user.role === 'coach' || user.role === 'owner') 
+      ? coachItems 
+      : memberItems.filter(item => hasRequiredPlan(item.requiredPlan));
+
   const [showTimer, setShowTimer] = React.useState(false);
+  const [showMobileMenu, setShowMobileMenu] = React.useState(false);
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-transparent">
@@ -88,7 +109,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
                 <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} className={`${activePage === item.id ? '' : 'group-hover:scale-110 transition-transform duration-300'}`} />
                 <span className="text-xs font-bold uppercase tracking-[2px]">{item.label}</span>
               </div>
-              {item.isPremium && (
+              {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' && (
                 <LockIcon size={14} className="opacity-50 group-hover:opacity-100 transition-opacity" />
               )}
             </button>
@@ -139,20 +160,84 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
           {menuItems.slice(0, 4).map(item => (
             <button 
               key={item.id}
-              onClick={() => onPageChange(item.id as Page)}
+              onClick={() => {
+                onPageChange(item.id as Page);
+                setShowMobileMenu(false);
+              }}
               className={`flex flex-col items-center gap-1.5 transition-all duration-300 relative py-2 ${activePage === item.id ? 'text-velatra-accent scale-110 drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'text-velatra-textMuted hover:text-white'}`}
             >
               <item.icon size={22} strokeWidth={activePage === item.id ? 2.5 : 2} />
             </button>
           ))}
           <button 
-            onClick={() => setShowTimer(!showTimer)}
-            className={`flex flex-col items-center gap-1.5 transition-all duration-300 relative py-2 ${showTimer ? 'text-velatra-accent scale-110 drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'text-velatra-textMuted hover:text-white'}`}
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className={`flex flex-col items-center gap-1.5 transition-all duration-300 relative py-2 ${showMobileMenu ? 'text-velatra-accent scale-110 drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'text-velatra-textMuted hover:text-white'}`}
           >
-            <TimerIcon size={22} />
+            <MenuIcon size={22} />
           </button>
-          <button onClick={onLogout} className="text-velatra-textMuted hover:text-red-400 transition-colors p-2"><LogOutIcon size={22}/></button>
         </nav>
+
+        {/* Mobile Menu Drawer */}
+        {showMobileMenu && (
+          <div 
+            className="md:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-40 animate-in fade-in duration-300"
+            onClick={() => setShowMobileMenu(false)}
+          >
+            <div 
+              className="absolute bottom-28 left-4 right-4 bg-velatra-bgCard border border-white/10 rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10 duration-300 max-h-[60vh] overflow-y-auto no-scrollbar"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="grid grid-cols-4 gap-y-6 gap-x-4">
+                {menuItems.slice(4).map(item => (
+                  <button 
+                    key={item.id}
+                    onClick={() => {
+                      onPageChange(item.id as Page);
+                      setShowMobileMenu(false);
+                    }}
+                    className={`flex flex-col items-center gap-2 transition-all duration-300 ${activePage === item.id ? 'text-velatra-accent' : 'text-velatra-textMuted hover:text-white'}`}
+                  >
+                    <div className={`p-3 rounded-2xl relative ${activePage === item.id ? 'bg-velatra-accent/20' : 'bg-white/5'}`}>
+                      <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} />
+                      {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' && (
+                        <div className="absolute -top-1 -right-1 bg-velatra-bgCard rounded-full p-0.5 border border-white/10">
+                          <LockIcon size={10} className="text-white/50" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-center">{item.label}</span>
+                  </button>
+                ))}
+                
+                <button 
+                  onClick={() => {
+                    setShowTimer(!showTimer);
+                    setShowMobileMenu(false);
+                  }}
+                  className={`flex flex-col items-center gap-2 transition-all duration-300 ${showTimer ? 'text-velatra-accent' : 'text-velatra-textMuted hover:text-white'}`}
+                >
+                  <div className={`p-3 rounded-2xl ${showTimer ? 'bg-velatra-accent/20' : 'bg-white/5'}`}>
+                    <TimerIcon size={20} />
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-center">Timer</span>
+                </button>
+
+                <button 
+                  onClick={() => {
+                    onLogout();
+                    setShowMobileMenu(false);
+                  }}
+                  className="flex flex-col items-center gap-2 transition-all duration-300 text-velatra-textMuted hover:text-red-400"
+                >
+                  <div className="p-3 rounded-2xl bg-white/5 hover:bg-red-500/20">
+                    <LogOutIcon size={20} />
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-center">Quitter</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

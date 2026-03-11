@@ -33,7 +33,6 @@ import { SettingsPage } from './pages/SettingsPage';
 import { StatsPage } from './pages/StatsPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { TrophyPage } from './pages/TrophyPage';
-import { MemberLoyaltyPage } from './pages/MemberLoyaltyPage';
 import { HistoryPage } from './pages/HistoryPage';
 import { AICoachPage } from './pages/AICoachPage';
 import { ProspectFlowPage } from './pages/ProspectFlowPage';
@@ -43,6 +42,11 @@ import { PlanningPage } from './pages/PlanningPage';
 import { NutritionPage } from './pages/NutritionPage';
 import { MemberNutritionPage } from './pages/MemberNutritionPage';
 import { MarketingPage } from './pages/MarketingPage';
+import { AdminDashboard } from './pages/AdminDashboard';
+import { SupplementsPage } from './pages/SupplementsPage';
+import { LoyaltyPage } from './pages/LoyaltyPage';
+import { MemberSupplementsPage } from './pages/MemberSupplementsPage';
+import { MemberLoyaltyPage } from './pages/MemberLoyaltyPage';
 import { PremiumCTA } from './components/PremiumCTA';
 
 const INITIAL_STATE: AppState = {
@@ -103,6 +107,13 @@ export default function App() {
         unsubUserDoc = onSnapshot(userDocRef, async (userDoc) => {
           if (userDoc.exists()) {
             const userData = userDoc.data() as User;
+            
+            // Auto-assign superadmin role to the developer email
+            if (firebaseUser.email === 'victor.defreitas.pro@gmail.com' && userData.role !== 'superadmin') {
+              await updateDoc(userDocRef, { role: 'superadmin' });
+              userData.role = 'superadmin';
+            }
+            
             setState(prev => ({ ...prev, user: { ...userData, firebaseUid: firebaseUser.uid } }));
             
             // Fetch Club Data
@@ -383,7 +394,31 @@ export default function App() {
 
     const { page } = state;
 
-    if (user.role === 'coach' || user.role === 'owner') {
+    if (user.role === 'superadmin' || user.role === 'coach' || user.role === 'owner') {
+      if (user.role !== 'superadmin' && state.currentClub?.isActive === false) {
+        return (
+          <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center">
+            <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-500">
+                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-4">Compte Suspendu</h1>
+            <p className="text-white/60 max-w-md mb-8">
+              Votre accès a été suspendu. Veuillez contacter l'administrateur pour régulariser votre situation.
+            </p>
+          </div>
+        );
+      }
+
+      if (user.role === 'superadmin') {
+        return <AdminDashboard showToast={showToast} />;
+      }
+
+      const currentPlan = state.currentClub?.plan || 'basic';
+      const isClassic = currentPlan === 'classic' || currentPlan === 'premium';
+      const isPremium = currentPlan === 'premium';
+
       switch (page) {
         case 'home': return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
         case 'users': return <MembersPage state={state} setState={setState} showToast={showToast} />;
@@ -392,13 +427,14 @@ export default function App() {
         case 'history': return <HistoryPage state={state} setState={setState} />;
         case 'about': return <AboutPage state={state} setState={setState} />;
         case 'settings': return <SettingsPage state={state} setState={setState} showToast={showToast} />;
-        case 'crm_pipeline': return <PremiumCTA title="ProspectFlow" description="Gérez vos prospects, suivez vos leads et convertissez plus de clients avec notre outil CRM intégré." features={["Pipeline de vente visuel", "Suivi des contacts et relances", "Statistiques de conversion", "Gestion des rendez-vous"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
-        case 'crm_tasks': return <PremiumCTA title="Tâches" description="Organisez vos journées et ne manquez aucune relance avec le gestionnaire de tâches." features={["To-do list intelligente", "Rappels automatiques", "Liaison avec les prospects"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
-        case 'crm_finances': return <PremiumCTA title="Finances" description="Suivez vos revenus, gérez vos abonnements et analysez votre rentabilité en temps réel." features={["Tableau de bord financier", "Gestion des abonnements", "Suivi des paiements", "Export comptable"]} paymentLink="https://payments-eu1.hubspot.com/payments/mytHZNdzzZxT4?referrer=PAYMENT_LINK" />;
-        case 'loyalty': return <PremiumCTA title="Boutique" description="Créez votre propre boutique de compléments et fidélisez vos membres." features={["Catalogue de produits", "Gestion des commandes", "Programme de fidélité", "Paiement en ligne"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
-        case 'calendar': return <PremiumCTA title="Planning" description="Gérez votre emploi du temps, vos séances de coaching et vos disponibilités." features={["Calendrier interactif", "Réservation en ligne", "Synchronisation Google Calendar", "Rappels SMS/Email"]} paymentLink="https://payments-eu1.hubspot.com/payments/mytHZNdzzZxT4?referrer=PAYMENT_LINK" />;
+        case 'crm_pipeline': return isPremium ? <ProspectFlowPage state={state} setState={setState} /> : <PremiumCTA title="ProspectFlow" description="Gérez vos prospects, suivez vos leads et convertissez plus de clients avec notre outil CRM intégré." features={["Pipeline de vente visuel", "Suivi des contacts et relances", "Statistiques de conversion", "Gestion des rendez-vous"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
+        case 'crm_tasks': return isPremium ? <TasksPage state={state} /> : <PremiumCTA title="Tâches" description="Organisez vos journées et ne manquez aucune relance avec le gestionnaire de tâches." features={["To-do list intelligente", "Rappels automatiques", "Liaison avec les prospects"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
+        case 'crm_finances': return isClassic ? <FinancesPage state={state} /> : <PremiumCTA title="Finances" description="Suivez vos revenus, gérez vos abonnements et analysez votre rentabilité en temps réel." features={["Tableau de bord financier", "Gestion des abonnements", "Suivi des paiements", "Export comptable"]} paymentLink="https://payments-eu1.hubspot.com/payments/mytHZNdzzZxT4?referrer=PAYMENT_LINK" />;
+        case 'calendar': return isClassic ? <PlanningPage state={state} setState={setState} /> : <PremiumCTA title="Planning" description="Gérez votre emploi du temps, vos séances de coaching et vos disponibilités." features={["Calendrier interactif", "Réservation en ligne", "Synchronisation Google Calendar", "Rappels SMS/Email"]} paymentLink="https://payments-eu1.hubspot.com/payments/mytHZNdzzZxT4?referrer=PAYMENT_LINK" />;
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;
-        case 'marketing': return <PremiumCTA title="Marketing" description="Développez votre activité avec nos outils marketing intégrés." features={["Campagnes d'emailing", "Création de newsletters", "Automatisation marketing", "Analyse des performances"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
+        case 'marketing': return isPremium ? <MarketingPage state={state} setState={setState} /> : <PremiumCTA title="Marketing" description="Développez votre activité avec nos outils marketing intégrés." features={["Campagnes d'emailing", "Création de newsletters", "Automatisation marketing", "Analyse des performances"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
+        case 'supplements': return isPremium ? <SupplementsPage state={state} setState={setState} showToast={showToast} /> : <PremiumCTA title="Boutique" description="Vendez vos compléments alimentaires et équipements directement depuis l'application." features={["Catalogue de produits", "Paiement en ligne", "Gestion des stocks", "Suivi des commandes"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
+        case 'loyalty': return isPremium ? <LoyaltyPage state={state} setState={setState} showToast={showToast} /> : <PremiumCTA title="Fidélité" description="Récompensez vos membres et augmentez leur engagement avec un programme de fidélité sur mesure." features={["Système de points", "Récompenses personnalisées", "Défis et badges", "Classement des membres"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
         default: return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
       }
     }
@@ -407,11 +443,13 @@ export default function App() {
       case 'home': return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
       case 'calendar': return <CalendarPage state={state} setState={setState} />;
       case 'performances': return <StatsPage state={state} setState={setState} />;
-      case 'nutrition': return <MemberNutritionPage state={state} />;
+      case 'nutrition': return <MemberNutritionPage state={state} showToast={showToast} />;
       case 'ai_coach': return <AICoachPage state={state} />;
       case 'history': return <HistoryPage state={state} setState={setState} />;
       case 'about': return <AboutPage state={state} setState={setState} />;
       case 'messages': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
+      case 'supplements': return isPremium ? <MemberSupplementsPage state={state} showToast={showToast} /> : <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
+      case 'loyalty': return isPremium ? <MemberLoyaltyPage state={state} /> : <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
       default: return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
     }
   };
