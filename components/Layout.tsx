@@ -18,15 +18,15 @@ interface LayoutProps {
 
 const AppLogo: React.FC<{ club: Club | null }> = ({ club }) => (
   <div className="flex flex-col">
-    <div className="flex items-center gap-2">
-      <div className="w-8 h-8 bg-velatra-accent rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.4)]">
-        <span className="font-black text-white text-xl tracking-tighter">V</span>
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-lg shadow-[0_0_15px_rgba(99,102,241,0.4)] overflow-hidden flex items-center justify-center shrink-0">
+        <img src="https://i.postimg.cc/DZTCpHnf/Design-sans-titre.png" alt="Velatra Logo" className="w-full h-full object-cover scale-[1.8] invert mix-blend-screen" />
       </div>
       <div className="font-display font-bold text-3xl tracking-tight leading-none text-white">
         VELA<span className="text-velatra-accent">TRA</span>
       </div>
     </div>
-    <div className="text-[8px] tracking-[2px] text-velatra-textMuted font-bold uppercase mt-1 pl-10 opacity-80">
+    <div className="text-[8px] tracking-[2px] text-velatra-textMuted font-bold uppercase mt-1 pl-12 opacity-80">
       APPLICATION SUR MESURE
     </div>
     {club && (
