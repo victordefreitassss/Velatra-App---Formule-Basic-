@@ -77,7 +77,7 @@ export const MemberSupplementsPage: React.FC<{ state: AppState, showToast: any }
                   <div>
                     <div className="flex justify-between items-start mb-2">
                       <Badge variant="blue">{product.cat}</Badge>
-                      {product.stock <= 0 && <Badge variant="red">Rupture</Badge>}
+                      {product.stock <= 0 && <Badge variant="orange">Rupture</Badge>}
                     </div>
                     <h3 className="text-lg font-bold text-white mb-1">{product.nom}</h3>
                     <div className="text-2xl font-black text-velatra-accent mb-4">{product.prixVente} €</div>
@@ -89,14 +89,14 @@ export const MemberSupplementsPage: React.FC<{ state: AppState, showToast: any }
                           <MinusIcon size={16} />
                         </button>
                         <span className="font-bold text-white w-4 text-center">{inCart}</span>
-                        <button onClick={() => addToCart(product.id)} disabled={product.stock <= inCart} className="w-8 h-8 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50">
+                        <button onClick={() => addToCart(product)} disabled={product.stock <= inCart} className="w-8 h-8 flex items-center justify-center text-white hover:bg-white/10 rounded-lg transition-colors disabled:opacity-50">
                           <PlusIcon size={16} />
                         </button>
                       </div>
                     ) : (
                       <Button 
                         variant="primary" 
-                        onClick={() => addToCart(product.id)} 
+                        onClick={() => addToCart(product)} 
                         disabled={product.stock <= 0}
                         className="w-full"
                       >

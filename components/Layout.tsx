@@ -83,7 +83,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     ? superadminItems 
     : (user.role === 'coach' || user.role === 'owner') 
       ? coachItems 
-      : memberItems.filter(item => hasRequiredPlan(item.requiredPlan));
+      : memberItems;
 
   const [showTimer, setShowTimer] = React.useState(false);
   const [showMobileMenu, setShowMobileMenu] = React.useState(false);

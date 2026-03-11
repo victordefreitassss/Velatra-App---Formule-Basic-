@@ -170,7 +170,7 @@ export const SupplementsPage: React.FC<{ state: AppState, setState: any, showToa
                     <div>
                       <div className="flex items-center gap-3 mb-2">
                         <span className="text-white font-bold">{member?.name || 'Membre inconnu'}</span>
-                        <Badge variant={order.status === 'completed' ? 'green' : order.status === 'cancelled' ? 'red' : 'orange'}>
+                        <Badge variant={order.status === 'completed' ? 'success' : order.status === 'cancelled' ? 'dark' : 'orange'}>
                           {order.status === 'completed' ? 'Terminée' : order.status === 'cancelled' ? 'Annulée' : 'En attente'}
                         </Badge>
                       </div>
