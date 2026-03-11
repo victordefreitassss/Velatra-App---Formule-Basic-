@@ -48,6 +48,7 @@ import { LoyaltyPage } from './pages/LoyaltyPage';
 import { MemberSupplementsPage } from './pages/MemberSupplementsPage';
 import { MemberLoyaltyPage } from './pages/MemberLoyaltyPage';
 import { PremiumCTA } from './components/PremiumCTA';
+import { FeatureLockedMessage } from './components/FeatureLockedMessage';
 
 const INITIAL_STATE: AppState = {
   user: null,
@@ -393,6 +394,9 @@ export default function App() {
     }
 
     const { page } = state;
+    const currentPlan = state.currentClub?.plan || 'basic';
+    const isClassic = currentPlan === 'classic' || currentPlan === 'premium';
+    const isPremium = currentPlan === 'premium';
 
     if (user.role === 'superadmin' || user.role === 'coach' || user.role === 'owner') {
       if (user.role !== 'superadmin' && state.currentClub?.isActive === false) {
@@ -414,10 +418,6 @@ export default function App() {
       if (user.role === 'superadmin') {
         return <AdminDashboard showToast={showToast} />;
       }
-
-      const currentPlan = state.currentClub?.plan || 'basic';
-      const isClassic = currentPlan === 'classic' || currentPlan === 'premium';
-      const isPremium = currentPlan === 'premium';
 
       switch (page) {
         case 'home': return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
@@ -448,8 +448,8 @@ export default function App() {
       case 'history': return <HistoryPage state={state} setState={setState} />;
       case 'about': return <AboutPage state={state} setState={setState} />;
       case 'messages': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
-      case 'supplements': return isPremium ? <MemberSupplementsPage state={state} showToast={showToast} /> : <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
-      case 'loyalty': return isPremium ? <MemberLoyaltyPage state={state} /> : <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
+      case 'supplements': return isPremium ? <MemberSupplementsPage state={state} showToast={showToast} /> : <FeatureLockedMessage title="Boutique" />;
+      case 'loyalty': return isPremium ? <MemberLoyaltyPage state={state} /> : <FeatureLockedMessage title="Fidélité" />;
       default: return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
     }
   };
