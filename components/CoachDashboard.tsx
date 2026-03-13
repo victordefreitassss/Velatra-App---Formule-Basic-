@@ -106,8 +106,8 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-white">Management <span className="text-velatra-accent">VELATRA</span></h1>
-          <p className="text-velatra-textDark text-[10px] uppercase tracking-[3px] font-bold">Performance & Suivi Coach</p>
+          <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Management <span className="text-velatra-accent">VELATRA</span></h1>
+          <p className="text-zinc-900 text-[10px] uppercase tracking-[3px] font-bold">Performance & Suivi Coach</p>
         </div>
         <div className="flex gap-3">
           <Button variant="secondary" onClick={onToggleTimer} className="flex-1 sm:flex-none !rounded-2xl !py-3 shadow-xl shadow-white/5">
@@ -128,25 +128,25 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
 
           <section className="space-y-4">
              <div className="flex justify-between items-center px-1">
-                <h2 className="text-xl font-black uppercase tracking-tight text-white italic">Flux d'activité</h2>
+                <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Flux d'activité</h2>
                 <Badge variant="blue">RÉCENT</Badge>
              </div>
-             <div className="space-y-3">
-                {state.feed.filter(f => f.clubId === state.user?.clubId).slice(0, 5).map((item) => (
-                  <Card key={item.id} className="!p-4 bg-white/[0.02] border-white/5 flex items-center gap-4 group hover:border-velatra-accent/30 transition-all">
+             <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                {state.feed.filter(f => f.clubId === state.user?.clubId).map((item) => (
+                  <Card key={item.id} className="!p-4 bg-zinc-50 border-zinc-200 flex items-center gap-4 group hover:border-velatra-accent/30 transition-all">
                     <div className="p-2 bg-velatra-accent/10 rounded-xl text-velatra-accent">
                        {item.title.includes("Feedback") ? <MessageCircleIcon size={20}/> : <SparklesIcon size={20}/>}
                     </div>
                     <div className="flex-1">
-                       <div className="text-xs font-bold text-white">{item.title}</div>
-                       <div className="text-[9px] text-velatra-textDark font-black uppercase tracking-widest mt-1">
+                       <div className="text-xs font-bold text-zinc-900">{item.title}</div>
+                       <div className="text-[9px] text-zinc-900 font-black uppercase tracking-widest mt-1">
                           {new Date(item.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} • {item.userName}
                        </div>
                     </div>
                   </Card>
                 ))}
                 {state.feed.length === 0 && (
-                  <p className="text-center py-8 text-velatra-textDark italic text-xs uppercase tracking-widest opacity-30">Aucune activité récente</p>
+                  <p className="text-center py-8 text-zinc-900 italic text-xs uppercase tracking-widest opacity-30">Aucune activité récente</p>
                 )}
              </div>
           </section>
@@ -154,33 +154,33 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
 
         {/* Right Column: Inactivity Alert */}
         <div className="lg:col-span-4 space-y-4">
-           <h2 className="text-xl font-black uppercase tracking-tight text-white px-1 italic">Alertes Inactivité</h2>
+           <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 px-1 italic">Alertes Inactivité</h2>
            <div className="space-y-3">
               {membersAtRisk.map(m => (
                 <Card key={m.id} className="!p-4 border-red-500/20 bg-red-500/5 flex items-center justify-between">
                    <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 font-black">{m.avatar}</div>
                       <div>
-                         <div className="text-xs font-black text-white">{m.name}</div>
+                         <div className="text-xs font-black text-zinc-900">{m.name}</div>
                          <div className="text-[9px] font-bold text-red-500 uppercase">Inactif depuis 7j+</div>
                       </div>
                    </div>
-                   <button onClick={() => handleLaunchCoaching(m)} className="p-2 text-velatra-textDark hover:text-white"><PlayIcon size={18}/></button>
+                   <button onClick={() => handleLaunchCoaching(m)} className="p-2 text-zinc-500 hover:text-zinc-900"><PlayIcon size={18}/></button>
                 </Card>
               ))}
-              {membersAtRisk.length === 0 && <p className="text-xs text-velatra-textDark italic p-4 text-center">Tout le monde est actif 🔥</p>}
+              {membersAtRisk.length === 0 && <p className="text-xs text-zinc-900 italic p-4 text-center">Tout le monde est actif 🔥</p>}
            </div>
         </div>
       </div>
 
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-2xl font-black uppercase tracking-tight text-white italic">Fiches Adhérents</h2>
+          <h2 className="text-2xl font-black uppercase tracking-tight text-zinc-900 italic">Fiches Adhérents</h2>
           <div className="relative w-full sm:w-64">
-            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-velatra-textDark" size={16} />
+            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-900" size={16} />
             <Input 
               placeholder="Chercher..." 
-              className="pl-12 !py-3 !text-sm !rounded-2xl bg-white/5" 
+              className="pl-12 !py-3 !text-sm !rounded-2xl bg-zinc-50" 
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
@@ -195,10 +195,10 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
             const progCompletion = program ? Math.round(((program.currentDayIndex + 1) / (progDays || 1)) * 100) : 0;
             
             return (
-              <Card key={member.id} className={`flex flex-col gap-5 border border-white/5 hover:border-velatra-accent/30 !p-6 bg-[#0a0a0a] ${hasFeedback ? 'ring-1 ring-orange-500/50' : ''}`}>
+              <Card key={member.id} className={`flex flex-col gap-5 border border-zinc-200 hover:border-velatra-accent/30 !p-6 bg-white ${hasFeedback ? 'ring-1 ring-orange-500/50' : ''}`}>
                 <div className="flex items-center gap-4">
                   <div className="relative">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-black border border-white/10 flex items-center justify-center font-black text-xl text-velatra-accent shadow-inner">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-zinc-100 border border-zinc-200 flex items-center justify-center font-black text-xl text-velatra-accent shadow-inner">
                       {member.avatar}
                     </div>
                     {member.planRequested && (
@@ -206,9 +206,9 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-black truncate text-base text-white">{member.name}</div>
+                    <div className="font-black truncate text-base text-zinc-900">{member.name}</div>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="text-[10px] text-velatra-textDark uppercase font-black tracking-widest">
+                      <div className="text-[10px] text-zinc-900 uppercase font-black tracking-widest">
                         {member.lastWorkoutDate ? `Dernière séance: ${new Date(member.lastWorkoutDate).toLocaleDateString()}` : "Aucune séance"}
                       </div>
                     </div>
@@ -217,20 +217,20 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
 
                 {program && (
                   <div className="space-y-2">
-                    <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-velatra-textDark">
+                    <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-zinc-900">
                       <span>Progression Plan</span>
-                      <span className="text-white">{progCompletion}%</span>
+                      <span className="text-zinc-900">{progCompletion}%</span>
                     </div>
-                    <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-zinc-50 rounded-full overflow-hidden">
                       <div className="h-full bg-velatra-accent transition-all duration-500" style={{ width: `${progCompletion}%` }} />
                     </div>
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-2 text-[9px] font-bold text-velatra-textDark uppercase tracking-widest bg-white/5 p-3 rounded-xl border border-white/5">
-                  <div>Âge: <span className="text-white">{member.age}</span></div>
-                  <div>Poids: <span className="text-white">{member.weight}kg</span></div>
-                  <div className="col-span-2 mt-1 truncate">But: <span className="text-white">{member.objectifs.join(', ')}</span></div>
+                <div className="grid grid-cols-2 gap-2 text-[9px] font-bold text-zinc-900 uppercase tracking-widest bg-zinc-50 p-3 rounded-xl border border-zinc-200">
+                  <div>Âge: <span className="text-zinc-900">{member.age}</span></div>
+                  <div>Poids: <span className="text-zinc-900">{member.weight}kg</span></div>
+                  <div className="col-span-2 mt-1 truncate">But: <span className="text-zinc-900">{(member.objectifs || []).join(', ')}</span></div>
                 </div>
 
                 <div className="flex gap-2">
@@ -250,11 +250,11 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                         await deleteDoc(doc(db, "feed", item.id.toString()));
                       }
                     }} 
-                    className={`flex-1 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 italic ${member.planRequested ? 'bg-velatra-accent/20 text-velatra-accent border-velatra-accent/50' : 'bg-white/5 text-white border border-white/10'}`}
+                    className={`flex-1 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-zinc-100 italic ${member.planRequested ? 'bg-velatra-accent/20 text-velatra-accent border-velatra-accent/50' : 'bg-zinc-50 text-zinc-900 border border-zinc-200'}`}
                   >
                     {member.planRequested ? "CRÉER PLAN" : "PLAN"}
                   </button>
-                  <button onClick={() => setState(s => ({ ...s, page: 'users', selectedMember: member }))} className="p-3 rounded-2xl bg-white/5 text-white border border-white/10 hover:bg-white/10">
+                  <button onClick={() => setState(s => ({ ...s, page: 'users', selectedMember: member }))} className="p-3 rounded-2xl bg-zinc-50 text-zinc-900 border border-zinc-200 hover:bg-zinc-100">
                     <SearchIcon size={14} />
                   </button>
                 </div>

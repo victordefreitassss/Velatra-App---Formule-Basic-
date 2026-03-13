@@ -112,14 +112,14 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
       <div className="space-y-8 page-transition pb-20">
         <div className="flex items-center gap-4 px-1">
           <div>
-            <h1 className="text-3xl font-display font-bold tracking-tight text-white leading-none">Nutrition</h1>
+            <h1 className="text-3xl font-display font-bold tracking-tight text-zinc-900 leading-none">Nutrition</h1>
             <p className="text-[10px] text-velatra-accent font-bold uppercase tracking-[3px] mt-2">Mon Plan Alimentaire</p>
           </div>
         </div>
-        <Card className="p-12 text-center bg-white/[0.02] border-white/5">
-          <AppleIcon size={48} className="mx-auto text-velatra-textMuted mb-4 opacity-50" />
-          <h3 className="text-xl font-bold text-white mb-2">Aucun plan nutritionnel</h3>
-          <p className="text-velatra-textMuted text-sm max-w-md mx-auto">
+        <Card className="p-12 text-center bg-zinc-50 border-zinc-200">
+          <AppleIcon size={48} className="mx-auto text-zinc-500 mb-4 opacity-50" />
+          <h3 className="text-xl font-bold text-zinc-900 mb-2">Aucun plan nutritionnel</h3>
+          <p className="text-zinc-500 text-sm max-w-md mx-auto">
             Votre coach n'a pas encore défini de plan alimentaire pour vous. N'hésitez pas à lui en parler lors de votre prochaine séance.
           </p>
         </Card>
@@ -131,7 +131,7 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
     <div className="space-y-8 page-transition pb-20">
       <div className="flex items-center gap-4 px-1">
         <div>
-          <h1 className="text-3xl font-display font-bold tracking-tight text-white leading-none">Nutrition</h1>
+          <h1 className="text-3xl font-display font-bold tracking-tight text-zinc-900 leading-none">Nutrition</h1>
           <p className="text-[10px] text-velatra-accent font-bold uppercase tracking-[3px] mt-2">Mon Plan Alimentaire</p>
         </div>
       </div>
@@ -139,19 +139,19 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Metrics & Calculations */}
         <div className="space-y-6">
-          <Card className="p-6 bg-gradient-to-br from-velatra-accent/20 to-black border-velatra-accent/30 space-y-6">
+          <Card className="p-6 bg-gradient-to-br from-velatra-accent/20 to-zinc-100 border-velatra-accent/30 space-y-6">
             <h3 className="text-sm font-black uppercase tracking-widest text-velatra-accent flex items-center gap-2">
               <TargetIcon size={16} /> Objectifs Journaliers
             </h3>
 
-            <div className="flex items-end justify-between border-b border-white/10 pb-4">
+            <div className="flex items-end justify-between border-b border-zinc-200 pb-4">
               <div>
-                <div className="text-[10px] uppercase font-bold text-velatra-textMuted mb-1">Calories Cibles</div>
-                <div className="text-4xl font-black text-white tabular-nums leading-none">{plan.targetCalories}</div>
+                <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Calories Cibles</div>
+                <div className="text-4xl font-black text-zinc-900 tabular-nums leading-none">{plan.targetCalories}</div>
               </div>
               <div className="text-right">
-                <div className="text-[10px] uppercase font-bold text-velatra-textMuted mb-1">Maintien (TDEE)</div>
-                <div className="text-xl font-bold text-white/70 tabular-nums">{plan.tdee} kcal</div>
+                <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Maintien (TDEE)</div>
+                <div className="text-xl font-bold text-zinc-600 tabular-nums">{plan.tdee} kcal</div>
               </div>
             </div>
 
@@ -159,9 +159,9 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-bold">
                   <span className="text-blue-400">Protéines</span>
-                  <span className="text-white">{plan.protein}g <span className="text-white/30 text-[10px]">({Math.round((plan.protein * 4 / plan.targetCalories) * 100)}%)</span></span>
+                  <span className="text-zinc-900">{plan.protein}g <span className="text-zinc-900/30 text-[10px]">({Math.round((plan.protein * 4 / plan.targetCalories) * 100)}%)</span></span>
                 </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-2 bg-zinc-50 rounded-full overflow-hidden">
                   <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(plan.protein * 4 / plan.targetCalories) * 100}%` }} />
                 </div>
               </div>
@@ -169,9 +169,9 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-bold">
                   <span className="text-green-400">Glucides</span>
-                  <span className="text-white">{plan.carbs}g <span className="text-white/30 text-[10px]">({Math.round((plan.carbs * 4 / plan.targetCalories) * 100)}%)</span></span>
+                  <span className="text-zinc-900">{plan.carbs}g <span className="text-zinc-900/30 text-[10px]">({Math.round((plan.carbs * 4 / plan.targetCalories) * 100)}%)</span></span>
                 </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-2 bg-zinc-50 rounded-full overflow-hidden">
                   <div className="h-full bg-green-500 rounded-full" style={{ width: `${(plan.carbs * 4 / plan.targetCalories) * 100}%` }} />
                 </div>
               </div>
@@ -179,48 +179,48 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-bold">
                   <span className="text-yellow-400">Lipides</span>
-                  <span className="text-white">{plan.fat}g <span className="text-white/30 text-[10px]">({Math.round((plan.fat * 9 / plan.targetCalories) * 100)}%)</span></span>
+                  <span className="text-zinc-900">{plan.fat}g <span className="text-zinc-900/30 text-[10px]">({Math.round((plan.fat * 9 / plan.targetCalories) * 100)}%)</span></span>
                 </div>
-                <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-2 bg-zinc-50 rounded-full overflow-hidden">
                   <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${(plan.fat * 9 / plan.targetCalories) * 100}%` }} />
                 </div>
               </div>
             </div>
           </Card>
 
-          <Card className="p-6 bg-white/[0.02] border-white/5 space-y-4">
-            <h3 className="text-sm font-black uppercase tracking-widest text-velatra-textDark mb-4 flex items-center gap-2">
+          <Card className="p-6 bg-zinc-50 border-zinc-200 space-y-4">
+            <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 mb-4 flex items-center gap-2">
               <UserIcon size={16} /> Mon Profil
             </h3>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-velatra-textMuted">Poids</label>
-                <div className="text-white font-bold">{plan.weight} kg</div>
+                <label className="text-[10px] uppercase font-bold text-zinc-500">Poids</label>
+                <div className="text-zinc-900 font-bold">{plan.weight} kg</div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-velatra-textMuted">Taille</label>
-                <div className="text-white font-bold">{plan.height} cm</div>
+                <label className="text-[10px] uppercase font-bold text-zinc-500">Taille</label>
+                <div className="text-zinc-900 font-bold">{plan.height} cm</div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-velatra-textMuted">Âge</label>
-                <div className="text-white font-bold">{plan.age} ans</div>
+                <label className="text-[10px] uppercase font-bold text-zinc-500">Âge</label>
+                <div className="text-zinc-900 font-bold">{plan.age} ans</div>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-velatra-textMuted">Sexe</label>
-                <div className="text-white font-bold">{plan.gender === 'M' ? 'Homme' : 'Femme'}</div>
+                <label className="text-[10px] uppercase font-bold text-zinc-500">Sexe</label>
+                <div className="text-zinc-900 font-bold">{plan.gender === 'M' ? 'Homme' : 'Femme'}</div>
               </div>
             </div>
 
             <div className="space-y-1 pt-2">
-              <label className="text-[10px] uppercase font-bold text-velatra-textMuted">Niveau d'activité</label>
-              <div className="text-white font-bold">{plan.activityLevel}</div>
+              <label className="text-[10px] uppercase font-bold text-zinc-500">Niveau d'activité</label>
+              <div className="text-zinc-900 font-bold">{plan.activityLevel}</div>
             </div>
 
             <div className="space-y-1 pt-2">
-              <label className="text-[10px] uppercase font-bold text-velatra-textMuted">Régime Alimentaire</label>
+              <label className="text-[10px] uppercase font-bold text-zinc-500">Régime Alimentaire</label>
               <select 
-                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-velatra-accent"
+                className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent"
                 value={plan.dietPreference || dietPreference}
                 onChange={async (e) => {
                   const newDiet = e.target.value;
@@ -242,7 +242,7 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
         {/* Right Column: Meals */}
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-sm font-black uppercase tracking-widest text-white flex items-center gap-2">
+            <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
               <AppleIcon size={16} className="text-velatra-accent" /> Mes Repas
             </h3>
             {(planMeals.length === 0 || planMeals.every(m => m.calories === 0)) && (
@@ -254,13 +254,13 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
 
           <div className="space-y-4">
             {planMeals.map((meal) => (
-              <Card key={meal.id} className="p-5 bg-white/[0.02] border-white/5">
+              <Card key={meal.id} className="p-5 bg-zinc-50 border-zinc-200">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   <div className="md:col-span-4 space-y-2">
-                    <div className="font-bold text-white text-lg">{meal.name}</div>
+                    <div className="font-bold text-zinc-900 text-lg">{meal.name}</div>
                     {meal.description ? (
                       <div className="space-y-3">
-                        <p className="text-sm text-velatra-textMuted whitespace-pre-wrap">{meal.description}</p>
+                        <p className="text-sm text-zinc-500 whitespace-pre-wrap">{meal.description}</p>
                         <Button 
                           variant="secondary" 
                           className="!py-1.5 !px-3 !text-[10px] flex items-center gap-1"
@@ -293,21 +293,21 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
                   </div>
                   
                   <div className="md:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3 content-start">
-                    <div className="space-y-1 bg-black/40 rounded-xl p-3 text-center">
-                      <label className="text-[9px] uppercase font-bold text-velatra-textMuted block">Calories</label>
-                      <span className="font-bold text-white">{meal.calories}</span>
+                    <div className="space-y-1 bg-zinc-50 rounded-xl p-3 text-center">
+                      <label className="text-[9px] uppercase font-bold text-zinc-500 block">Calories</label>
+                      <span className="font-bold text-zinc-900">{meal.calories}</span>
                     </div>
-                    <div className="space-y-1 bg-black/40 rounded-xl p-3 text-center">
+                    <div className="space-y-1 bg-zinc-50 rounded-xl p-3 text-center">
                       <label className="text-[9px] uppercase font-bold text-blue-400 block">Protéines</label>
-                      <span className="font-bold text-white">{meal.protein}g</span>
+                      <span className="font-bold text-zinc-900">{meal.protein}g</span>
                     </div>
-                    <div className="space-y-1 bg-black/40 rounded-xl p-3 text-center">
+                    <div className="space-y-1 bg-zinc-50 rounded-xl p-3 text-center">
                       <label className="text-[9px] uppercase font-bold text-green-400 block">Glucides</label>
-                      <span className="font-bold text-white">{meal.carbs}g</span>
+                      <span className="font-bold text-zinc-900">{meal.carbs}g</span>
                     </div>
-                    <div className="space-y-1 bg-black/40 rounded-xl p-3 text-center">
+                    <div className="space-y-1 bg-zinc-50 rounded-xl p-3 text-center">
                       <label className="text-[9px] uppercase font-bold text-yellow-400 block">Lipides</label>
-                      <span className="font-bold text-white">{meal.fat}g</span>
+                      <span className="font-bold text-zinc-900">{meal.fat}g</span>
                     </div>
                   </div>
                 </div>
@@ -315,19 +315,19 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
             ))}
             
             {planMeals.length === 0 && (
-              <div className="text-center py-12 border border-dashed border-white/10 rounded-2xl">
-                <p className="text-velatra-textMuted text-sm">Aucun repas défini dans ce plan.</p>
+              <div className="text-center py-12 border border-dashed border-zinc-200 rounded-2xl">
+                <p className="text-zinc-500 text-sm">Aucun repas défini dans ce plan.</p>
               </div>
             )}
           </div>
           
           {/* Meal Totals vs Target */}
           {planMeals.length > 0 && (
-            <Card className="p-4 bg-black border-white/10">
+            <Card className="p-4 bg-white border-zinc-200">
               <div className="flex flex-wrap items-center justify-between gap-4 text-xs font-bold">
-                <div className="text-velatra-textMuted uppercase tracking-widest">Total Repas</div>
+                <div className="text-zinc-500 uppercase tracking-widest">Total Repas</div>
                 <div className="flex gap-6">
-                  <div className={`${planMeals.reduce((sum, m) => sum + m.calories, 0) > plan.targetCalories ? 'text-red-400' : 'text-white'}`}>
+                  <div className={`${planMeals.reduce((sum, m) => sum + m.calories, 0) > plan.targetCalories ? 'text-red-400' : 'text-zinc-900'}`}>
                     {planMeals.reduce((sum, m) => sum + m.calories, 0)} / {plan.targetCalories} kcal
                   </div>
                   <div className="text-blue-400">{planMeals.reduce((sum, m) => sum + m.protein, 0)}g P</div>
@@ -336,6 +336,25 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
                 </div>
               </div>
             </Card>
+          )}
+
+          {/* Shopping List */}
+          {plan.liste_courses && plan.liste_courses.length > 0 && (
+            <div className="mt-8 space-y-4">
+              <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
+                <SparklesIcon size={16} className="text-velatra-accent" /> Liste de Courses
+              </h3>
+              <Card className="p-6 bg-zinc-50 border-zinc-200">
+                <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {plan.liste_courses.map((item, idx) => (
+                    <li key={idx} className="flex items-center gap-3 text-sm text-zinc-500">
+                      <div className="w-1.5 h-1.5 rounded-full bg-velatra-accent" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
           )}
         </div>
       </div>

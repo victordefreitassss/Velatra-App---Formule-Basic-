@@ -5,8 +5,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Velatra</title>
-    <link rel="icon" type="image/png" href="https://i.postimg.cc/DZTCpHnf/Design-sans-titre.png" />
-    <link rel="apple-touch-icon" href="https://i.postimg.cc/DZTCpHnf/Design-sans-titre.png" />
+    <link rel="icon" type="image/png" href="https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png" />
+    <link rel="apple-touch-icon" href="https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="apple-mobile-web-app-title" content="Velatra">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -15,17 +15,18 @@
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
       
       :root {
-        --velatra-red: #6366f1;
-        --velatra-red-dark: #4338ca;
+        --velatra-red: #10b981;
+        --velatra-red-dark: #059669;
       }
 
       body {
-        background-color: #050505;
-        background-image: 
-          radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
-          radial-gradient(circle at 85% 30%, rgba(67, 56, 202, 0.08) 0%, transparent 50%);
-        color: #ffffff;
+        background-color: #ffffff;
+        color: #18181b;
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        font-size: 13px;
+        letter-spacing: 0.03em;
+        line-height: 1.6;
+        font-weight: 400;
         margin: 0;
         -webkit-tap-highlight-color: transparent;
         overflow-x: hidden;
@@ -37,22 +38,22 @@
       }
 
       .premium-gradient {
-        background: linear-gradient(135deg, #0a0a0a 0%, #111111 100%);
+        background: linear-gradient(135deg, #f4f4f5 0%, #ffffff 100%);
       }
 
       .glass {
-        background: rgba(15, 15, 15, 0.7);
+        background: rgba(255, 255, 255, 0.7);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.05);
       }
 
       .glass-card {
-        background: linear-gradient(180deg, rgba(20, 20, 20, 0.9) 0%, rgba(15, 15, 15, 0.7) 100%);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(250, 250, 250, 0.7) 100%);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5), 0 0 20px rgba(99, 102, 241, 0.03);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.05), 0 0 20px rgba(16, 185, 129, 0.03);
       }
 
       .font-mono-timer {
@@ -77,11 +78,11 @@
         background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.1);
         border-radius: 10px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.2);
+        background: rgba(0, 0, 0, 0.2);
       }
 
       /* Active scaling for buttons */
@@ -95,21 +96,21 @@
           extend: {
             colors: {
               velatra: {
-                bg: '#050505',
-                bgLight: '#0f0f0f',
-                bgCard: '#121212',
-                border: '#222222',
-                accent: '#6366f1',
-                accentDark: '#4f46e5',
-                textMuted: '#8b8b8b',
-                textDark: '#ffffff',
+                bg: '#ffffff',
+                bgLight: '#fafafa',
+                bgCard: '#ffffff',
+                border: '#e4e4e7',
+                accent: '#10b981',
+                accentDark: '#059669',
+                textMuted: '#71717a',
+                textDark: '#18181b',
                 success: '#10b981',
                 warning: '#f59e0b',
                 blue: '#3b82f6',
                 pink: '#ec4899',
                 purple: '#a855f7',
                 orange: '#f97316',
-                coaching: '#6366f1'
+                coaching: '#10b981'
               }
             }
           }

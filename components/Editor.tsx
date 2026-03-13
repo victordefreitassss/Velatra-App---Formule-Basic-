@@ -122,14 +122,14 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
     <div className="space-y-8 max-w-4xl mx-auto pb-24 px-4 page-transition">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-4">
-          <button onClick={onCancel} className="p-2 text-velatra-textMuted hover:text-white transition-colors">
+          <button onClick={onCancel} className="p-2 text-zinc-500 hover:text-zinc-900 transition-colors">
             <ChevronLeftIcon size={24} />
           </button>
           <div>
-            <h1 className="text-4xl font-display font-bold tracking-tight text-white leading-none">
+            <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">
               {isEditingProgram ? "ADAPTER LE PLAN" : "ÉDITION MODÈLE"}
             </h1>
-            <p className="text-velatra-accent text-[10px] uppercase tracking-[3px] font-bold mt-2">Expert Coaching <span className="text-white">VELATRA</span></p>
+            <p className="text-velatra-accent text-[10px] uppercase tracking-[3px] font-bold mt-2">Expert Coaching <span className="text-zinc-900">VELATRA</span></p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -153,19 +153,19 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                 <button 
                   key={p.id} 
                   onClick={() => handleApplyPreset(p)}
-                  className="p-3 bg-black/40 border border-white/5 rounded-xl text-left hover:border-velatra-accent transition-all"
+                  className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-left hover:border-velatra-accent transition-all"
                 >
-                  <div className="text-xs font-black text-white uppercase">{p.name}</div>
-                  <div className="text-[8px] text-velatra-textDark font-black mt-1 uppercase">{p.nbDays} JOURS</div>
+                  <div className="text-xs font-black text-zinc-900 uppercase">{p.name}</div>
+                  <div className="text-[8px] text-zinc-900 font-black mt-1 uppercase">{p.nbDays} JOURS</div>
                 </button>
               ))}
-              {allPresets.length === 0 && <p className="text-[10px] text-velatra-textDark italic">Aucun modèle disponible.</p>}
+              {allPresets.length === 0 && <p className="text-[10px] text-zinc-900 italic">Aucun modèle disponible.</p>}
            </div>
         </Card>
       )}
 
       {/* Main Info Card */}
-      <Card className="space-y-6 !p-8 bg-white/[0.03] border-white/10 ring-1 ring-white/10">
+      <Card className="space-y-6 !p-8 bg-zinc-50 border-zinc-200 ring-1 ring-zinc-200">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Titre du Programme</label>
@@ -181,7 +181,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
             <select 
               value={formData.durationWeeks || ''} 
               onChange={e => setFormData({...formData, durationWeeks: e.target.value ? parseInt(e.target.value) : null})}
-              className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-white text-sm font-medium focus:outline-none focus:border-velatra-accent focus:ring-1 focus:ring-velatra-accent transition-all"
+              className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-zinc-900 text-sm font-medium focus:outline-none focus:border-velatra-accent focus:ring-1 focus:ring-velatra-accent transition-all"
             >
               <option value="">Pas de délai (Continu)</option>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20, 24].map(w => (
@@ -202,7 +202,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
           ) : (
             <div className="space-y-1">
               <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Objectifs du Modèle</label>
-              <div className="flex flex-wrap gap-2 p-2 bg-black/40 border border-white/5 rounded-2xl min-h-[48px]">
+              <div className="flex flex-wrap gap-2 p-2 bg-zinc-50 border border-zinc-200 rounded-2xl min-h-[48px]">
                 {GOALS.map(g => {
                   const isSelected = formData.objectifs?.includes(g);
                   return (
@@ -216,7 +216,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                           setFormData({ ...formData, objectifs: [...current, g] });
                         }
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${isSelected ? 'bg-velatra-accent border-velatra-accent text-white' : 'bg-white/5 border-white/5 text-velatra-textDark hover:text-white'}`}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${isSelected ? 'bg-velatra-accent border-velatra-accent text-zinc-900' : 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:text-zinc-900'}`}
                     >
                       {g}
                     </button>
@@ -235,8 +235,8 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
              </div>
              <div>
                 <div className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">RETOUR ADHÉRENT (À TRAITER) :</div>
-                <p className="text-base font-black text-white italic leading-tight">"{formData.memberRemarks}"</p>
-                <p className="text-[9px] text-velatra-textDark font-bold uppercase mt-1">Ajustez les intensités ou remplacez les exercices concernés ci-dessous.</p>
+                <p className="text-base font-black text-zinc-900 italic leading-tight">"{formData.memberRemarks}"</p>
+                <p className="text-[9px] text-zinc-900 font-bold uppercase mt-1">Ajustez les intensités ou remplacez les exercices concernés ci-dessous.</p>
              </div>
           </div>
         )}
@@ -264,30 +264,32 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
               className={`
                 px-8 py-4 rounded-[20px] text-xs font-black whitespace-nowrap transition-all border shrink-0
                 ${selectedDayIdx === idx 
-                  ? 'bg-velatra-accent border-velatra-accent text-white shadow-xl shadow-velatra-accent/20 scale-105 italic' 
-                  : 'bg-white/5 border-white/10 text-velatra-textDark hover:border-white/20'}
+                  ? 'bg-velatra-accent border-velatra-accent text-zinc-900 shadow-xl shadow-velatra-accent/20 scale-105 italic' 
+                  : 'bg-zinc-50 border-zinc-200 text-zinc-900 hover:border-zinc-300'}
               `}
             >
-              J{idx + 1} - {day.name.substring(0, 12)}
+              J{idx + 1} - {(day.name || `Jour ${idx + 1}`).substring(0, 12)}
             </button>
           ))}
         </div>
 
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-          <Card className="border-2 border-white/5 !p-8 bg-[#0a0a0a]">
+          <Card className="border-2 border-zinc-200 !p-8 bg-white">
             <div className="flex flex-col gap-8 mb-8">
-              <div className="flex justify-between items-start border-b border-white/5 pb-6">
+              <div className="flex justify-between items-start border-b border-zinc-200 pb-6">
                 <div className="flex-1 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Titre de la séance</label>
                       <Input 
-                        className="!text-xl font-black italic !bg-black"
-                        value={formData.days[selectedDayIdx].name} 
+                        className="!text-xl font-black italic !bg-white"
+                        value={formData.days[selectedDayIdx]?.name || ''} 
                         onChange={e => {
                           const newDays = [...formData.days];
-                          newDays[selectedDayIdx].name = e.target.value;
-                          setFormData({...formData, days: newDays});
+                          if (newDays[selectedDayIdx]) {
+                            newDays[selectedDayIdx].name = e.target.value;
+                            setFormData({...formData, days: newDays});
+                          }
                         }}
                       />
                     </div>
@@ -295,30 +297,18 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                       <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Durée estimée (minutes)</label>
                       <Input 
                         type="number"
-                        className="!text-xl font-black italic !bg-black"
+                        className="!text-xl font-black italic !bg-white"
                         placeholder="Ex: 60"
-                        value={formData.days[selectedDayIdx].duration || ''} 
+                        value={formData.days[selectedDayIdx]?.duration || ''} 
                         onChange={e => {
                           const newDays = [...formData.days];
-                          newDays[selectedDayIdx].duration = e.target.value ? parseInt(e.target.value) : undefined;
-                          setFormData({...formData, days: newDays});
+                          if (newDays[selectedDayIdx]) {
+                            newDays[selectedDayIdx].duration = e.target.value ? parseInt(e.target.value) : undefined;
+                            setFormData({...formData, days: newDays});
+                          }
                         }}
                       />
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/5 w-fit">
-                    <input 
-                      type="checkbox" 
-                      id="isCoaching"
-                      className="w-6 h-6 rounded-lg border-white/10 bg-black text-velatra-accent focus:ring-velatra-accent"
-                      checked={formData.days[selectedDayIdx].isCoaching}
-                      onChange={e => {
-                        const newDays = [...formData.days];
-                        newDays[selectedDayIdx].isCoaching = e.target.checked;
-                        setFormData({...formData, days: newDays});
-                      }}
-                    />
-                    <label htmlFor="isCoaching" className="text-[10px] font-black cursor-pointer uppercase tracking-widest">SÉANCE EN COACHING PRÉSENTIEL</label>
                   </div>
                 </div>
                 <button 
@@ -332,17 +322,18 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
 
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-[3px] text-velatra-textDark">PROGRAMMATION ({formData.days[selectedDayIdx].exercises.length} MOUVEMENTS)</span>
+                  <span className="text-[10px] font-black uppercase tracking-[3px] text-zinc-900">PROGRAMMATION ({formData.days[selectedDayIdx]?.exercises?.length || 0} MOUVEMENTS)</span>
                 </div>
                 
-                {formData.days[selectedDayIdx].exercises.map((ex: ExerciseEntry, exIdx: number) => {
+                {(formData.days[selectedDayIdx]?.exercises || []).map((ex: ExerciseEntry, exIdx: number) => {
+                  if (!ex) return null;
                   const baseEx = exercises.find(e => e.id === ex.exId);
                   
                   return (
-                    <div key={exIdx} className="bg-black p-6 rounded-3xl border border-white/10 relative group hover:border-velatra-accent/40 transition-all shadow-inner">
+                    <div key={exIdx} className="bg-white p-6 rounded-3xl border border-zinc-200 relative group hover:border-velatra-accent/40 transition-all shadow-inner">
                       <div className="flex flex-col gap-6">
                         <div className="flex gap-4 items-end">
-                          <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
+                          <div className="w-16 h-16 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center shrink-0 overflow-hidden">
                             {baseEx?.photo ? (
                               <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
                             ) : (
@@ -354,12 +345,12 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                           <div className="flex-1 space-y-1">
                             <label className="text-[9px] font-black text-velatra-accent uppercase tracking-widest ml-1">Mouvement</label>
                             <select 
-                              className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm font-black text-white focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
+                              className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-sm font-black text-zinc-900 focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
                               value={ex.exId}
                               onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'exId', parseInt(e.target.value))}
                             >
                               {EXERCISE_CATEGORIES.map(cat => (
-                                <optgroup key={cat} label={cat} className="bg-velatra-bg text-velatra-textDark">
+                                <optgroup key={cat} label={cat} className="bg-velatra-bg text-zinc-900">
                                   {exercises.filter(e => e.cat === cat).map(e => (
                                     <option key={e.id} value={e.id}>{e.name}</option>
                                   ))}
@@ -375,45 +366,45 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                           </button>
                         </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-6 bg-white/[0.02] p-5 rounded-2xl border border-white/5">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-6 bg-zinc-50 p-5 rounded-2xl border border-zinc-200">
                         <div className="space-y-1">
-                          <label className="text-[9px] font-black text-velatra-textDark uppercase tracking-widest text-center block">SÉRIES</label>
+                          <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">SÉRIES</label>
                           <Input 
                             type="number" 
-                            className="text-center !rounded-xl !text-base font-black !bg-black"
-                            value={ex.sets}
-                            onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'sets', parseInt(e.target.value) || 1)}
+                            className="text-center !rounded-xl !text-base font-black !bg-white"
+                            value={ex.sets || ''}
+                            onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'sets', parseInt(e.target.value) || 0)}
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[9px] font-black text-velatra-textDark uppercase tracking-widest text-center block">RÉPÉTITIONS</label>
+                          <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">RÉPÉTITIONS</label>
                           <Input 
-                            className="text-center !rounded-xl !text-base font-black !bg-black"
+                            className="text-center !rounded-xl !text-base font-black !bg-white"
                             value={ex.reps}
                             onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'reps', e.target.value)}
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[9px] font-black text-velatra-textDark uppercase tracking-widest text-center block">REPOS (SEC)</label>
+                          <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">REPOS (SEC)</label>
                           <Input 
-                            className="text-center !rounded-xl !text-base font-black !bg-black"
+                            className="text-center !rounded-xl !text-base font-black !bg-white"
                             value={ex.rest}
                             onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'rest', e.target.value)}
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[9px] font-black text-velatra-textDark uppercase tracking-widest text-center block">TEMPO</label>
+                          <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">TEMPO</label>
                           <Input 
-                            className="text-center !rounded-xl !text-base font-black !bg-black"
+                            className="text-center !rounded-xl !text-base font-black !bg-white"
                             value={ex.tempo || ''}
                             placeholder="Ex: 2010"
                             onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'tempo', e.target.value)}
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[9px] font-black text-velatra-textDark uppercase tracking-widest text-center block">TYPE</label>
+                          <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">TYPE</label>
                           <select 
-                            className="w-full bg-black border border-white/10 rounded-xl p-3 text-center text-sm font-black text-white focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
+                            className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-center text-sm font-black text-zinc-900 focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
                             value={ex.setType || 'normal'}
                             onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setType', e.target.value)}
                           >
@@ -433,7 +424,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
 
                 <button 
                   onClick={() => handleAddExercise(selectedDayIdx)}
-                  className="w-full py-6 border-2 border-dashed border-white/5 rounded-3xl text-velatra-textDark hover:border-velatra-accent hover:text-velatra-accent transition-all font-black text-xs uppercase tracking-[4px] flex items-center justify-center gap-3 bg-white/[0.01]"
+                  className="w-full py-6 border-2 border-dashed border-zinc-200 rounded-3xl text-zinc-900 hover:border-velatra-accent hover:text-velatra-accent transition-all font-black text-xs uppercase tracking-[4px] flex items-center justify-center gap-3 bg-zinc-50"
                 >
                   <PlusIcon size={20} /> AJOUTER UN MOUVEMENT
                 </button>

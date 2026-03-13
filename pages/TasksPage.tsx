@@ -10,13 +10,19 @@ interface Props {
 
 export const TasksPage: React.FC<Props> = ({ state }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('Tous');
   const [isAdding, setIsAdding] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', description: '', dueDate: '', assignedTo: state.user?.id.toString() || '' });
 
-  const filteredTasks = state.tasks.filter(t => 
-    t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    t.description.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  const filteredTasks = state.tasks.filter(t => {
+    if (!t.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
+        !t.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    
+    if (filterStatus === 'À faire' && t.status !== 'todo') return false;
+    if (filterStatus === 'Terminées' && t.status !== 'done') return false;
+    
+    return true;
+  }).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 
   const handleStatusChange = async (taskId: string, newStatus: 'todo' | 'done') => {
     try {
@@ -66,30 +72,47 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-8 page-transition">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-white">Tâches & Rappels</h1>
-          <p className="text-velatra-textMuted mt-1">Gérez vos relances et actions quotidiennes.</p>
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-zinc-900">Tâches & Rappels</h1>
+            <p className="text-zinc-500 mt-1">Gérez vos relances et actions quotidiennes.</p>
+          </div>
+          
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <button 
+              onClick={() => setIsAdding(true)}
+              className="bg-velatra-accent hover:bg-velatra-accentDark text-zinc-900 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nouvelle Tâche</span>
+            </button>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-velatra-textMuted" />
+
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-900" />
             <input
               type="text"
-              placeholder="Rechercher..."
+              placeholder="Rechercher une tâche..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-velatra-bgCard border border-velatra-border rounded-xl py-2 pl-10 pr-4 text-white focus:outline-none focus:border-velatra-accent transition-colors"
+              className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl py-3 pl-14 pr-4 text-zinc-900 font-bold focus:outline-none focus:border-velatra-accent transition-colors"
             />
           </div>
-          <button 
-            onClick={() => setIsAdding(true)}
-            className="bg-velatra-accent hover:bg-velatra-accentDark text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nouvelle Tâche</span>
-          </button>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
+            {["Tous", "À faire", "Terminées"].map(f => (
+              <button
+                key={f}
+                onClick={() => setFilterStatus(f)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterStatus === f ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -99,28 +122,28 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
           animate={{ opacity: 1, y: 0 }}
           className="bg-velatra-bgCard border border-velatra-border rounded-xl p-6"
         >
-          <h2 className="text-xl font-semibold text-white mb-4">Ajouter une Tâche</h2>
+          <h2 className="text-xl font-semibold text-zinc-900 mb-4">Ajouter une Tâche</h2>
           <form onSubmit={handleAddTask} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-sm text-velatra-textMuted mb-1">Titre</label>
-              <input required type="text" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-white" placeholder="Ex: Appeler Thomas pour renouvellement" />
+              <label className="block text-sm text-zinc-500 mb-1">Titre</label>
+              <input required type="text" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" placeholder="Ex: Appeler Thomas pour renouvellement" />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm text-velatra-textMuted mb-1">Description</label>
-              <textarea value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-white h-20" placeholder="Notes supplémentaires..." />
+              <label className="block text-sm text-zinc-500 mb-1">Description</label>
+              <textarea value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900 h-20" placeholder="Notes supplémentaires..." />
             </div>
             <div>
-              <label className="block text-sm text-velatra-textMuted mb-1">Date d'échéance</label>
-              <input type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-white" />
+              <label className="block text-sm text-zinc-500 mb-1">Date d'échéance</label>
+              <input type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" />
             </div>
             <div>
-              <label className="block text-sm text-velatra-textMuted mb-1">Assigné à</label>
-              <select value={newTask.assignedTo} onChange={e => setNewTask({...newTask, assignedTo: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-white">
+              <label className="block text-sm text-zinc-500 mb-1">Assigné à</label>
+              <select value={newTask.assignedTo} onChange={e => setNewTask({...newTask, assignedTo: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900">
                 {state.coaches.map(c => <option key={c.id} value={c.id.toString()}>{c.name}</option>)}
               </select>
             </div>
             <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-              <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-velatra-textMuted hover:text-white transition-colors">Annuler</button>
+              <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
               <button type="submit" className="bg-velatra-accent text-white px-6 py-2 rounded-lg font-medium hover:bg-velatra-accentDark transition-colors">Enregistrer</button>
             </div>
           </form>
@@ -130,9 +153,9 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
       <div className="space-y-4">
         {filteredTasks.length === 0 ? (
           <div className="text-center py-12 bg-velatra-bgCard border border-velatra-border rounded-xl">
-            <CheckCircle className="w-12 h-12 text-velatra-textDark mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-white">Toutes les tâches sont terminées !</h3>
-            <p className="text-velatra-textMuted mt-2">Profitez de votre temps libre ou ajoutez de nouvelles actions.</p>
+            <CheckCircle className="w-12 h-12 text-zinc-900 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-zinc-900">Toutes les tâches sont terminées !</h3>
+            <p className="text-zinc-500 mt-2">Profitez de votre temps libre ou ajoutez de nouvelles actions.</p>
           </div>
         ) : (
           filteredTasks.map(task => {
@@ -150,22 +173,22 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
               >
                 <button 
                   onClick={() => handleStatusChange(task.id, isDone ? 'todo' : 'done')}
-                  className={`mt-1 flex-shrink-0 transition-colors ${isDone ? 'text-velatra-success' : 'text-velatra-textMuted hover:text-white'}`}
+                  className={`mt-1 flex-shrink-0 transition-colors ${isDone ? 'text-velatra-success' : 'text-zinc-500 hover:text-zinc-900'}`}
                 >
                   {isDone ? <CheckCircle className="w-6 h-6" /> : <Circle className="w-6 h-6" />}
                 </button>
                 
                 <div className="flex-1 min-w-0">
-                  <h3 className={`text-lg font-medium ${isDone ? 'text-velatra-textMuted line-through' : 'text-white'}`}>{task.title}</h3>
-                  {task.description && <p className="text-sm text-velatra-textMuted mt-1 line-clamp-2">{task.description}</p>}
+                  <h3 className={`text-lg font-medium ${isDone ? 'text-zinc-500 line-through' : 'text-zinc-900'}`}>{task.title}</h3>
+                  {task.description && <p className="text-sm text-zinc-500 mt-1 line-clamp-2">{task.description}</p>}
                   
                   <div className="flex flex-wrap items-center gap-4 mt-3 text-xs font-medium">
-                    <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md ${overdue ? 'bg-red-500/20 text-red-400' : 'bg-velatra-bg text-velatra-textMuted'}`}>
+                    <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md ${overdue ? 'bg-red-500/20 text-red-400' : 'bg-velatra-bg text-zinc-500'}`}>
                       <Calendar className="w-3.5 h-3.5" />
                       <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                     </div>
                     {coach && (
-                      <div className="flex items-center gap-1.5 text-velatra-textMuted">
+                      <div className="flex items-center gap-1.5 text-zinc-500">
                         <User className="w-3.5 h-3.5" />
                         <span>{coach.name}</span>
                       </div>
@@ -175,7 +198,7 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
 
                 <button 
                   onClick={() => handleDelete(task.id)}
-                  className="text-velatra-textMuted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-2"
+                  className="text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity p-2"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

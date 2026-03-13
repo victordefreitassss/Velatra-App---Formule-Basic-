@@ -64,7 +64,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
     <div className="space-y-10 pb-24 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
         <div className="text-center sm:text-left">
-          <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-white">INFOS CLUB</h1>
+          <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">INFOS CLUB</h1>
           <p className="text-velatra-accent text-[10px] uppercase tracking-[3px] font-bold">VELATRA Application sur mesure</p>
         </div>
         
@@ -88,7 +88,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Section Club Principale */}
-        <Card className="space-y-6 !p-8 border-none ring-1 ring-white/10 bg-gradient-to-br from-white/[0.03] to-transparent">
+        <Card className="space-y-6 !p-8 border-none ring-1 ring-zinc-200 bg-gradient-to-br from-white/[0.03] to-transparent">
           <div className="flex items-center gap-4 text-velatra-accent">
             <div className="p-3 bg-velatra-accent/10 rounded-2xl">
               <HomeIcon size={24} />
@@ -101,14 +101,14 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase text-velatra-accent tracking-widest ml-1">Description du club</label>
                 <textarea 
-                  className="w-full bg-black/40 border border-white/10 rounded-xl p-4 text-sm text-white focus:outline-none focus:border-velatra-accent h-32 resize-none"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent h-32 resize-none"
                   value={tempInfo.description}
                   onChange={e => setTempInfo({...tempInfo, description: e.target.value})}
                 />
               </div>
             </div>
           ) : (
-            <p className="text-sm leading-relaxed text-velatra-textMuted font-medium">
+            <p className="text-sm leading-relaxed text-zinc-500 font-medium">
               {aboutInfo.description}
             </p>
           )}
@@ -120,19 +120,19 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                </div>
                {isEditing ? (
                  <textarea 
-                   className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-velatra-accent h-24 resize-none"
+                   className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-xs text-zinc-900 focus:outline-none focus:border-velatra-accent h-24 resize-none"
                    value={tempInfo.horaires}
                    onChange={e => setTempInfo({...tempInfo, horaires: e.target.value})}
                  />
                ) : (
-                 <div className="text-sm font-bold text-white whitespace-pre-line leading-relaxed">
+                 <div className="text-sm font-bold text-zinc-900 whitespace-pre-line leading-relaxed">
                    {aboutInfo.horaires}
                  </div>
                )}
             </div>
           </div>
 
-          <div className="pt-6 border-t border-white/5 space-y-4">
+          <div className="pt-6 border-t border-zinc-200 space-y-4">
              {isEditing ? (
                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1">
@@ -205,11 +205,11 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
           <div className="grid grid-cols-1 gap-4">
             {(isEditing ? tempCoaches : coaches).map(coach => (
               <Card key={coach.id} className="flex items-center gap-5 !p-5 group hover:ring-velatra-accent/30 transition-all relative">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-black border border-white/10 flex items-center justify-center font-black text-2xl text-velatra-accent shrink-0 shadow-lg overflow-hidden">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-zinc-100 border border-zinc-200 flex items-center justify-center font-black text-2xl text-velatra-accent shrink-0 shadow-lg overflow-hidden">
                   {coach.photo ? (
                     <img src={coach.photo} alt="" className="w-full h-full object-cover" />
                   ) : (
-                    coach.name.charAt(0)
+                    (coach.name || 'C').charAt(0)
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -240,11 +240,11 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                         placeholder="URL de la photo"
                       />
                       <div className="flex flex-col gap-1">
-                        <label className="text-[8px] font-black uppercase text-velatra-textDark tracking-widest ml-1">Ou charger un fichier</label>
+                        <label className="text-[8px] font-black uppercase text-zinc-900 tracking-widest ml-1">Ou charger un fichier</label>
                         <input 
                           type="file" 
                           accept="image/*"
-                          className="text-[9px] text-white/50 file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[9px] file:font-black file:bg-velatra-accent file:text-white hover:file:bg-velatra-accentDark cursor-pointer"
+                          className="text-[9px] text-zinc-500 file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[9px] file:font-black file:bg-velatra-accent file:text-zinc-900 hover:file:bg-velatra-accentDark cursor-pointer"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
@@ -285,9 +285,9 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
           </div>
 
           {!isEditing && (
-            <Card className="bg-white/5 border-dashed border-white/10 text-center !p-8">
-               <p className="text-[9px] uppercase tracking-[4px] font-black text-velatra-textDark mb-3">Besoin d'aide technique ?</p>
-               <div className="text-sm font-bold text-white opacity-80">{aboutInfo.email}</div>
+            <Card className="bg-zinc-50 border-dashed border-zinc-200 text-center !p-8">
+               <p className="text-[9px] uppercase tracking-[4px] font-black text-zinc-900 mb-3">Besoin d'aide technique ?</p>
+               <div className="text-sm font-bold text-zinc-900 opacity-80">{aboutInfo.email}</div>
             </Card>
           )}
         </div>

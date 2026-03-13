@@ -15,16 +15,16 @@ export const Card: React.FC<{ children: React.ReactNode, className?: string, onC
 export const StatBox: React.FC<{ label: string, value: string | number, className?: string, icon?: React.ReactNode, onClick?: () => void, locked?: boolean }> = ({ label, value, className = "", icon, onClick, locked }) => (
   <div 
     onClick={onClick}
-    className={`bg-white/[0.02] border border-white/[0.05] rounded-3xl p-5 flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${onClick ? 'cursor-pointer hover:bg-white/[0.04] hover:border-velatra-accent/40 hover:-translate-y-1' : ''} ${className}`}
+    className={`bg-zinc-50 border border-zinc-200 rounded-3xl p-5 flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${onClick ? 'cursor-pointer hover:bg-zinc-50 hover:border-velatra-accent/40 hover:-translate-y-1' : ''} ${className}`}
   >
     {locked && (
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-10 flex items-center justify-center">
+      <div className="absolute inset-0 bg-zinc-50 backdrop-blur-[2px] z-10 flex items-center justify-center">
         <LockIcon size={20} className="text-velatra-accent opacity-80" />
       </div>
     )}
     {icon && <div className="text-velatra-accent mb-3 opacity-90">{icon}</div>}
-    <span className="text-[10px] uppercase tracking-[3px] font-bold text-velatra-textDark mb-1">{label}</span>
-    <span className={`text-3xl font-display font-bold text-white tracking-tight ${locked ? 'opacity-20 blur-[2px]' : ''}`}>{value}</span>
+    <span className="text-[10px] uppercase tracking-[3px] font-bold text-zinc-900 mb-1">{label}</span>
+    <span className={`text-3xl font-display font-bold text-zinc-900 tracking-tight ${locked ? 'opacity-20 blur-[2px]' : ''}`}>{value}</span>
   </div>
 );
 
@@ -38,13 +38,13 @@ export const Button: React.FC<{
   type?: "button" | "submit" | "reset"
 }> = ({ children, variant = 'primary', className = "", onClick, disabled, fullWidth, type = "button" }) => {
   const variants = {
-    primary: 'bg-gradient-to-r from-velatra-accent to-velatra-accentDark text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_-5px_rgba(99,102,241,0.6)] border border-white/10',
-    secondary: 'bg-white/[0.03] text-white border border-white/10 hover:bg-white/[0.08] hover:border-white/20',
+    primary: 'bg-gradient-to-r from-velatra-accent to-velatra-accentDark text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_-5px_rgba(99,102,241,0.6)] border border-zinc-200',
+    secondary: 'bg-zinc-50 text-zinc-900 border border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300',
     danger: 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40',
     success: 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/40',
     blue: 'bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/40',
-    glass: 'glass text-white border-white/10 hover:bg-white/10',
-    ghost: 'bg-transparent text-velatra-textMuted hover:text-white hover:bg-white/5'
+    glass: 'glass text-zinc-900 border-zinc-200 hover:bg-zinc-100',
+    ghost: 'bg-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
   };
 
   return (
@@ -68,9 +68,9 @@ export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (pro
   <input 
     {...props}
     className={`
-      w-full p-4 bg-white/[0.02] border border-white/10 rounded-2xl 
-      text-white text-[15px] placeholder:text-white/30
-      focus:outline-none focus:border-velatra-accent/50 focus:bg-white/[0.04] focus:ring-4 focus:ring-velatra-accent/10 transition-all duration-300
+      w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl 
+      text-zinc-900 text-[15px] placeholder:text-zinc-900/30
+      focus:outline-none focus:border-velatra-accent/50 focus:bg-zinc-50 focus:ring-4 focus:ring-velatra-accent/10 transition-all duration-300
       ${props.className || ''}
     `}
   />
@@ -82,23 +82,23 @@ export const Badge: React.FC<{ children: React.ReactNode, variant?: 'accent' | '
     blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
     orange: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
     success: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    dark: 'bg-white/5 text-velatra-textMuted border-white/10'
+    dark: 'bg-zinc-50 text-zinc-500 border-zinc-200'
   };
   return (
-    <span className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[2px] border backdrop-blur-md ${colors[variant]} ${className}`}>
+    <span className={`inline-block px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[2px] border backdrop-blur-md ${colors[variant]} ${className}`}>
       {children}
     </span>
   );
 };
 
-export const SessionDot: React.FC<{ isCoaching: boolean, size?: number }> = ({ isCoaching, size = 10 }) => (
+export const SessionDot: React.FC<{ size?: number }> = ({ size = 10 }) => (
   <div 
     className="rounded-full flex-shrink-0 animate-pulse" 
     style={{ 
       width: size, 
       height: size, 
-      backgroundColor: isCoaching ? '#6366f1' : '#3b82f6',
-      boxShadow: `0 0 15px ${isCoaching ? 'rgba(99, 102, 241, 0.6)' : 'rgba(59, 130, 246, 0.6)'}`
+      backgroundColor: '#3b82f6',
+      boxShadow: `0 0 15px rgba(59, 130, 246, 0.6)`
     }} 
   />
 );

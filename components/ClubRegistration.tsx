@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Card, Input, Button } from './UI';
-import { auth, db, createUserWithEmailAndPassword, setDoc, doc, getDoc } from '../firebase';
+import { auth, db, createUserWithEmailAndPassword, setDoc, doc, getDoc, getDocs, query, collection, where } from '../firebase';
 import { Club, User } from '../types';
 
 interface ClubRegistrationProps {
@@ -14,15 +14,22 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
   const [error, setError] = useState("");
   
   const [clubName, setClubName] = useState("");
-  const [clubCode, setClubCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [ownerName, setOwnerName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+
+  const [createdClubId, setCreatedClubId] = useState<string | null>(null);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clubName || !clubCode || !email || !password || !ownerName) {
+    if (!clubName || !email || !password || !ownerName || !inviteCode) {
       setError("Veuillez remplir tous les champs.");
+      return;
+    }
+
+    if (inviteCode !== "VELATRA-BETA" && inviteCode !== "VELATRA2026") {
+      setError("Code d'invitation invalide. L'inscription est actuellement sur invitation uniquement.");
       return;
     }
 
@@ -30,14 +37,15 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
     setError("");
 
     try {
-      const formattedClubCode = clubCode.toUpperCase().replace(/\s+/g, '');
-      
-      // Check if club code already exists
-      const clubDoc = await getDoc(doc(db, "clubs", formattedClubCode));
-      if (clubDoc.exists()) {
-        setError("Ce code de club est déjà utilisé. Veuillez en choisir un autre.");
-        setLoading(false);
-        return;
+      // Generate a unique 6-digit club code
+      let generatedClubCode = "";
+      let isUnique = false;
+      while (!isUnique) {
+        generatedClubCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const clubDoc = await getDoc(doc(db, "clubs", generatedClubCode));
+        if (!clubDoc.exists()) {
+          isUnique = true;
+        }
       }
 
       // 1. Create Firebase Auth User
@@ -45,7 +53,7 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
       const firebaseUid = userCredential.user.uid;
 
       // 2. Create Club Document
-      const clubId = formattedClubCode;
+      const clubId = generatedClubCode;
       const newClub: Club = {
         id: clubId,
         name: clubName,
@@ -63,7 +71,7 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
       const newUser: User = {
         id: Date.now(),
         clubId: clubId,
-        code: email.split('@')[0],
+        code: "", // Not used anymore
         pwd: "", // We use Firebase Auth
         name: ownerName,
         role: "owner",
@@ -82,7 +90,7 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
       };
       await setDoc(doc(db, "users", firebaseUid), newUser);
 
-      onSuccess();
+      setCreatedClubId(clubId);
     } catch (err: any) {
       console.error("Registration Error:", err);
       setError(err.message || "Une erreur est survenue lors de l'inscription.");
@@ -91,39 +99,63 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
     }
   };
 
+  if (createdClubId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 bg-zinc-50">
+        <div className="w-full max-w-[400px] space-y-8 py-12">
+          <Card className="p-8 space-y-6 border-zinc-200 ring-1 ring-zinc-200 text-center">
+            <h2 className="text-2xl font-black text-zinc-900 italic tracking-tighter">FÉLICITATIONS !</h2>
+            <p className="text-zinc-500 text-xs uppercase tracking-widest font-bold">Votre espace a été créé avec succès.</p>
+            
+            <div className="bg-zinc-50 p-6 rounded-2xl border border-zinc-200">
+              <p className="text-[10px] uppercase tracking-widest font-black text-velatra-accent mb-2">VOTRE CODE D'ACCÈS CLUB</p>
+              <p className="text-4xl font-black tracking-widest text-zinc-900">{createdClubId}</p>
+            </div>
+            
+            <p className="text-xs text-zinc-500">Gardez ce code précieusement. Vos adhérents en auront besoin pour s'inscrire et rejoindre votre club.</p>
+            
+            <Button fullWidth onClick={onSuccess} className="!py-4 shadow-xl mt-4">
+              ACCÉDER À MON ESPACE
+            </Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-[#050505]">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-zinc-50">
       <div className="w-full max-w-[400px] space-y-8 py-12">
         <div className="text-center">
-          <h2 className="text-3xl font-black text-white italic tracking-tighter">CRÉER VOTRE <span className="text-velatra-accent">CLUB</span></h2>
-          <p className="text-velatra-textMuted text-xs mt-2 uppercase tracking-widest font-bold">Lancez votre plateforme SaaS Fitness</p>
+          <h2 className="text-3xl font-black text-zinc-900 italic tracking-tighter">CRÉER VOTRE <span className="text-velatra-accent">CLUB</span></h2>
+          <p className="text-zinc-500 text-xs mt-2 uppercase tracking-widest font-bold">Lancez votre plateforme SaaS Fitness</p>
         </div>
 
-        <Card className="p-8 space-y-6 border-white/5 ring-1 ring-white/10">
+        <Card className="p-8 space-y-6 border-zinc-200 ring-1 ring-zinc-200">
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-widest font-black text-velatra-textDark ml-1">Nom du Club / Studio</label>
+              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-900 ml-1">Nom du Club / Studio</label>
               <Input placeholder="Ex: Elite Fitness Studio" value={clubName} onChange={e => setClubName(e.target.value)} required />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-widest font-black text-velatra-textDark ml-1">Code d'accès du club (pour vos membres)</label>
-              <Input placeholder="Ex: ELITEFIT" value={clubCode} onChange={e => setClubCode(e.target.value)} required />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-widest font-black text-velatra-textDark ml-1">Nom du Responsable</label>
+              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-900 ml-1">Nom du Responsable</label>
               <Input placeholder="Votre nom complet" value={ownerName} onChange={e => setOwnerName(e.target.value)} required />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-widest font-black text-velatra-textDark ml-1">Email Professionnel</label>
+              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-900 ml-1">Email Professionnel</label>
               <Input type="email" placeholder="contact@votreclub.com" value={email} onChange={e => setEmail(e.target.value)} required />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-widest font-black text-velatra-textDark ml-1">Mot de passe</label>
+              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-900 ml-1">Mot de passe</label>
               <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] uppercase tracking-widest font-black text-velatra-accent ml-1">Code d'invitation (Bêta)</label>
+              <Input placeholder="Code requis" value={inviteCode} onChange={e => setInviteCode(e.target.value)} required className="border-velatra-accent/30 focus:border-velatra-accent" />
             </div>
 
             {error && <p className="text-[10px] text-velatra-accent font-bold text-center bg-velatra-accent/5 py-2 rounded-lg">{error}</p>}
@@ -133,7 +165,7 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
             </Button>
           </form>
 
-          <button onClick={onCancel} className="w-full text-[9px] font-black text-velatra-textDark hover:text-white transition-colors tracking-widest uppercase text-center">
+          <button onClick={onCancel} className="w-full text-[9px] font-black text-zinc-500 hover:text-zinc-900 transition-colors tracking-widest uppercase text-center">
             Retour à la connexion
           </button>
         </Card>

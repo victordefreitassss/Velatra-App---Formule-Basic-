@@ -69,6 +69,8 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
     }
   };
 
+  const loyaltyPoints = state.currentClub?.settings?.loyalty?.pointsPerWorkout || 100;
+
   const finishSession = async () => {
     const log: SessionLog = {
       id: Date.now(),
@@ -106,7 +108,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
 
     const userRef = doc(db, "users", (member as any).firebaseUid);
     const newStreak = (member.lastWorkoutDate === new Date(Date.now() - 86400000).toISOString().split('T')[0]) ? (member.streak || 0) + 1 : 1;
-    const totalXP = (member.xp || 0) + sessionXP + 100;
+    const totalXP = (member.xp || 0) + sessionXP + loyaltyPoints;
     const oldLevel = Math.floor((member.xp || 0) / 1000) + 1;
     const newLevel = Math.floor(totalXP / 1000) + 1;
 
@@ -139,15 +141,12 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
   };
 
   return (
-    <div className="fixed inset-0 bg-[#050505] z-[100] flex flex-col page-transition">
-      <header className="glass border-b border-white/10 px-8 py-6 flex items-center justify-between sticky top-0 z-10">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-             <Badge variant={currentDay.isCoaching ? 'accent' : 'blue'} className="italic">
-                {currentDay.isCoaching ? 'SÉANCE COACHÉE' : 'AUTONOME'}
-             </Badge>
+    <div className="fixed inset-0 bg-zinc-50 z-[100] flex flex-col page-transition">
+      <header className="glass border-b border-zinc-200 px-4 py-4 md:px-8 md:py-6 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
              {currentDay.duration && (
-               <Badge variant="dark" className="italic">
+               <Badge variant="dark" className="!text-[8px] !px-1.5 !py-0.5 italic">
                  ~{currentDay.duration} MIN
                </Badge>
              )}
@@ -155,15 +154,15 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                 <SparklesIcon size={12}/> {sessionXP} XP
              </div>
           </div>
-          <div className="font-display font-bold text-3xl tracking-tight text-white leading-none">{currentDay.name}</div>
+          <div className="font-display font-bold text-2xl md:text-3xl tracking-tight text-zinc-900 leading-none truncate pr-4">{currentDay.name}</div>
         </div>
-        <button onClick={onClose} className="p-4 bg-white/5 rounded-full text-white/50 hover:text-white transition-all hover:bg-red-500"><XIcon size={24} /></button>
+        <button onClick={onClose} className="p-3 bg-zinc-50 rounded-full text-zinc-500 hover:text-zinc-900 transition-all hover:bg-red-500 shrink-0"><XIcon size={20} /></button>
       </header>
-      <div className="flex-1 overflow-y-auto px-6 py-10 md:px-16 space-y-10 no-scrollbar">
-        <div className="flex justify-between items-center bg-white/5 p-6 rounded-[32px] border border-white/5">
+      <div className="flex-1 overflow-y-auto px-4 py-6 md:px-16 space-y-8 no-scrollbar">
+        <div className="flex justify-between items-center bg-zinc-50 p-6 rounded-[32px] border border-zinc-200">
            <div className="space-y-1">
-              <span className="text-[10px] font-black uppercase tracking-[4px] text-velatra-textDark">Progression Cycle</span>
-              <div className="text-sm font-black text-white italic">
+              <span className="text-[10px] font-black uppercase tracking-[4px] text-zinc-900">Progression Cycle</span>
+              <div className="text-sm font-black text-zinc-900 italic">
                 SEMAINE {Math.floor(program.currentDayIndex / program.nbDays) + 1} {program.durationWeeks ? `/ ${program.durationWeeks}` : ''} • JOUR {(program.currentDayIndex % program.nbDays) + 1}
               </div>
            </div>
@@ -176,9 +175,9 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
           const isValidated = completedExercises.includes(exIndex);
           return (
             <div key={exIndex} id={`exercise-${exIndex}`} className={`transition-all duration-500 ${isValidated ? 'opacity-20 grayscale scale-95 pointer-events-none' : ''}`}>
-              <Card className="!p-8 border-none ring-1 ring-white/10 bg-black shadow-2xl relative">
+              <Card className="!p-8 border-none ring-1 ring-zinc-200 bg-white shadow-2xl relative">
                 <div className="flex gap-8 items-center mb-10">
-                  <div className="w-24 h-24 rounded-3xl bg-[#0a0a0a] border border-white/5 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
+                  <div className="w-24 h-24 rounded-3xl bg-white border border-zinc-200 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
                     {baseEx?.photo ? (
                       <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -189,7 +188,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                   </div>
                   <div className="flex-1">
                     <div className="text-[10px] text-velatra-accent font-black uppercase tracking-[3px] mb-2">{baseEx?.cat}</div>
-                    <div className="font-black text-3xl tracking-tighter leading-none text-white italic uppercase mb-3">{baseEx?.name}</div>
+                    <div className="font-black text-3xl tracking-tighter leading-none text-zinc-900 italic uppercase mb-3">{baseEx?.name}</div>
                     <div className="flex flex-wrap gap-2">
                       {exEntry.setType && exEntry.setType !== 'normal' && (
                         <Badge variant="orange" className="uppercase">{exEntry.setType}</Badge>
@@ -206,15 +205,15 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                 <div className="grid grid-cols-1 gap-6 mb-10">
                   {Array.from({ length: (typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1) }).map((_, sIdx) => (
                     <div key={sIdx} className="flex items-center gap-6 group animate-in slide-in-from-left">
-                       <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-xs font-black text-velatra-textDark group-focus-within:border-velatra-accent transition-all">{sIdx+1}</div>
+                       <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center text-xs font-black text-zinc-900 group-focus-within:border-velatra-accent transition-all">{sIdx+1}</div>
                        <div className="flex-1 grid grid-cols-2 gap-4">
                           <div className="relative">
-                             <Input type="number" placeholder="KG" className="!bg-[#0a0a0a] !py-4 text-center text-xl font-black italic border-white/5" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
-                             <span className="absolute top-1 left-2 text-[7px] font-black text-velatra-textDark uppercase">Charge</span>
+                             <Input type="number" inputMode="decimal" placeholder="KG" className="!bg-white !py-4 text-center text-xl font-black italic border-zinc-200" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
+                             <span className="absolute top-1 left-2 text-[7px] font-black text-zinc-900 uppercase">Charge</span>
                           </div>
                           <div className="relative">
-                             <Input type="number" placeholder="REPS" className="!bg-[#0a0a0a] !py-4 text-center text-xl font-black italic border-white/5" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
-                             <span className="absolute top-1 left-2 text-[7px] font-black text-velatra-textDark uppercase">Répétitions</span>
+                             <Input type="number" inputMode="numeric" placeholder="REPS" className="!bg-white !py-4 text-center text-xl font-black italic border-zinc-200" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
+                             <span className="absolute top-1 left-2 text-[7px] font-black text-zinc-900 uppercase">Répétitions</span>
                           </div>
                        </div>
                     </div>
@@ -229,13 +228,13 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
         })}
         <div className="h-32" />
       </div>
-      <footer className="glass border-t border-white/10 p-8 backdrop-blur-3xl flex flex-col gap-4">
+      <footer className="glass border-t border-zinc-200 p-8 backdrop-blur-3xl flex flex-col gap-4">
         <div className="flex justify-between items-center px-4">
-           <div className="text-[10px] font-black text-velatra-textDark uppercase tracking-widest">Récompense de séance</div>
-           <div className="text-sm font-black text-velatra-accent italic">+100 XP</div>
+           <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">Récompense de séance</div>
+           <div className="text-sm font-black text-velatra-accent italic">+{loyaltyPoints} XP</div>
         </div>
         <Button variant="success" fullWidth onClick={finishSession} className="!py-6 !rounded-[32px] font-black text-xl italic shadow-2xl shadow-emerald-500/20" disabled={completedExercises.length < currentDay.exercises.length}>
-          TERMINER LA QUÊTE
+          TERMINER MA SÉANCE
         </Button>
       </footer>
     </div>

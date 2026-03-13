@@ -22,6 +22,10 @@ export interface Club {
   coaches?: CoachInfo[];
   settings?: {
     defaultProgramDuration?: number;
+    loyalty?: {
+      pointsPerWorkout: number;
+      tiers: { id: string; points: number; reward: string }[];
+    };
   };
 }
 
@@ -40,6 +44,11 @@ export interface User {
   weight: number;
   height: number;
   objectifs: Goal[];
+  experienceLevel?: 'Débutant' | 'Intermédiaire' | 'Avancé';
+  trainingDays?: number;
+  sessionDuration?: number;
+  equipment?: 'Salle complète' | 'Haltères/Kettlebells' | 'Poids du corps' | 'Élastiques';
+  injuries?: string;
   notes: string;
   createdAt: string;
   xp: number;
@@ -71,6 +80,21 @@ export interface SupplementOrder {
   total: number;
   pointsGagnes: number;
   status: 'requested' | 'completed' | 'cancelled';
+}
+
+export interface NutritionLog {
+  id: string;
+  clubId: string;
+  userId: number;
+  date: string; // YYYY-MM-DD
+  foods: {
+    id: string;
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }[];
 }
 
 export interface FixedCost {
@@ -254,6 +278,10 @@ export interface Plan {
   price: number;
   billingCycle: 'monthly' | 'yearly' | 'once';
   description: string;
+  hasCommitment?: boolean;
+  commitmentMonths?: number;
+  isTTC?: boolean;
+  paymentMethods?: string[];
 }
 
 export interface Subscription {
@@ -288,7 +316,7 @@ export interface Newsletter {
   author: string;
 }
 
-export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin";
+export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile";
 
 export type ActivityLevel = "Sédentaire" | "Légèrement actif" | "Modérément actif" | "Très actif" | "Extrêmement actif";
 
@@ -326,6 +354,8 @@ export interface NutritionPlan {
   fat: number;
   
   meals: Meal[];
+  liste_courses?: string[];
+  aiGenerated?: boolean;
 }
 
 export enum AppointmentSource { PROSPECT = 'PROSPECT', SETTER = 'SETTER' }
@@ -422,6 +452,7 @@ export interface AppState {
   payments: Payment[];
   newsletters: Newsletter[];
   nutritionPlans: NutritionPlan[];
+  nutritionLogs: NutritionLog[];
   crmClients: CRMClient[];
   crmFormulas: CRMFormula[];
   manualStats: ManualStats[];

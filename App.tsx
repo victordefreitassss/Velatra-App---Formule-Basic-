@@ -38,6 +38,7 @@ import { AICoachPage } from './pages/AICoachPage';
 import { ProspectFlowPage } from './pages/ProspectFlowPage';
 import { TasksPage } from './pages/TasksPage';
 import { FinancesPage } from './pages/FinancesPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { PlanningPage } from './pages/PlanningPage';
 import { NutritionPage } from './pages/NutritionPage';
 import { MemberNutritionPage } from './pages/MemberNutritionPage';
@@ -74,6 +75,7 @@ const INITIAL_STATE: AppState = {
   payments: [],
   newsletters: [],
   nutritionPlans: [],
+  nutritionLogs: [],
   crmClients: [],
   crmFormulas: [],
   manualStats: [],
@@ -256,7 +258,21 @@ export default function App() {
 
     const unsubFeed = onSnapshot(query(collection(db, "feed"), where("clubId", "==", clubId)), (snap) => {
       const feed: FeedItem[] = [];
-      snap.forEach(d => feed.push(d.data() as FeedItem));
+      const now = new Date().getTime();
+      const fourDaysInMs = 4 * 24 * 60 * 60 * 1000;
+
+      snap.forEach(d => {
+        const item = d.data() as FeedItem;
+        const itemTime = new Date(item.date).getTime();
+        
+        if (now - itemTime > fourDaysInMs) {
+          // Supprimer automatiquement les activités de plus de 4 jours
+          deleteDoc(doc(db, "feed", d.id)).catch(console.error);
+        } else {
+          feed.push(item);
+        }
+      });
+      
       feed.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setState(prev => ({ ...prev, feed }));
     });
@@ -307,6 +323,25 @@ export default function App() {
       setState(prev => ({ ...prev, nutritionPlans }));
     });
 
+    const unsubNutritionLogs = onSnapshot(query(collection(db, "nutritionLogs"), where("clubId", "==", clubId)), (snap) => {
+      const nutritionLogs: NutritionLog[] = [];
+      const now = new Date().getTime();
+      const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+
+      snap.forEach(d => {
+        const item = d.data() as NutritionLog;
+        const itemTime = new Date(item.date).getTime();
+        
+        if (now - itemTime > thirtyDaysInMs) {
+          // Supprimer automatiquement les logs de plus de 30 jours
+          deleteDoc(doc(db, "nutritionLogs", d.id)).catch(console.error);
+        } else {
+          nutritionLogs.push(item);
+        }
+      });
+      setState(prev => ({ ...prev, nutritionLogs }));
+    });
+
     const unsubSubscriptions = onSnapshot(query(collection(db, "subscriptions"), where("clubId", "==", clubId)), (snap) => {
       const subscriptions: Subscription[] = [];
       snap.forEach(d => subscriptions.push(d.data() as Subscription));
@@ -354,7 +389,7 @@ export default function App() {
       unsubArchives(); unsubPerfs(); unsubProducts(); unsubOrders();
       unsubLogs(); unsubMessages(); unsubFeed(); unsubBody();
       unsubProspects(); unsubNewsletters(); unsubExercises();
-      unsubTasks(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubNutritionPlans();
+      unsubTasks(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubNutritionPlans(); unsubNutritionLogs();
       unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects();
     };
   }, [state.user?.clubId]);
@@ -407,8 +442,8 @@ export default function App() {
                 <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
-            <h1 className="text-3xl font-bold text-white mb-4">Compte Suspendu</h1>
-            <p className="text-white/60 max-w-md mb-8">
+            <h1 className="text-3xl font-bold text-zinc-900 mb-4">Compte Suspendu</h1>
+            <p className="text-zinc-900/60 max-w-md mb-8">
               Votre accès a été suspendu. Veuillez contacter l'administrateur pour régulariser votre situation.
             </p>
           </div>
@@ -427,14 +462,15 @@ export default function App() {
         case 'history': return <HistoryPage state={state} setState={setState} />;
         case 'about': return <AboutPage state={state} setState={setState} />;
         case 'settings': return <SettingsPage state={state} setState={setState} showToast={showToast} />;
-        case 'crm_pipeline': return isPremium ? <ProspectFlowPage state={state} setState={setState} /> : <PremiumCTA title="ProspectFlow" description="Gérez vos prospects, suivez vos leads et convertissez plus de clients avec notre outil CRM intégré." features={["Pipeline de vente visuel", "Suivi des contacts et relances", "Statistiques de conversion", "Gestion des rendez-vous"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
-        case 'crm_tasks': return isPremium ? <TasksPage state={state} /> : <PremiumCTA title="Tâches" description="Organisez vos journées et ne manquez aucune relance avec le gestionnaire de tâches." features={["To-do list intelligente", "Rappels automatiques", "Liaison avec les prospects"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
-        case 'crm_finances': return isClassic ? <FinancesPage state={state} /> : <PremiumCTA title="Finances" description="Suivez vos revenus, gérez vos abonnements et analysez votre rentabilité en temps réel." features={["Tableau de bord financier", "Gestion des abonnements", "Suivi des paiements", "Export comptable"]} paymentLink="https://payments-eu1.hubspot.com/payments/mytHZNdzzZxT4?referrer=PAYMENT_LINK" />;
-        case 'calendar': return isClassic ? <PlanningPage state={state} setState={setState} /> : <PremiumCTA title="Planning" description="Gérez votre emploi du temps, vos séances de coaching et vos disponibilités." features={["Calendrier interactif", "Réservation en ligne", "Synchronisation Google Calendar", "Rappels SMS/Email"]} paymentLink="https://payments-eu1.hubspot.com/payments/mytHZNdzzZxT4?referrer=PAYMENT_LINK" />;
+        case 'chat': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
+        case 'crm_pipeline': return isPremium ? <ProspectFlowPage state={state} setState={setState} /> : <PremiumCTA title="ProspectFlow" description="Gérez vos prospects, suivez vos leads et convertissez plus de clients avec notre outil CRM intégré." features={["Pipeline de vente visuel", "Suivi des contacts et relances", "Statistiques de conversion", "Gestion des rendez-vous"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
+        case 'crm_tasks': return isPremium ? <TasksPage state={state} /> : <PremiumCTA title="Tâches" description="Organisez vos journées et ne manquez aucune relance avec le gestionnaire de tâches." features={["To-do list intelligente", "Rappels automatiques", "Liaison avec les prospects"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
+        case 'crm_finances': return isClassic ? <FinancesPage state={state} /> : <PremiumCTA title="Finances" description="Suivez vos revenus, gérez vos abonnements et analysez votre rentabilité en temps réel." features={["Tableau de bord financier", "Gestion des abonnements", "Suivi des paiements", "Export comptable"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
+        case 'calendar': return isClassic ? <PlanningPage state={state} setState={setState} /> : <PremiumCTA title="Planning" description="Gérez votre emploi du temps, vos séances de coaching et vos disponibilités." features={["Calendrier interactif", "Réservation en ligne", "Synchronisation Google Calendar", "Rappels SMS/Email"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;
-        case 'marketing': return isPremium ? <MarketingPage state={state} setState={setState} /> : <PremiumCTA title="Marketing" description="Développez votre activité avec nos outils marketing intégrés." features={["Campagnes d'emailing", "Création de newsletters", "Automatisation marketing", "Analyse des performances"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
-        case 'supplements': return isPremium ? <SupplementsPage state={state} setState={setState} showToast={showToast} /> : <PremiumCTA title="Boutique" description="Vendez vos compléments alimentaires et équipements directement depuis l'application." features={["Catalogue de produits", "Paiement en ligne", "Gestion des stocks", "Suivi des commandes"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
-        case 'loyalty': return isPremium ? <LoyaltyPage state={state} setState={setState} showToast={showToast} /> : <PremiumCTA title="Fidélité" description="Récompensez vos membres et augmentez leur engagement avec un programme de fidélité sur mesure." features={["Système de points", "Récompenses personnalisées", "Défis et badges", "Classement des membres"]} paymentLink="https://payments-eu1.hubspot.com/payments/6zX6M9TRNM?referrer=PAYMENT_LINK" />;
+        case 'marketing': return isPremium ? <MarketingPage state={state} setState={setState} /> : <PremiumCTA title="Marketing" description="Développez votre activité avec nos outils marketing intégrés." features={["Campagnes d'emailing", "Création de newsletters", "Automatisation marketing", "Analyse des performances"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
+        case 'supplements': return isPremium ? <SupplementsPage state={state} setState={setState} showToast={showToast} /> : <PremiumCTA title="Boutique" description="Vendez vos compléments alimentaires et équipements directement depuis l'application." features={["Catalogue de produits", "Paiement en ligne", "Gestion des stocks", "Suivi des commandes"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
+        case 'loyalty': return isPremium ? <LoyaltyPage state={state} setState={setState} showToast={showToast} /> : <PremiumCTA title="Fidélité" description="Récompensez vos membres et augmentez leur engagement avec un programme de fidélité sur mesure." features={["Système de points", "Récompenses personnalisées", "Défis et badges", "Classement des membres"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
         default: return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
       }
     }
@@ -444,9 +480,10 @@ export default function App() {
       case 'calendar': return <CalendarPage state={state} setState={setState} />;
       case 'performances': return <StatsPage state={state} setState={setState} />;
       case 'nutrition': return <MemberNutritionPage state={state} showToast={showToast} />;
-      case 'ai_coach': return <AICoachPage state={state} />;
+      case 'ai_coach': return <AICoachPage state={state} setState={setState} showToast={showToast} />;
       case 'history': return <HistoryPage state={state} setState={setState} />;
       case 'about': return <AboutPage state={state} setState={setState} />;
+      case 'profile': return <ProfilePage state={state} setState={setState} showToast={showToast} />;
       case 'messages': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
       case 'supplements': return isPremium ? <MemberSupplementsPage state={state} showToast={showToast} /> : <FeatureLockedMessage title="Boutique" />;
       case 'loyalty': return isPremium ? <MemberLoyaltyPage state={state} /> : <FeatureLockedMessage title="Fidélité" />;
@@ -455,7 +492,7 @@ export default function App() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
+    <div className="min-h-screen bg-white flex items-center justify-center">
       <div className="animate-spin text-velatra-accent">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
       </div>

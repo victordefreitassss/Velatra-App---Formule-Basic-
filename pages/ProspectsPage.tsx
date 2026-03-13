@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { AppState, Prospect, User } from '../types';
-import { db, doc, updateDoc, setDoc, deleteDoc } from '../firebase';
-import { Plus, Search, Trash2, Mail, Phone, Clock, CheckCircle, XCircle, UserPlus } from 'lucide-react';
+import { db, doc, updateDoc, setDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs } from '../firebase';
+import { Plus, Search, Trash2, Mail, Phone, Clock, CheckCircle, XCircle, UserPlus, X } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Card } from '../components/UI';
 
 interface Props {
   state: AppState;
@@ -19,13 +20,18 @@ const COLUMNS = [
 
 export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('Tous');
   const [isAdding, setIsAdding] = useState(false);
   const [newProspect, setNewProspect] = useState({ name: '', email: '', phone: '', notes: '' });
+  const [convertingProspect, setConvertingProspect] = useState<any>(null);
+  const [convertData, setConvertData] = useState({ email: '', password: '' });
 
   const filteredProspects = state.prospects.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     p.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const visibleColumns = filterStatus === 'Tous' ? COLUMNS : COLUMNS.filter(c => c.id === filterStatus);
 
   const handleStatusChange = async (prospectId: number, newStatus: string) => {
     try {
@@ -35,47 +41,63 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
       const docId = prospect.firebaseUid;
 
       if (newStatus === 'won' && state.user?.clubId) {
-        if (confirm(`Convertir ${prospect.name} en membre ? Un profil sera créé automatiquement.`)) {
-          const newUserId = Date.now();
-          const code = Math.floor(1000 + Math.random() * 9000).toString();
-          const newUser: User = {
-            id: newUserId,
-            clubId: state.user.clubId,
-            code,
-            pwd: code, // default password
-            name: prospect.name || 'Sans nom',
-            email: prospect.email || '',
-            phone: prospect.phone || '',
-            role: 'member',
-            avatar: prospect.name ? prospect.name.substring(0, 2).toUpperCase() : 'U',
-            gender: 'M',
-            age: 30,
-            weight: 70,
-            height: 175,
-            objectifs: [],
-            notes: prospect.notes || '',
-            createdAt: new Date().toISOString(),
-            xp: 0,
-            streak: 0,
-            pointsFidelite: 0
-          };
-          
-          // Create user document
-          await setDoc(doc(db, "users", newUserId.toString()), newUser);
-          // Update prospect status
-          await updateDoc(doc(db, "prospects", docId), { status: newStatus });
-          alert(`Membre créé avec succès ! Code d'accès : ${code}`);
-          // Redirect to members page and select the new member
-          setState(prev => ({ ...prev, page: 'users', selectedMember: newUser }));
-        } else {
-          // If user cancels, just update the status without creating a member? Or don't update status.
-          return;
-        }
+        setConvertingProspect(prospect);
+        setConvertData({ email: prospect.email || '', password: '' });
       } else {
         await updateDoc(doc(db, "prospects", docId), { status: newStatus });
       }
     } catch (err) {
       console.error("Error updating prospect status", err);
+    }
+  };
+
+  const confirmConversion = async () => {
+    if (!convertingProspect || !convertData.email || !convertData.password) {
+      alert("Email et mot de passe requis");
+      return;
+    }
+
+    try {
+      // Create Firebase Auth user
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, convertData.password);
+      const firebaseUid = userCredential.user.uid;
+
+      const newUserId = Date.now();
+      const newUser: User = {
+        id: newUserId,
+        clubId: state.user!.clubId,
+        code: "",
+        pwd: "",
+        name: convertingProspect.name || 'Sans nom',
+        email: convertData.email,
+        phone: convertingProspect.phone || '',
+        role: 'member',
+        avatar: convertingProspect.name ? convertingProspect.name.substring(0, 2).toUpperCase() : 'U',
+        gender: 'M',
+        age: 30,
+        weight: 70,
+        height: 175,
+        objectifs: [],
+        notes: convertingProspect.notes || '',
+        createdAt: new Date().toISOString(),
+        xp: 0,
+        streak: 0,
+        pointsFidelite: 0,
+        firebaseUid: firebaseUid
+      };
+      
+      // Create user document
+      await setDoc(doc(db, "users", firebaseUid), newUser);
+      // Update prospect status
+      await updateDoc(doc(db, "prospects", convertingProspect.firebaseUid), { status: 'won' });
+      
+      setConvertingProspect(null);
+      alert(`Membre créé avec succès !`);
+      // Redirect to members page and select the new member
+      setState(prev => ({ ...prev, page: 'users', selectedMember: newUser }));
+    } catch (err: any) {
+      console.error("Error converting prospect", err);
+      alert(err.message || "Erreur lors de la conversion");
     }
   };
 
@@ -136,32 +158,106 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 page-transition">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-white">Pipeline Commercial</h1>
-          <p className="text-velatra-textMuted mt-1">Gérez vos prospects et convertissez-les en membres.</p>
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-zinc-900">Pipeline Commercial</h1>
+            <p className="text-zinc-500 mt-1">Gérez vos prospects et convertissez-les en membres.</p>
+          </div>
+          
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <button 
+              onClick={() => setIsAdding(true)}
+              className="bg-velatra-accent hover:bg-velatra-accentDark text-zinc-900 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nouveau Lead</span>
+            </button>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-velatra-textMuted" />
+
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-900" />
             <input
               type="text"
-              placeholder="Rechercher..."
+              placeholder="Rechercher par nom ou email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-velatra-bgCard border border-velatra-border rounded-xl py-2 pl-10 pr-4 text-white focus:outline-none focus:border-velatra-accent transition-colors"
+              className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl py-3 pl-14 pr-4 text-zinc-900 font-bold focus:outline-none focus:border-velatra-accent transition-colors"
             />
           </div>
-          <button 
-            onClick={() => setIsAdding(true)}
-            className="bg-velatra-accent hover:bg-velatra-accentDark text-white px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nouveau Lead</span>
-          </button>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
+            <button 
+              onClick={() => setFilterStatus("Tous")} 
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterStatus === "Tous" ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+            >
+              Tous
+            </button>
+            
+            <div className="relative">
+              <select 
+                className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterStatus !== "Tous" ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+              >
+                <option value="Tous">Statut</option>
+                {COLUMNS.map(c => (
+                  <option key={c.id} value={c.id} className="bg-zinc-50 text-zinc-900">{c.title}</option>
+                ))}
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      {convertingProspect && (
+        <div className="fixed inset-0 bg-white/90 backdrop-blur-md z-[600] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <Card className="w-full max-w-md !p-8 border-zinc-200 relative shadow-2xl">
+            <button onClick={() => setConvertingProspect(null)} className="absolute top-6 right-6 text-zinc-900/40 hover:text-zinc-900">
+              <X className="w-6 h-6" />
+            </button>
+            
+            <h2 className="text-2xl font-black mb-1 uppercase italic">Convertir en membre</h2>
+            <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">Créer le profil de {convertingProspect.name}</p>
+
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Email</label>
+                <input 
+                  type="email"
+                  value={convertData.email}
+                  onChange={e => setConvertData({...convertData, email: e.target.value})}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl py-3 px-4 text-zinc-900 font-bold focus:outline-none focus:border-velatra-accent transition-colors"
+                  placeholder="jean@email.com"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Mot de passe provisoire</label>
+                <input 
+                  type="text"
+                  value={convertData.password}
+                  onChange={e => setConvertData({...convertData, password: e.target.value})}
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl py-3 px-4 text-zinc-900 font-bold focus:outline-none focus:border-velatra-accent transition-colors"
+                  placeholder="Ex: velatra2026"
+                />
+              </div>
+              <button 
+                onClick={confirmConversion}
+                className="w-full bg-velatra-accent hover:bg-velatra-accentDark text-zinc-900 font-black italic rounded-xl py-4 mt-4 transition-colors uppercase tracking-widest text-xs"
+              >
+                Créer le membre
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {isAdding && (
         <motion.div 
@@ -169,26 +265,26 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
           animate={{ opacity: 1, y: 0 }}
           className="bg-velatra-bgCard border border-velatra-border rounded-xl p-6"
         >
-          <h2 className="text-xl font-semibold text-white mb-4">Ajouter un Prospect</h2>
+          <h2 className="text-xl font-semibold text-zinc-900 mb-4">Ajouter un Prospect</h2>
           <form onSubmit={handleAddProspect} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-velatra-textMuted mb-1">Nom complet</label>
-              <input required type="text" value={newProspect.name} onChange={e => setNewProspect({...newProspect, name: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-white" />
+              <label className="block text-sm text-zinc-500 mb-1">Nom complet</label>
+              <input required type="text" value={newProspect.name} onChange={e => setNewProspect({...newProspect, name: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" />
             </div>
             <div>
-              <label className="block text-sm text-velatra-textMuted mb-1">Email</label>
-              <input type="email" value={newProspect.email} onChange={e => setNewProspect({...newProspect, email: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-white" />
+              <label className="block text-sm text-zinc-500 mb-1">Email</label>
+              <input type="email" value={newProspect.email} onChange={e => setNewProspect({...newProspect, email: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" />
             </div>
             <div>
-              <label className="block text-sm text-velatra-textMuted mb-1">Téléphone</label>
-              <input type="tel" value={newProspect.phone} onChange={e => setNewProspect({...newProspect, phone: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-white" />
+              <label className="block text-sm text-zinc-500 mb-1">Téléphone</label>
+              <input type="tel" value={newProspect.phone} onChange={e => setNewProspect({...newProspect, phone: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" />
             </div>
             <div>
-              <label className="block text-sm text-velatra-textMuted mb-1">Notes / Objectifs</label>
-              <input type="text" value={newProspect.notes} onChange={e => setNewProspect({...newProspect, notes: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-white" />
+              <label className="block text-sm text-zinc-500 mb-1">Notes / Objectifs</label>
+              <input type="text" value={newProspect.notes} onChange={e => setNewProspect({...newProspect, notes: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" />
             </div>
             <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-              <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-velatra-textMuted hover:text-white transition-colors">Annuler</button>
+              <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
               <button type="submit" className="bg-velatra-accent text-white px-6 py-2 rounded-lg font-medium hover:bg-velatra-accentDark transition-colors">Enregistrer</button>
             </div>
           </form>
@@ -208,7 +304,7 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
             >
               <div className={`p-3 border-b border-velatra-border flex justify-between items-center rounded-t-xl ${col.color.split(' ')[0]}`}>
                 <h3 className={`font-semibold ${col.color.split(' ')[1]}`}>{col.title}</h3>
-                <span className="bg-black/20 px-2 py-0.5 rounded-full text-xs font-medium">{colProspects.length}</span>
+                <span className="bg-zinc-50 px-2 py-0.5 rounded-full text-xs font-medium">{colProspects.length}</span>
               </div>
               
               <div className="p-3 flex-1 overflow-y-auto space-y-3 min-h-[500px]">
@@ -220,26 +316,26 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
                     className="bg-velatra-bg border border-velatra-border rounded-lg p-4 cursor-grab active:cursor-grabbing hover:border-velatra-textMuted transition-colors group"
                   >
                     <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-medium text-white">{prospect.name}</h4>
-                      <button onClick={() => handleDelete(prospect.id)} className="text-velatra-textMuted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <h4 className="font-medium text-zinc-900">{prospect.name}</h4>
+                      <button onClick={() => handleDelete(prospect.id)} className="text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                     
-                    <div className="space-y-1 text-sm text-velatra-textMuted mb-3">
+                    <div className="space-y-1 text-sm text-zinc-500 mb-3">
                       {prospect.email && <div className="flex items-center gap-2"><Mail className="w-3 h-3" /> <span className="truncate">{prospect.email}</span></div>}
                       {prospect.phone && <div className="flex items-center gap-2"><Phone className="w-3 h-3" /> <span>{prospect.phone}</span></div>}
                       <div className="flex items-center gap-2"><Clock className="w-3 h-3" /> <span>{new Date(prospect.date).toLocaleDateString()}</span></div>
                     </div>
 
                     {prospect.notes && (
-                      <p className="text-xs text-velatra-textDark bg-velatra-bgCard p-2 rounded mb-3 line-clamp-2">{prospect.notes}</p>
+                      <p className="text-xs text-zinc-900 bg-velatra-bgCard p-2 rounded mb-3 line-clamp-2">{prospect.notes}</p>
                     )}
 
                     <select 
                       value={prospect.status}
                       onChange={(e) => handleStatusChange(prospect.id, e.target.value)}
-                      className="w-full bg-velatra-bgCard border border-velatra-border rounded text-xs p-1.5 text-velatra-textMuted focus:outline-none"
+                      className="w-full bg-velatra-bgCard border border-velatra-border rounded text-xs p-1.5 text-zinc-500 focus:outline-none"
                     >
                       {COLUMNS.map(c => <option key={c.id} value={c.id}>Déplacer vers {c.title}</option>)}
                     </select>
