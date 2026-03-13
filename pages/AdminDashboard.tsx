@@ -14,6 +14,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
   const [owners, setOwners] = useState<Record<string, User>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('Tous');
 
   useEffect(() => {
     fetchData();
@@ -90,15 +91,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
     }
   };
 
-  const filteredClubs = clubs.filter(club => 
-    club.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    owners[club.id]?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    owners[club.id]?.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClubs = clubs.filter(club => {
+    if (!((club.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (owners[club.id]?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          owners[club.id]?.email?.toLowerCase().includes(searchTerm.toLowerCase()))) return false;
+          
+    if (filterStatus === 'Actifs' && club.isActive === false) return false;
+    if (filterStatus === 'Inactifs' && club.isActive !== false) return false;
+    if (filterStatus === 'Basic' && club.plan !== 'basic') return false;
+    if (filterStatus === 'Classic' && club.plan !== 'classic') return false;
+    if (filterStatus === 'Premium' && club.plan !== 'premium') return false;
+    
+    return true;
+  });
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="animate-spin text-velatra-accent">
           <Activity size={32} />
         </div>
@@ -114,15 +123,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
             <Shield className="text-velatra-accent" size={24} />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">Super Admin</h1>
-            <p className="text-white/50">Gestion des clubs et abonnements</p>
+            <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Super Admin</h1>
+            <p className="text-zinc-500">Gestion des clubs et abonnements</p>
           </div>
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 flex items-center gap-2">
-            <span className="text-white/50 text-sm">Total Clubs:</span>
-            <span className="text-white font-bold">{clubs.length}</span>
+          <div className="bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2 flex items-center gap-2">
+            <span className="text-zinc-500 text-sm">Total Clubs:</span>
+            <span className="text-zinc-900 font-bold">{clubs.length}</span>
           </div>
           <div className="bg-velatra-accent/10 border border-velatra-accent/20 rounded-xl px-4 py-2 flex items-center gap-2">
             <span className="text-velatra-accent/70 text-sm">Premium:</span>
@@ -131,23 +140,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={20} />
-          <input
-            type="text"
-            placeholder="Rechercher un club, un coach ou un email..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-velatra-accent/50 transition-all"
-          />
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-900/30" size={20} />
+            <input
+              type="text"
+              placeholder="Rechercher un club, un coach ou un email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl py-4 pl-12 pr-4 text-zinc-900 placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-velatra-accent/50 transition-all"
+            />
+          </div>
+          <button 
+            onClick={initializeOldClubs}
+            className="bg-zinc-100 hover:bg-zinc-200 text-zinc-900 px-6 py-4 rounded-2xl font-medium transition-all"
+          >
+            Initialiser les anciens clubs
+          </button>
         </div>
-        <button 
-          onClick={initializeOldClubs}
-          className="bg-white/10 hover:bg-white/20 text-white px-6 py-4 rounded-2xl font-medium transition-all"
-        >
-          Initialiser les anciens clubs
-        </button>
+
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
+          {["Tous", "Actifs", "Inactifs", "Basic", "Classic", "Premium"].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilterStatus(f)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterStatus === f ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
@@ -156,19 +179,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
           const isActive = club.isActive !== false; // Default to true
           
           return (
-            <Card key={club.id} className="bg-white/5 border-white/10 p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+            <Card key={club.id} className="bg-zinc-50 border-zinc-200 p-6 flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="flex items-center gap-6 flex-1">
-                <div className="w-16 h-16 rounded-2xl bg-black border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+                <div className="w-16 h-16 rounded-2xl bg-white border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0">
                   {club.logo ? (
                     <img src={club.logo} alt={club.name} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-2xl font-bold text-white/30">{club.name.charAt(0)}</span>
+                    <span className="text-2xl font-bold text-zinc-900/30">{club.name.charAt(0)}</span>
                   )}
                 </div>
                 
                 <div>
                   <div className="flex items-center gap-3 mb-1">
-                    <h3 className="text-xl font-bold text-white">{club.name}</h3>
+                    <h3 className="text-xl font-bold text-zinc-900">{club.name}</h3>
                     {!isActive && (
                       <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-xs font-medium border border-red-500/20">
                         Suspendu
@@ -185,25 +208,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                       </span>
                     )}
                     {(!club.plan || club.plan === 'basic') && (
-                      <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/70 text-xs font-medium border border-white/10 flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 text-xs font-medium border border-zinc-200 flex items-center gap-1">
                         Basic
                       </span>
                     )}
                   </div>
-                  <div className="text-white/50 text-sm space-y-1">
-                    <p>Coach: <span className="text-white/80">{owner?.name || 'Inconnu'}</span></p>
-                    <p>Email: <span className="text-white/80">{owner?.email || 'Non renseigné'}</span></p>
-                    <p>Créé le: <span className="text-white/80">{new Date(club.createdAt).toLocaleDateString('fr-FR')}</span></p>
+                  <div className="text-zinc-500 text-sm space-y-1">
+                    <p>Coach: <span className="text-zinc-900/80">{owner?.name || 'Inconnu'}</span></p>
+                    <p>Email: <span className="text-zinc-900/80">{owner?.email || 'Non renseigné'}</span></p>
+                    <p>Créé le: <span className="text-zinc-900/80">{new Date(club.createdAt).toLocaleDateString('fr-FR')}</span></p>
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-3 w-full md:w-auto flex-wrap justify-end">
-                <div className="flex items-center gap-2 bg-white/5 p-1 rounded-xl">
+                <div className="flex items-center gap-2 bg-zinc-50 p-1 rounded-xl">
                   <button
                     onClick={() => updatePlan(club.id, 'basic')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      (!club.plan || club.plan === 'basic') ? 'bg-white/10 text-white' : 'text-white/50 hover:text-white'
+                      (!club.plan || club.plan === 'basic') ? 'bg-zinc-100 text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'
                     }`}
                   >
                     Basic
@@ -211,7 +234,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                   <button
                     onClick={() => updatePlan(club.id, 'classic')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      club.plan === 'classic' ? 'bg-velatra-accent text-black' : 'text-white/50 hover:text-white'
+                      club.plan === 'classic' ? 'bg-velatra-accent text-black' : 'text-zinc-500 hover:text-zinc-900'
                     }`}
                   >
                     Classic
@@ -219,7 +242,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                   <button
                     onClick={() => updatePlan(club.id, 'premium')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                      club.plan === 'premium' ? 'bg-gradient-to-r from-amber-200 to-yellow-400 text-black' : 'text-white/50 hover:text-white'
+                      club.plan === 'premium' ? 'bg-gradient-to-r from-amber-200 to-yellow-400 text-black' : 'text-zinc-500 hover:text-zinc-900'
                     }`}
                   >
                     <Crown size={14} />
@@ -244,7 +267,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
         })}
 
         {filteredClubs.length === 0 && (
-          <div className="text-center py-12 text-white/50">
+          <div className="text-center py-12 text-zinc-500">
             Aucun club trouvé pour cette recherche.
           </div>
         )}

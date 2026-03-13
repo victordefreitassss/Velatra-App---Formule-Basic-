@@ -22,7 +22,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
 
   const filtered = state.exercises.filter(ex => 
     (filter === "Tous" || ex.cat === filter) &&
-    ex.name.toLowerCase().includes(search.toLowerCase())
+    (ex.name || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const handleSaveNewEx = async () => {
@@ -38,7 +38,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
       cat: newEx.cat || "Autre",
       equip: newEx.equip || "Aucun",
       photo: newEx.photo || null,
-      perfId: newEx.name.toLowerCase().replace(/\s+/g, '_')
+      perfId: (newEx.name || '').toLowerCase().replace(/\s+/g, '_')
     };
 
     try {
@@ -66,7 +66,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
     <div className="space-y-8 page-transition pb-20">
       <div className="flex justify-between items-center px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-white leading-none">BIBLIOTHÈQUE</h1>
+          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">BIBLIOTHÈQUE</h1>
           <p className="text-[10px] text-velatra-accent font-bold uppercase tracking-[3px] mt-2">{state.exercises.length} Exercices dispos</p>
         </div>
         <div className="flex gap-2">
@@ -76,34 +76,53 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <SearchIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-velatra-textDark" />
+      <div className="space-y-4">
+        <div className="relative">
+          <SearchIcon size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-900" />
           <Input 
             placeholder="Rechercher un mouvement..." 
-            className="pl-12 !bg-white/[0.03] !border-white/5 !rounded-2xl" 
+            className="pl-14 !bg-zinc-50 !border-zinc-200 !rounded-2xl font-bold" 
             value={search} 
             onChange={e => setSearch(e.target.value)} 
           />
         </div>
-        <select 
-          className="bg-white/5 border border-white/5 text-white rounded-2xl px-6 py-3 text-sm outline-none focus:border-velatra-accent transition-all appearance-none cursor-pointer"
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-        >
-          <option>Tous</option>
-          {EXERCISE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
+        
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
+          <button 
+            onClick={() => setFilter("Tous")} 
+            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filter === "Tous" ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+          >
+            Tous
+          </button>
+          
+          <div className="relative">
+            <select 
+              className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filter !== "Tous" ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+            >
+              <option value="Tous">Catégorie</option>
+              {EXERCISE_CATEGORIES.map(c => (
+                <option key={c} value={c} className="bg-zinc-50 text-zinc-900">{c}</option>
+              ))}
+            </select>
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {filtered.map(ex => {
-          const isSquatBarre = ex.name.toLowerCase().includes("squat barre");
+          const isSquatBarre = (ex.name || '').toLowerCase().includes("squat barre");
           const needsPhoto = !ex.photo;
 
           return (
-            <Card key={ex.id} className={`!p-0 overflow-hidden group border-none ring-1 transition-all bg-[#0a0a0a] ${isSquatBarre && needsPhoto ? 'ring-velatra-accent/50 animate-pulse' : 'ring-white/5 hover:ring-velatra-accent/30'}`}>
-              <div className="aspect-[4/3] bg-black flex items-center justify-center relative overflow-hidden">
+            <Card key={ex.id} className={`!p-0 overflow-hidden group border-none ring-1 transition-all bg-white ${isSquatBarre && needsPhoto ? 'ring-velatra-accent/50 animate-pulse' : 'ring-zinc-200 hover:ring-velatra-accent/30'}`}>
+              <div className="aspect-[4/3] bg-white flex items-center justify-center relative overflow-hidden">
                 {ex.photo ? (
                   <img src={ex.photo} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="" />
                 ) : (
@@ -122,7 +141,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 )}
               
               {/* Actions Overlay */}
-              <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 p-4 gap-2">
+              <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 p-4 gap-2">
                  <Button 
                    variant="glass" 
                    fullWidth 
@@ -148,11 +167,11 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                  </button>
               </div>
             </div>
-            <div className="p-4 border-t border-white/5">
+            <div className="p-4 border-t border-zinc-200">
               <div className="font-black text-sm truncate group-hover:text-velatra-accent transition-colors tracking-tight">{ex.name}</div>
               <div className="flex justify-between items-center mt-2">
-                <Badge variant="dark" className="!bg-transparent !p-0 !border-none !text-velatra-textDark">{ex.cat}</Badge>
-                <div className="text-[8px] text-velatra-textDark font-black uppercase tracking-widest">{ex.equip}</div>
+                <Badge variant="dark" className="!bg-transparent !p-0 !border-none !text-zinc-900">{ex.cat}</Badge>
+                <div className="text-[8px] text-zinc-900 font-black uppercase tracking-widest">{ex.equip}</div>
               </div>
             </div>
           </Card>
@@ -162,9 +181,9 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
 
       {/* Modal d'ajout Manuel */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
-           <Card className="w-full max-w-md !p-8 border-white/10 relative shadow-2xl">
-              <button onClick={() => setShowAddModal(false)} className="absolute top-6 right-6 text-white/40 hover:text-white">
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
+           <Card className="w-full max-w-md !p-8 border-zinc-200 relative shadow-2xl">
+              <button onClick={() => setShowAddModal(false)} className="absolute top-6 right-6 text-zinc-900/40 hover:text-zinc-900">
                 <XIcon size={24} />
               </button>
               
@@ -173,7 +192,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
 
               <div className="space-y-5">
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-velatra-textDark tracking-widest ml-1">Nom du mouvement</label>
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Nom du mouvement</label>
                    <Input 
                     placeholder="Ex: Leg Press Incliné"
                     value={newEx.name}
@@ -182,9 +201,9 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-velatra-textDark tracking-widest ml-1">Catégorie</label>
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Catégorie</label>
                    <select 
-                     className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-sm text-white focus:border-velatra-accent outline-none appearance-none"
+                     className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-velatra-accent outline-none appearance-none"
                      value={newEx.cat}
                      onChange={e => setNewEx({...newEx, cat: e.target.value})}
                    >
@@ -193,7 +212,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-velatra-textDark tracking-widest ml-1">Équipement requis</label>
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Équipement requis</label>
                    <Input 
                     placeholder="Ex: Machine, Barre, Haltères..."
                     value={newEx.equip}
@@ -202,7 +221,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-velatra-textDark tracking-widest ml-1">URL de la Photo</label>
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">URL de la Photo</label>
                    <Input 
                     placeholder="https://..."
                     value={newEx.photo || ""}
@@ -211,11 +230,11 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-velatra-textDark tracking-widest ml-1">Ou charger un fichier</label>
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Ou charger un fichier</label>
                    <input 
                      type="file" 
                      accept="image/*"
-                     className="w-full text-[10px] text-white/50 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-velatra-accent file:text-white hover:file:bg-velatra-accentDark cursor-pointer bg-white/5 p-2 rounded-xl border border-white/10"
+                     className="w-full text-[10px] text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-velatra-accent file:text-zinc-900 hover:file:bg-velatra-accentDark cursor-pointer bg-zinc-50 p-2 rounded-xl border border-zinc-200"
                      onChange={(e) => {
                        const file = e.target.files?.[0];
                        if (file) {
@@ -241,9 +260,9 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
       )}
       {/* Modal d'édition */}
       {editingEx && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
-           <Card className="w-full max-w-md !p-8 border-white/10 relative shadow-2xl">
-              <button onClick={() => setEditingEx(null)} className="absolute top-6 right-6 text-white/40 hover:text-white">
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
+           <Card className="w-full max-w-md !p-8 border-zinc-200 relative shadow-2xl">
+              <button onClick={() => setEditingEx(null)} className="absolute top-6 right-6 text-zinc-900/40 hover:text-zinc-900">
                 <XIcon size={24} />
               </button>
               
@@ -252,7 +271,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
 
               <div className="space-y-5">
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-velatra-textDark tracking-widest ml-1">URL de la Photo</label>
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">URL de la Photo</label>
                    <Input 
                     placeholder="https://..."
                     value={editingEx.photo || ""}
@@ -261,11 +280,11 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-velatra-textDark tracking-widest ml-1">Ou charger un fichier</label>
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Ou charger un fichier</label>
                    <input 
                      type="file" 
                      accept="image/*"
-                     className="w-full text-[10px] text-white/50 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-velatra-accent file:text-white hover:file:bg-velatra-accentDark cursor-pointer bg-white/5 p-2 rounded-xl border border-white/10"
+                     className="w-full text-[10px] text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-velatra-accent file:text-zinc-900 hover:file:bg-velatra-accentDark cursor-pointer bg-zinc-50 p-2 rounded-xl border border-zinc-200"
                      onChange={(e) => {
                        const file = e.target.files?.[0];
                        if (file) {
