@@ -9,6 +9,9 @@ import {
 import { db, doc, setDoc, updateDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs } from '../firebase';
 import { GOALS } from '../constants';
 import { generateNutritionPlan } from '../services/aiService';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
+} from 'recharts';
 
 export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [search, setSearch] = useState("");
@@ -461,13 +464,29 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         const progCompletion = stats.program ? Math.round(((stats.program.currentDayIndex + 1) / (progDays || 1)) * 100) : 0;
 
         const weightHistory = [...stats.body].reverse();
-        const maxW = weightHistory.length > 0 ? Math.max(...weightHistory.map(b => b.weight)) + 2 : 100;
-        const minW = weightHistory.length > 0 ? Math.min(...weightHistory.map(b => b.weight)) - 2 : 40;
-        const svgPoints = weightHistory.map((b, i) => {
-          const x = weightHistory.length > 1 ? (i / (weightHistory.length - 1)) * 100 : 50;
-          const y = 100 - ((b.weight - minW) / (maxW - minW || 1)) * 100;
-          return `${x},${y}`;
-        }).join(' ');
+        const chartData = weightHistory.map(b => ({
+          date: new Date(b.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }),
+          weight: b.weight,
+          fat: b.fat,
+          muscle: b.muscle
+        }));
+
+        const CustomTooltip = ({ active, payload, label }: any) => {
+          if (active && payload && payload.length) {
+            return (
+              <div className="bg-white/90 border border-zinc-200 p-4 rounded-2xl backdrop-blur-xl shadow-2xl">
+                <p className="text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2">{label}</p>
+                {payload.map((entry: any, index: number) => (
+                  <div key={index} className="flex items-center justify-between gap-4">
+                    <span className="text-[10px] font-black uppercase" style={{ color: entry.color }}>{entry.name}</span>
+                    <span className="text-sm font-black text-zinc-900">{entry.value}{entry.name === 'Poids' || entry.name === 'Muscle' ? 'kg' : '%'}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          }
+          return null;
+        };
 
         return (
           <div className="fixed inset-0 bg-white/95 backdrop-blur-3xl z-[500] flex items-start justify-center p-0 md:p-8 overflow-y-auto">
@@ -822,37 +841,111 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </section>
 
                   <section className="space-y-8">
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500"><BarChartIcon size={24} /></div>
-                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Courbe de Poids</h3>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                      <div className="flex items-center gap-4">
+                         <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500"><BarChartIcon size={24} /></div>
+                         <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Évolution Corporelle</h3>
+                      </div>
+                      
+                      <div className="flex gap-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-velatra-accent" />
+                          <span className="text-[9px] font-black uppercase text-zinc-900 tracking-widest">Poids</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span className="text-[9px] font-black uppercase text-zinc-900 tracking-widest">Muscle</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-blue-500" />
+                          <span className="text-[9px] font-black uppercase text-zinc-900 tracking-widest">Gras (%)</span>
+                        </div>
+                      </div>
                     </div>
                     
-                    <div className="bg-white border border-zinc-200 rounded-[40px] p-10 h-72 relative overflow-hidden shadow-inner">
+                    <div className="bg-white border border-zinc-200 rounded-[40px] p-6 h-80 relative overflow-hidden shadow-inner">
                       {weightHistory.length > 0 ? (
-                        <div className="w-full h-full relative">
-                          <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-                            {weightHistory.length > 1 && (
-                              <polyline 
-                                fill="none" 
-                                stroke="#6366f1" 
-                                strokeWidth="3" 
-                                strokeLinecap="round" 
-                                strokeLinejoin="round" 
-                                points={svgPoints} 
-                                className="drop-shadow-[0_0_10px_rgba(196,30,58,0.5)]"
-                              />
-                            )}
-                            {weightHistory.map((b, i) => {
-                               const x = weightHistory.length > 1 ? (i / (weightHistory.length - 1)) * 100 : 50;
-                               const y = 100 - ((b.weight - minW) / (maxW - minW || 1)) * 100;
-                               return (
-                                 <circle key={i} cx={x} cy={y} r="4" fill="#fff" stroke="#6366f1" strokeWidth="2" />
-                               );
-                            })}
-                          </svg>
-                        </div>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={chartData}>
+                            <defs>
+                              <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                              </linearGradient>
+                              <linearGradient id="colorMuscle" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                              </linearGradient>
+                              <linearGradient id="colorFat" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
+                            <XAxis 
+                              dataKey="date" 
+                              stroke="#a1a1aa" 
+                              fontSize={10} 
+                              tickLine={false} 
+                              axisLine={false} 
+                              dy={10}
+                            />
+                            <YAxis 
+                              yAxisId="left"
+                              stroke="#a1a1aa" 
+                              fontSize={10} 
+                              tickLine={false} 
+                              axisLine={false} 
+                              dx={-10}
+                              domain={['dataMin - 2', 'dataMax + 2']}
+                            />
+                            <YAxis 
+                              yAxisId="right"
+                              orientation="right"
+                              stroke="#a1a1aa" 
+                              fontSize={10} 
+                              tickLine={false} 
+                              axisLine={false} 
+                              dx={10}
+                              domain={[0, 'dataMax + 5']}
+                            />
+                            <Tooltip content={<CustomTooltip />} />
+                            <Area 
+                              yAxisId="left"
+                              type="monotone" 
+                              dataKey="weight" 
+                              name="Poids"
+                              stroke="#6366f1" 
+                              strokeWidth={4}
+                              fillOpacity={1} 
+                              fill="url(#colorWeight)" 
+                            />
+                            <Area 
+                              yAxisId="left"
+                              type="monotone" 
+                              dataKey="muscle" 
+                              name="Muscle"
+                              stroke="#10b981" 
+                              strokeWidth={4}
+                              fillOpacity={1} 
+                              fill="url(#colorMuscle)" 
+                            />
+                            <Area 
+                              yAxisId="right"
+                              type="monotone" 
+                              dataKey="fat" 
+                              name="Gras"
+                              stroke="#3b82f6" 
+                              strokeWidth={4}
+                              fillOpacity={1} 
+                              fill="url(#colorFat)" 
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-zinc-900 italic uppercase tracking-widest font-black text-[10px]">Attente de scans réguliers...</div>
+                        <div className="absolute inset-0 flex items-center justify-center text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                          Aucune donnée
+                        </div>
                       )}
                     </div>
                   </section>

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   User, AppState, Program, Preset, SessionLog, Performance, BodyData, Message, FeedItem,
   SupplementProduct, SupplementOrder, FixedCost, CommissionPayment, Prospect, Newsletter, Club, Exercise,
-  Task, Subscription, Payment, Plan, NutritionPlan, CRMClient, CRMFormula, ManualStats, PendingProspect
+  Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect
 } from './types';
 import { 
   INIT_EXERCISES, CLUB_INFO, COACHES 
@@ -252,8 +252,26 @@ export default function App() {
 
     const unsubMessages = onSnapshot(query(collection(db, "messages"), where("clubId", "==", clubId)), (snap) => {
       const messages: Message[] = [];
+      let hasNewUnread = false;
+      
+      snap.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const msg = change.doc.data() as Message;
+          if (!msg.read && msg.to === state.user?.id) {
+            hasNewUnread = true;
+          }
+        }
+      });
+
       snap.forEach(d => messages.push(d.data() as Message));
       setState(prev => ({ ...prev, messages }));
+
+      if (hasNewUnread && Notification.permission === 'granted') {
+        new Notification("Nouveau message", {
+          body: "Vous avez reçu un nouveau message sur Velatra.",
+          icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
+        });
+      }
     });
 
     const unsubFeed = onSnapshot(query(collection(db, "feed"), where("clubId", "==", clubId)), (snap) => {
@@ -491,6 +509,12 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
   if (loading) return (
     <div className="min-h-screen bg-white flex items-center justify-center">
       <div className="animate-spin text-velatra-accent">
@@ -501,8 +525,10 @@ export default function App() {
 
   if (!state.user) return <Login onLogin={() => {}} onRegister={() => {}} />;
 
+  const unreadMessagesCount = state.messages.filter(m => !m.read && m.to === state.user?.id).length;
+
   return (
-    <Layout user={state.user} club={state.currentClub} activePage={state.page} onPageChange={(p) => setState(s => ({ ...s, page: p }))} onLogout={handleLogout}>
+    <Layout user={state.user} club={state.currentClub} activePage={state.page} onPageChange={(p) => setState(s => ({ ...s, page: p }))} onLogout={handleLogout} unreadMessagesCount={unreadMessagesCount}>
       {renderActivePageContent(state.user)}
       {state.toast && <Toast message={state.toast.message} type={state.toast.type} />}
       {state.workout && state.workoutMember && (

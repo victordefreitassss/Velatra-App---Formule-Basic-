@@ -65,7 +65,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
         <div className="text-center sm:text-left">
           <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">INFOS CLUB</h1>
-          <p className="text-velatra-accent text-[10px] uppercase tracking-[3px] font-bold">VELATRA Application sur mesure</p>
+          <p className="text-velatra-accent text-[10px] uppercase tracking-[3px] font-bold">VELATRA Application numéro 1</p>
         </div>
         
         {isCoach && !isEditing && (

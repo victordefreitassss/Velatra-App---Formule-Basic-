@@ -366,7 +366,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                           </button>
                         </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-6 bg-zinc-50 p-5 rounded-2xl border border-zinc-200">
+                      <div className="grid grid-cols-2 sm:grid-cols-6 gap-6 bg-zinc-50 p-5 rounded-2xl border border-zinc-200">
                         <div className="space-y-1">
                           <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">SÉRIES</label>
                           <Input 
@@ -415,6 +415,16 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                             <option value="giantset">Giant-set</option>
                             <option value="dropset">Drop-set</option>
                           </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block" title="Même numéro = même groupe (Superset)">GROUPE</label>
+                          <Input 
+                            type="number" 
+                            className="text-center !rounded-xl !text-base font-black !bg-white"
+                            value={ex.setGroup || ''}
+                            placeholder="Ex: 1"
+                            onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setGroup', parseInt(e.target.value) || null)}
+                          />
                         </div>
                       </div>
                     </div>
