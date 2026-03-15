@@ -14,6 +14,7 @@ interface LayoutProps {
   onPageChange: (p: Page) => void;
   onLogout: () => void;
   children: React.ReactNode;
+  unreadMessagesCount?: number;
 }
 
 const AppLogo: React.FC<{ club: Club | null }> = ({ club }) => (
@@ -27,7 +28,7 @@ const AppLogo: React.FC<{ club: Club | null }> = ({ club }) => (
       </div>
     </div>
     <div className="text-[8px] tracking-[2px] text-zinc-500 font-bold uppercase mt-1 pl-12 opacity-80">
-      APPLICATION SUR MESURE
+      APPLICATION NUMÉRO 1
     </div>
     {club && (
       <div className="mt-4 p-3 bg-zinc-50 border border-zinc-200 rounded-xl backdrop-blur-sm">
@@ -38,7 +39,7 @@ const AppLogo: React.FC<{ club: Club | null }> = ({ club }) => (
   </div>
 );
 
-export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageChange, onLogout, children }) => {
+export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageChange, onLogout, children, unreadMessagesCount = 0 }) => {
   const coachItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium' }[] = [
     { id: 'home', icon: HomeIcon, label: 'Tableau' },
     { id: 'users', icon: UsersIcon, label: 'Membres' },
@@ -105,9 +106,12 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
                 ${activePage === item.id ? 'bg-velatra-accent text-white shadow-[0_0_15px_rgba(99,102,241,0.2)] scale-[1.01]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}
               `}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 relative">
                 <item.icon size={18} strokeWidth={activePage === item.id ? 2.5 : 2} className={`${activePage === item.id ? '' : 'group-hover:scale-110 transition-transform duration-300'}`} />
                 <span className="text-[11px] font-bold uppercase tracking-[1.5px]">{item.label}</span>
+                {item.id === 'chat' && unreadMessagesCount > 0 && (
+                  <span className="absolute -top-1 -right-3 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                )}
               </div>
               {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' && (
                 <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity" />
@@ -166,7 +170,12 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
               }}
               className={`flex flex-col items-center gap-1 transition-all duration-300 relative py-1 ${activePage === item.id ? 'text-velatra-accent scale-110 drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]' : 'text-zinc-500 hover:text-zinc-900'}`}
             >
-              <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} />
+              <div className="relative">
+                <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} />
+                {item.id === 'chat' && unreadMessagesCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                )}
+              </div>
             </button>
           ))}
           <button 
@@ -199,6 +208,9 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
                   >
                     <div className={`p-3 rounded-2xl relative ${activePage === item.id ? 'bg-velatra-accent/20' : 'bg-zinc-50'}`}>
                       <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} />
+                      {item.id === 'chat' && unreadMessagesCount > 0 && (
+                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                      )}
                       {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' && (
                         <div className="absolute -top-1 -right-1 bg-velatra-bgCard rounded-full p-0.5 border border-zinc-200">
                           <LockIcon size={10} className="text-zinc-500" />

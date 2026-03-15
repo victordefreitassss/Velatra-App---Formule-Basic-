@@ -1,5 +1,5 @@
 {
-  "name": "VELATRA - Application sur mesure",
+  "name": "VELATRA - Application numéro 1",
   "description": "Plateforme de gestion pour les professionnels du fitness et les clubs de sport. Gérez les programmes d'entraînement, le suivi des membres et les analyses de performance.",
   "requestFramePermissions": [
     "camera"

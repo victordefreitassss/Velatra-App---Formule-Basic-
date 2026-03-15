@@ -17,12 +17,21 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
   }
 
   const startSession = (dayIdx: number) => {
+    // Calculate the actual absolute index based on the current week
+    const currentWeek = Math.floor(program.currentDayIndex / program.nbDays);
+    const absoluteDayIndex = (currentWeek * program.nbDays) + dayIdx;
+    
     setState((s: AppState) => ({ 
       ...s, 
-      workout: { ...program, currentDayIndex: dayIdx },
+      workout: { ...program, currentDayIndex: absoluteDayIndex },
       workoutMember: user
     }));
   };
+
+  const currentDayInWeek = program.currentDayIndex % program.nbDays;
+  const currentWeek = Math.floor(program.currentDayIndex / program.nbDays) + 1;
+  const totalWeeks = program.durationWeeks || 1;
+  const progressPercent = Math.min(100, Math.round((program.currentDayIndex / (program.nbDays * totalWeeks)) * 100));
 
   return (
     <div className="space-y-8 page-transition pb-20">
@@ -33,25 +42,51 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
         </div>
       </div>
 
+      <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
+        <div className="flex justify-between items-end mb-4">
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Progression Globale</div>
+            <div className="text-2xl font-black italic text-zinc-900">{progressPercent}%</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Semaine</div>
+            <div className="text-sm font-black italic text-velatra-accent">{currentWeek} / {totalWeeks}</div>
+          </div>
+        </div>
+        <div className="w-full bg-zinc-100 rounded-full h-3 overflow-hidden">
+          <div className="bg-velatra-accent h-full rounded-full transition-all duration-1000" style={{ width: `${progressPercent}%` }} />
+        </div>
+      </div>
+
       <div className="space-y-4">
-        {program.days.map((day, idx) => (
-          <Card key={idx} className="flex items-center justify-between group !p-6 bg-white border-zinc-200 hover:border-velatra-accent/30 transition-all">
-            <div className="flex items-center gap-6">
-              <div className="w-14 h-14 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center font-bold text-xl text-zinc-900 group-hover:text-velatra-accent group-hover:border-velatra-accent/50 group-hover:bg-velatra-accent/10 transition-all shadow-inner">
-                {idx + 1}
-              </div>
-              <div>
-                <div className="font-bold text-lg text-zinc-900 mb-1">{day.name}</div>
-                <div className="text-[10px] text-zinc-900 font-bold uppercase tracking-widest flex items-center gap-2">
-                  {day.exercises.length} Exercices
+        {program.days.map((day, idx) => {
+          const isCompleted = idx < currentDayInWeek;
+          const isCurrent = idx === currentDayInWeek;
+          const isLocked = idx > currentDayInWeek;
+
+          return (
+            <Card key={idx} className={`flex items-center justify-between group !p-6 border-zinc-200 transition-all ${isCompleted ? 'bg-zinc-50 opacity-60' : 'bg-white hover:border-velatra-accent/30'}`}>
+              <div className="flex items-center gap-6">
+                <div className={`w-14 h-14 rounded-2xl border flex items-center justify-center font-bold text-xl transition-all shadow-inner ${isCompleted ? 'bg-velatra-accent text-zinc-900 border-velatra-accent' : isCurrent ? 'bg-velatra-accent/10 text-velatra-accent border-velatra-accent/50' : 'bg-zinc-50 border-zinc-200 text-zinc-900 group-hover:text-velatra-accent group-hover:border-velatra-accent/50 group-hover:bg-velatra-accent/10'}`}>
+                  {isCompleted ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> : idx + 1}
+                </div>
+                <div>
+                  <div className="font-bold text-lg text-zinc-900 mb-1">{day.name}</div>
+                  <div className="text-[10px] text-zinc-900 font-bold uppercase tracking-widest flex items-center gap-2">
+                    {day.exercises.length} Exercices
+                  </div>
                 </div>
               </div>
-            </div>
-            <Button variant="primary" className="!p-4 !rounded-2xl shadow-lg" onClick={() => startSession(idx)}>
-               <PlayIcon size={20} className="ml-1" />
-            </Button>
-          </Card>
-        ))}
+              {isCompleted ? (
+                <Badge variant="success" className="uppercase !text-[10px]">Terminé</Badge>
+              ) : (
+                <Button variant={isCurrent ? "primary" : "secondary"} className="!p-4 !rounded-2xl shadow-lg" onClick={() => startSession(idx)} disabled={isLocked}>
+                   <PlayIcon size={20} className={isCurrent ? "ml-1" : "ml-1 opacity-50"} />
+                </Button>
+              )}
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

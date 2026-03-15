@@ -1,14 +1,15 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { AppState, BodyData } from '../types';
-import { Card, Badge } from '../components/UI';
+import { Card, Badge, Input } from '../components/UI';
 import { calculate1RM, calculate8RM, calculate12RM } from '../utils';
-import { TargetIcon, BarChartIcon, TrophyIcon, DatabaseIcon } from '../components/Icons';
+import { TargetIcon, BarChartIcon, TrophyIcon, DatabaseIcon, SearchIcon } from '../components/Icons';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
 
 export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state }) => {
+  const [searchPR, setSearchPR] = useState("");
   const user = state.user!;
   const myPerfs = state.performances.filter(p => Number(p.memberId) === Number(user.id));
   const myBody = state.bodyData
@@ -29,6 +30,12 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
     }
     return acc;
   }, {});
+
+  const bestsArray = Object.values(bests).filter((p: any) => {
+    const ex = state.exercises.find(e => e.perfId === p.exId);
+    if (!ex) return false;
+    return ex.name.toLowerCase().includes(searchPR.toLowerCase());
+  });
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -159,13 +166,38 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
         </div>
       </Card>
       
+      <Card className="bg-white border-zinc-200 !p-8 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-100 rounded-full -mr-32 -mt-32 blur-3xl" />
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center text-zinc-900 shadow-inner">
+              <TrophyIcon size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-zinc-900 uppercase italic leading-none">Records Personnels</h2>
+              <p className="text-[10px] text-zinc-900 font-black uppercase tracking-widest mt-1">Vos meilleures performances</p>
+            </div>
+          </div>
+          <div className="w-full md:w-64 relative">
+            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+            <Input 
+              placeholder="Rechercher un exercice..." 
+              className="pl-10 !bg-zinc-50 !border-zinc-200"
+              value={searchPR}
+              onChange={(e) => setSearchPR(e.target.value)}
+            />
+          </div>
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {Object.values(bests).length === 0 ? (
+        {bestsArray.length === 0 ? (
           <Card className="col-span-full py-20 text-center bg-zinc-50 border border-dashed border-zinc-200 rounded-[40px]">
             <TrophyIcon size={48} className="mx-auto mb-4 text-zinc-900/10" />
-            <p className="text-zinc-900 italic font-black uppercase tracking-widest text-xs">Aucune performance enregistrée pour le moment.</p>
+            <p className="text-zinc-900 italic font-black uppercase tracking-widest text-xs">Aucune performance trouvée.</p>
           </Card>
-        ) : Object.values(bests).map((p: any) => {
+        ) : bestsArray.map((p: any) => {
           const ex = state.exercises.find(e => e.perfId === p.exId);
           const oneRM = calculate1RM(p.weight, p.reps);
           return (

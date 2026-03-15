@@ -38,14 +38,14 @@ export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: 
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
       
-      const systemInstruction = `Tu es l'assistant IA virtuel de l'application sur mesure "VELATRA".
+      const systemInstruction = `Tu es l'assistant IA virtuel de l'application numéro 1 "VELATRA".
 Tu t'adresses à l'adhérent nommé ${state.user?.name}.
 Son profil : Âge ${state.user?.age}, Poids ${state.user?.weight}kg, Objectifs : ${(state.user?.objectifs || []).join(', ')}.
 Informations sur le club : ${JSON.stringify(CLUB_INFO)}.
 Coachs du club : ${JSON.stringify(COACHES)}.
 Boutique de compléments : ${JSON.stringify(INIT_SUPPLEMENTS.map(s => s.nom))}.
 Ton rôle est de conseiller l'adhérent sur ses entraînements, la nutrition, les compléments de la boutique, et de répondre à ses questions sur le club.
-Sois motivant, professionnel, empathique et utilise un ton "Application sur mesure" (tutoiement autorisé et encouragé).
+Sois motivant, professionnel, empathique et utilise un ton "Application numéro 1" (tutoiement autorisé et encouragé).
 Fais des réponses concises et structurées en Markdown.
 
 RÈGLES DE REDIRECTION IMPORTANTES :
