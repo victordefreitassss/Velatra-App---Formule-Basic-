@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Club, User } from '../types';
 import { Card } from '../components/UI';
-import { Shield, CheckCircle, XCircle, Search, Activity, Crown, Power } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, Search, Activity, Crown, Power, Trash2 } from 'lucide-react';
 
 interface AdminDashboardProps {
   showToast: (msg: string, type: 'success' | 'error') => void;
@@ -65,6 +65,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
     } catch (error) {
       console.error("Error updating active status:", error);
       showToast("Erreur lors de la mise à jour", "error");
+    }
+  };
+
+  const deleteClubAndData = async (clubId: string) => {
+    if (!confirm("⚠️ ATTENTION ⚠️\n\nÊtes-vous sûr de vouloir supprimer ce club et TOUTES ses données (membres, programmes, messages, etc.) ?\n\nCette action est DÉFINITIVE et IRRÉVERSIBLE.")) return;
+    
+    setLoading(true);
+    try {
+      showToast("Suppression des données en cours...", "success");
+      
+      const collectionsToDelete = [
+        "users", "programs", "presets", "archivedPrograms", "performances", 
+        "supplementProducts", "supplementOrders", "logs", "messages", "feed", 
+        "bodyData", "prospects", "newsletters", "tasks", "plans", "nutritionPlans", 
+        "nutritionLogs", "subscriptions", "payments", "exercises", "crmClients", 
+        "crmFormulas", "manualStats", "pendingProspects", "expenses", "invoices"
+      ];
+
+      for (const colName of collectionsToDelete) {
+        try {
+          const q = query(collection(db, colName), where("clubId", "==", clubId));
+          const snap = await getDocs(q);
+          const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
+          await Promise.all(deletePromises);
+        } catch (e) {
+          console.error(`Error deleting from ${colName}:`, e);
+        }
+      }
+
+      // Delete the club itself
+      await deleteDoc(doc(db, "clubs", clubId));
+      
+      setClubs(clubs.filter(c => c.id !== clubId));
+      showToast("Le club et toutes ses données ont été supprimés", "success");
+    } catch (error) {
+      console.error("Error deleting club:", error);
+      showToast("Erreur lors de la suppression", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -254,12 +293,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                   onClick={() => toggleActive(club.id, isActive)}
                   className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all ${
                     isActive 
-                      ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20' 
+                      ? 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20' 
                       : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20'
                   }`}
                 >
                   <Power size={18} />
                   {isActive ? 'Suspendre' : 'Réactiver'}
+                </button>
+                
+                <button
+                  onClick={() => deleteClubAndData(club.id)}
+                  className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-medium transition-all bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
+                  title="Supprimer le club et toutes ses données"
+                >
+                  <Trash2 size={18} />
+                  Supprimer
                 </button>
               </div>
             </Card>

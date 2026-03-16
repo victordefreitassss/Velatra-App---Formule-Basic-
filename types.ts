@@ -26,6 +26,13 @@ export interface Club {
       pointsPerWorkout: number;
       tiers: { id: string; points: number; reward: string }[];
     };
+    payment?: {
+      stripeConnected: boolean;
+      stripeAccountId?: string;
+      stripeSecretKey?: string;
+      acceptedMethods: string[];
+      autoCollection: boolean;
+    };
   };
 }
 
@@ -37,6 +44,7 @@ export interface User {
   name: string;
   email?: string;
   phone?: string;
+  stripeCustomerId?: string;
   role: Role;
   avatar: string;
   gender: Gender;
@@ -282,6 +290,8 @@ export interface Plan {
   commitmentMonths?: number;
   isTTC?: boolean;
   paymentMethods?: string[];
+  stripeProductId?: string;
+  stripePriceId?: string;
 }
 
 export interface Subscription {
@@ -295,6 +305,7 @@ export interface Subscription {
   startDate: string;
   endDate?: string;
   status: 'active' | 'cancelled' | 'past_due';
+  stripeSubscriptionId?: string;
 }
 
 export interface Payment {
@@ -305,6 +316,28 @@ export interface Payment {
   date: string;
   status: 'paid' | 'pending' | 'failed';
   method: 'card' | 'sepa' | 'cash' | 'transfer';
+  invoiceId?: string; // Added for CRM
+  stripeChargeId?: string;
+}
+
+export interface Expense {
+  id: string;
+  clubId: string;
+  amount: number;
+  category: 'rent' | 'salary' | 'equipment' | 'marketing' | 'software' | 'other';
+  date: string;
+  description: string;
+}
+
+export interface Invoice {
+  id: string;
+  clubId: string;
+  memberId: number;
+  paymentId?: string;
+  amount: number;
+  date: string;
+  status: 'paid' | 'pending' | 'cancelled';
+  number: string;
 }
 
 export interface Newsletter {
@@ -444,6 +477,8 @@ export interface AppState {
   supplementProducts: SupplementProduct[];
   supplementOrders: SupplementOrder[];
   fixedCosts: FixedCost[];
+  expenses: Expense[];
+  invoices: Invoice[];
   commissionPayments: CommissionPayment[];
   prospects: Prospect[];
   tasks: Task[];

@@ -40,36 +40,32 @@ const AppLogo: React.FC<{ club: Club | null }> = ({ club }) => (
 );
 
 export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageChange, onLogout, children, unreadMessagesCount = 0 }) => {
-  const coachItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium' }[] = [
-    { id: 'home', icon: HomeIcon, label: 'Tableau' },
-    { id: 'users', icon: UsersIcon, label: 'Membres' },
-    { id: 'chat', icon: MessageCircleIcon, label: 'Discussion' },
-    { id: 'presets', icon: LayersIcon, label: 'Modèles' },
-    { id: 'exercises', icon: DumbbellIcon, label: 'Exos' },
-    { id: 'nutrition', icon: AppleIcon, label: 'Nutrition' },
-    { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances', requiredPlan: 'classic' },
-    { id: 'calendar', icon: CalendarIcon, label: 'Planning', requiredPlan: 'classic' },
-    { id: 'crm_pipeline', icon: TargetIcon, label: 'ProspectFlow', requiredPlan: 'premium' },
-    { id: 'marketing', icon: MegaphoneIcon, label: 'Marketing', requiredPlan: 'premium' },
-    { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', requiredPlan: 'premium' },
-    { id: 'loyalty', icon: GiftIcon, label: 'Fidélité', requiredPlan: 'premium' },
-    { id: 'about', icon: InfoIcon, label: 'Club' },
-    { id: 'settings', icon: SettingsIcon, label: 'Paramètres' },
+  const coachItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = [
+    { id: 'home', icon: HomeIcon, label: 'Accueil', category: 'Principal' },
+    { id: 'users', icon: UsersIcon, label: 'Membres', category: 'Principal' },
+    { id: 'chat', icon: MessageCircleIcon, label: 'Discussion', category: 'Principal' },
+    { id: 'calendar', icon: CalendarIcon, label: 'Planning', requiredPlan: 'classic', category: 'Principal' },
+    { id: 'presets', icon: LayersIcon, label: 'Modèles', category: 'Bibliothèque' },
+    { id: 'exercises', icon: DumbbellIcon, label: 'Exos', category: 'Bibliothèque' },
+    { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Bibliothèque' },
+    { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances', requiredPlan: 'classic', category: 'Business' },
+    { id: 'crm_pipeline', icon: TargetIcon, label: 'ProspectFlow', requiredPlan: 'premium', category: 'Business' },
+    { id: 'marketing', icon: MegaphoneIcon, label: 'Marketing', requiredPlan: 'premium', category: 'Business' },
+    { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', requiredPlan: 'premium', category: 'Business' },
+    { id: 'loyalty', icon: GiftIcon, label: 'Fidélité', requiredPlan: 'premium', category: 'Business' },
+    { id: 'about', icon: InfoIcon, label: 'Club', category: 'Paramètres' },
+    { id: 'settings', icon: SettingsIcon, label: 'Paramètres', category: 'Paramètres' },
   ];
 
-  const memberItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium' }[] = [
-    { id: 'home', icon: HomeIcon, label: 'Espace' },
-    { id: 'calendar', icon: CalendarIcon, label: 'Séance' },
-    { id: 'ai_coach', icon: BotIcon, label: 'Coach IA' },
-    { id: 'performances', icon: BarChartIcon, label: 'Records' },
-    { id: 'nutrition', icon: AppleIcon, label: 'Nutrition' },
-    { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', requiredPlan: 'premium' },
-    { id: 'loyalty', icon: GiftIcon, label: 'Fidélité', requiredPlan: 'premium' },
-    { id: 'about', icon: InfoIcon, label: 'Club' },
-  ];
-
-  const superadminItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium' }[] = [
-    { id: 'admin', icon: ShieldIcon, label: 'Admin' }
+  const memberItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = [
+    { id: 'home', icon: HomeIcon, label: 'Espace', category: 'Principal' },
+    { id: 'calendar', icon: CalendarIcon, label: 'Séance', category: 'Principal' },
+    { id: 'ai_coach', icon: BotIcon, label: 'Coach IA', category: 'Principal' },
+    { id: 'performances', icon: BarChartIcon, label: 'Records', category: 'Principal' },
+    { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Plus' },
+    { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', requiredPlan: 'premium', category: 'Plus' },
+    { id: 'loyalty', icon: GiftIcon, label: 'Fidélité', requiredPlan: 'premium', category: 'Plus' },
+    { id: 'about', icon: InfoIcon, label: 'Club', category: 'Plus' },
   ];
 
   const hasRequiredPlan = (requiredPlan?: 'basic' | 'classic' | 'premium') => {
@@ -80,14 +76,22 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     return false;
   };
 
-  const menuItems = user.role === 'superadmin' 
-    ? superadminItems 
+  const menuItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = user.role === 'superadmin' 
+    ? [{ id: 'admin', icon: ShieldIcon, label: 'Admin', category: 'Principal' }, ...coachItems]
     : (user.role === 'coach' || user.role === 'owner') 
       ? coachItems 
       : memberItems;
 
   const [showTimer, setShowTimer] = React.useState(false);
   const [showMobileMenu, setShowMobileMenu] = React.useState(false);
+
+  // Group items by category
+  const groupedItems = menuItems.reduce((acc, item) => {
+    const cat = item.category || 'Général';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(item);
+    return acc;
+  }, {} as Record<string, typeof menuItems>);
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-transparent">
@@ -96,27 +100,34 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
            <AppLogo club={club} />
         </div>
         
-        <nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar px-2">
-          {menuItems.map(item => (
-            <button 
-              key={item.id}
-              onClick={() => onPageChange(item.id as Page)}
-              className={`
-                flex items-center justify-between px-4 py-3 rounded-xl w-full transition-all duration-300 group
-                ${activePage === item.id ? 'bg-velatra-accent text-white shadow-[0_0_15px_rgba(99,102,241,0.2)] scale-[1.01]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}
-              `}
-            >
-              <div className="flex items-center gap-3 relative">
-                <item.icon size={18} strokeWidth={activePage === item.id ? 2.5 : 2} className={`${activePage === item.id ? '' : 'group-hover:scale-110 transition-transform duration-300'}`} />
-                <span className="text-[11px] font-bold uppercase tracking-[1.5px]">{item.label}</span>
-                {item.id === 'chat' && unreadMessagesCount > 0 && (
-                  <span className="absolute -top-1 -right-3 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                )}
+        <nav className="flex-1 space-y-6 overflow-y-auto no-scrollbar px-2">
+          {Object.entries(groupedItems).map(([category, items]) => (
+            <div key={category} className="space-y-1">
+              <div className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">
+                {category}
               </div>
-              {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' && (
-                <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity" />
-              )}
-            </button>
+              {items.map(item => (
+                <button 
+                  key={item.id}
+                  onClick={() => onPageChange(item.id as Page)}
+                  className={`
+                    flex items-center justify-between px-4 py-3 rounded-xl w-full transition-all duration-300 group
+                    ${activePage === item.id ? 'bg-velatra-accent text-white shadow-[0_0_15px_rgba(99,102,241,0.2)] scale-[1.01]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}
+                  `}
+                >
+                  <div className="flex items-center gap-3 relative">
+                    <item.icon size={18} strokeWidth={activePage === item.id ? 2.5 : 2} className={`${activePage === item.id ? '' : 'group-hover:scale-110 transition-transform duration-300'}`} />
+                    <span className="text-[11px] font-bold uppercase tracking-[1.5px]">{item.label}</span>
+                    {item.id === 'chat' && unreadMessagesCount > 0 && (
+                      <span className="absolute -top-1 -right-3 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                    )}
+                  </div>
+                  {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' && (
+                    <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity" />
+                  )}
+                </button>
+              ))}
+            </div>
           ))}
           
           <div className="pt-4 mt-4 border-t border-zinc-200">

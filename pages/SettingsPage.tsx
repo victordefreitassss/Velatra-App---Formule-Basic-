@@ -13,6 +13,11 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
       { id: '2', points: 5000, reward: '1 mois offert' }
     ]
   );
+  
+  const [stripeConnected, setStripeConnected] = useState(state.currentClub?.settings?.payment?.stripeConnected || false);
+  const [stripeSecretKey, setStripeSecretKey] = useState(state.currentClub?.settings?.payment?.stripeSecretKey || '');
+  const [acceptedMethods, setAcceptedMethods] = useState<string[]>(state.currentClub?.settings?.payment?.acceptedMethods || ['card', 'cash']);
+
   const [isSaving, setIsSaving] = useState(false);
 
   const [isEditingPlan, setIsEditingPlan] = useState(false);
@@ -27,6 +32,12 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         "settings.loyalty": {
           pointsPerWorkout: loyaltyPoints,
           tiers: loyaltyTiers
+        },
+        "settings.payment": {
+          stripeConnected,
+          stripeSecretKey,
+          acceptedMethods,
+          autoCollection: true
         }
       });
       showToast("Paramètres enregistrés avec succès !");
@@ -35,6 +46,55 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
       showToast("Erreur lors de l'enregistrement", "error");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const paymentMethodsList = [
+    { id: 'card', label: 'CB en ligne (via Stripe)', requiresStripe: true },
+    { id: 'sepa', label: 'Prélèvement SEPA (via Stripe)', requiresStripe: true },
+    { id: 'cash', label: 'Espèces', requiresStripe: false },
+    { id: 'check', label: 'Chèque', requiresStripe: false },
+    { id: 'transfer', label: 'Virement bancaire', requiresStripe: false },
+    { id: 'ancv', label: 'Chèque sport (ANCV)', requiresStripe: false },
+  ];
+
+  const toggleAcceptedMethod = (methodId: string) => {
+    if (acceptedMethods.includes(methodId)) {
+      setAcceptedMethods(acceptedMethods.filter(id => id !== methodId));
+    } else {
+      setAcceptedMethods([...acceptedMethods, methodId]);
+    }
+  };
+
+  const handleConnectStripe = async () => {
+    if (!stripeSecretKey.startsWith('sk_')) {
+      showToast("Clé secrète invalide", "error");
+      return;
+    }
+    setStripeConnected(true);
+    if (state.user?.clubId) {
+      await updateDoc(doc(db, "clubs", state.user.clubId), {
+        "settings.payment.stripeConnected": true,
+        "settings.payment.stripeSecretKey": stripeSecretKey
+      });
+    }
+    showToast("Compte Stripe connecté avec succès !");
+  };
+
+  const handleDisconnectStripe = async () => {
+    if (confirm("Voulez-vous vraiment déconnecter votre compte Stripe ? Vos clients ne pourront plus payer en ligne.")) {
+      setStripeConnected(false);
+      setStripeSecretKey('');
+      const newMethods = acceptedMethods.filter(m => !['card', 'sepa'].includes(m));
+      setAcceptedMethods(newMethods);
+      if (state.user?.clubId) {
+        await updateDoc(doc(db, "clubs", state.user.clubId), {
+          "settings.payment.stripeConnected": false,
+          "settings.payment.stripeSecretKey": '',
+          "settings.payment.acceptedMethods": newMethods
+        });
+      }
+      showToast("Compte Stripe déconnecté.");
     }
   };
 
@@ -52,8 +112,35 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         hasCommitment: editingPlan.hasCommitment || false,
         commitmentMonths: Number(editingPlan.commitmentMonths) || 0,
         isTTC: editingPlan.isTTC || false,
-        paymentMethods: editingPlan.paymentMethods || ['card']
+        paymentMethods: editingPlan.paymentMethods || ['card'],
+        stripeProductId: editingPlan.stripeProductId,
+        stripePriceId: editingPlan.stripePriceId,
       };
+
+      // Create product/price in Stripe if not already done and if Stripe is connected
+      if (stripeConnected && stripeSecretKey && !planData.stripePriceId) {
+        showToast("Création de la formule sur Stripe...", "info");
+        const res = await fetch('/api/stripe/create-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stripeSecretKey,
+            name: planData.name,
+            price: planData.price,
+            billingCycle: planData.billingCycle,
+            description: planData.description
+          })
+        });
+        
+        if (res.ok) {
+          const stripeData = await res.json();
+          planData.stripeProductId = stripeData.productId;
+          planData.stripePriceId = stripeData.priceId;
+        } else {
+          console.error("Erreur lors de la création sur Stripe");
+        }
+      }
+
       await setDoc(doc(db, "plans", planId), planData);
       showToast(editingPlan.id ? "Formule modifiée" : "Formule créée");
       setIsEditingPlan(false);
@@ -241,6 +328,92 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
       </Card>
 
       <Card className="p-8 border-zinc-200 bg-white">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
+            <SettingsIcon size={24} />
+          </div>
+          <h2 className="text-xl font-black uppercase">Moyens d'encaissement</h2>
+        </div>
+
+        <div className="space-y-6 max-w-2xl">
+          <div className="p-6 bg-zinc-50 border border-zinc-200 rounded-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <div>
+                <h3 className="text-lg font-bold text-zinc-900">Connexion Stripe</h3>
+                <p className="text-sm text-zinc-500">Reliez votre compte Stripe pour encaisser vos clients directement sur votre compte bancaire.</p>
+              </div>
+              {stripeConnected ? (
+                <span className="px-3 py-1 bg-green-500/10 text-green-600 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-1 shrink-0 w-max">
+                  <CheckIcon size={14} /> Connecté
+                </span>
+              ) : (
+                <span className="px-3 py-1 bg-zinc-200 text-zinc-600 rounded-full text-xs font-bold uppercase tracking-wider shrink-0 w-max">
+                  Non connecté
+                </span>
+              )}
+            </div>
+            
+            {!stripeConnected ? (
+              <div className="space-y-4 w-full sm:w-auto">
+                <Input 
+                  type="password" 
+                  placeholder="Clé secrète Stripe (sk_live_...)" 
+                  value={stripeSecretKey} 
+                  onChange={(e) => setStripeSecretKey(e.target.value)}
+                />
+                <Button onClick={handleConnectStripe} className="w-full" disabled={!stripeSecretKey.startsWith('sk_')}>
+                  Connecter mon compte Stripe
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4 w-full sm:w-auto">
+                <div className="flex items-center gap-4">
+                  <span className="text-xs text-zinc-500 font-mono bg-zinc-100 px-2 py-1 rounded">
+                    {stripeSecretKey ? `${stripeSecretKey.substring(0, 8)}...` : 'Clé non renseignée'}
+                  </span>
+                  <Button variant="outline" onClick={() => setStripeConnected(false)} className="text-sm">
+                    Modifier la clé
+                  </Button>
+                </div>
+                <Button variant="secondary" onClick={handleDisconnectStripe} className="text-red-500 hover:text-red-600 hover:border-red-200">
+                  Déconnecter Stripe
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Moyens de paiement acceptés</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {paymentMethodsList.map(method => {
+                const isDisabled = method.requiresStripe && !stripeConnected;
+                return (
+                  <label key={method.id} className={`flex items-center gap-3 p-4 border rounded-xl transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed border-zinc-100 bg-zinc-50' : 'cursor-pointer border-zinc-200 hover:bg-zinc-50'}`}>
+                    <input 
+                      type="checkbox" 
+                      checked={acceptedMethods.includes(method.id)}
+                      onChange={() => !isDisabled && toggleAcceptedMethod(method.id)}
+                      disabled={isDisabled}
+                      className="w-5 h-5 rounded border-zinc-300 text-velatra-accent focus:ring-velatra-accent disabled:opacity-50"
+                    />
+                    <div>
+                      <p className="font-bold text-zinc-900 text-sm">{method.label}</p>
+                      {method.requiresStripe && <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Nécessite Stripe</p>}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+          
+          <Button onClick={handleSave} disabled={isSaving} className="w-full !py-4 mt-6">
+            <SaveIcon size={18} className="mr-2" />
+            {isSaving ? "ENREGISTREMENT..." : "ENREGISTRER LES PARAMÈTRES"}
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
@@ -379,6 +552,40 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                       <p className="mt-4 text-[10px] text-zinc-500 italic leading-relaxed">
                         {plan.description}
                       </p>
+                    )}
+                    {plan.stripePriceId && (
+                      <div className="mt-4 pt-4 border-t border-zinc-200">
+                        <Button 
+                          variant="secondary" 
+                          className="w-full !py-2 !text-[10px]"
+                          onClick={async () => {
+                            try {
+                              showToast("Génération du lien...", "info");
+                              const res = await fetch('/api/stripe/checkout', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  stripeSecretKey,
+                                  priceId: plan.stripePriceId,
+                                  successUrl: window.location.origin + '/success',
+                                  cancelUrl: window.location.origin + '/cancel'
+                                })
+                              });
+                              if (res.ok) {
+                                const data = await res.json();
+                                navigator.clipboard.writeText(data.url);
+                                showToast("Lien de paiement copié !");
+                              } else {
+                                throw new Error("Erreur");
+                              }
+                            } catch (e) {
+                              showToast("Erreur lors de la génération", "error");
+                            }
+                          }}
+                        >
+                          COPIER LE LIEN DE PAIEMENT
+                        </Button>
+                      </div>
                     )}
                   </div>
                 ))}

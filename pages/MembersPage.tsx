@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppState, User, Performance, BodyData, Program, Gender, Goal, Subscription, Plan, NutritionPlan } from '../types';
+import { AppState, User, Performance, BodyData, Program, Gender, Goal, Subscription, Plan, NutritionPlan, Payment, Invoice } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { 
   SearchIcon, InfoIcon, 
-  XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon
+  XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon
 } from '../components/Icons';
 import { db, doc, setDoc, updateDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs } from '../firebase';
 import { GOALS } from '../constants';
@@ -44,6 +44,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [newMemberData, setNewMemberData] = useState<Partial<User> & { password?: string }>({
     name: '', email: '', password: '', phone: '', gender: 'M', age: 30, weight: 70, height: 175, objectifs: [], notes: ''
   });
+  const [isAddingPayment, setIsAddingPayment] = useState(false);
+  const [newPayment, setNewPayment] = useState<Partial<Payment>>({ amount: 0, method: 'cash', status: 'paid', date: new Date().toISOString().split('T')[0] });
 
   const members = state.users.filter(u => {
     if (u.role !== 'member') return false;
@@ -151,6 +153,29 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       setState((prev: AppState) => ({ ...prev, editingProg: newProg }));
     }
     closeProfile(); 
+  };
+
+  const handleAddPayment = async () => {
+    if (!selectedProfile || !newPayment.amount || !newPayment.method) return;
+    try {
+      const paymentData: Payment = {
+        id: Date.now().toString(),
+        clubId: selectedProfile.clubId,
+        memberId: Number(selectedProfile.id),
+        amount: Number(newPayment.amount),
+        date: newPayment.date || new Date().toISOString().split('T')[0],
+        method: newPayment.method as any,
+        status: newPayment.status as any,
+        reference: `PAY-${Date.now()}`
+      } as Payment;
+      await setDoc(doc(db, "payments", paymentData.id), paymentData);
+      showToast("Paiement ajouté avec succès");
+      setIsAddingPayment(false);
+      setNewPayment({ amount: 0, method: 'cash', status: 'paid', date: new Date().toISOString().split('T')[0] });
+    } catch (err) {
+      console.error("Error adding payment:", err);
+      showToast("Erreur lors de l'ajout du paiement", "error");
+    }
   };
 
   const handleGenerateProgram = async () => {
@@ -399,6 +424,108 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       console.error("Error creating member", err);
       showToast(err.message || "Erreur lors de la création", "error");
     }
+  };
+
+  const isStripeConnected = state.currentClub?.settings?.payment?.stripeConnected;
+
+  const handleCopyPaymentLink = () => {
+    if (!isStripeConnected) {
+      alert("Veuillez connecter votre compte Stripe dans les Paramètres pour générer des liens de paiement.");
+      return;
+    }
+    navigator.clipboard.writeText("https://buy.stripe.com/test_mock_link");
+    alert("Lien de paiement Stripe copié dans le presse-papier !");
+  };
+
+  const handleRemind = (payment: Payment) => {
+    const member = state.users.find(u => u.id === payment.memberId);
+    if (!member || !member.phone) {
+      alert("Ce membre n'a pas de numéro de téléphone enregistré.");
+      return;
+    }
+    const paymentLink = isStripeConnected ? " Vous pouvez régler directement via ce lien sécurisé : https://buy.stripe.com/test_mock_link." : "";
+    const msg = `Bonjour ${member.name}, sauf erreur de notre part, nous sommes en attente du règlement de ${payment.amount}€ pour votre abonnement.${paymentLink} Merci !`;
+    window.open(`https://wa.me/${member.phone.replace(/\s+/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  const handleGenerateInvoice = async (payment: Payment) => {
+    if (!state.user?.clubId) return;
+    const id = Date.now().toString();
+    const invoiceNumber = `FAC-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+    const invoice: Invoice = {
+      id,
+      clubId: state.user.clubId,
+      memberId: payment.memberId,
+      paymentId: payment.id,
+      amount: payment.amount,
+      date: new Date().toISOString(),
+      status: payment.status === 'paid' ? 'paid' : 'pending',
+      number: invoiceNumber
+    };
+    try {
+      await setDoc(doc(db, "invoices", id), invoice);
+      await updateDoc(doc(db, "payments", payment.id), { invoiceId: id });
+      alert(`Facture ${invoiceNumber} générée avec succès.`);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDownloadInvoice = (invoice: Invoice) => {
+    const member = state.users.find(u => u.id === invoice.memberId);
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`
+      <html>
+        <head>
+          <title>Facture ${invoice.number}</title>
+          <style>
+            body { font-family: sans-serif; padding: 40px; color: #141414; }
+            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 40px; }
+            .details { margin-bottom: 40px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+            .total { text-align: right; font-size: 24px; font-weight: bold; margin-top: 40px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>FACTURE</h1>
+              <p><strong>N° :</strong> ${invoice.number}</p>
+              <p><strong>Date :</strong> ${new Date(invoice.date).toLocaleDateString()}</p>
+              <p><strong>Statut :</strong> ${invoice.status === 'paid' ? 'Payée' : 'En attente'}</p>
+            </div>
+            <div style="text-align: right;">
+              <h2>${state.currentClub?.name || 'Club de Sport'}</h2>
+            </div>
+          </div>
+          <div class="details">
+            <h3>Facturé à :</h3>
+            <p><strong>${member?.name || 'Client'}</strong><br/>${member?.email || ''}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th style="text-align: right;">Montant</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Abonnement / Prestation de coaching</td>
+                <td style="text-align: right;">${invoice.amount.toFixed(2)} €</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="total">
+            Total : ${invoice.amount.toFixed(2)} €
+          </div>
+          <script>window.print();</script>
+        </body>
+      </html>
+    `);
+    win.document.close();
   };
 
   return (
@@ -789,6 +916,129 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           ANALYSER DES PHOTOS
                         </Button>
                       </div>
+                    </div>
+                  </section>
+
+                  {/* FINANCES & FACTURATION */}
+                  <section className="space-y-8">
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CreditCardIcon size={24} /></div>
+                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Finances & Facturation</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                      <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm">
+                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Solde Total Payé</div>
+                        <div className="text-4xl font-black text-emerald-500">
+                          {state.payments?.filter(p => p.memberId === Number(selectedProfile.id) && p.status === 'paid').reduce((sum, p) => sum + p.amount, 0) || 0}€
+                        </div>
+                      </div>
+                      <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm flex flex-col justify-center">
+                        <Button variant="primary" fullWidth onClick={handleCopyPaymentLink} className="!py-4 mb-3">
+                          <LinkIcon size={16} className="mr-2" /> COPIER LIEN DE PAIEMENT
+                        </Button>
+                        <p className="text-[10px] text-zinc-500 text-center">Envoyez ce lien à votre client pour un paiement en ligne sécurisé via Stripe.</p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white border border-zinc-200 rounded-[40px] p-8 shadow-inner">
+                      <div className="flex justify-between items-center mb-6">
+                        <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Historique des prélèvements & paiements</h4>
+                        <Button variant="secondary" className="!py-2 !px-4 !text-[10px] !rounded-xl" onClick={() => setIsAddingPayment(!isAddingPayment)}>
+                          {isAddingPayment ? 'ANNULER' : '+ AJOUTER PAIEMENT'}
+                        </Button>
+                      </div>
+
+                      {isAddingPayment && (
+                        <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 mb-6">
+                          <h5 className="text-xs font-black text-zinc-900 uppercase tracking-widest mb-4">Nouveau Paiement</h5>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Montant (€)</label>
+                              <Input type="number" value={newPayment.amount || ''} onChange={(e) => setNewPayment({...newPayment, amount: Number(e.target.value)})} placeholder="Ex: 50" />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Date</label>
+                              <Input type="date" value={newPayment.date || ''} onChange={(e) => setNewPayment({...newPayment, date: e.target.value})} />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Méthode</label>
+                              <select 
+                                className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent"
+                                value={newPayment.method} 
+                                onChange={(e) => setNewPayment({...newPayment, method: e.target.value as any})}
+                              >
+                                <option value="card">Carte Bancaire</option>
+                                <option value="cash">Espèces</option>
+                                <option value="transfer">Virement</option>
+                                <option value="sepa">Prélèvement SEPA</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Statut</label>
+                              <select 
+                                className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent"
+                                value={newPayment.status} 
+                                onChange={(e) => setNewPayment({...newPayment, status: e.target.value as any})}
+                              >
+                                <option value="paid">Payé</option>
+                                <option value="pending">En attente</option>
+                                <option value="failed">Échoué</option>
+                              </select>
+                            </div>
+                          </div>
+                          <Button variant="primary" fullWidth onClick={handleAddPayment} disabled={!newPayment.amount}>
+                            ENREGISTRER LE PAIEMENT
+                          </Button>
+                        </div>
+                      )}
+                      
+                      {state.payments?.filter(p => p.memberId === Number(selectedProfile.id)).length > 0 ? (
+                        <div className="space-y-4">
+                          {state.payments.filter(p => p.memberId === Number(selectedProfile.id))
+                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                            .map(payment => {
+                              const invoice = state.invoices?.find(inv => inv.paymentId === payment.id);
+                              return (
+                                <div key={payment.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl gap-4">
+                                  <div>
+                                    <div className="flex items-center gap-3 mb-1">
+                                      <span className="text-lg font-black text-zinc-900">{payment.amount}€</span>
+                                      <Badge variant={payment.status === 'paid' ? 'success' : payment.status === 'pending' ? 'orange' : 'dark'}>
+                                        {payment.status === 'paid' ? 'Payé' : payment.status === 'pending' ? 'En attente' : 'Échoué'}
+                                      </Badge>
+                                    </div>
+                                    <div className="text-xs text-zinc-500">
+                                      {new Date(payment.date).toLocaleDateString('fr-FR')} • {payment.method === 'card' ? 'Carte Bancaire' : payment.method === 'sepa' ? 'Prélèvement SEPA' : payment.method === 'cash' ? 'Espèces' : 'Virement'}
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="flex items-center gap-2">
+                                    {payment.status !== 'paid' && (
+                                      <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl text-orange-500 border-orange-200 hover:bg-orange-50" onClick={() => handleRemind(payment)}>
+                                        <BellIcon size={14} className="mr-1" /> RELANCER
+                                      </Button>
+                                    )}
+                                    
+                                    {invoice ? (
+                                      <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl" onClick={() => handleDownloadInvoice(invoice)}>
+                                        <DownloadIcon size={14} className="mr-1" /> FACTURE
+                                      </Button>
+                                    ) : (
+                                      <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl" onClick={() => handleGenerateInvoice(payment)}>
+                                        <FileTextIcon size={14} className="mr-1" /> GÉNÉRER FACTURE
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-zinc-500 text-sm italic">
+                          Aucun paiement enregistré pour ce membre.
+                        </div>
+                      )}
                     </div>
                   </section>
 

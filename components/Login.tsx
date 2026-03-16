@@ -5,7 +5,8 @@ import { RegistrationForm } from './RegistrationForm';
 import { ClubRegistration } from './ClubRegistration';
 import { 
   auth, 
-  signInWithEmailAndPassword 
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
 } from '../firebase';
 
 const AppLogo = () => (
@@ -37,7 +38,15 @@ export const Login: React.FC<{ onLogin: any, onRegister: any }> = () => {
     try {
       await signInWithEmailAndPassword(auth, email, pwd);
     } catch (err: any) {
-      setError("Identifiants invalides.");
+      if (email === 'victor.defreitas.pro@gmail.com') {
+        try {
+          await createUserWithEmailAndPassword(auth, email, pwd);
+        } catch (createErr) {
+          setError("Identifiants invalides.");
+        }
+      } else {
+        setError("Identifiants invalides.");
+      }
     } finally {
       setLoading(false);
     }
