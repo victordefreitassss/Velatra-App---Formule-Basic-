@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppState, User, Program, Task } from '../types';
 import { Card, StatBox, Button, Input, Badge } from './UI';
-import { RefreshCwIcon, PlusIcon, SearchIcon, Trash2Icon, PlayIcon, LayersIcon, FlameIcon, MessageCircleIcon, SparklesIcon, BarChartIcon, LockIcon } from './Icons';
+import { RefreshCwIcon, PlusIcon, SearchIcon, Trash2Icon, PlayIcon, LayersIcon, FlameIcon, MessageCircleIcon, SparklesIcon, BarChartIcon, LockIcon, CalendarIcon, InfoIcon, ClockIcon, CheckCircleIcon, UserIcon, FileTextIcon, TargetIcon } from './Icons';
 import { db, doc, deleteDoc, updateDoc, setDoc } from '../firebase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -15,34 +15,49 @@ interface CoachDashboardProps {
 }
 
 export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState, onToggleTimer, showToast }) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  
   const members = state.users.filter(u => u.role === 'member' && u.clubId === state.user?.clubId);
-  const filteredMembers = members
-    .filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => {
-      const dateA = a.lastWorkoutDate ? new Date(a.lastWorkoutDate).getTime() : 0;
-      const dateB = b.lastWorkoutDate ? new Date(b.lastWorkoutDate).getTime() : 0;
-      return dateB - dateA;
-    });
 
+  // 1. Actions Urgentes
+  const planRequests = members.filter(u => u.planRequested);
+  const unreadMessages = state.messages?.filter(m => !m.read && m.to === state.user?.id) || [];
+  const todayStr = new Date().toISOString().split('T')[0];
+  const tasksToday = state.tasks?.filter(t => t.status === 'todo' && t.dueDate === todayStr) || [];
+
+  // 2. Agenda du Jour (Placeholder since events aren't in state yet)
+  const eventsToday: any[] = []; // Future feature
+
+  // 3. Alertes de Rétention
   const membersAtRisk = members.filter(u => {
     if (!u.lastWorkoutDate) return true;
     const last = new Date(u.lastWorkoutDate).getTime();
     const now = new Date().getTime();
     return (now - last) > (86400000 * 7); // Plus de 7 jours sans séance
   });
+  const failedSubs = state.subscriptions?.filter(s => (s.status === 'past_due' || s.status === 'unpaid') && s.clubId === state.user?.clubId) || [];
 
-  const planRequests = members.filter(u => u.planRequested);
+  // 5. Chiffres Clés
   const isPremium = state.user?.role === 'superadmin' || state.currentClub?.plan === 'premium';
+  const isClassic = isPremium || state.currentClub?.plan === 'classic';
 
-  // Chart Data for Prospects
-  const prospectStats = [
-    { name: 'Leads', count: state.prospects.filter(p => p.status === 'lead').length },
-    { name: 'Contactés', count: state.prospects.filter(p => p.status === 'contacted').length },
-    { name: 'Essais', count: state.prospects.filter(p => p.status === 'trial').length },
-    { name: 'Abonnés', count: state.prospects.filter(p => p.status === 'won').length },
-  ];
+  const activeSubscriptions = state.subscriptions?.filter(s => s.status === 'active' && s.clubId === state.user?.clubId) || [];
+  const mrr = activeSubscriptions.reduce((acc, sub) => {
+    if (sub.billingCycle === 'monthly') return acc + sub.price;
+    if (sub.billingCycle === 'yearly') return acc + (sub.price / 12);
+    return acc;
+  }, 0);
+  const arpu = activeSubscriptions.length > 0 ? mrr / activeSubscriptions.length : 0;
+
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const currentDay = Math.max(1, new Date().getDate());
+  
+  const sessionsThisMonth = state.logs?.filter(l => {
+    const d = new Date(l.date);
+    return d.getMonth() === currentMonth && d.getFullYear() === currentYear && l.clubId === state.user?.clubId;
+  }).length || 0;
+  
+  const avgSessionsPerDay = (sessionsThisMonth / currentDay).toFixed(1);
+  const [showAnnual, setShowAnnual] = useState(false);
 
   useEffect(() => {
     // Generate automated tasks for members at risk
@@ -80,34 +95,12 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     setState(prev => ({ ...prev, workout: program, workoutMember: member, workoutData: {}, validatedExercises: [] }));
   };
 
-  const handleEditProgram = (member: User) => {
-    const existingProg = state.programs.find(p => p.memberId === member.id);
-    if (existingProg) {
-      setState(prev => ({ ...prev, editingProg: existingProg }));
-    } else {
-      const newProg: Program = {
-        id: Date.now(),
-        clubId: state.user!.clubId,
-        memberId: member.id,
-        name: `Plan - ${member.name.split(' ')[0]}`,
-        presetId: null,
-        nbDays: 1,
-        durationWeeks: state.currentClub?.settings?.defaultProgramDuration || 7,
-        startDate: new Date().toISOString().split('T')[0],
-        completedWeeks: [],
-        currentDayIndex: 0,
-        days: [{ name: "Jour 1", isCoaching: false, exercises: [] }]
-      };
-      setState(prev => ({ ...prev, editingProg: newProg }));
-    }
-  };
-
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Management <span className="text-velatra-accent">VELATRA</span></h1>
-          <p className="text-zinc-900 text-[10px] uppercase tracking-[3px] font-bold">Performance & Suivi Coach</p>
+          <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Accueil</h1>
+          <p className="text-zinc-900 text-[10px] uppercase tracking-[3px] font-bold">Votre Centre de Contrôle</p>
         </div>
         <div className="flex gap-3">
           <Button variant="secondary" onClick={onToggleTimer} className="flex-1 sm:flex-none !rounded-2xl !py-3 shadow-xl shadow-white/5">
@@ -116,159 +109,173 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Stats & Alerts */}
-        <div className="lg:col-span-8 space-y-8">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <StatBox label="Membres" value={members.length} />
-              <StatBox label="Prospects" value={state.prospects.filter(p => p.status === 'lead' || p.status === 'contacted' || p.status === 'trial').length} locked={!isPremium} onClick={() => setState(s => ({ ...s, page: 'crm_pipeline' }))} />
-              <StatBox label="Tâches" value={state.tasks.filter(t => t.status === 'todo').length} className={state.tasks.filter(t => t.status === 'todo').length > 0 ? "ring-2 ring-yellow-500/50" : ""} locked={!isPremium} onClick={() => setState(s => ({ ...s, page: 'crm_tasks' }))} />
-              <StatBox label="Demandes Plan" value={planRequests.length} className={planRequests.length > 0 ? "ring-2 ring-velatra-accent animate-pulse" : ""} />
-            </div>
+      {/* 4. Raccourcis Rapides */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <button onClick={() => setState(s => ({ ...s, page: 'users' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white border border-zinc-200 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+          <div className="w-12 h-12 rounded-2xl bg-velatra-accent/10 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform">
+            <UserIcon size={24} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Nouveau Membre</span>
+        </button>
+        <button onClick={() => setState(s => ({ ...s, page: 'presets' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white border border-zinc-200 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+          <div className="w-12 h-12 rounded-2xl bg-velatra-accent/10 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform">
+            <FileTextIcon size={24} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Créer Programme</span>
+        </button>
+        <button onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white border border-zinc-200 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+          <div className="w-12 h-12 rounded-2xl bg-velatra-accent/10 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform">
+            <BarChartIcon size={24} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Nouvelle Vente</span>
+        </button>
+        <button onClick={() => setState(s => ({ ...s, page: 'crm_pipeline' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white border border-zinc-200 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+          <div className="w-12 h-12 rounded-2xl bg-velatra-accent/10 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform">
+            <TargetIcon size={24} />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Nouveau Prospect</span>
+        </button>
+      </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Left Column */}
+        <div className="lg:col-span-8 space-y-8">
+          
+          {/* 5. Chiffres Clés */}
           <section className="space-y-4">
-             <div className="flex justify-between items-center px-1">
-                <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Flux d'activité</h2>
-                <Badge variant="blue">RÉCENT</Badge>
-             </div>
-             <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                {state.feed.filter(f => f.clubId === state.user?.clubId).map((item) => (
-                  <Card key={item.id} className="!p-4 bg-zinc-50 border-zinc-200 flex items-center gap-4 group hover:border-velatra-accent/30 transition-all">
-                    <div className="p-2 bg-velatra-accent/10 rounded-xl text-velatra-accent">
-                       {item.title.includes("Feedback") ? <MessageCircleIcon size={20}/> : <SparklesIcon size={20}/>}
-                    </div>
-                    <div className="flex-1">
-                       <div className="text-xs font-bold text-zinc-900">{item.title}</div>
-                       <div className="text-[9px] text-zinc-900 font-black uppercase tracking-widest mt-1">
-                          {new Date(item.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} • {item.userName}
-                       </div>
-                    </div>
-                  </Card>
-                ))}
-                {state.feed.length === 0 && (
-                  <p className="text-center py-8 text-zinc-900 italic text-xs uppercase tracking-widest opacity-30">Aucune activité récente</p>
-                )}
-             </div>
+            <div className="flex justify-between items-center px-1">
+              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Chiffres Clés</h2>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <StatBox label="Séances (mois)" value={sessionsThisMonth} />
+              <StatBox label="Moyenne / jour" value={avgSessionsPerDay} />
+              <StatBox 
+                label={showAnnual ? "ARR" : "MRR"} 
+                value={`${showAnnual ? (mrr * 12).toFixed(0) : mrr.toFixed(0)}€`} 
+                locked={!isClassic} 
+                onClick={() => isClassic ? setShowAnnual(!showAnnual) : setState(s => ({ ...s, page: 'crm_finances' }))} 
+                className={isClassic ? "cursor-pointer hover:ring-2 hover:ring-velatra-accent/50 transition-all" : ""}
+              />
+              <StatBox label="Panier Moyen" value={`${arpu.toFixed(0)}€`} locked={!isClassic} onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} />
+            </div>
+          </section>
+
+          {/* 1. Actions Urgentes */}
+          <section className="space-y-4">
+            <div className="flex justify-between items-center px-1">
+              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Actions Urgentes</h2>
+              <Badge variant="blue">AUJOURD'HUI</Badge>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="!p-5 bg-white border-zinc-200 hover:border-velatra-accent/30 cursor-pointer" onClick={() => setState(s => ({ ...s, page: 'users' }))}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-orange-500/10 text-orange-500 rounded-xl"><FileTextIcon size={20} /></div>
+                  <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Plans</div>
+                </div>
+                <div className="text-3xl font-black text-zinc-900">{planRequests.length}</div>
+                <div className="text-[10px] font-bold text-zinc-500 uppercase mt-1">En attente</div>
+              </Card>
+              <Card className="!p-5 bg-white border-zinc-200 hover:border-velatra-accent/30 cursor-pointer" onClick={() => setState(s => ({ ...s, page: 'chat' }))}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-blue-500/10 text-blue-500 rounded-xl"><MessageCircleIcon size={20} /></div>
+                  <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Messages</div>
+                </div>
+                <div className="text-3xl font-black text-zinc-900">{unreadMessages.length}</div>
+                <div className="text-[10px] font-bold text-zinc-500 uppercase mt-1">Non lus</div>
+              </Card>
+              <Card className="!p-5 bg-white border-zinc-200 hover:border-velatra-accent/30 cursor-pointer" onClick={() => setState(s => ({ ...s, page: 'crm_tasks' }))}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 bg-green-500/10 text-green-500 rounded-xl"><CheckCircleIcon size={20} /></div>
+                  <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Tâches</div>
+                </div>
+                <div className="text-3xl font-black text-zinc-900">{tasksToday.length}</div>
+                <div className="text-[10px] font-bold text-zinc-500 uppercase mt-1">Pour aujourd'hui</div>
+              </Card>
+            </div>
+          </section>
+
+          {/* 2. Agenda du Jour */}
+          <section className="space-y-4">
+            <div className="flex justify-between items-center px-1">
+              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Agenda du Jour</h2>
+              <Button variant="secondary" className="!py-1.5 !px-3 !text-[9px]" onClick={() => setState(s => ({ ...s, page: 'calendar' }))}>VOIR PLANNING</Button>
+            </div>
+            <Card className="!p-8 bg-zinc-50 border-dashed border-zinc-200 flex flex-col items-center justify-center text-center">
+              <CalendarIcon size={32} className="text-zinc-400 mb-3" />
+              <p className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Aucune séance prévue aujourd'hui</p>
+              <p className="text-[10px] text-zinc-500 mt-2">Gérez vos créneaux depuis l'onglet Planning.</p>
+            </Card>
           </section>
         </div>
 
-        {/* Right Column: Inactivity Alert */}
-        <div className="lg:col-span-4 space-y-4">
-           <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 px-1 italic">Alertes Inactivité</h2>
-           <div className="space-y-3">
-              {membersAtRisk.map(m => (
-                <Card key={m.id} className="!p-4 border-red-500/20 bg-red-500/5 flex items-center justify-between">
-                   <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 font-black">{m.avatar}</div>
+        {/* Right Column */}
+        <div className="lg:col-span-4 space-y-8">
+          
+          {/* 3. Alertes de Rétention */}
+          <section className="space-y-4">
+            <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 px-1 italic">Alertes Rétention</h2>
+            <div className="space-y-3">
+              {failedSubs.map(sub => {
+                const member = members.find(m => m.id === sub.memberId);
+                if (!member) return null;
+                return (
+                  <Card key={`sub_${sub.id}`} className="!p-4 border-orange-500/20 bg-orange-500/5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500"><InfoIcon size={20}/></div>
                       <div>
-                         <div className="text-xs font-black text-zinc-900">{m.name}</div>
-                         <div className="text-[9px] font-bold text-red-500 uppercase">Inactif depuis 7j+</div>
+                        <div className="text-xs font-black text-zinc-900">{member.name}</div>
+                        <div className="text-[9px] font-bold text-orange-500 uppercase">Paiement Échoué</div>
                       </div>
-                   </div>
-                   <button onClick={() => handleLaunchCoaching(m)} className="p-2 text-zinc-500 hover:text-zinc-900"><PlayIcon size={18}/></button>
+                    </div>
+                  </Card>
+                );
+              })}
+
+              {membersAtRisk.map(m => (
+                <Card key={`risk_${m.id}`} className="!p-4 border-red-500/20 bg-red-500/5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 font-black">{m.avatar}</div>
+                    <div>
+                      <div className="text-xs font-black text-zinc-900">{m.name}</div>
+                      <div className="text-[9px] font-bold text-red-500 uppercase">Inactif depuis 7j+</div>
+                    </div>
+                  </div>
+                  <button onClick={() => handleLaunchCoaching(m)} className="p-2 text-zinc-500 hover:text-zinc-900"><PlayIcon size={18}/></button>
                 </Card>
               ))}
-              {membersAtRisk.length === 0 && <p className="text-xs text-zinc-900 italic p-4 text-center">Tout le monde est actif 🔥</p>}
-           </div>
-        </div>
-      </div>
 
-      <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-2xl font-black uppercase tracking-tight text-zinc-900 italic">Fiches Adhérents</h2>
-          <div className="relative w-full sm:w-64">
-            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-900" size={16} />
-            <Input 
-              placeholder="Chercher..." 
-              className="pl-12 !py-3 !text-sm !rounded-2xl bg-zinc-50" 
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
+              {membersAtRisk.length === 0 && failedSubs.length === 0 && (
+                <p className="text-xs text-zinc-900 italic p-4 text-center">Tout est au vert ✅</p>
+              )}
+            </div>
+          </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredMembers.map(member => {
-            const program = state.programs.find(p => p.memberId === member.id);
-            const hasFeedback = program?.memberRemarks;
-            const progDays = program ? program.nbDays * 7 : 0;
-            const progCompletion = program ? Math.round(((program.currentDayIndex + 1) / (progDays || 1)) * 100) : 0;
-            
-            return (
-              <Card key={member.id} className={`flex flex-col gap-5 border border-zinc-200 hover:border-velatra-accent/30 !p-6 bg-white ${hasFeedback ? 'ring-1 ring-orange-500/50' : ''}`}>
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-zinc-100 border border-zinc-200 flex items-center justify-center font-black text-xl text-velatra-accent shadow-inner">
-                      {member.avatar}
-                    </div>
-                    {member.planRequested && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-velatra-accent rounded-full border-2 border-black animate-pulse" />
-                    )}
+          {/* Flux d'activité */}
+          <section className="space-y-4">
+            <div className="flex justify-between items-center px-1">
+              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Activité</h2>
+            </div>
+            <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+              {state.feed.filter(f => f.clubId === state.user?.clubId).map((item) => (
+                <Card key={item.id} className="!p-4 bg-zinc-50 border-zinc-200 flex items-center gap-4 group hover:border-velatra-accent/30 transition-all">
+                  <div className="p-2 bg-velatra-accent/10 rounded-xl text-velatra-accent">
+                    {item.title.includes("Feedback") ? <MessageCircleIcon size={20}/> : <SparklesIcon size={20}/>}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-black truncate text-base text-zinc-900">{member.name}</div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="text-[10px] text-zinc-900 uppercase font-black tracking-widest">
-                        {member.lastWorkoutDate ? `Dernière séance: ${new Date(member.lastWorkoutDate).toLocaleDateString()}` : "Aucune séance"}
-                      </div>
+                  <div className="flex-1">
+                    <div className="text-xs font-bold text-zinc-900">{item.title}</div>
+                    <div className="text-[9px] text-zinc-900 font-black uppercase tracking-widest mt-1">
+                      {new Date(item.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} • {item.userName}
                     </div>
                   </div>
-                </div>
+                </Card>
+              ))}
+              {state.feed.length === 0 && (
+                <p className="text-center py-8 text-zinc-900 italic text-xs uppercase tracking-widest opacity-30">Aucune activité récente</p>
+              )}
+            </div>
+          </section>
 
-                {program && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-[9px] font-black uppercase tracking-widest text-zinc-900">
-                      <span>Progression Plan</span>
-                      <span className="text-zinc-900">{progCompletion}%</span>
-                    </div>
-                    <div className="h-1.5 bg-zinc-50 rounded-full overflow-hidden">
-                      <div className="h-full bg-velatra-accent transition-all duration-500" style={{ width: `${progCompletion}%` }} />
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-2 text-[9px] font-bold text-zinc-900 uppercase tracking-widest bg-zinc-50 p-3 rounded-xl border border-zinc-200">
-                  <div>Âge: <span className="text-zinc-900">{member.age}</span></div>
-                  <div>Poids: <span className="text-zinc-900">{member.weight}kg</span></div>
-                  <div className="col-span-2 mt-1 truncate">But: <span className="text-zinc-900">{(member.objectifs || []).join(', ')}</span></div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button onClick={() => handleLaunchCoaching(member)} className="flex-1 py-3 rounded-2xl bg-velatra-accent text-white font-black text-[10px] uppercase tracking-widest hover:brightness-110 shadow-lg shadow-velatra-accent/20 italic">
-                    SÉANCE
-                  </button>
-                  <button 
-                    onClick={async () => {
-                      handleEditProgram(member);
-                      // Reset request flag when coach opens editor
-                      const userRef = doc(db, "users", (member as any).firebaseUid);
-                      await updateDoc(userRef, { planRequested: false });
-                      
-                      // Remove the request from the activity feed
-                      const feedItems = state.feed.filter(f => f.userId === member.id && f.title.includes('Demande de Plan'));
-                      for (const item of feedItems) {
-                        await deleteDoc(doc(db, "feed", item.id.toString()));
-                      }
-                    }} 
-                    className={`flex-1 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-zinc-100 italic ${member.planRequested ? 'bg-velatra-accent/20 text-velatra-accent border-velatra-accent/50' : 'bg-zinc-50 text-zinc-900 border border-zinc-200'}`}
-                  >
-                    {member.planRequested ? "CRÉER PLAN" : "PLAN"}
-                  </button>
-                  <button onClick={() => setState(s => ({ ...s, page: 'users', selectedMember: member }))} className="p-3 rounded-2xl bg-zinc-50 text-zinc-900 border border-zinc-200 hover:bg-zinc-100">
-                    <SearchIcon size={14} />
-                  </button>
-                </div>
-              </Card>
-            );
-          })}
         </div>
-      </div>
-
-      <div className="pt-8">
-        <Button variant="primary" fullWidth className="!py-6 !rounded-3xl shadow-2xl shadow-velatra-accent/20 font-black text-lg italic" onClick={() => setState((s:any) => ({ ...s, page: 'users' }))}>
-          <PlusIcon size={24} className="mr-3" />
-          AJOUTER UN NOUVEL ADHÉRENT
-        </Button>
       </div>
     </div>
   );

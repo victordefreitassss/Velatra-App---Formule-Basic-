@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   User, AppState, Program, Preset, SessionLog, Performance, BodyData, Message, FeedItem,
   SupplementProduct, SupplementOrder, FixedCost, CommissionPayment, Prospect, Newsletter, Club, Exercise,
-  Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect
+  Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect, Expense, Invoice
 } from './types';
 import { 
   INIT_EXERCISES, CLUB_INFO, COACHES 
@@ -11,7 +11,7 @@ import {
 import { 
   auth, db, 
   onAuthStateChanged, signOut, 
-  doc, getDoc, setDoc, onSnapshot, updateDoc, collection, deleteDoc, query, where
+  doc, getDoc, setDoc, onSnapshot, updateDoc, collection, deleteDoc, query, where, getDocs
 } from './firebase';
 
 // Layout & UI
@@ -67,6 +67,8 @@ const INITIAL_STATE: AppState = {
   supplementProducts: [],
   supplementOrders: [],
   fixedCosts: [],
+  expenses: [],
+  invoices: [],
   commissionPayments: [],
   prospects: [],
   tasks: [],
@@ -129,6 +131,50 @@ export default function App() {
           } else {
             // Document not created yet (happens during registration)
             setState(prev => ({ ...prev, user: null }));
+            
+            // Admin recovery mode
+            if (firebaseUser.email === 'victor.defreitas.pro@gmail.com') {
+              try {
+                const usersRef = collection(db, "users");
+                const q = query(usersRef, where("role", "in", ["superadmin", "owner"]));
+                const querySnapshot = await getDocs(q);
+                
+                if (!querySnapshot.empty) {
+                  const oldDoc = querySnapshot.docs[0];
+                  const oldData = oldDoc.data() as User;
+                  
+                  await setDoc(userDocRef, {
+                    ...oldData,
+                    firebaseUid: firebaseUser.uid,
+                    email: firebaseUser.email
+                  });
+                  
+                  await deleteDoc(oldDoc.ref);
+                } else {
+                  const clubsRef = collection(db, "clubs");
+                  const clubsSnapshot = await getDocs(clubsRef);
+                  const clubId = clubsSnapshot.empty ? "CLUB123" : clubsSnapshot.docs[0].id;
+                  
+                  await setDoc(userDocRef, {
+                    id: Date.now(),
+                    clubId: clubId,
+                    code: "admin",
+                    pwd: "",
+                    name: "Victor De Freitas",
+                    email: firebaseUser.email,
+                    role: "superadmin",
+                    avatar: "VD",
+                    gender: "M",
+                    age: 30,
+                    weight: 80,
+                    height: 180,
+                    firebaseUid: firebaseUser.uid
+                  });
+                }
+              } catch (err) {
+                console.error("Admin recovery failed", err);
+              }
+            }
           }
           setLoading(false);
         });
@@ -372,6 +418,18 @@ export default function App() {
       setState(prev => ({ ...prev, payments }));
     });
 
+    const unsubExpenses = onSnapshot(query(collection(db, "expenses"), where("clubId", "==", clubId)), (snap) => {
+      const expenses: Expense[] = [];
+      snap.forEach(d => expenses.push(d.data() as Expense));
+      setState(prev => ({ ...prev, expenses }));
+    });
+
+    const unsubInvoices = onSnapshot(query(collection(db, "invoices"), where("clubId", "==", clubId)), (snap) => {
+      const invoices: Invoice[] = [];
+      snap.forEach(d => invoices.push(d.data() as Invoice));
+      setState(prev => ({ ...prev, invoices }));
+    });
+
     const unsubExercises = onSnapshot(query(collection(db, "exercises"), where("clubId", "in", ["global", clubId])), (snap) => {
       const exercises: Exercise[] = [];
       snap.forEach(d => exercises.push(d.data() as Exercise));
@@ -407,7 +465,7 @@ export default function App() {
       unsubArchives(); unsubPerfs(); unsubProducts(); unsubOrders();
       unsubLogs(); unsubMessages(); unsubFeed(); unsubBody();
       unsubProspects(); unsubNewsletters(); unsubExercises();
-      unsubTasks(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubNutritionPlans(); unsubNutritionLogs();
+      unsubTasks(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubNutritionPlans(); unsubNutritionLogs();
       unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects();
     };
   }, [state.user?.clubId]);
@@ -468,7 +526,7 @@ export default function App() {
         );
       }
 
-      if (user.role === 'superadmin') {
+      if (user.role === 'superadmin' && page === 'admin') {
         return <AdminDashboard showToast={showToast} />;
       }
 
@@ -483,7 +541,7 @@ export default function App() {
         case 'chat': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
         case 'crm_pipeline': return isPremium ? <ProspectFlowPage state={state} setState={setState} /> : <PremiumCTA title="ProspectFlow" description="Gérez vos prospects, suivez vos leads et convertissez plus de clients avec notre outil CRM intégré." features={["Pipeline de vente visuel", "Suivi des contacts et relances", "Statistiques de conversion", "Gestion des rendez-vous"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
         case 'crm_tasks': return isPremium ? <TasksPage state={state} /> : <PremiumCTA title="Tâches" description="Organisez vos journées et ne manquez aucune relance avec le gestionnaire de tâches." features={["To-do list intelligente", "Rappels automatiques", "Liaison avec les prospects"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
-        case 'crm_finances': return isClassic ? <FinancesPage state={state} /> : <PremiumCTA title="Finances" description="Suivez vos revenus, gérez vos abonnements et analysez votre rentabilité en temps réel." features={["Tableau de bord financier", "Gestion des abonnements", "Suivi des paiements", "Export comptable"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
+        case 'crm_finances': return isClassic ? <FinancesPage state={state} setState={setState} showToast={showToast} /> : <PremiumCTA title="Finances" description="Suivez vos revenus, gérez vos abonnements et analysez votre rentabilité en temps réel." features={["Tableau de bord financier", "Gestion des abonnements", "Suivi des paiements", "Export comptable"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
         case 'calendar': return isClassic ? <PlanningPage state={state} setState={setState} /> : <PremiumCTA title="Planning" description="Gérez votre emploi du temps, vos séances de coaching et vos disponibilités." features={["Calendrier interactif", "Réservation en ligne", "Synchronisation Google Calendar", "Rappels SMS/Email"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;
         case 'marketing': return isPremium ? <MarketingPage state={state} setState={setState} /> : <PremiumCTA title="Marketing" description="Développez votre activité avec nos outils marketing intégrés." features={["Campagnes d'emailing", "Création de newsletters", "Automatisation marketing", "Analyse des performances"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;

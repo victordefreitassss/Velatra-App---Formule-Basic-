@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AppState, User } from '../types';
 import { Card, Badge, Button } from '../components/UI';
-import { UserIcon, MailIcon, ActivityIcon, DumbbellIcon, TargetIcon, Edit2Icon, SaveIcon, LogOutIcon, PhoneIcon } from 'lucide-react';
+import { UserIcon, MailIcon, ActivityIcon, DumbbellIcon, TargetIcon, Edit2Icon, SaveIcon, LogOutIcon, PhoneIcon, CreditCardIcon, ExternalLinkIcon } from 'lucide-react';
 import { doc, updateDoc, db } from '../firebase';
 
 export const ProfilePage: React.FC<{
@@ -54,6 +54,36 @@ export const ProfilePage: React.FC<{
       showToast("Erreur lors de la mise à jour", "error");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    if (!state.currentClub?.settings?.payment?.stripeSecretKey || !user.stripeCustomerId) {
+      showToast("Impossible de gérer l'abonnement pour le moment.", "error");
+      return;
+    }
+
+    try {
+      showToast("Redirection vers le portail...", "info");
+      const res = await fetch('/api/stripe/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stripeSecretKey: state.currentClub.settings.payment.stripeSecretKey,
+          customerId: user.stripeCustomerId,
+          returnUrl: window.location.href
+        })
+      });
+
+      if (!res.ok) throw new Error("Erreur lors de la création du portail");
+      
+      const { session } = await res.json();
+      if (session?.url) {
+        window.location.href = session.url;
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Erreur lors de la redirection", "error");
     }
   };
 
@@ -245,6 +275,30 @@ export const ProfilePage: React.FC<{
           )}
         </div>
       </Card>
+
+      {user.role === 'client' && state.currentClub?.settings?.payment?.stripeSecretKey && user.stripeCustomerId && (
+        <Card className="!p-6 bg-zinc-50 border-zinc-200">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+                <CreditCardIcon size={20} />
+              </div>
+              <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Abonnement</h3>
+            </div>
+            <Button variant="outline" onClick={handleManageSubscription} className="text-sm">
+              Gérer mon abonnement <ExternalLinkIcon size={14} className="ml-2" />
+            </Button>
+          </div>
+          
+          <div className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-zinc-900">Statut de l'abonnement</p>
+              <p className="text-xs text-zinc-500 mt-1">Gérez vos paiements et factures via le portail sécurisé Stripe.</p>
+            </div>
+            <Badge variant="success" className="uppercase tracking-widest text-[10px]">Actif</Badge>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };
