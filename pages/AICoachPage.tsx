@@ -36,7 +36,7 @@ export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: 
     setLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY as string });
       
       const systemInstruction = `Tu es l'assistant IA virtuel de l'application numéro 1 "VELATRA".
 Tu t'adresses à l'adhérent nommé ${state.user?.name}.

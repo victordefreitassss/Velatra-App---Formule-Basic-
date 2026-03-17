@@ -38,7 +38,7 @@ export const Button: React.FC<{
   type?: "button" | "submit" | "reset"
 }> = ({ children, variant = 'primary', className = "", onClick, disabled, fullWidth, type = "button" }) => {
   const variants = {
-    primary: 'bg-gradient-to-r from-velatra-accent to-velatra-accentDark text-white shadow-[0_0_20px_-5px_rgba(99,102,241,0.4)] hover:shadow-[0_0_30px_-5px_rgba(99,102,241,0.6)] border border-zinc-200',
+    primary: 'bg-gradient-to-r from-velatra-accent to-velatra-accentDark text-white shadow-md hover:shadow-lg border border-transparent',
     secondary: 'bg-zinc-50 text-zinc-900 border border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300',
     danger: 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40',
     success: 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/40',
@@ -54,8 +54,8 @@ export const Button: React.FC<{
       onClick={onClick}
       className={`
         px-6 py-4 rounded-2xl font-semibold text-[13px] tracking-widest uppercase
-        flex items-center justify-center transition-all duration-300
-        disabled:opacity-40 disabled:cursor-not-allowed
+        flex items-center justify-center transition-all duration-300 ease-out
+        disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.99]
         ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className}
       `}
     >
