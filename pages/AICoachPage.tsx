@@ -15,9 +15,40 @@ export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatRef = useRef<any>(null);
 
   const coach = state.users.find(u => u.role === 'coach' || u.role === 'owner');
   const coachName = coach ? coach.name : 'Coach Humain';
+
+  useEffect(() => {
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+      
+      const systemInstruction = `Tu es l'assistant IA virtuel de l'application numéro 1 "VELATRA".
+Tu t'adresses à l'adhérent nommé ${state.user?.name}.
+Son profil : Âge ${state.user?.age}, Poids ${state.user?.weight}kg, Objectifs : ${(state.user?.objectifs || []).join(', ')}.
+Informations sur le club : ${JSON.stringify(CLUB_INFO)}.
+Coachs du club : ${JSON.stringify(COACHES)}.
+Boutique de compléments : ${JSON.stringify(INIT_SUPPLEMENTS.map(s => s.nom))}.
+Ton rôle est de conseiller l'adhérent sur ses entraînements, la nutrition, les compléments de la boutique, et de répondre à ses questions sur le club.
+Sois motivant, professionnel, empathique et utilise un ton "Application numéro 1" (tutoiement autorisé et encouragé).
+Fais des réponses concises et structurées en Markdown.
+
+RÈGLES DE REDIRECTION IMPORTANTES :
+1. Si l'adhérent pose une question commerciale complexe (tarifs spécifiques, résiliation, facturation, abonnement complexe), tu dois lui répondre poliment que tu ne peux pas traiter cette demande et le rediriger vers Victor (Conseiller Sportif) au numéro de téléphone : 07 43 10 37 90.
+2. Si l'adhérent pose une question sportive trop complexe, médicale, ou nécessitant une analyse approfondie (blessure, douleur, programme très spécifique), tu dois le rediriger vers les coachs sportifs (Thomas, Tristan ou Evan) lors de sa prochaine séance ou via la messagerie de l'application.`;
+
+      chatRef.current = ai.chats.create({
+        model: "gemini-3-flash-preview",
+        config: {
+          systemInstruction,
+          temperature: 0.7,
+        }
+      });
+    } catch (error) {
+      console.error("Erreur initialisation IA:", error);
+    }
+  }, [state.user]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -36,47 +67,11 @@ export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: 
     setLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
-      
-      const systemInstruction = `Tu es l'assistant IA virtuel de l'application numéro 1 "VELATRA".
-Tu t'adresses à l'adhérent nommé ${state.user?.name}.
-Son profil : Âge ${state.user?.age}, Poids ${state.user?.weight}kg, Objectifs : ${(state.user?.objectifs || []).join(', ')}.
-Informations sur le club : ${JSON.stringify(CLUB_INFO)}.
-Coachs du club : ${JSON.stringify(COACHES)}.
-Boutique de compléments : ${JSON.stringify(INIT_SUPPLEMENTS.map(s => s.nom))}.
-Ton rôle est de conseiller l'adhérent sur ses entraînements, la nutrition, les compléments de la boutique, et de répondre à ses questions sur le club.
-Sois motivant, professionnel, empathique et utilise un ton "Application numéro 1" (tutoiement autorisé et encouragé).
-Fais des réponses concises et structurées en Markdown.
+      if (!chatRef.current) {
+        throw new Error("Chat non initialisé");
+      }
 
-RÈGLES DE REDIRECTION IMPORTANTES :
-1. Si l'adhérent pose une question commerciale complexe (tarifs spécifiques, résiliation, facturation, abonnement complexe), tu dois lui répondre poliment que tu ne peux pas traiter cette demande et le rediriger vers Victor (Conseiller Sportif) au numéro de téléphone : 07 43 10 37 90.
-2. Si l'adhérent pose une question sportive trop complexe, médicale, ou nécessitant une analyse approfondie (blessure, douleur, programme très spécifique), tu dois le rediriger vers les coachs sportifs (Thomas, Tristan ou Evan) lors de sa prochaine séance ou via la messagerie de l'application.`;
-
-      const chat = ai.chats.create({
-        model: "gemini-3-flash-preview",
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-        }
-      });
-
-      // Send previous messages to establish context if needed, but for simplicity we just send the current one
-      // If we want full history, we'd need to initialize the chat with history, but `ai.chats.create` doesn't take history directly in this SDK version.
-      // We will just send the current message. The model will lose context of previous turns unless we pass them all as a single string or use a different method.
-      // Let's format the entire conversation history into the prompt for simplicity and robustness.
-      
-      const conversationHistory = messages.map(m => `${m.role === 'user' ? 'Adhérent' : 'Assistant'}: ${m.text}`).join('\n\n');
-      const prompt = `${conversationHistory}\n\nAdhérent: ${userMsg}\nAssistant:`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-        }
-      });
-
+      const response = await chatRef.current.sendMessage({ message: userMsg });
       setMessages(prev => [...prev, { role: 'model', text: response.text || "Désolé, je n'ai pas pu générer de réponse." }]);
     } catch (error) {
       console.error(error);

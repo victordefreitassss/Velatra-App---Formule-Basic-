@@ -3,7 +3,7 @@ import React from 'react';
 import { User, Page, Club } from '../types';
 import { 
   HomeIcon, UsersIcon, LayersIcon, BarChartIcon, 
-  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon, FolderIcon, PlayCircleIcon
+  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon, FolderIcon, PlayCircleIcon, UserIcon
 } from './Icons';
 import { Timer } from './Timer';
 
@@ -68,6 +68,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Plus' },
     { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', requiredPlan: 'premium', category: 'Plus' },
     { id: 'loyalty', icon: GiftIcon, label: 'Fidélité', requiredPlan: 'premium', category: 'Plus' },
+    { id: 'profile', icon: UserIcon, label: 'Profil', category: 'Plus' },
     { id: 'about', icon: InfoIcon, label: 'Club', category: 'Plus' },
   ];
 
