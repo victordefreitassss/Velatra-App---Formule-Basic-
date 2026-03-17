@@ -18,6 +18,11 @@ export const ProfilePage: React.FC<{
     equipment: user.equipment || 'Salle de sport',
     email: user.email || '',
     phone: user.phone || '',
+    chest: user.measurements?.chest || 0,
+    waist: user.measurements?.waist || 0,
+    hips: user.measurements?.hips || 0,
+    arms: user.measurements?.arms || 0,
+    thighs: user.measurements?.thighs || 0,
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -32,6 +37,13 @@ export const ProfilePage: React.FC<{
         equipment: formData.equipment,
         email: formData.email,
         phone: formData.phone,
+        measurements: {
+          chest: Number(formData.chest),
+          waist: Number(formData.waist),
+          hips: Number(formData.hips),
+          arms: Number(formData.arms),
+          thighs: Number(formData.thighs),
+        }
       });
       
       setState(prev => ({
@@ -44,6 +56,13 @@ export const ProfilePage: React.FC<{
           equipment: formData.equipment as any,
           email: formData.email,
           phone: formData.phone,
+          measurements: {
+            chest: Number(formData.chest),
+            waist: Number(formData.waist),
+            hips: Number(formData.hips),
+            arms: Number(formData.arms),
+            thighs: Number(formData.thighs),
+          }
         }
       }));
       
@@ -86,6 +105,149 @@ export const ProfilePage: React.FC<{
       showToast("Erreur lors de la redirection", "error");
     }
   };
+
+  const handleConnectGoogleFit = async () => {
+    if (user.integrations?.googleFit) {
+      // Disconnect
+      try {
+        const userRef = doc(db, "users", (user as any).firebaseUid);
+        await updateDoc(userRef, {
+          "integrations.googleFit": false,
+          "integrations.googleFitTokens": null
+        });
+        setState(prev => ({
+          ...prev,
+          user: {
+            ...prev.user!,
+            integrations: {
+              ...prev.user!.integrations,
+              googleFit: false
+            }
+          }
+        }));
+        showToast("Google Fit déconnecté", "success");
+      } catch (e) {
+        showToast("Erreur lors de la déconnexion", "error");
+      }
+      return;
+    }
+
+    // Connect
+    try {
+      showToast("Ouverture de la connexion Google Fit...", "info");
+      const response = await fetch('/api/auth/google-fit/url');
+      if (!response.ok) throw new Error("Erreur réseau");
+      const { url } = await response.json();
+      
+      const authWindow = window.open(url, 'oauth_popup', 'width=600,height=700');
+      if (!authWindow) {
+        showToast("Veuillez autoriser les popups pour vous connecter.", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Erreur d'initialisation de la connexion", "error");
+    }
+  };
+
+  const handleConnectStrava = async () => {
+    if (user.integrations?.strava) {
+      // Disconnect
+      try {
+        const userRef = doc(db, "users", (user as any).firebaseUid);
+        await updateDoc(userRef, {
+          "integrations.strava": false,
+          "integrations.stravaTokens": null
+        });
+        setState(prev => ({
+          ...prev,
+          user: {
+            ...prev.user!,
+            integrations: {
+              ...prev.user!.integrations,
+              strava: false
+            }
+          }
+        }));
+        showToast("Strava déconnecté", "success");
+      } catch (e) {
+        showToast("Erreur lors de la déconnexion", "error");
+      }
+      return;
+    }
+
+    // Connect
+    try {
+      showToast("Ouverture de la connexion Strava...", "info");
+      const response = await fetch('/api/auth/strava/url');
+      if (!response.ok) throw new Error("Erreur réseau");
+      const { url } = await response.json();
+      
+      const authWindow = window.open(url, 'oauth_popup', 'width=600,height=700');
+      if (!authWindow) {
+        showToast("Veuillez autoriser les popups pour vous connecter.", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Erreur d'initialisation de la connexion", "error");
+    }
+  };
+
+  React.useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      // Validate origin is from AI Studio preview or localhost
+      if (!event.origin.endsWith('.run.app') && !event.origin.includes('localhost')) {
+        return;
+      }
+      
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        try {
+          const userRef = doc(db, "users", (user as any).firebaseUid);
+          const provider = event.data.provider; // 'googleFit' or 'strava'
+          
+          if (provider === 'googleFit') {
+            await updateDoc(userRef, {
+              "integrations.googleFit": true,
+              "integrations.googleFitTokens": event.data.tokens
+            });
+            
+            setState(prev => ({
+              ...prev,
+              user: {
+                ...prev.user!,
+                integrations: {
+                  ...prev.user!.integrations,
+                  googleFit: true
+                }
+              }
+            }));
+            showToast("Google Fit connecté avec succès ! Données synchronisées.", "success");
+          } else if (provider === 'strava') {
+            await updateDoc(userRef, {
+              "integrations.strava": true,
+              "integrations.stravaTokens": event.data.tokens
+            });
+            
+            setState(prev => ({
+              ...prev,
+              user: {
+                ...prev.user!,
+                integrations: {
+                  ...prev.user!.integrations,
+                  strava: true
+                }
+              }
+            }));
+            showToast("Strava connecté avec succès ! Activités synchronisées.", "success");
+          }
+        } catch (e) {
+          console.error(e);
+          showToast("Erreur lors de l'enregistrement de la connexion", "error");
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [user, setState, showToast]);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-24 max-w-2xl mx-auto">
@@ -276,6 +438,40 @@ export const ProfilePage: React.FC<{
         </div>
       </Card>
 
+      {/* Measurements Section */}
+      <Card className="!p-6 bg-zinc-50 border-zinc-200">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+            <ActivityIcon size={20} />
+          </div>
+          <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Mensurations (cm)</h3>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {[
+            { label: 'Poitrine', key: 'chest' },
+            { label: 'Taille', key: 'waist' },
+            { label: 'Hanches', key: 'hips' },
+            { label: 'Bras', key: 'arms' },
+            { label: 'Cuisses', key: 'thighs' }
+          ].map(measurement => (
+            <div key={measurement.key}>
+              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">{measurement.label}</label>
+              {isEditing ? (
+                <input 
+                  type="number" 
+                  value={(formData as any)[measurement.key]}
+                  onChange={(e) => setFormData({...formData, [measurement.key]: Number(e.target.value)})}
+                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                />
+              ) : (
+                <div className="text-lg font-medium text-zinc-900">{(user.measurements as any)?.[measurement.key] ? `${(user.measurements as any)[measurement.key]} cm` : '-'}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      </Card>
+
       {user.role === 'client' && state.currentClub?.settings?.payment?.stripeSecretKey && user.stripeCustomerId && (
         <Card className="!p-6 bg-zinc-50 border-zinc-200">
           <div className="flex items-center justify-between mb-6">
@@ -364,29 +560,29 @@ export const ProfilePage: React.FC<{
             <Button 
               variant={user.integrations?.googleFit ? "outline" : "primary"} 
               className="text-sm"
-              onClick={async () => {
-                try {
-                  const userRef = doc(db, "users", (user as any).firebaseUid);
-                  await updateDoc(userRef, {
-                    "integrations.googleFit": !user.integrations?.googleFit
-                  });
-                  setState(prev => ({
-                    ...prev,
-                    user: {
-                      ...prev.user!,
-                      integrations: {
-                        ...prev.user!.integrations,
-                        googleFit: !prev.user!.integrations?.googleFit
-                      }
-                    }
-                  }));
-                  showToast(user.integrations?.googleFit ? "Google Fit déconnecté" : "Google Fit connecté avec succès", "success");
-                } catch (e) {
-                  showToast("Erreur lors de la connexion", "error");
-                }
-              }}
+              onClick={handleConnectGoogleFit}
             >
               {user.integrations?.googleFit ? "Déconnecter" : "Connecter"}
+            </Button>
+          </div>
+
+          {/* Strava */}
+          <div className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#FC4C02]">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-zinc-900">Strava</p>
+                <p className="text-xs text-zinc-500 mt-1">Synchronisez vos courses et sorties vélo.</p>
+              </div>
+            </div>
+            <Button 
+              variant={user.integrations?.strava ? "outline" : "primary"} 
+              className="text-sm"
+              onClick={handleConnectStrava}
+            >
+              {user.integrations?.strava ? "Déconnecter" : "Connecter"}
             </Button>
           </div>
         </div>
