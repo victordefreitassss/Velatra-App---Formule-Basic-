@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Card, Input, Button } from './UI';
 import { RegistrationForm } from './RegistrationForm';
 import { ClubRegistration } from './ClubRegistration';
+import { LandingPage } from './LandingPage';
 import { 
   auth, 
   signInWithEmailAndPassword,
@@ -22,7 +23,7 @@ const AppLogo = () => (
 );
 
 export const Login: React.FC<{ onLogin: any, onRegister: any }> = () => {
-  const [mode, setMode] = useState<'login' | 'register' | 'discovery' | 'club_register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'discovery' | 'club_register'>('discovery');
   const [isCoachMode, setIsCoachMode] = useState(false);
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
@@ -58,6 +59,10 @@ export const Login: React.FC<{ onLogin: any, onRegister: any }> = () => {
 
   if (mode === 'club_register') {
     return <ClubRegistration onSuccess={() => setMode('login')} onCancel={() => setMode('login')} />;
+  }
+
+  if (mode === 'discovery') {
+    return <LandingPage onLogin={() => setMode('login')} onRegister={() => setMode('club_register')} />;
   }
 
   return (
