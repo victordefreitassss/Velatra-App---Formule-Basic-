@@ -65,6 +65,11 @@ export interface User {
   pointsFidelite: number;
   planRequested?: boolean;
   firebaseUid?: string;
+  integrations?: {
+    appleHealth?: boolean;
+    googleFit?: boolean;
+    myFitnessPal?: boolean;
+  };
 }
 
 export interface SupplementProduct {
@@ -349,7 +354,7 @@ export interface Newsletter {
   author: string;
 }
 
-export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile";
+export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "videos";
 
 export type ActivityLevel = "Sédentaire" | "Légèrement actif" | "Modérément actif" | "Très actif" | "Extrêmement actif";
 

@@ -10,7 +10,9 @@ import {
   MoonIcon,
   ArrowRightIcon,
   SparklesIcon,
-  SendIcon
+  SendIcon,
+  FolderIcon,
+  PlayCircleIcon
 } from './Icons';
 
 export const LandingPage: React.FC<{ onLogin: () => void, onRegister: () => void }> = ({ onLogin, onRegister }) => {
@@ -102,6 +104,42 @@ export const LandingPage: React.FC<{ onLogin: () => void, onRegister: () => void
           </div>
         </section>
 
+        {/* Features Section */}
+        <section className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-zinc-900 mb-4">
+              Tout ce dont vous avez besoin
+            </h2>
+            <p className="text-xl text-zinc-500 max-w-2xl mx-auto">
+              Une suite d'outils complète pour gérer et développer votre activité de coaching.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Drive Intégré */}
+            <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-zinc-100 hover:shadow-xl transition-shadow duration-300">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-8">
+                <FolderIcon size={28} />
+              </div>
+              <h3 className="text-2xl font-bold text-zinc-900 mb-4">Drive Intégré</h3>
+              <p className="text-lg text-zinc-500 leading-relaxed">
+                Stockez et partagez vos documents (PDF, guides, etc) directement depuis la plateforme. Plus besoin de jongler entre plusieurs outils pour partager vos ressources.
+              </p>
+            </div>
+
+            {/* Vidéothèque */}
+            <div className="bg-white rounded-[2rem] p-8 md:p-10 shadow-sm border border-zinc-100 hover:shadow-xl transition-shadow duration-300">
+              <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mb-8">
+                <PlayCircleIcon size={28} />
+              </div>
+              <h3 className="text-2xl font-bold text-zinc-900 mb-4">Vidéothèque</h3>
+              <p className="text-lg text-zinc-500 leading-relaxed">
+                Hébergez vos cours en ligne et vidéos d'exécution. Offrez une expérience premium à vos clients avec des contenus vidéos accessibles à tout moment.
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* Integrations Section */}
         <section className="relative max-w-6xl mx-auto px-4 text-center">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-3xl bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none" />
@@ -126,7 +164,7 @@ export const LandingPage: React.FC<{ onLogin: () => void, onRegister: () => void
                 <VideoIcon size={32} /> Zoom
               </div>
               <div className="flex items-center gap-3 text-2xl font-bold text-zinc-400 hover:text-[#FF2D55] transition-colors cursor-pointer grayscale hover:grayscale-0 opacity-70 hover:opacity-100">
-                <HeartIcon size={32} /> Apple Health
+                <HeartIcon size={32} /> Apple Santé
               </div>
             </div>
           </div>
@@ -163,7 +201,7 @@ export const LandingPage: React.FC<{ onLogin: () => void, onRegister: () => void
                   <DownloadIcon size={48} />
                 </div>
                 <h3 className="text-2xl font-black mb-2">Migration 100%<br/>Gratuite</h3>
-                <p className="text-emerald-100 font-medium">On s'occupe de tout pour vous.</p>
+                <p className="text-emerald-100 font-medium">pour les clients, on s'occupe de tout pour vous.</p>
               </div>
             </div>
           </div>

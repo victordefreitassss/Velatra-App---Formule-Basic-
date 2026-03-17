@@ -3,7 +3,7 @@ import React from 'react';
 import { User, Page, Club } from '../types';
 import { 
   HomeIcon, UsersIcon, LayersIcon, BarChartIcon, 
-  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon
+  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon, FolderIcon, PlayCircleIcon
 } from './Icons';
 import { Timer } from './Timer';
 
@@ -48,6 +48,8 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     { id: 'presets', icon: LayersIcon, label: 'Modèles', category: 'Bibliothèque' },
     { id: 'exercises', icon: DumbbellIcon, label: 'Exos', category: 'Bibliothèque' },
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Bibliothèque' },
+    { id: 'drive', icon: FolderIcon, label: 'Drive', category: 'Bibliothèque' },
+    { id: 'videos', icon: PlayCircleIcon, label: 'Vidéos', category: 'Bibliothèque' },
     { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances', requiredPlan: 'classic', category: 'Business' },
     { id: 'crm_pipeline', icon: TargetIcon, label: 'ProspectFlow', requiredPlan: 'premium', category: 'Business' },
     { id: 'marketing', icon: MegaphoneIcon, label: 'Marketing', requiredPlan: 'premium', category: 'Business' },

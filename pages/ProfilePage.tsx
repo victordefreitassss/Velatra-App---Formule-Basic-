@@ -299,6 +299,98 @@ export const ProfilePage: React.FC<{
           </div>
         </Card>
       )}
+
+      {/* Integrations Section */}
+      <Card className="!p-6 bg-zinc-50 border-zinc-200">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+            <ActivityIcon size={20} />
+          </div>
+          <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Connexions & Applications</h3>
+        </div>
+        
+        <div className="space-y-4">
+          {/* Apple Santé */}
+          <div className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#FF2D55]">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-zinc-900">Apple Santé</p>
+                <p className="text-xs text-zinc-500 mt-1">Synchronisez vos calories brûlées et votre activité quotidienne.</p>
+              </div>
+            </div>
+            <Button 
+              variant={user.integrations?.appleHealth ? "outline" : "primary"} 
+              className="text-sm"
+              onClick={async () => {
+                try {
+                  const userRef = doc(db, "users", (user as any).firebaseUid);
+                  await updateDoc(userRef, {
+                    "integrations.appleHealth": !user.integrations?.appleHealth
+                  });
+                  setState(prev => ({
+                    ...prev,
+                    user: {
+                      ...prev.user!,
+                      integrations: {
+                        ...prev.user!.integrations,
+                        appleHealth: !prev.user!.integrations?.appleHealth
+                      }
+                    }
+                  }));
+                  showToast(user.integrations?.appleHealth ? "Apple Santé déconnecté" : "Apple Santé connecté avec succès", "success");
+                } catch (e) {
+                  showToast("Erreur lors de la connexion", "error");
+                }
+              }}
+            >
+              {user.integrations?.appleHealth ? "Déconnecter" : "Connecter"}
+            </Button>
+          </div>
+
+          {/* Google Fit */}
+          <div className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#4285F4]">
+                <ActivityIcon size={24} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-zinc-900">Google Fit</p>
+                <p className="text-xs text-zinc-500 mt-1">Synchronisez vos données d'activité depuis Android.</p>
+              </div>
+            </div>
+            <Button 
+              variant={user.integrations?.googleFit ? "outline" : "primary"} 
+              className="text-sm"
+              onClick={async () => {
+                try {
+                  const userRef = doc(db, "users", (user as any).firebaseUid);
+                  await updateDoc(userRef, {
+                    "integrations.googleFit": !user.integrations?.googleFit
+                  });
+                  setState(prev => ({
+                    ...prev,
+                    user: {
+                      ...prev.user!,
+                      integrations: {
+                        ...prev.user!.integrations,
+                        googleFit: !prev.user!.integrations?.googleFit
+                      }
+                    }
+                  }));
+                  showToast(user.integrations?.googleFit ? "Google Fit déconnecté" : "Google Fit connecté avec succès", "success");
+                } catch (e) {
+                  showToast("Erreur lors de la connexion", "error");
+                }
+              }}
+            >
+              {user.integrations?.googleFit ? "Déconnecter" : "Connecter"}
+            </Button>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 };
