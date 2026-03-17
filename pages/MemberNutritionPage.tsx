@@ -147,7 +147,10 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
             <div className="flex items-end justify-between border-b border-zinc-200 pb-4">
               <div>
                 <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Calories Cibles</div>
-                <div className="text-4xl font-black text-zinc-900 tabular-nums leading-none">{plan.targetCalories}</div>
+                <div className="text-4xl font-black text-zinc-900 tabular-nums leading-none">
+                  {state.user?.integrations?.appleHealth ? plan.targetCalories + 350 : plan.targetCalories}
+                  {state.user?.integrations?.appleHealth && <span className="text-sm font-medium text-[#FF2D55] ml-2">+350</span>}
+                </div>
               </div>
               <div className="text-right">
                 <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Maintien (TDEE)</div>
@@ -187,6 +190,30 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
               </div>
             </div>
           </Card>
+
+          {state.user?.integrations?.appleHealth && (
+            <Card className="p-6 bg-white border-[#FF2D55]/20 shadow-[0_4px_20px_rgba(255,45,85,0.05)] space-y-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 bg-[#FF2D55]/10 rounded-lg flex items-center justify-center text-[#FF2D55]">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900">Apple Santé</h3>
+              </div>
+              
+              <div className="flex items-end justify-between border-b border-zinc-100 pb-4">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Activité du jour</div>
+                  <div className="text-2xl font-black text-[#FF2D55] tabular-nums leading-none">350 <span className="text-sm text-zinc-400 font-medium">kcal brûlées</span></div>
+                </div>
+              </div>
+              
+              <div className="pt-2">
+                <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Calories restantes ajustées</div>
+                <div className="text-xl font-bold text-zinc-900 tabular-nums">{plan.targetCalories + 350} kcal</div>
+                <p className="text-xs text-zinc-400 mt-2 italic">Les calories brûlées ont été ajoutées à votre objectif journalier.</p>
+              </div>
+            </Card>
+          )}
 
           <Card className="p-6 bg-zinc-50 border-zinc-200 space-y-4">
             <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 mb-4 flex items-center gap-2">
