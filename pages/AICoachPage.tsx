@@ -24,9 +24,12 @@ export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   useEffect(() => {
     try {
-      const apiKey = process.env.GEMINI_API_KEY as string;
-      if (!apiKey || apiKey.trim() === '') {
-        setInitError("La clé API Gemini (GEMINI_API_KEY) est manquante sur Vercel.");
+      const rawApiKey = process.env.GEMINI_API_KEY as string;
+      // Remove any hidden characters, newlines, or spaces that could cause header errors
+      const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
+      
+      if (!apiKey) {
+        setInitError("La clé API Gemini (GEMINI_API_KEY) est manquante ou invalide sur Vercel.");
         return;
       }
       

@@ -37,7 +37,9 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
   const getAiAdvice = async () => {
     setAiLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+      const rawApiKey = process.env.GEMINI_API_KEY as string;
+      const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
+      const ai = new GoogleGenAI({ apiKey });
       const recentPerfs = state.performances
         .filter(p => Number(p.memberId) === Number(user.id))
         .slice(-5)

@@ -3,7 +3,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { User, BodyData } from "../types";
 
 export const generateSportsProgram = async (user: User, availableExercises: any[]) => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const rawApiKey = process.env.GEMINI_API_KEY;
+  const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
   if (!apiKey) {
     throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");
   }
@@ -117,7 +118,8 @@ Format de sortie obligatoire (JSON) :
 };
 
 export const generateNutritionPlan = async (user: User, latestScan?: BodyData, targets?: { calories: number, protein: number, carbs: number, fat: number }) => {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const rawApiKey = process.env.GEMINI_API_KEY;
+  const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
   if (!apiKey) {
     throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");
   }
