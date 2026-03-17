@@ -17,12 +17,20 @@ export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<any>(null);
 
+  const [initError, setInitError] = useState<string | null>(null);
+
   const coach = state.users.find(u => u.role === 'coach' || u.role === 'owner');
   const coachName = coach ? coach.name : 'Coach Humain';
 
   useEffect(() => {
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+      const apiKey = process.env.GEMINI_API_KEY as string;
+      if (!apiKey || apiKey.trim() === '') {
+        setInitError("La clé API Gemini (GEMINI_API_KEY) est manquante sur Vercel.");
+        return;
+      }
+      
+      const ai = new GoogleGenAI({ apiKey });
       
       const systemInstruction = `Tu es l'assistant IA virtuel de l'application numéro 1 "VELATRA".
 Tu t'adresses à l'adhérent nommé ${state.user?.name}.
@@ -45,8 +53,9 @@ RÈGLES DE REDIRECTION IMPORTANTES :
           temperature: 0.7,
         }
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur initialisation IA:", error);
+      setInitError(error.message || "Erreur inconnue lors de l'initialisation");
     }
   }, [state.user]);
 
@@ -67,15 +76,18 @@ RÈGLES DE REDIRECTION IMPORTANTES :
     setLoading(true);
 
     try {
+      if (initError) {
+        throw new Error(`Problème d'initialisation : ${initError}`);
+      }
       if (!chatRef.current) {
-        throw new Error("Chat non initialisé");
+        throw new Error("Le chat n'a pas pu s'initialiser. Vérifiez que la clé API est valide.");
       }
 
       const response = await chatRef.current.sendMessage({ message: userMsg });
       setMessages(prev => [...prev, { role: 'model', text: response.text || "Désolé, je n'ai pas pu générer de réponse." }]);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setMessages(prev => [...prev, { role: 'model', text: "Oups, une erreur de connexion m'empêche de te répondre pour le moment. Réessaie plus tard !" }]);
+      setMessages(prev => [...prev, { role: 'model', text: `❌ Erreur technique : ${error.message || "Erreur de connexion"}. Si vous êtes sur Vercel, assurez-vous d'avoir bien redéployé l'application après avoir ajouté la clé.` }]);
     } finally {
       setLoading(false);
     }
