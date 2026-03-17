@@ -84,7 +84,7 @@ export const ProfilePage: React.FC<{
 
     try {
       showToast("Redirection vers le portail...", "info");
-      const res = await fetch('/api/stripe/portal', {
+      const res = await fetch(`${window.location.origin}/api/stripe/portal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -133,18 +133,22 @@ export const ProfilePage: React.FC<{
     }
 
     // Connect
+    const authWindow = window.open('', 'oauth_popup', 'width=600,height=700');
+    if (!authWindow) {
+      showToast("Veuillez autoriser les popups pour vous connecter.", "error");
+      return;
+    }
+
     try {
       showToast("Ouverture de la connexion Google Fit...", "info");
-      const response = await fetch('/api/auth/google-fit/url');
+      const response = await fetch(`${window.location.origin}/api/auth/google-fit/url`);
       if (!response.ok) throw new Error("Erreur réseau");
       const { url } = await response.json();
       
-      const authWindow = window.open(url, 'oauth_popup', 'width=600,height=700');
-      if (!authWindow) {
-        showToast("Veuillez autoriser les popups pour vous connecter.", "error");
-      }
+      authWindow.location.href = url;
     } catch (error) {
       console.error(error);
+      authWindow.close();
       showToast("Erreur d'initialisation de la connexion", "error");
     }
   };
@@ -176,18 +180,22 @@ export const ProfilePage: React.FC<{
     }
 
     // Connect
+    const authWindow = window.open('', 'oauth_popup', 'width=600,height=700');
+    if (!authWindow) {
+      showToast("Veuillez autoriser les popups pour vous connecter.", "error");
+      return;
+    }
+
     try {
       showToast("Ouverture de la connexion Strava...", "info");
-      const response = await fetch('/api/auth/strava/url');
+      const response = await fetch(`${window.location.origin}/api/auth/strava/url`);
       if (!response.ok) throw new Error("Erreur réseau");
       const { url } = await response.json();
       
-      const authWindow = window.open(url, 'oauth_popup', 'width=600,height=700');
-      if (!authWindow) {
-        showToast("Veuillez autoriser les popups pour vous connecter.", "error");
-      }
+      authWindow.location.href = url;
     } catch (error) {
       console.error(error);
+      authWindow.close();
       showToast("Erreur d'initialisation de la connexion", "error");
     }
   };
@@ -611,7 +619,7 @@ const StravaActivities: React.FC<{ tokens: any }> = ({ tokens }) => {
         return;
       }
       try {
-        const res = await fetch('/api/strava/activities', {
+        const res = await fetch(`${window.location.origin}/api/strava/activities`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ accessToken: tokens.access_token })

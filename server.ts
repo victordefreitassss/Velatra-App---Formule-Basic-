@@ -166,16 +166,20 @@ async function startServer() {
       
       res.send(`
         <html>
-          <body>
+          <body style="font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f4f4f5; text-align: center; padding: 20px;">
             <script>
               if (window.opener) {
                 window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', provider: 'googleFit', tokens: ${JSON.stringify(tokens)} }, '*');
                 window.close();
-              } else {
-                window.location.href = '/';
               }
             </script>
-            <p>Connexion réussie ! Vous pouvez fermer cette fenêtre.</p>
+            <div style="background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+              <div style="width: 64px; height: 64px; background: #10B981; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 32px;">✓</div>
+              <h1 style="color: #18181B; margin-bottom: 10px;">Connexion réussie !</h1>
+              <p style="color: #71717A; margin-bottom: 20px;">Google Fit est maintenant connecté.</p>
+              <p style="color: #18181B; font-weight: 500;">Vous pouvez fermer cet onglet et retourner sur l'application Velatra.</p>
+              <button onclick="window.close()" style="margin-top: 20px; background: #18181B; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer;">Fermer la fenêtre</button>
+            </div>
           </body>
         </html>
       `);
@@ -217,16 +221,20 @@ async function startServer() {
       
       res.send(`
         <html>
-          <body>
+          <body style="font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f4f4f5; text-align: center; padding: 20px;">
             <script>
               if (window.opener) {
                 window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', provider: 'strava', tokens: ${JSON.stringify(tokens)} }, '*');
                 window.close();
-              } else {
-                window.location.href = '/';
               }
             </script>
-            <p>Connexion Strava réussie ! Vous pouvez fermer cette fenêtre.</p>
+            <div style="background: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+              <div style="width: 64px; height: 64px; background: #FC4C02; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 32px;">✓</div>
+              <h1 style="color: #18181B; margin-bottom: 10px;">Connexion réussie !</h1>
+              <p style="color: #71717A; margin-bottom: 20px;">Strava est maintenant connecté.</p>
+              <p style="color: #18181B; font-weight: 500;">Vous pouvez fermer cet onglet et retourner sur l'application Velatra.</p>
+              <button onclick="window.close()" style="margin-top: 20px; background: #18181B; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; cursor: pointer;">Fermer la fenêtre</button>
+            </div>
           </body>
         </html>
       `);
