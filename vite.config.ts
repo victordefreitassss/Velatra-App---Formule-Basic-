@@ -11,8 +11,12 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || ''),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '')
+        'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY || env.GEMINI_API_KEY || ''),
+        'process.env.APP_URL': JSON.stringify(process.env.APP_URL || env.APP_URL || ''),
+        'process.env.GOOGLE_FIT_CLIENT_ID': JSON.stringify(process.env.GOOGLE_FIT_CLIENT_ID || env.GOOGLE_FIT_CLIENT_ID || ''),
+        'process.env.GOOGLE_FIT_CLIENT_SECRET': JSON.stringify(process.env.GOOGLE_FIT_CLIENT_SECRET || env.GOOGLE_FIT_CLIENT_SECRET || ''),
+        'process.env.STRAVA_CLIENT_ID': JSON.stringify(process.env.STRAVA_CLIENT_ID || env.STRAVA_CLIENT_ID || ''),
+        'process.env.STRAVA_CLIENT_SECRET': JSON.stringify(process.env.STRAVA_CLIENT_SECRET || env.STRAVA_CLIENT_SECRET || '')
       },
       resolve: {
         alias: {
