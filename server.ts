@@ -236,6 +236,27 @@ async function startServer() {
     }
   });
 
+  app.post('/api/strava/activities', async (req, res) => {
+    try {
+      const { accessToken } = req.body;
+      if (!accessToken) return res.status(400).json({ error: "Token manquant" });
+
+      const response = await fetch('https://www.strava.com/api/v3/athlete/activities?per_page=5', {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Strava API error: ${response.status}`);
+      }
+
+      const activities = await response.json();
+      res.json(activities);
+    } catch (error) {
+      console.error("Strava API Error:", error);
+      res.status(500).json({ error: "Erreur lors de la récupération des activités" });
+    }
+  });
+
   app.post("/api/stripe/portal", async (req, res) => {
     try {
       const { stripeSecretKey, customerId, returnUrl } = req.body;
