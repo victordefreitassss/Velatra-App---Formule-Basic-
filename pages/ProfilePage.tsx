@@ -567,26 +567,84 @@ export const ProfilePage: React.FC<{
           </div>
 
           {/* Strava */}
-          <div className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#FC4C02]">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+          <div className="bg-white border border-zinc-200 rounded-xl p-4 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#FC4C02]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-zinc-900">Strava</p>
+                  <p className="text-xs text-zinc-500 mt-1">Synchronisez vos courses et sorties vélo.</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-bold text-zinc-900">Strava</p>
-                <p className="text-xs text-zinc-500 mt-1">Synchronisez vos courses et sorties vélo.</p>
-              </div>
+              <Button 
+                variant={user.integrations?.strava ? "outline" : "primary"} 
+                className="text-sm"
+                onClick={handleConnectStrava}
+              >
+                {user.integrations?.strava ? "Déconnecter" : "Connecter"}
+              </Button>
             </div>
-            <Button 
-              variant={user.integrations?.strava ? "outline" : "primary"} 
-              className="text-sm"
-              onClick={handleConnectStrava}
-            >
-              {user.integrations?.strava ? "Déconnecter" : "Connecter"}
-            </Button>
+            {user.integrations?.strava && (
+              <div className="pt-4 border-t border-zinc-100">
+                <StravaActivities tokens={user.integrations.stravaTokens} />
+              </div>
+            )}
           </div>
         </div>
       </Card>
+    </div>
+  );
+};
+
+const StravaActivities: React.FC<{ tokens: any }> = ({ tokens }) => {
+  const [activities, setActivities] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const fetchActivities = async () => {
+      if (!tokens?.access_token) {
+        setError("Token manquant");
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch('/api/strava/activities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken: tokens.access_token })
+        });
+        if (!res.ok) throw new Error("Erreur lors de la récupération");
+        const data = await res.json();
+        setActivities(data);
+      } catch (err) {
+        setError("Impossible de charger les activités");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchActivities();
+  }, [tokens]);
+
+  if (loading) return <div className="text-xs text-zinc-500 animate-pulse">Chargement des activités...</div>;
+  if (error) return <div className="text-xs text-red-500">{error}</div>;
+  if (activities.length === 0) return <div className="text-xs text-zinc-500">Aucune activité récente trouvée.</div>;
+
+  return (
+    <div className="space-y-3">
+      <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Dernières activités</h4>
+      <div className="space-y-2">
+        {activities.map((act: any) => (
+          <div key={act.id} className="flex items-center justify-between text-sm bg-zinc-50 p-3 rounded-lg">
+            <div className="font-medium text-zinc-900">{act.name}</div>
+            <div className="text-zinc-500 text-xs">
+              {act.type === 'Run' ? '🏃' : act.type === 'Ride' ? '🚴' : '💪'} {Math.round(act.distance / 1000)}km • {Math.round(act.moving_time / 60)}min
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

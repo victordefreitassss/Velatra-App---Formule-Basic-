@@ -77,7 +77,7 @@ export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: s
     setGeneratingMealId(meal.id);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY as string });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
       
       const prompt = `Je suis un(e) ${plan.gender === 'M' ? 'homme' : 'femme'} de ${plan.age} ans, ${plan.weight}kg. Mon objectif est: ${plan.goal}.
 Mon régime alimentaire est : ${plan.dietPreference || dietPreference}.
@@ -120,7 +120,7 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
       reader.onloadend = async () => {
         const base64String = (reader.result as string).split(',')[1];
         
-        const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY as string });
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
         const response = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
           contents: {

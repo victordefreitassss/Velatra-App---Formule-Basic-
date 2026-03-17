@@ -84,7 +84,7 @@ export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: s
 
     setIsGenerating(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY as string });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
       
       const prompt = `Propose un repas (juste le nom et les ingrédients principaux) qui correspond EXACTEMENT à ces macros :
 - Calories : ${newFood.calories} kcal
