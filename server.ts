@@ -126,6 +126,116 @@ async function startServer() {
     }
   });
 
+  // Google Fit OAuth Endpoints
+  app.get('/api/auth/google-fit/url', (req, res) => {
+    // We use the APP_URL environment variable provided by the platform
+    const appUrl = process.env.APP_URL || `http://localhost:${PORT}`;
+    const redirectUri = `${appUrl}/api/auth/google-fit/callback`;
+    
+    const params = new URLSearchParams({
+      client_id: process.env.GOOGLE_FIT_CLIENT_ID || '',
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'https://www.googleapis.com/auth/fitness.activity.read https://www.googleapis.com/auth/fitness.nutrition.read',
+      access_type: 'offline',
+      prompt: 'consent'
+    });
+    
+    res.json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params}` });
+  });
+
+  app.get('/api/auth/google-fit/callback', async (req, res) => {
+    const { code } = req.query;
+    try {
+      const appUrl = process.env.APP_URL || `http://localhost:${PORT}`;
+      const redirectUri = `${appUrl}/api/auth/google-fit/callback`;
+      
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: process.env.GOOGLE_FIT_CLIENT_ID || '',
+          client_secret: process.env.GOOGLE_FIT_CLIENT_SECRET || '',
+          code: code as string,
+          grant_type: 'authorization_code',
+          redirect_uri: redirectUri,
+        })
+      });
+      
+      const tokens = await tokenResponse.json();
+      
+      res.send(`
+        <html>
+          <body>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', provider: 'googleFit', tokens: ${JSON.stringify(tokens)} }, '*');
+                window.close();
+              } else {
+                window.location.href = '/';
+              }
+            </script>
+            <p>Connexion réussie ! Vous pouvez fermer cette fenêtre.</p>
+          </body>
+        </html>
+      `);
+    } catch (err) {
+      console.error("OAuth Error:", err);
+      res.status(500).send('Erreur lors de la connexion à Google Fit');
+    }
+  });
+
+  app.get('/api/auth/strava/url', (req, res) => {
+    const appUrl = process.env.APP_URL || `http://localhost:${PORT}`;
+    const redirectUri = `${appUrl}/api/auth/strava/callback`;
+    
+    const params = new URLSearchParams({
+      client_id: process.env.STRAVA_CLIENT_ID || '',
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'read,activity:read',
+    });
+    
+    res.json({ url: `https://www.strava.com/oauth/authorize?${params}` });
+  });
+
+  app.get('/api/auth/strava/callback', async (req, res) => {
+    const { code } = req.query;
+    try {
+      const tokenResponse = await fetch('https://www.strava.com/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          client_id: process.env.STRAVA_CLIENT_ID,
+          client_secret: process.env.STRAVA_CLIENT_SECRET,
+          code: code,
+          grant_type: 'authorization_code',
+        })
+      });
+      
+      const tokens = await tokenResponse.json();
+      
+      res.send(`
+        <html>
+          <body>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS', provider: 'strava', tokens: ${JSON.stringify(tokens)} }, '*');
+                window.close();
+              } else {
+                window.location.href = '/';
+              }
+            </script>
+            <p>Connexion Strava réussie ! Vous pouvez fermer cette fenêtre.</p>
+          </body>
+        </html>
+      `);
+    } catch (err) {
+      console.error("OAuth Error:", err);
+      res.status(500).send('Erreur lors de la connexion à Strava');
+    }
+  });
+
   app.post("/api/stripe/portal", async (req, res) => {
     try {
       const { stripeSecretKey, customerId, returnUrl } = req.body;

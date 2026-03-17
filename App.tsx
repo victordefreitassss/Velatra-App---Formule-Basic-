@@ -50,6 +50,7 @@ import { MemberSupplementsPage } from './pages/MemberSupplementsPage';
 import { MemberLoyaltyPage } from './pages/MemberLoyaltyPage';
 import { DrivePage } from './pages/DrivePage';
 import { VideoLibraryPage } from './pages/VideoLibraryPage';
+import { CommunityPage } from './pages/CommunityPage';
 import { PremiumCTA } from './components/PremiumCTA';
 import { FeatureLockedMessage } from './components/FeatureLockedMessage';
 
@@ -559,6 +560,7 @@ export default function App() {
       case 'home': return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
       case 'calendar': return <CalendarPage state={state} setState={setState} />;
       case 'performances': return <StatsPage state={state} setState={setState} />;
+      case 'community': return <CommunityPage state={state} />;
       case 'nutrition': return <MemberNutritionPage state={state} showToast={showToast} />;
       case 'ai_coach': return <AICoachPage state={state} setState={setState} showToast={showToast} />;
       case 'history': return <HistoryPage state={state} setState={setState} />;

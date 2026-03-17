@@ -64,6 +64,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     { id: 'calendar', icon: CalendarIcon, label: 'Séance', category: 'Principal' },
     { id: 'ai_coach', icon: BotIcon, label: 'Coach IA', category: 'Principal' },
     { id: 'performances', icon: BarChartIcon, label: 'Records', category: 'Principal' },
+    { id: 'community', icon: UsersIcon, label: 'Communauté', category: 'Principal' },
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Plus' },
     { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', requiredPlan: 'premium', category: 'Plus' },
     { id: 'loyalty', icon: GiftIcon, label: 'Fidélité', requiredPlan: 'premium', category: 'Plus' },

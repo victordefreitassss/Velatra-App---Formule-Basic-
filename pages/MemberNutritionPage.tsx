@@ -1,14 +1,17 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { AppState, Meal } from '../types';
-import { Card, Button, Input } from '../components/UI';
+import { Card, Button, Input, Badge } from '../components/UI';
 import { AppleIcon, TargetIcon, UserIcon } from '../components/Icons';
-import { SparklesIcon, RefreshCwIcon } from 'lucide-react';
+import { SparklesIcon, RefreshCwIcon, CameraIcon } from 'lucide-react';
 import { db, doc, updateDoc } from '../firebase';
 import { GoogleGenAI } from '@google/genai';
 
 export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: string, type?: 'success' | 'error') => void }> = ({ state, showToast }) => {
   const [generatingMealId, setGeneratingMealId] = useState<string | null>(null);
   const [dietPreference, setDietPreference] = useState<string>("Standard");
+  const [scanning, setScanning] = useState(false);
+  const [scannedMeal, setScannedMeal] = useState<{mealName: string, calories: number, protein: number, carbs: number, fat: number} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const plan = useMemo(() => {
     return state.nutritionPlans.find(p => p.memberId === state.user?.id);
@@ -104,6 +107,49 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
       showToast("Erreur lors de la génération du repas", "error");
     } finally {
       setGeneratingMealId(null);
+    }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setScanning(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64String = (reader.result as string).split(',')[1];
+        
+        const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY as string });
+        const response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: {
+            parts: [
+              { inlineData: { mimeType: file.type, data: base64String } },
+              { text: "Analyse ce repas. Estime les calories totales, et les macronutriments (protéines, glucides, lipides) en grammes. Réponds uniquement au format JSON avec les clés exactes: mealName, calories, protein, carbs, fat. Ne renvoie que le JSON, sans markdown." }
+            ]
+          },
+          config: {
+            responseMimeType: "application/json",
+          }
+        });
+
+        try {
+          const result = JSON.parse(response.text || "{}");
+          setScannedMeal(result);
+          showToast("Repas analysé avec succès !", "success");
+        } catch (parseErr) {
+          console.error("Failed to parse JSON:", response.text);
+          showToast("Impossible d'analyser le repas. Réessayez.", "error");
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error(error);
+      showToast("Erreur lors de l'analyse du repas", "error");
+    } finally {
+      setScanning(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -268,7 +314,72 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
 
         {/* Right Column: Meals */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between px-2">
+          
+          {/* AI Meal Scanner */}
+          <Card className="p-6 bg-gradient-to-br from-velatra-accent to-velatra-accentDark text-white border-none shadow-[0_10px_40px_rgba(99,102,241,0.3)]">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2 mb-2">
+                  <CameraIcon size={20} /> Scanner un repas (IA)
+                </h3>
+                <p className="text-sm opacity-80 max-w-sm">
+                  Prenez votre assiette en photo, notre IA estime instantanément les calories et les macros.
+                </p>
+              </div>
+              <input 
+                type="file" 
+                accept="image/*" 
+                capture="environment" 
+                className="hidden" 
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+              />
+              <Button 
+                variant="secondary" 
+                className="!bg-white !text-velatra-accent hover:!bg-zinc-50 shrink-0"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={scanning}
+              >
+                {scanning ? (
+                  <><RefreshCwIcon size={16} className="animate-spin mr-2" /> ANALYSE...</>
+                ) : (
+                  <><CameraIcon size={16} className="mr-2" /> PRENDRE EN PHOTO</>
+                )}
+              </Button>
+            </div>
+
+            {scannedMeal && (
+              <div className="mt-6 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 animate-in fade-in slide-in-from-bottom-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-bold text-lg">{scannedMeal.mealName || 'Repas analysé'}</h4>
+                  <Badge variant="success" className="!bg-white !text-velatra-accent">
+                    {scannedMeal.calories} kcal
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-white/10 rounded-xl p-3 text-center">
+                    <div className="text-[10px] uppercase tracking-widest opacity-80 mb-1">Protéines</div>
+                    <div className="font-bold text-xl">{scannedMeal.protein}g</div>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-3 text-center">
+                    <div className="text-[10px] uppercase tracking-widest opacity-80 mb-1">Glucides</div>
+                    <div className="font-bold text-xl">{scannedMeal.carbs}g</div>
+                  </div>
+                  <div className="bg-white/10 rounded-xl p-3 text-center">
+                    <div className="text-[10px] uppercase tracking-widest opacity-80 mb-1">Lipides</div>
+                    <div className="font-bold text-xl">{scannedMeal.fat}g</div>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <Button variant="secondary" className="!py-1.5 !px-3 !text-xs !bg-white/20 hover:!bg-white/30 text-white border-none" onClick={() => setScannedMeal(null)}>
+                    Fermer
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <div className="flex items-center justify-between px-2 pt-4">
             <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
               <AppleIcon size={16} className="text-velatra-accent" /> Mes Repas
             </h3>
