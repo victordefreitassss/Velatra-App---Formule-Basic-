@@ -44,7 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     { id: 'home', icon: HomeIcon, label: 'Accueil', category: 'Principal' },
     { id: 'users', icon: UsersIcon, label: 'Membres', category: 'Principal' },
     { id: 'chat', icon: MessageCircleIcon, label: 'Discussion', category: 'Principal' },
-    { id: 'calendar', icon: CalendarIcon, label: 'Planning', requiredPlan: 'classic', category: 'Principal' },
+    { id: 'calendar', icon: CalendarIcon, label: 'Planning', category: 'Principal' },
     { id: 'presets', icon: LayersIcon, label: 'Modèles', category: 'Bibliothèque' },
     { id: 'exercises', icon: DumbbellIcon, label: 'Exos', category: 'Bibliothèque' },
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Bibliothèque' },
