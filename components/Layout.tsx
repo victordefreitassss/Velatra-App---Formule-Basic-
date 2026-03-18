@@ -63,7 +63,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     { id: 'home', icon: HomeIcon, label: 'Espace', category: 'Principal' },
     { id: 'ai_coach', icon: MessageCircleIcon, label: 'Discussions', category: 'Principal' },
     { id: 'calendar', icon: DumbbellIcon, label: 'Séance', category: 'Principal' },
-    { id: 'planning', icon: CalendarIcon, label: 'Planning', requiredPlan: 'classic', category: 'Principal' },
+    { id: 'planning', icon: CalendarIcon, label: 'Planning', category: 'Principal' },
     { id: 'performances', icon: BarChartIcon, label: 'Records', category: 'Principal' },
     { id: 'community', icon: UsersIcon, label: 'Communauté', category: 'Principal' },
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Plus' },

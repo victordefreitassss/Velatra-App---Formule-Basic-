@@ -566,7 +566,7 @@ export default function App() {
     switch (page) {
       case 'home': return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
       case 'calendar': return <CalendarPage state={state} setState={setState} />;
-      case 'planning': return isClassic ? <PlanningPage state={state} setState={setState} showToast={showToast} /> : <FeatureLockedMessage title="Planning" />;
+      case 'planning': return <PlanningPage state={state} setState={setState} showToast={showToast} />;
       case 'performances': return <StatsPage state={state} setState={setState} />;
       case 'community': return <CommunityPage state={state} />;
       case 'nutrition': return <MemberNutritionPage state={state} showToast={showToast} />;
