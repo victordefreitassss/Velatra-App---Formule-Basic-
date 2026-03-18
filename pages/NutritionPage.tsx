@@ -163,6 +163,34 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
     }
   };
 
+  const weeklyLogs = useMemo(() => {
+    if (!selectedMember) return [];
+    const today = new Date();
+    const logs = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const log = state.nutritionLogs.find(l => l.userId === selectedMember.id && l.date === dateStr);
+      
+      const totalCals = log?.foods.reduce((sum, f) => sum + f.calories, 0) || 0;
+      const totalProt = log?.foods.reduce((sum, f) => sum + f.protein, 0) || 0;
+      const totalCarbs = log?.foods.reduce((sum, f) => sum + f.carbs, 0) || 0;
+      const totalFat = log?.foods.reduce((sum, f) => sum + f.fat, 0) || 0;
+      
+      logs.push({
+        date: dateStr,
+        dayName: d.toLocaleDateString('fr-FR', { weekday: 'short' }),
+        totalCals,
+        totalProt,
+        totalCarbs,
+        totalFat,
+        hasLog: !!log && log.foods.length > 0
+      });
+    }
+    return logs;
+  }, [selectedMember, state.nutritionLogs]);
+
   if (selectedMember) {
     return (
       <div className="space-y-8 page-transition pb-20">
@@ -307,6 +335,55 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                     <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${(macros.fat * 9 / targetCalories) * 100}%` }} />
                   </div>
                 </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Right Column: Weekly Summary */}
+          <div className="space-y-6">
+            <Card className="p-6 bg-zinc-50 border-zinc-200 space-y-4">
+              <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
+                <AppleIcon size={16} className="text-velatra-accent" /> Résumé de la semaine
+              </h3>
+              
+              <div className="space-y-3">
+                {weeklyLogs.map((log, idx) => (
+                  <div key={idx} className="bg-white p-3 rounded-xl border border-zinc-200">
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="font-bold text-sm text-zinc-900 capitalize">{log.dayName} <span className="text-xs text-zinc-500 font-normal">({log.date.split('-').reverse().join('/')})</span></div>
+                      {log.hasLog ? (
+                        <Badge variant="success">Complété</Badge>
+                      ) : (
+                        <Badge variant="dark">Vide</Badge>
+                      )}
+                    </div>
+                    
+                    {log.hasLog ? (
+                      <div className="grid grid-cols-4 gap-2 text-center">
+                        <div className="bg-zinc-50 rounded-lg p-2">
+                          <div className="text-[10px] uppercase font-bold text-zinc-500">Kcal</div>
+                          <div className={`text-xs font-bold ${log.totalCals > targetCalories ? 'text-red-500' : 'text-zinc-900'}`}>{log.totalCals}</div>
+                        </div>
+                        <div className="bg-blue-50 rounded-lg p-2">
+                          <div className="text-[10px] uppercase font-bold text-blue-400">Prot</div>
+                          <div className="text-xs font-bold text-blue-600">{log.totalProt}g</div>
+                        </div>
+                        <div className="bg-green-50 rounded-lg p-2">
+                          <div className="text-[10px] uppercase font-bold text-green-400">Gluc</div>
+                          <div className="text-xs font-bold text-green-600">{log.totalCarbs}g</div>
+                        </div>
+                        <div className="bg-yellow-50 rounded-lg p-2">
+                          <div className="text-[10px] uppercase font-bold text-yellow-500">Lip</div>
+                          <div className="text-xs font-bold text-yellow-600">{log.totalFat}g</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-zinc-500 text-center py-2 bg-zinc-50 rounded-lg">
+                        Aucun repas enregistré
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </Card>
           </div>

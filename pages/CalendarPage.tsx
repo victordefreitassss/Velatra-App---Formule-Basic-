@@ -65,22 +65,22 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
           const isLocked = idx > currentDayInWeek;
 
           return (
-            <Card key={idx} className={`flex items-center justify-between group !p-6 border-zinc-200 transition-all ${isCompleted ? 'bg-zinc-50 opacity-60' : 'bg-white hover:border-velatra-accent/30'}`}>
-              <div className="flex items-center gap-6">
-                <div className={`w-14 h-14 rounded-2xl border flex items-center justify-center font-bold text-xl transition-all shadow-inner ${isCompleted ? 'bg-velatra-accent text-zinc-900 border-velatra-accent' : isCurrent ? 'bg-velatra-accent/10 text-velatra-accent border-velatra-accent/50' : 'bg-zinc-50 border-zinc-200 text-zinc-900 group-hover:text-velatra-accent group-hover:border-velatra-accent/50 group-hover:bg-velatra-accent/10'}`}>
+            <Card key={idx} className={`flex items-center justify-between group !p-4 md:!p-6 border-zinc-200 transition-all ${isCompleted ? 'bg-zinc-50 opacity-60' : 'bg-white hover:border-velatra-accent/30'}`}>
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl border flex items-center justify-center font-bold text-lg md:text-xl transition-all shadow-inner shrink-0 ${isCompleted ? 'bg-velatra-accent text-zinc-900 border-velatra-accent' : isCurrent ? 'bg-velatra-accent/10 text-velatra-accent border-velatra-accent/50' : 'bg-zinc-50 border-zinc-200 text-zinc-900 group-hover:text-velatra-accent group-hover:border-velatra-accent/50 group-hover:bg-velatra-accent/10'}`}>
                   {isCompleted ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> : idx + 1}
                 </div>
                 <div>
-                  <div className="font-bold text-lg text-zinc-900 mb-1">{day.name}</div>
+                  <div className="font-bold text-base md:text-lg text-zinc-900 mb-1 line-clamp-1">{day.name}</div>
                   <div className="text-[10px] text-zinc-900 font-bold uppercase tracking-widest flex items-center gap-2">
-                    {day.exercises.length} Exercices
+                    {day.exercises.length} Exos
                   </div>
                 </div>
               </div>
               {isCompleted ? (
-                <Badge variant="success" className="uppercase !text-[10px]">Terminé</Badge>
+                <Badge variant="success" className="uppercase !text-[10px] shrink-0 ml-2">Terminé</Badge>
               ) : (
-                <Button variant={isCurrent ? "primary" : "secondary"} className="!p-4 !rounded-2xl shadow-lg" onClick={() => startSession(idx)} disabled={isLocked}>
+                <Button variant={isCurrent ? "primary" : "secondary"} className="!p-3 md:!p-4 !rounded-2xl shadow-lg shrink-0 ml-2" onClick={() => startSession(idx)} disabled={isLocked}>
                    <PlayIcon size={20} className={isCurrent ? "ml-1" : "ml-1 opacity-50"} />
                 </Button>
               )}

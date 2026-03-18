@@ -61,8 +61,9 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
 
   const memberItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = [
     { id: 'home', icon: HomeIcon, label: 'Espace', category: 'Principal' },
-    { id: 'calendar', icon: CalendarIcon, label: 'Séance', category: 'Principal' },
-    { id: 'ai_coach', icon: BotIcon, label: 'Coach IA', category: 'Principal' },
+    { id: 'ai_coach', icon: MessageCircleIcon, label: 'Discussions', category: 'Principal' },
+    { id: 'calendar', icon: DumbbellIcon, label: 'Séance', category: 'Principal' },
+    { id: 'planning', icon: CalendarIcon, label: 'Planning', requiredPlan: 'classic', category: 'Principal' },
     { id: 'performances', icon: BarChartIcon, label: 'Records', category: 'Principal' },
     { id: 'community', icon: UsersIcon, label: 'Communauté', category: 'Principal' },
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Plus' },
@@ -157,7 +158,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
       </aside>
 
       <main className="flex-1 md:ml-[280px] min-h-screen relative">
-        <div className="p-4 md:p-12 max-w-6xl mx-auto pb-32 md:pb-12">
+        <div className="px-3 py-4 md:p-12 max-w-6xl mx-auto pb-32 md:pb-12">
           {children}
         </div>
 

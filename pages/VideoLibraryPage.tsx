@@ -29,7 +29,7 @@ export const VideoLibraryPage: React.FC<{ state: AppState }> = ({ state }) => {
         <div className="flex justify-center">
           <label className="cursor-pointer">
             <input type="file" accept="video/*" className="hidden" multiple />
-            <Button as="span" className="!rounded-full shadow-md">
+            <Button className="!rounded-full shadow-md pointer-events-none">
               <VideoIcon size={18} className="mr-2" />
               Importer une vidéo
             </Button>

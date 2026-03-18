@@ -25,6 +25,7 @@ const createIcon = (path: React.ReactNode) => ({ size = 24, color = "currentColo
   </svg>
 );
 
+export const ActivityIcon = createIcon(<polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />);
 export const HomeIcon = createIcon(<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8m0 0V3m0 5h-5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16m0 0v5m0-5h-5" />);
 export const UsersIcon = createIcon(<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm13 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />);
 export const LayersIcon = createIcon(<path d="M2 3h20v18H2zM2 8h20M7 3v18M12 3v18M17 3v18" />);
@@ -86,3 +87,4 @@ export const LinkIcon = createIcon(<><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0
 export const MoonIcon = createIcon(<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />);
 export const VideoIcon = createIcon(<><polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" /></>);
 export const HeartIcon = createIcon(<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />);
+export const ClockIcon = createIcon(<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>);

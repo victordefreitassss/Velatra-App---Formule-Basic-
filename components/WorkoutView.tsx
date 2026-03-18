@@ -218,8 +218,8 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                 return (
                   <div key={exIndex} id={`exercise-${exIndex}`} className={`transition-all duration-500 ${isValidated ? 'opacity-20 grayscale scale-95 pointer-events-none' : ''}`}>
                     <Card className="!p-8 border-none ring-1 ring-zinc-200 bg-white shadow-2xl relative">
-                      <div className="flex gap-8 items-center mb-10">
-                        <div className="w-24 h-24 rounded-3xl bg-white border border-zinc-200 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
+                      <div className="flex gap-4 md:gap-8 items-center mb-6 md:mb-10">
+                        <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-white border border-zinc-200 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
                           {baseEx?.photo ? (
                             <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
                           ) : (
@@ -229,8 +229,8 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                           )}
                         </div>
                         <div className="flex-1">
-                          <div className="text-[10px] text-velatra-accent font-black uppercase tracking-[3px] mb-2">{baseEx?.cat}</div>
-                          <div className="font-black text-3xl tracking-tighter leading-none text-zinc-900 italic uppercase mb-3">{baseEx?.name}</div>
+                          <div className="text-[10px] text-velatra-accent font-black uppercase tracking-[3px] mb-1 md:mb-2">{baseEx?.cat}</div>
+                          <div className="font-black text-2xl md:text-3xl tracking-tighter leading-none text-zinc-900 italic uppercase mb-2 md:mb-3">{baseEx?.name}</div>
                           <div className="flex flex-wrap gap-2 mb-2">
                             {exEntry.setType && exEntry.setType !== 'normal' && !group.isGroup && (
                               <Badge variant="orange" className="uppercase">{exEntry.setType}</Badge>
@@ -249,34 +249,34 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                           )}
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 gap-6 mb-10">
+                      <div className="grid grid-cols-1 gap-4 md:gap-6 mb-8 md:mb-10">
                         {Array.from({ length: (typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1) }).map((_, sIdx) => (
-                          <div key={sIdx} className="flex items-center gap-6 group animate-in slide-in-from-left">
-                             <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center text-xs font-black text-zinc-900 group-focus-within:border-velatra-accent transition-all">{sIdx+1}</div>
-                             <div className="flex-1 grid grid-cols-2 gap-4">
+                          <div key={sIdx} className="flex items-center gap-3 md:gap-6 group animate-in slide-in-from-left">
+                             <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center text-xs font-black text-zinc-900 group-focus-within:border-velatra-accent transition-all shrink-0">{sIdx+1}</div>
+                             <div className="flex-1 grid grid-cols-2 gap-2 md:gap-4">
                                 <div className="relative flex items-center">
                                    <button 
                                      onClick={() => handleInputChange(exIndex, sIdx, 'weight', String(Math.max(0, (parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") - 1))))}
-                                     className="absolute left-2 w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                     className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                    >-</button>
-                                   <Input type="number" inputMode="decimal" placeholder="KG" className="!bg-white !py-4 text-center text-xl font-black italic border-zinc-200 px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
+                                   <Input type="number" inputMode="decimal" placeholder="KG" className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
                                    <button 
                                      onClick={() => handleInputChange(exIndex, sIdx, 'weight', String((parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") + 1)))}
-                                     className="absolute right-2 w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                     className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                    >+</button>
-                                   <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-2 text-[7px] font-black text-zinc-900 uppercase">Charge</span>
+                                   <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Charge</span>
                                 </div>
                                 <div className="relative flex items-center">
                                    <button 
                                      onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || "0") - 1))))}
-                                     className="absolute left-2 w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                     className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                    >-</button>
-                                   <Input type="number" inputMode="numeric" placeholder="REPS" className="!bg-white !py-4 text-center text-xl font-black italic border-zinc-200 px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
+                                   <Input type="number" inputMode="numeric" placeholder="REPS" className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
                                    <button 
                                      onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || "0") + 1)))}
-                                     className="absolute right-2 w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                     className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                    >+</button>
-                                   <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-2 text-[7px] font-black text-zinc-900 uppercase">Répétitions</span>
+                                   <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Répétitions</span>
                                 </div>
                              </div>
                           </div>

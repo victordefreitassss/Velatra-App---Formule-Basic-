@@ -18,6 +18,17 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   const [stripeSecretKey, setStripeSecretKey] = useState(state.currentClub?.settings?.payment?.stripeSecretKey || '');
   const [acceptedMethods, setAcceptedMethods] = useState<string[]>(state.currentClub?.settings?.payment?.acceptedMethods || ['card', 'cash']);
 
+  const [sessionDuration, setSessionDuration] = useState(state.currentClub?.settings?.booking?.sessionDuration || 60);
+  const [schedule, setSchedule] = useState(state.currentClub?.settings?.booking?.schedule || [
+    { day: 1, slots: [{ start: "09:00", end: "12:00" }, { start: "14:00", end: "18:00" }] },
+    { day: 2, slots: [{ start: "09:00", end: "12:00" }, { start: "14:00", end: "18:00" }] },
+    { day: 3, slots: [{ start: "09:00", end: "12:00" }, { start: "14:00", end: "18:00" }] },
+    { day: 4, slots: [{ start: "09:00", end: "12:00" }, { start: "14:00", end: "18:00" }] },
+    { day: 5, slots: [{ start: "09:00", end: "12:00" }, { start: "14:00", end: "18:00" }] },
+    { day: 6, slots: [] },
+    { day: 0, slots: [] },
+  ]);
+
   const [isSaving, setIsSaving] = useState(false);
 
   const [isEditingPlan, setIsEditingPlan] = useState(false);
@@ -38,6 +49,10 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           stripeSecretKey,
           acceptedMethods,
           autoCollection: true
+        },
+        "settings.booking": {
+          sessionDuration,
+          schedule
         }
       });
       showToast("Paramètres enregistrés avec succès !");
@@ -371,7 +386,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                   <span className="text-xs text-zinc-500 font-mono bg-zinc-100 px-2 py-1 rounded">
                     {stripeSecretKey ? `${stripeSecretKey.substring(0, 8)}...` : 'Clé non renseignée'}
                   </span>
-                  <Button variant="outline" onClick={() => setStripeConnected(false)} className="text-sm">
+                  <Button variant="secondary" onClick={() => setStripeConnected(false)} className="text-sm">
                     Modifier la clé
                   </Button>
                 </div>
@@ -406,6 +421,112 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             </div>
           </div>
           
+          <Button onClick={handleSave} disabled={isSaving} className="w-full !py-4 mt-6">
+            <SaveIcon size={18} className="mr-2" />
+            {isSaving ? "ENREGISTREMENT..." : "ENREGISTRER LES PARAMÈTRES"}
+          </Button>
+        </div>
+      </Card>
+
+      <Card className="p-8 border-zinc-200 bg-white">
+        <div className="flex items-center gap-4 mb-8">
+          <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
+            <TargetIcon size={24} />
+          </div>
+          <div>
+            <h2 className="text-xl font-black uppercase">Planning & Réservations</h2>
+            <p className="text-sm text-zinc-500">Configurez vos disponibilités pour les réservations de coaching.</p>
+          </div>
+        </div>
+
+        <div className="space-y-8">
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Durée d'une séance (minutes)</h3>
+            <Input 
+              type="number" 
+              value={sessionDuration} 
+              onChange={(e) => setSessionDuration(Number(e.target.value))}
+              className="max-w-[200px]"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Horaires de disponibilité</h3>
+            <div className="space-y-4">
+              {['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map((dayName, index) => {
+                const daySchedule = schedule.find(s => s.day === index) || { day: index, slots: [] };
+                return (
+                  <div key={index} className="flex items-start gap-4 p-4 border border-zinc-200 rounded-xl bg-zinc-50">
+                    <div className="w-32 font-bold text-zinc-900 pt-2">{dayName}</div>
+                    <div className="flex-1 space-y-2">
+                      {daySchedule.slots.map((slot, slotIndex) => (
+                        <div key={slotIndex} className="flex items-center gap-2">
+                          <Input 
+                            type="time" 
+                            value={slot.start} 
+                            onChange={(e) => {
+                              const newSchedule = [...schedule];
+                              const dayIdx = newSchedule.findIndex(s => s.day === index);
+                              if (dayIdx >= 0) {
+                                newSchedule[dayIdx].slots[slotIndex].start = e.target.value;
+                                setSchedule(newSchedule);
+                              }
+                            }}
+                            className="!py-1 !px-2 w-32"
+                          />
+                          <span className="text-zinc-500">à</span>
+                          <Input 
+                            type="time" 
+                            value={slot.end} 
+                            onChange={(e) => {
+                              const newSchedule = [...schedule];
+                              const dayIdx = newSchedule.findIndex(s => s.day === index);
+                              if (dayIdx >= 0) {
+                                newSchedule[dayIdx].slots[slotIndex].end = e.target.value;
+                                setSchedule(newSchedule);
+                              }
+                            }}
+                            className="!py-1 !px-2 w-32"
+                          />
+                          <Button 
+                            variant="outline" 
+                            className="!p-1 !h-8 !w-8 flex items-center justify-center text-red-500 border-red-200 hover:bg-red-50"
+                            onClick={() => {
+                              const newSchedule = [...schedule];
+                              const dayIdx = newSchedule.findIndex(s => s.day === index);
+                              if (dayIdx >= 0) {
+                                newSchedule[dayIdx].slots.splice(slotIndex, 1);
+                                setSchedule(newSchedule);
+                              }
+                            }}
+                          >
+                            <XIcon size={14} />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button 
+                        variant="secondary" 
+                        className="!py-1 !px-3 !text-[10px]"
+                        onClick={() => {
+                          const newSchedule = [...schedule];
+                          let dayIdx = newSchedule.findIndex(s => s.day === index);
+                          if (dayIdx === -1) {
+                            newSchedule.push({ day: index, slots: [] });
+                            dayIdx = newSchedule.length - 1;
+                          }
+                          newSchedule[dayIdx].slots.push({ start: "09:00", end: "12:00" });
+                          setSchedule(newSchedule);
+                        }}
+                      >
+                        <PlusIcon size={12} className="mr-1" /> Ajouter un créneau
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
           <Button onClick={handleSave} disabled={isSaving} className="w-full !py-4 mt-6">
             <SaveIcon size={18} className="mr-2" />
             {isSaving ? "ENREGISTREMENT..." : "ENREGISTRER LES PARAMÈTRES"}

@@ -33,6 +33,13 @@ export interface Club {
       acceptedMethods: string[];
       autoCollection: boolean;
     };
+    booking?: {
+      sessionDuration: number; // in minutes
+      schedule: {
+        day: number; // 0 = Sunday, 1 = Monday, etc.
+        slots: { start: string; end: string }[]; // e.g., { start: "09:00", end: "12:00" }
+      }[];
+    };
   };
 }
 
@@ -45,6 +52,7 @@ export interface User {
   email?: string;
   phone?: string;
   stripeCustomerId?: string;
+  credits?: number;
   role: Role;
   avatar: string;
   gender: Gender;
@@ -319,7 +327,7 @@ export interface Subscription {
   billingCycle: 'monthly' | 'yearly' | 'once';
   startDate: string;
   endDate?: string;
-  status: 'active' | 'cancelled' | 'past_due';
+  status: 'active' | 'cancelled' | 'past_due' | 'unpaid';
   stripeSubscriptionId?: string;
 }
 
@@ -364,7 +372,7 @@ export interface Newsletter {
   author: string;
 }
 
-export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "videos" | "community";
+export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "videos" | "community";
 
 export type ActivityLevel = "Sédentaire" | "Légèrement actif" | "Modérément actif" | "Très actif" | "Extrêmement actif";
 
@@ -476,6 +484,17 @@ export interface PendingProspect {
   status: 'PENDING' | 'CONTACTED';
 }
 
+export interface Booking {
+  id: string;
+  clubId: string;
+  memberId: number;
+  coachId: string; // The coach's ID
+  startTime: string; // ISO string
+  endTime: string; // ISO string
+  status: 'confirmed' | 'cancelled';
+  type: 'coaching';
+}
+
 export interface AppState {
   user: User | null;
   currentClub: Club | null;
@@ -507,6 +526,7 @@ export interface AppState {
   crmFormulas: CRMFormula[];
   manualStats: ManualStats[];
   pendingProspects: PendingProspect[];
+  bookings: Booking[];
   aboutInfo: ClubInfo;
   coaches: CoachInfo[];
   page: Page;

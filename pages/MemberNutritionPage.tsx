@@ -1,23 +1,46 @@
-import React, { useMemo, useState, useRef } from 'react';
-import { AppState, Meal } from '../types';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
+import { AppState, Meal, NutritionLog } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
-import { AppleIcon, TargetIcon, UserIcon } from '../components/Icons';
+import { AppleIcon, TargetIcon, UserIcon, PlusIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon } from '../components/Icons';
 import { SparklesIcon, RefreshCwIcon, CameraIcon } from 'lucide-react';
-import { db, doc, updateDoc } from '../firebase';
+import { db, doc, updateDoc, setDoc } from '../firebase';
 import { GoogleGenAI } from '@google/genai';
 
 export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: string, type?: 'success' | 'error') => void }> = ({ state, showToast }) => {
-  const [generatingMealId, setGeneratingMealId] = useState<string | null>(null);
   const [dietPreference, setDietPreference] = useState<string>("Standard");
-  const [scanning, setScanning] = useState(false);
-  const [scannedMeal, setScannedMeal] = useState<{mealName: string, calories: number, protein: number, carbs: number, fat: number} | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isAdding, setIsAdding] = useState(false);
+  const [newFood, setNewFood] = useState({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0 });
+  const [isSaving, setIsSaving] = useState(false);
 
   const plan = useMemo(() => {
     return state.nutritionPlans.find(p => p.memberId === state.user?.id);
   }, [state.nutritionPlans, state.user]);
 
   const planMeals = plan?.meals || [];
+
+  const currentLog = useMemo(() => {
+    if (!state.user) return null;
+    return state.nutritionLogs.find(l => l.userId === state.user!.id && l.date === currentDate) || {
+      id: `${state.user.id}-${currentDate}`,
+      clubId: state.user.clubId,
+      userId: state.user.id,
+      date: currentDate,
+      foods: []
+    };
+  }, [state.nutritionLogs, state.user, currentDate]);
+
+  const totalCalories = currentLog?.foods.reduce((sum, f) => sum + f.calories, 0) || 0;
+  const totalProtein = currentLog?.foods.reduce((sum, f) => sum + f.protein, 0) || 0;
+  const totalCarbs = currentLog?.foods.reduce((sum, f) => sum + f.carbs, 0) || 0;
+  const totalFat = currentLog?.foods.reduce((sum, f) => sum + f.fat, 0) || 0;
+
+  useEffect(() => {
+    if (plan && planMeals.length === 0) {
+      handleInitializeMeals();
+    }
+  }, [plan, planMeals.length]);
 
   const handleInitializeMeals = async () => {
     if (!plan) return;
@@ -72,89 +95,45 @@ export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: s
     }
   };
 
-  const handleGenerateMeal = async (meal: Meal) => {
-    if (!plan) return;
-    setGeneratingMealId(meal.id);
-
+  const handleAddFood = async () => {
+    if (!newFood.name || !currentLog) return;
+    setIsSaving(true);
     try {
-      const rawApiKey = process.env.GEMINI_API_KEY as string;
-      const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
-      const ai = new GoogleGenAI({ apiKey });
-      
-      const prompt = `Je suis un(e) ${plan.gender === 'M' ? 'homme' : 'femme'} de ${plan.age} ans, ${plan.weight}kg. Mon objectif est: ${plan.goal}.
-Mon régime alimentaire est : ${plan.dietPreference || dietPreference}.
-Génère-moi UNE idée de repas pour mon "${meal.name}" qui respecte EXACTEMENT ces macros :
-- Calories : ${meal.calories} kcal
-- Protéines : ${meal.protein}g
-- Glucides : ${meal.carbs}g
-- Lipides : ${meal.fat}g
-
-Donne-moi le nom du plat et la recette courte avec les quantités exactes des ingrédients. Ne mets pas de texte d'introduction ou de conclusion, juste le nom du plat en gras, suivi des ingrédients et des instructions rapides.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-      });
-
-      const newDescription = response.text || "";
-
-      const updatedMeals = planMeals.map(m => 
-        m.id === meal.id ? { ...m, description: newDescription } : m
-      );
-
-      await updateDoc(doc(db, "nutritionPlans", plan.id), { meals: updatedMeals });
-      showToast(`Repas "${meal.name}" généré !`, "success");
+      const updatedLog: NutritionLog = {
+        ...currentLog,
+        foods: [...currentLog.foods, { ...newFood, id: Date.now().toString() }]
+      };
+      await setDoc(doc(db, "nutritionLogs", updatedLog.id), updatedLog);
+      setNewFood({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0 });
+      setIsAdding(false);
+      showToast("Aliment ajouté");
     } catch (err) {
       console.error(err);
-      showToast("Erreur lors de la génération du repas", "error");
+      showToast("Erreur lors de l'ajout", "error");
     } finally {
-      setGeneratingMealId(null);
+      setIsSaving(false);
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setScanning(true);
+  const handleDeleteFood = async (foodId: string) => {
+    if (!currentLog) return;
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = (reader.result as string).split(',')[1];
-        
-        const rawApiKey = process.env.GEMINI_API_KEY as string;
-        const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
-        const ai = new GoogleGenAI({ apiKey });
-        const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
-          contents: {
-            parts: [
-              { inlineData: { mimeType: file.type, data: base64String } },
-              { text: "Analyse ce repas. Estime les calories totales, et les macronutriments (protéines, glucides, lipides) en grammes. Réponds uniquement au format JSON avec les clés exactes: mealName, calories, protein, carbs, fat. Ne renvoie que le JSON, sans markdown." }
-            ]
-          },
-          config: {
-            responseMimeType: "application/json",
-          }
-        });
-
-        try {
-          const result = JSON.parse(response.text || "{}");
-          setScannedMeal(result);
-          showToast("Repas analysé avec succès !", "success");
-        } catch (parseErr) {
-          console.error("Failed to parse JSON:", response.text);
-          showToast("Impossible d'analyser le repas. Réessayez.", "error");
-        }
+      const updatedLog: NutritionLog = {
+        ...currentLog,
+        foods: currentLog.foods.filter(f => f.id !== foodId)
       };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error(error);
-      showToast("Erreur lors de l'analyse du repas", "error");
-    } finally {
-      setScanning(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      await setDoc(doc(db, "nutritionLogs", updatedLog.id), updatedLog);
+      showToast("Aliment supprimé");
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de la suppression", "error");
     }
+  };
+
+  const changeDate = (days: number) => {
+    const d = new Date(currentDate);
+    d.setDate(d.getDate() + days);
+    setCurrentDate(d.toISOString().split('T')[0]);
   };
 
   if (!plan) {
@@ -190,21 +169,28 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
         {/* Left Column: Metrics & Calculations */}
         <div className="space-y-6">
           <Card className="p-6 bg-gradient-to-br from-velatra-accent/20 to-zinc-100 border-velatra-accent/30 space-y-6">
-            <h3 className="text-sm font-black uppercase tracking-widest text-velatra-accent flex items-center gap-2">
-              <TargetIcon size={16} /> Objectifs Journaliers
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black uppercase tracking-widest text-velatra-accent flex items-center gap-2">
+                <TargetIcon size={16} /> Suivi Journalier
+              </h3>
+              <div className="flex items-center gap-2 bg-white rounded-xl p-1 border border-zinc-200">
+                <button onClick={() => changeDate(-1)} className="p-1 hover:bg-zinc-100 rounded-lg transition-colors"><ChevronLeftIcon size={14} /></button>
+                <span className="text-xs font-bold px-1">{new Date(currentDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</span>
+                <button onClick={() => changeDate(1)} className="p-1 hover:bg-zinc-100 rounded-lg transition-colors"><ChevronRightIcon size={14} /></button>
+              </div>
+            </div>
 
             <div className="flex items-end justify-between border-b border-zinc-200 pb-4">
               <div>
-                <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Calories Cibles</div>
+                <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Calories Restantes</div>
                 <div className="text-4xl font-black text-zinc-900 tabular-nums leading-none">
-                  {state.user?.integrations?.appleHealth ? plan.targetCalories + 350 : plan.targetCalories}
+                  {Math.max(0, (state.user?.integrations?.appleHealth ? plan.targetCalories + 350 : plan.targetCalories) - totalCalories)}
                   {state.user?.integrations?.appleHealth && <span className="text-sm font-medium text-[#FF2D55] ml-2">+350</span>}
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Maintien (TDEE)</div>
-                <div className="text-xl font-bold text-zinc-600 tabular-nums">{plan.tdee} kcal</div>
+                <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Consommées</div>
+                <div className="text-xl font-bold text-zinc-600 tabular-nums">{totalCalories} / {state.user?.integrations?.appleHealth ? plan.targetCalories + 350 : plan.targetCalories}</div>
               </div>
             </div>
 
@@ -212,30 +198,30 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-bold">
                   <span className="text-blue-400">Protéines</span>
-                  <span className="text-zinc-900">{plan.protein}g <span className="text-zinc-900/30 text-[10px]">({Math.round((plan.protein * 4 / plan.targetCalories) * 100)}%)</span></span>
+                  <span className="text-zinc-900">{totalProtein}g / {plan.protein}g</span>
                 </div>
                 <div className="h-2 bg-zinc-50 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(plan.protein * 4 / plan.targetCalories) * 100}%` }} />
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, (totalProtein / plan.protein) * 100)}%` }} />
                 </div>
               </div>
               
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-bold">
                   <span className="text-green-400">Glucides</span>
-                  <span className="text-zinc-900">{plan.carbs}g <span className="text-zinc-900/30 text-[10px]">({Math.round((plan.carbs * 4 / plan.targetCalories) * 100)}%)</span></span>
+                  <span className="text-zinc-900">{totalCarbs}g / {plan.carbs}g</span>
                 </div>
                 <div className="h-2 bg-zinc-50 rounded-full overflow-hidden">
-                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${(plan.carbs * 4 / plan.targetCalories) * 100}%` }} />
+                  <div className="h-full bg-green-500 rounded-full" style={{ width: `${Math.min(100, (totalCarbs / plan.carbs) * 100)}%` }} />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between text-xs font-bold">
                   <span className="text-yellow-400">Lipides</span>
-                  <span className="text-zinc-900">{plan.fat}g <span className="text-zinc-900/30 text-[10px]">({Math.round((plan.fat * 9 / plan.targetCalories) * 100)}%)</span></span>
+                  <span className="text-zinc-900">{totalFat}g / {plan.fat}g</span>
                 </div>
                 <div className="h-2 bg-zinc-50 rounded-full overflow-hidden">
-                  <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${(plan.fat * 9 / plan.targetCalories) * 100}%` }} />
+                  <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${Math.min(100, (totalFat / plan.fat) * 100)}%` }} />
                 </div>
               </div>
             </div>
@@ -319,69 +305,7 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
         {/* Right Column: Meals */}
         <div className="lg:col-span-2 space-y-4">
           
-          {/* AI Meal Scanner */}
-          <Card className="p-6 bg-gradient-to-br from-velatra-accent to-velatra-accentDark text-white border-none shadow-[0_10px_40px_rgba(99,102,241,0.3)]">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2 mb-2">
-                  <CameraIcon size={20} /> Scanner un repas (IA)
-                </h3>
-                <p className="text-sm opacity-80 max-w-sm">
-                  Prenez votre assiette en photo, notre IA estime instantanément les calories et les macros.
-                </p>
-              </div>
-              <input 
-                type="file" 
-                accept="image/*" 
-                capture="environment" 
-                className="hidden" 
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-              />
-              <Button 
-                variant="secondary" 
-                className="!bg-white !text-velatra-accent hover:!bg-zinc-50 shrink-0"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={scanning}
-              >
-                {scanning ? (
-                  <><RefreshCwIcon size={16} className="animate-spin mr-2" /> ANALYSE...</>
-                ) : (
-                  <><CameraIcon size={16} className="mr-2" /> PRENDRE EN PHOTO</>
-                )}
-              </Button>
-            </div>
 
-            {scannedMeal && (
-              <div className="mt-6 bg-white/10 backdrop-blur-md rounded-2xl p-4 border border-white/20 animate-in fade-in slide-in-from-bottom-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-bold text-lg">{scannedMeal.mealName || 'Repas analysé'}</h4>
-                  <Badge variant="success" className="!bg-white !text-velatra-accent">
-                    {scannedMeal.calories} kcal
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-white/10 rounded-xl p-3 text-center">
-                    <div className="text-[10px] uppercase tracking-widest opacity-80 mb-1">Protéines</div>
-                    <div className="font-bold text-xl">{scannedMeal.protein}g</div>
-                  </div>
-                  <div className="bg-white/10 rounded-xl p-3 text-center">
-                    <div className="text-[10px] uppercase tracking-widest opacity-80 mb-1">Glucides</div>
-                    <div className="font-bold text-xl">{scannedMeal.carbs}g</div>
-                  </div>
-                  <div className="bg-white/10 rounded-xl p-3 text-center">
-                    <div className="text-[10px] uppercase tracking-widest opacity-80 mb-1">Lipides</div>
-                    <div className="font-bold text-xl">{scannedMeal.fat}g</div>
-                  </div>
-                </div>
-                <div className="mt-4 flex justify-end">
-                  <Button variant="secondary" className="!py-1.5 !px-3 !text-xs !bg-white/20 hover:!bg-white/30 text-white border-none" onClick={() => setScannedMeal(null)}>
-                    Fermer
-                  </Button>
-                </div>
-              </div>
-            )}
-          </Card>
 
           <div className="flex items-center justify-between px-2 pt-4">
             <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
@@ -400,38 +324,18 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   <div className="md:col-span-4 space-y-2">
                     <div className="font-bold text-zinc-900 text-lg">{meal.name}</div>
-                    {meal.description ? (
-                      <div className="space-y-3">
-                        <p className="text-sm text-zinc-500 whitespace-pre-wrap">{meal.description}</p>
-                        <Button 
-                          variant="secondary" 
-                          className="!py-1.5 !px-3 !text-[10px] flex items-center gap-1"
-                          onClick={() => handleGenerateMeal(meal)}
-                          disabled={generatingMealId === meal.id}
-                        >
-                          {generatingMealId === meal.id ? (
-                            <RefreshCwIcon size={12} className="animate-spin" />
-                          ) : (
-                            <RefreshCwIcon size={12} />
-                          )}
-                          AUTRE PROPOSITION
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button 
-                        variant="primary" 
-                        className="!py-2 !px-4 !text-[10px] flex items-center gap-2"
-                        onClick={() => handleGenerateMeal(meal)}
-                        disabled={generatingMealId === meal.id}
-                      >
-                        {generatingMealId === meal.id ? (
-                          <RefreshCwIcon size={14} className="animate-spin" />
-                        ) : (
-                          <SparklesIcon size={14} />
-                        )}
-                        GÉNÉRER UN REPAS (IA)
-                      </Button>
-                    )}
+                    <Button 
+                      variant="primary" 
+                      className="!py-2 !px-4 !text-[10px] flex items-center gap-2 mt-4"
+                      onClick={() => {
+                        setNewFood({ name: meal.name, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat });
+                        setIsAdding(true);
+                        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                      }}
+                    >
+                      <AppleIcon size={14} />
+                      CE QUE J'AI MANGÉ
+                    </Button>
                   </div>
                   
                   <div className="md:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3 content-start">
@@ -479,6 +383,86 @@ Donne-moi le nom du plat et la recette courte avec les quantités exactes des in
               </div>
             </Card>
           )}
+
+          {/* Daily Log */}
+          <div className="mt-8 space-y-4">
+            <div className="flex items-center justify-between px-2">
+              <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
+                <AppleIcon size={16} className="text-velatra-accent" /> Ce que j'ai mangé
+              </h3>
+              <Button onClick={() => setIsAdding(true)} variant="primary" className="!py-1.5 !px-3 !text-[10px] flex items-center gap-1">
+                <PlusIcon size={12} /> AJOUTER
+              </Button>
+            </div>
+
+            {isAdding && (
+              <Card className="p-4 bg-zinc-50 border-zinc-200 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Nom de l'aliment / repas</label>
+                    <Input 
+                      value={newFood.name}
+                      onChange={e => setNewFood({...newFood, name: e.target.value})}
+                      placeholder="Ex: Poulet au riz, Pomme..."
+                      autoFocus
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Kcal</label>
+                      <Input type="number" value={newFood.calories || ''} onChange={e => setNewFood({...newFood, calories: parseInt(e.target.value) || 0})} placeholder="0" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-blue-400 mb-1 block">Prot (g)</label>
+                      <Input type="number" value={newFood.protein || ''} onChange={e => setNewFood({...newFood, protein: parseInt(e.target.value) || 0})} placeholder="0" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-green-400 mb-1 block">Gluc (g)</label>
+                      <Input type="number" value={newFood.carbs || ''} onChange={e => setNewFood({...newFood, carbs: parseInt(e.target.value) || 0})} placeholder="0" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-yellow-400 mb-1 block">Lip (g)</label>
+                      <Input type="number" value={newFood.fat || ''} onChange={e => setNewFood({...newFood, fat: parseInt(e.target.value) || 0})} placeholder="0" />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="secondary" onClick={() => setIsAdding(false)} className="!py-2 !text-xs">Annuler</Button>
+                    <Button variant="primary" onClick={handleAddFood} disabled={!newFood.name || isSaving} className="!py-2 !text-xs">
+                      {isSaving ? <RefreshCwIcon size={14} className="animate-spin" /> : 'Enregistrer'}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            <div className="space-y-2">
+              {currentLog?.foods.map((food) => (
+                <div key={food.id} className="flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-xl hover:border-zinc-300 transition-colors">
+                  <div>
+                    <div className="font-bold text-zinc-900 text-sm">{food.name}</div>
+                    <div className="flex gap-3 text-[10px] font-bold mt-1">
+                      <span className="text-zinc-500">{food.calories} kcal</span>
+                      <span className="text-blue-400">{food.protein}g P</span>
+                      <span className="text-green-400">{food.carbs}g G</span>
+                      <span className="text-yellow-400">{food.fat}g L</span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handleDeleteFood(food.id)}
+                    className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <Trash2Icon size={16} />
+                  </button>
+                </div>
+              ))}
+
+              {(!currentLog?.foods || currentLog.foods.length === 0) && !isAdding && (
+                <div className="text-center py-8 border border-dashed border-zinc-200 rounded-2xl">
+                  <p className="text-zinc-500 text-sm">Aucun aliment enregistré aujourd'hui.</p>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Shopping List */}
           {plan.liste_courses && plan.liste_courses.length > 0 && (
