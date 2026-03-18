@@ -83,7 +83,7 @@ export const ProfilePage: React.FC<{
     }
 
     try {
-      showToast("Redirection vers le portail...", "info");
+      showToast("Redirection vers le portail...", "success");
       const res = await fetch(`${window.location.origin}/api/stripe/portal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -140,7 +140,7 @@ export const ProfilePage: React.FC<{
     }
 
     try {
-      showToast("Ouverture de la connexion Google Fit...", "info");
+      showToast("Ouverture de la connexion Google Fit...", "success");
       const response = await fetch(`${window.location.origin}/api/auth/google-fit/url`);
       if (!response.ok) throw new Error("Erreur réseau");
       const { url } = await response.json();
@@ -187,7 +187,7 @@ export const ProfilePage: React.FC<{
     }
 
     try {
-      showToast("Ouverture de la connexion Strava...", "info");
+      showToast("Ouverture de la connexion Strava...", "success");
       const response = await fetch(`${window.location.origin}/api/auth/strava/url`);
       if (!response.ok) throw new Error("Erreur réseau");
       const { url } = await response.json();
@@ -480,7 +480,7 @@ export const ProfilePage: React.FC<{
         </div>
       </Card>
 
-      {user.role === 'client' && state.currentClub?.settings?.payment?.stripeSecretKey && user.stripeCustomerId && (
+      {user.role === 'member' && state.currentClub?.settings?.payment?.stripeSecretKey && user.stripeCustomerId && (
         <Card className="!p-6 bg-zinc-50 border-zinc-200">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -489,7 +489,7 @@ export const ProfilePage: React.FC<{
               </div>
               <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Abonnement</h3>
             </div>
-            <Button variant="outline" onClick={handleManageSubscription} className="text-sm">
+            <Button variant="secondary" onClick={handleManageSubscription} className="text-sm">
               Gérer mon abonnement <ExternalLinkIcon size={14} className="ml-2" />
             </Button>
           </div>
@@ -527,7 +527,7 @@ export const ProfilePage: React.FC<{
               </div>
             </div>
             <Button 
-              variant="outline" 
+              variant="secondary" 
               className="text-sm opacity-50 cursor-not-allowed"
               disabled
             >
@@ -548,7 +548,7 @@ export const ProfilePage: React.FC<{
               </div>
             </div>
             <Button 
-              variant="outline" 
+              variant="secondary" 
               className="text-sm opacity-50 cursor-not-allowed"
               disabled
             >
@@ -570,7 +570,7 @@ export const ProfilePage: React.FC<{
                 </div>
               </div>
               <Button 
-                variant="outline" 
+                variant="secondary" 
                 className="text-sm opacity-50 cursor-not-allowed"
                 disabled
               >

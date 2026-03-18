@@ -42,7 +42,7 @@ async function startServer() {
       // Fetch active subscriptions
       const stripeSubscriptions = await stripeClient.subscriptions.list({ limit: 100, status: 'all', expand: ['data.customer'] });
       
-      const subscriptions = stripeSubscriptions.data.map(sub => {
+      const subscriptions = stripeSubscriptions.data.map((sub: any) => {
         const customer = sub.customer as Stripe.Customer;
         return {
           id: sub.id,

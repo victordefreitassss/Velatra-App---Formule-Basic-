@@ -85,6 +85,7 @@ const INITIAL_STATE: AppState = {
   crmFormulas: [],
   manualStats: [],
   pendingProspects: [],
+  bookings: [],
   aboutInfo: CLUB_INFO,
   coaches: COACHES,
   page: 'home',
@@ -378,6 +379,12 @@ export default function App() {
       setState(prev => ({ ...prev, tasks }));
     });
 
+    const unsubBookings = onSnapshot(query(collection(db, "bookings"), where("clubId", "==", clubId)), (snap) => {
+      const bookings: Booking[] = [];
+      snap.forEach(d => bookings.push({ ...d.data(), id: d.id } as Booking));
+      setState(prev => ({ ...prev, bookings }));
+    });
+
     const unsubPlans = onSnapshot(query(collection(db, "plans"), where("clubId", "==", clubId)), (snap) => {
       const plans: Plan[] = [];
       snap.forEach(d => plans.push(d.data() as Plan));
@@ -468,7 +475,7 @@ export default function App() {
       unsubArchives(); unsubPerfs(); unsubProducts(); unsubOrders();
       unsubLogs(); unsubMessages(); unsubFeed(); unsubBody();
       unsubProspects(); unsubNewsletters(); unsubExercises();
-      unsubTasks(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubNutritionPlans(); unsubNutritionLogs();
+      unsubTasks(); unsubBookings(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubNutritionPlans(); unsubNutritionLogs();
       unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects();
     };
   }, [state.user?.clubId]);
@@ -545,7 +552,7 @@ export default function App() {
         case 'crm_pipeline': return isPremium ? <ProspectFlowPage state={state} setState={setState} /> : <PremiumCTA title="ProspectFlow" description="Gérez vos prospects, suivez vos leads et convertissez plus de clients avec notre outil CRM intégré." features={["Pipeline de vente visuel", "Suivi des contacts et relances", "Statistiques de conversion", "Gestion des rendez-vous"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
         case 'crm_tasks': return isPremium ? <TasksPage state={state} /> : <PremiumCTA title="Tâches" description="Organisez vos journées et ne manquez aucune relance avec le gestionnaire de tâches." features={["To-do list intelligente", "Rappels automatiques", "Liaison avec les prospects"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
         case 'crm_finances': return isClassic ? <FinancesPage state={state} setState={setState} showToast={showToast} /> : <PremiumCTA title="Finances" description="Suivez vos revenus, gérez vos abonnements et analysez votre rentabilité en temps réel." features={["Tableau de bord financier", "Gestion des abonnements", "Suivi des paiements", "Export comptable"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
-        case 'calendar': return isClassic ? <PlanningPage state={state} setState={setState} /> : <PremiumCTA title="Planning" description="Gérez votre emploi du temps, vos séances de coaching et vos disponibilités." features={["Calendrier interactif", "Réservation en ligne", "Synchronisation Google Calendar", "Rappels SMS/Email"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
+        case 'calendar': return isClassic ? <PlanningPage state={state} setState={setState} showToast={showToast} /> : <PremiumCTA title="Planning" description="Gérez votre emploi du temps, vos séances de coaching et vos disponibilités." features={["Calendrier interactif", "Réservation en ligne", "Synchronisation Google Calendar", "Rappels SMS/Email"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;
         case 'drive': return <DrivePage state={state} />;
         case 'videos': return <VideoLibraryPage state={state} />;
@@ -559,6 +566,7 @@ export default function App() {
     switch (page) {
       case 'home': return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
       case 'calendar': return <CalendarPage state={state} setState={setState} />;
+      case 'planning': return isClassic ? <PlanningPage state={state} setState={setState} showToast={showToast} /> : <FeatureLockedMessage title="Planning" />;
       case 'performances': return <StatsPage state={state} setState={setState} />;
       case 'community': return <CommunityPage state={state} />;
       case 'nutrition': return <MemberNutritionPage state={state} showToast={showToast} />;
@@ -587,7 +595,7 @@ export default function App() {
     </div>
   );
 
-  if (!state.user) return <Login onLogin={() => {}} onRegister={() => {}} />;
+  if (!state.user) return <Login />;
 
   const unreadMessagesCount = state.messages.filter(m => !m.read && m.to === state.user?.id).length;
 

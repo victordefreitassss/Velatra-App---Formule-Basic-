@@ -230,19 +230,18 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           className="bg-zinc-50 border border-zinc-200 rounded-3xl p-5 cursor-pointer active:scale-[0.98] transition-all relative overflow-hidden"
         >
           <div className="absolute -right-4 -top-4 text-velatra-accent/5">
-            <BotIcon size={100} />
+            <MessageCircleIcon size={100} />
           </div>
           <div className="relative z-10 flex items-start gap-4">
             <div className="w-12 h-12 rounded-2xl bg-velatra-accent/20 flex items-center justify-center text-velatra-accent shrink-0 border border-velatra-accent/20">
-              <SparklesIcon size={24} />
+              <MessageCircleIcon size={24} />
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Coach IA</h3>
-                <Badge variant="accent" className="!text-[8px] !px-1.5 !py-0.5">NOUVEAU</Badge>
+                <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Discussions</h3>
               </div>
               <p className="text-xs text-zinc-500 font-medium leading-relaxed italic line-clamp-2">
-                {aiLoading ? "Analyse de tes performances..." : (state.aiSuggestion || "Pose-moi une question sur ton entraînement ou ta nutrition.")}
+                Échange avec ton coach ou le Coach IA.
               </p>
             </div>
           </div>

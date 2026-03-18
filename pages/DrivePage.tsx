@@ -29,7 +29,7 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
         <div className="flex justify-center">
           <label className="cursor-pointer">
             <input type="file" className="hidden" multiple />
-            <Button as="span" className="!rounded-full shadow-md">
+            <Button className="!rounded-full shadow-md pointer-events-none">
               <DownloadIcon size={18} className="mr-2" />
               Importer des fichiers
             </Button>

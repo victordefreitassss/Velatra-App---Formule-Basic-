@@ -199,7 +199,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
           );
           
           // Try to match plan by stripePriceId
-          const plan = state.currentClub?.plans?.find(p => p.stripePriceId === sub.priceId);
+          const plan = state.plans?.find(p => p.stripePriceId === sub.priceId);
 
           if (member && plan) {
             // If we matched by email but don't have the customer ID saved, save it
@@ -214,6 +214,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
               clubId: state.user.clubId,
               memberId: Number(member.id),
               planId: plan.id,
+              planName: plan.name,
               status: sub.status === 'active' || sub.status === 'trialing' ? 'active' : 'cancelled',
               startDate: sub.currentPeriodStart,
               endDate: sub.currentPeriodEnd,

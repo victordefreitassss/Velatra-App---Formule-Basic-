@@ -132,6 +132,23 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
+  const handleUpdateCredits = async (member: User, amount: number) => {
+    if (!member.firebaseUid) return;
+    const currentCredits = member.credits || 0;
+    const newCredits = Math.max(0, currentCredits + amount);
+    
+    try {
+      await updateDoc(doc(db, "users", member.firebaseUid), {
+        credits: newCredits
+      });
+      setSelectedProfile({ ...member, credits: newCredits });
+      showToast(`Crédits mis à jour (${newCredits})`);
+    } catch (err) {
+      console.error("Error updating credits:", err);
+      showToast("Erreur lors de la mise à jour des crédits", "error");
+    }
+  };
+
   const handleEditProgram = (member: User) => {
     const mid = Number(member.id);
     const existingProg = state.programs.find(p => Number(p.memberId) === mid);
@@ -645,6 +662,20 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     </button>
                     <h2 className="text-3xl font-black text-zinc-900 uppercase italic tracking-tighter">{selectedProfile.name}</h2>
                     <Badge variant="accent" className="mt-3 !px-4 !py-1.5">ÉVOLUTION</Badge>
+                  </div>
+
+                  <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[10px] font-black uppercase tracking-[4px] text-velatra-accent">Crédits Coaching</h3>
+                      <div className="flex gap-2">
+                        <Button variant="outline" className="!p-1 !h-6 !w-6 flex items-center justify-center" onClick={() => handleUpdateCredits(selectedProfile, -1)}>-</Button>
+                        <Button variant="outline" className="!p-1 !h-6 !w-6 flex items-center justify-center" onClick={() => handleUpdateCredits(selectedProfile, 1)}>+</Button>
+                      </div>
+                    </div>
+                    <div className="text-center py-2">
+                      <div className="text-3xl font-black text-zinc-900">{selectedProfile.credits || 0}</div>
+                      <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mt-1">Crédits restants</div>
+                    </div>
                   </div>
 
                   <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4">
