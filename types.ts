@@ -35,6 +35,9 @@ export interface Club {
     };
     booking?: {
       sessionDuration: number; // in minutes
+      minAdvanceBookingHours?: number; // e.g., 24 for no same-day booking
+      minCancellationHours?: number; // e.g., 24 for no last-minute cancellation
+      maxBookingsPerWeek?: number; // e.g., 3
       schedule: {
         day: number; // 0 = Sunday, 1 = Monday, etc.
         slots: { start: string; end: string }[]; // e.g., { start: "09:00", end: "12:00" }
@@ -327,6 +330,8 @@ export interface Subscription {
   billingCycle: 'monthly' | 'yearly' | 'once';
   startDate: string;
   endDate?: string;
+  commitmentEndDate?: string;
+  contractUrl?: string;
   status: 'active' | 'cancelled' | 'past_due' | 'unpaid';
   stripeSubscriptionId?: string;
 }

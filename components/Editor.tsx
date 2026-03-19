@@ -303,7 +303,11 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                         onChange={e => {
                           const newDays = [...formData.days];
                           if (newDays[selectedDayIdx]) {
-                            newDays[selectedDayIdx].duration = e.target.value ? parseInt(e.target.value) : undefined;
+                            if (e.target.value) {
+                              newDays[selectedDayIdx].duration = parseInt(e.target.value);
+                            } else {
+                              delete newDays[selectedDayIdx].duration;
+                            }
                             setFormData({...formData, days: newDays});
                           }
                         }}

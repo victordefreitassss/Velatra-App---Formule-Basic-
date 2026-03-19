@@ -6,7 +6,7 @@ import {
   SearchIcon, InfoIcon, 
   XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon
 } from '../components/Icons';
-import { db, doc, setDoc, updateDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs } from '../firebase';
+import { db, doc, setDoc, updateDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage } from '../firebase';
 import { GOALS } from '../constants';
 import { generateNutritionPlan } from '../services/aiService';
 import { 
@@ -34,7 +34,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editInfoData, setEditInfoData] = useState<Partial<User>>({});
   const [isAssigningPlan, setIsAssigningPlan] = useState(false);
+  const [isEditingSub, setIsEditingSub] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [subStartDate, setSubStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [subCommitmentDate, setSubCommitmentDate] = useState('');
+  const [subContractUrl, setSubContractUrl] = useState('');
   const [isGeneratingNutrition, setIsGeneratingNutrition] = useState(false);
   const [isGeneratingProgram, setIsGeneratingProgram] = useState(false);
   const [isAdjustingTargets, setIsAdjustingTargets] = useState(false);
@@ -381,18 +385,62 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       planName: plan.name,
       price: plan.price,
       billingCycle: plan.billingCycle,
-      startDate: new Date().toISOString(),
+      startDate: new Date(subStartDate).toISOString(),
       status: 'active'
     };
+
+    if (subCommitmentDate) {
+      subscription.commitmentEndDate = new Date(subCommitmentDate).toISOString();
+    }
+    if (subContractUrl) {
+      subscription.contractUrl = subContractUrl;
+    }
 
     try {
       await setDoc(doc(db, "subscriptions", subId), subscription);
       showToast("Abonnement assigné avec succès");
       setIsAssigningPlan(false);
       setSelectedPlanId('');
+      setSubCommitmentDate('');
+      setSubContractUrl('');
     } catch (err) {
       console.error("Error assigning subscription", err);
       showToast("Erreur lors de l'assignation", "error");
+    }
+  };
+
+  const handleUpdateSubscription = async () => {
+    if (!selectedProfile) return;
+    const subscription = state.subscriptions.find(s => s.memberId === selectedProfile.id && s.status === 'active');
+    if (!subscription) return;
+
+    try {
+      await updateDoc(doc(db, "subscriptions", subscription.id), {
+        startDate: new Date(subStartDate).toISOString(),
+        commitmentEndDate: subCommitmentDate ? new Date(subCommitmentDate).toISOString() : null,
+        contractUrl: subContractUrl || null
+      });
+      showToast("Abonnement mis à jour avec succès");
+      setIsEditingSub(false);
+    } catch (err) {
+      console.error("Error updating subscription", err);
+      showToast("Erreur lors de la mise à jour", "error");
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedProfile) return;
+
+    try {
+      const storageRef = ref(storage, `contracts/${selectedProfile.id}_${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      setSubContractUrl(url);
+      showToast("Contrat importé avec succès");
+    } catch (err) {
+      console.error("Error uploading file", err);
+      showToast("Erreur lors de l'import du contrat", "error");
     }
   };
 
@@ -545,6 +593,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     win.document.close();
   };
 
+  const expiringSubscriptions = state.subscriptions.filter(sub => {
+    if (!sub.commitmentEndDate || sub.status !== 'active') return false;
+    const daysUntilEnd = (new Date(sub.commitmentEndDate).getTime() - new Date().getTime()) / (1000 * 3600 * 24);
+    return daysUntilEnd <= 30 && daysUntilEnd >= -30; // Show if expiring within 30 days or expired up to 30 days ago
+  });
+
   return (
     <div className="space-y-6 page-transition">
       <div className="flex justify-between items-center px-1">
@@ -556,6 +610,34 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           + NOUVEAU PROFIL
         </Button>
       </div>
+
+      {expiringSubscriptions.length > 0 && (
+        <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-3xl flex items-start gap-3">
+          <BellIcon size={20} className="text-orange-500 mt-1" />
+          <div>
+            <h3 className="text-sm font-bold text-orange-600">Abonnements à renouveler</h3>
+            <p className="text-xs text-orange-500/80 mt-1">
+              {expiringSubscriptions.length} abonnement(s) arrive(nt) à terme ou sont terminés.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {expiringSubscriptions.map(sub => {
+                const member = members.find(m => m.id === sub.memberId);
+                if (!member) return null;
+                const isExpired = new Date(sub.commitmentEndDate!) < new Date();
+                return (
+                  <button 
+                    key={sub.id}
+                    onClick={() => setSelectedProfile(member)}
+                    className={`text-[10px] px-3 py-1.5 rounded-full font-black uppercase tracking-widest transition-colors ${isExpired ? 'bg-red-500/10 text-red-600 hover:bg-red-500/20' : 'bg-orange-500/10 text-orange-600 hover:bg-orange-500/20'}`}
+                  >
+                    {member.name} ({isExpired ? 'Terminé' : 'Bientôt'})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4">
         <div className="relative">
@@ -668,8 +750,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     <div className="flex items-center justify-between">
                       <h3 className="text-[10px] font-black uppercase tracking-[4px] text-velatra-accent">Crédits Coaching</h3>
                       <div className="flex gap-2">
-                        <Button variant="outline" className="!p-1 !h-6 !w-6 flex items-center justify-center" onClick={() => handleUpdateCredits(selectedProfile, -1)}>-</Button>
-                        <Button variant="outline" className="!p-1 !h-6 !w-6 flex items-center justify-center" onClick={() => handleUpdateCredits(selectedProfile, 1)}>+</Button>
+                        <Button variant="secondary" className="!p-1 !h-6 !w-6 flex items-center justify-center" onClick={() => handleUpdateCredits(selectedProfile, -1)}>-</Button>
+                        <Button variant="secondary" className="!p-1 !h-6 !w-6 flex items-center justify-center" onClick={() => handleUpdateCredits(selectedProfile, 1)}>+</Button>
                       </div>
                     </div>
                     <div className="text-center py-2">
@@ -770,29 +852,137 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                        <h3 className="text-[10px] font-black uppercase tracking-[4px] text-velatra-accent">Abonnement</h3>
                     </div>
                     {stats.subscription ? (
-                      <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-inner">
-                        <div className="flex justify-between items-start mb-2">
+                      <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-inner space-y-4">
+                        <div className="flex justify-between items-start">
                           <span className="font-black text-zinc-900 text-lg uppercase italic">{stats.subscription.planName}</span>
                           <span className="text-[10px] px-2 py-1 bg-green-500/20 text-green-400 rounded-full font-black uppercase tracking-widest">Actif</span>
                         </div>
                         <div className="text-[10px] font-bold text-zinc-900 uppercase tracking-widest">
                           {stats.subscription.price}€ / {stats.subscription.billingCycle === 'monthly' ? 'mois' : stats.subscription.billingCycle === 'yearly' ? 'an' : 'fois'}
                         </div>
+                        
+                        <div className="pt-4 border-t border-zinc-200 space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-zinc-500">Début :</span>
+                            <span className="font-bold">{new Date(stats.subscription.startDate).toLocaleDateString()}</span>
+                          </div>
+                          {stats.subscription.commitmentEndDate && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-zinc-500">Fin d'engagement :</span>
+                              <span className={`font-bold ${new Date(stats.subscription.commitmentEndDate) < new Date() ? 'text-red-500' : 'text-zinc-900'}`}>
+                                {new Date(stats.subscription.commitmentEndDate).toLocaleDateString()}
+                              </span>
+                            </div>
+                          )}
+                          {stats.subscription.contractUrl && (
+                            <div className="flex justify-between text-xs pt-2">
+                              <a href={stats.subscription.contractUrl} target="_blank" rel="noopener noreferrer" className="text-velatra-accent font-bold flex items-center gap-1 hover:underline">
+                                <LinkIcon size={12} /> Voir le contrat
+                              </a>
+                            </div>
+                          )}
+                        </div>
+
+                        {isEditingSub ? (
+                          <div className="space-y-3 pt-4 border-t border-zinc-200">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Date de début</label>
+                              <Input type="date" value={subStartDate} onChange={e => setSubStartDate(e.target.value)} />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Fin d'engagement (optionnel)</label>
+                              <Input type="date" value={subCommitmentDate} onChange={e => setSubCommitmentDate(e.target.value)} />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Importer un contrat (PDF, Image)</label>
+                              <input 
+                                type="file" 
+                                accept=".pdf,image/*" 
+                                onChange={handleFileUpload}
+                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-velatra-accent/10 file:text-velatra-accent hover:file:bg-velatra-accent/20 transition-colors"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Ou lien du contrat (optionnel)</label>
+                              <Input type="url" placeholder="https://..." value={subContractUrl} onChange={e => setSubContractUrl(e.target.value)} />
+                            </div>
+                            <div className="flex gap-2 pt-2">
+                              <button onClick={() => setIsEditingSub(false)} className="flex-1 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
+                              <button onClick={handleUpdateSubscription} className="flex-1 bg-velatra-accent text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">Enregistrer</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button onClick={() => {
+                            setSubStartDate(stats.subscription!.startDate.split('T')[0]);
+                            setSubCommitmentDate(stats.subscription!.commitmentEndDate ? stats.subscription!.commitmentEndDate.split('T')[0] : '');
+                            setSubContractUrl(stats.subscription!.contractUrl || '');
+                            setIsEditingSub(true);
+                          }} className="w-full mt-4 border border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-300 rounded-xl py-2 text-[10px] font-black uppercase tracking-widest transition-colors">
+                            Modifier l'abonnement
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-3">
                         <p className="text-xs text-zinc-500 font-medium px-1">Aucun abonnement actif.</p>
                         {isAssigningPlan ? (
-                          <div className="space-y-2 bg-zinc-50 p-4 rounded-3xl border border-zinc-200">
+                          <div className="space-y-3 bg-zinc-50 p-4 rounded-3xl border border-zinc-200">
                             <select 
                               value={selectedPlanId} 
-                              onChange={e => setSelectedPlanId(e.target.value)}
+                              onChange={e => {
+                                const planId = e.target.value;
+                                setSelectedPlanId(planId);
+                                const plan = state.plans.find(p => p.id === planId);
+                                if (plan && plan.hasCommitment && plan.commitmentMonths) {
+                                  const start = new Date(subStartDate);
+                                  if (!isNaN(start.getTime())) {
+                                    start.setMonth(start.getMonth() + plan.commitmentMonths);
+                                    setSubCommitmentDate(start.toISOString().split('T')[0]);
+                                  }
+                                } else {
+                                  setSubCommitmentDate('');
+                                }
+                              }}
                               className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 text-xs font-medium focus:outline-none focus:border-velatra-accent"
                             >
                               <option value="">Sélectionner une formule</option>
                               {state.plans.map(p => <option key={p.id} value={p.id}>{p.name} - {p.price}€</option>)}
                             </select>
-                            <div className="flex gap-2">
+                            
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Date de début</label>
+                              <Input type="date" value={subStartDate} onChange={e => {
+                                const newDate = e.target.value;
+                                setSubStartDate(newDate);
+                                const plan = state.plans.find(p => p.id === selectedPlanId);
+                                if (plan && plan.hasCommitment && plan.commitmentMonths) {
+                                  const start = new Date(newDate);
+                                  if (!isNaN(start.getTime())) {
+                                    start.setMonth(start.getMonth() + plan.commitmentMonths);
+                                    setSubCommitmentDate(start.toISOString().split('T')[0]);
+                                  }
+                                }
+                              }} />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Fin d'engagement (optionnel)</label>
+                              <Input type="date" value={subCommitmentDate} onChange={e => setSubCommitmentDate(e.target.value)} />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Importer un contrat (PDF, Image)</label>
+                              <input 
+                                type="file" 
+                                accept=".pdf,image/*" 
+                                onChange={handleFileUpload}
+                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-velatra-accent/10 file:text-velatra-accent hover:file:bg-velatra-accent/20 transition-colors"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Ou lien du contrat (optionnel)</label>
+                              <Input type="url" placeholder="https://..." value={subContractUrl} onChange={e => setSubContractUrl(e.target.value)} />
+                            </div>
+
+                            <div className="flex gap-2 pt-2">
                               <button onClick={() => setIsAssigningPlan(false)} className="flex-1 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
                               <button onClick={handleAssignSubscription} disabled={!selectedPlanId} className="flex-1 bg-velatra-accent text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50">Confirmer</button>
                             </div>

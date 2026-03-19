@@ -19,6 +19,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   const [acceptedMethods, setAcceptedMethods] = useState<string[]>(state.currentClub?.settings?.payment?.acceptedMethods || ['card', 'cash']);
 
   const [sessionDuration, setSessionDuration] = useState(state.currentClub?.settings?.booking?.sessionDuration || 60);
+  const [minAdvanceBookingHours, setMinAdvanceBookingHours] = useState(state.currentClub?.settings?.booking?.minAdvanceBookingHours || 0);
+  const [minCancellationHours, setMinCancellationHours] = useState(state.currentClub?.settings?.booking?.minCancellationHours || 0);
+  const [maxBookingsPerWeek, setMaxBookingsPerWeek] = useState(state.currentClub?.settings?.booking?.maxBookingsPerWeek || 0);
   const [schedule, setSchedule] = useState(state.currentClub?.settings?.booking?.schedule || [
     { day: 1, slots: [{ start: "09:00", end: "12:00" }, { start: "14:00", end: "18:00" }] },
     { day: 2, slots: [{ start: "09:00", end: "12:00" }, { start: "14:00", end: "18:00" }] },
@@ -52,6 +55,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         },
         "settings.booking": {
           sessionDuration,
+          minAdvanceBookingHours,
+          minCancellationHours,
+          maxBookingsPerWeek,
           schedule
         }
       });
@@ -128,39 +134,53 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         commitmentMonths: Number(editingPlan.commitmentMonths) || 0,
         isTTC: editingPlan.isTTC || false,
         paymentMethods: editingPlan.paymentMethods || ['card'],
-        stripeProductId: editingPlan.stripeProductId,
-        stripePriceId: editingPlan.stripePriceId,
+        stripeProductId: editingPlan.stripeProductId || undefined,
+        stripePriceId: editingPlan.stripePriceId || undefined,
       };
 
       // Create product/price in Stripe if not already done and if Stripe is connected
       if (stripeConnected && stripeSecretKey && !planData.stripePriceId) {
         showToast("Création de la formule sur Stripe...", "info");
-        const res = await fetch('/api/stripe/create-plan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stripeSecretKey,
-            name: planData.name,
-            price: planData.price,
-            billingCycle: planData.billingCycle,
-            description: planData.description
-          })
-        });
-        
-        if (res.ok) {
-          const stripeData = await res.json();
-          planData.stripeProductId = stripeData.productId;
-          planData.stripePriceId = stripeData.priceId;
-        } else {
-          console.error("Erreur lors de la création sur Stripe");
+        try {
+          const res = await fetch('/api/stripe/create-plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              stripeSecretKey,
+              name: planData.name,
+              price: planData.price,
+              billingCycle: planData.billingCycle,
+              description: planData.description
+            })
+          });
+          
+          if (res.ok) {
+            const stripeData = await res.json();
+            planData.stripeProductId = stripeData.productId;
+            planData.stripePriceId = stripeData.priceId;
+          } else {
+            console.error("Erreur lors de la création sur Stripe");
+            showToast("La formule sera créée localement (erreur Stripe)", "info");
+          }
+        } catch (stripeErr) {
+          console.error("Erreur réseau Stripe:", stripeErr);
+          showToast("La formule sera créée localement (erreur réseau)", "info");
         }
       }
+
+      // Remove undefined fields to avoid Firestore errors
+      Object.keys(planData).forEach(key => {
+        if (planData[key as keyof Plan] === undefined) {
+          delete planData[key as keyof Plan];
+        }
+      });
 
       await setDoc(doc(db, "plans", planId), planData);
       showToast(editingPlan.id ? "Formule modifiée" : "Formule créée");
       setIsEditingPlan(false);
       setEditingPlan(null);
     } catch (err) {
+      console.error("Erreur lors de l'enregistrement de la formule:", err);
       showToast("Erreur lors de l'enregistrement de la formule", "error");
     }
   };
@@ -451,6 +471,39 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           </div>
 
           <div className="space-y-4">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Délai minimum de réservation (heures)</h3>
+            <p className="text-xs text-zinc-500">Ex: 24 pour interdire la réservation le jour même. Laissez à 0 pour autoriser à la dernière minute.</p>
+            <Input 
+              type="number" 
+              value={minAdvanceBookingHours} 
+              onChange={(e) => setMinAdvanceBookingHours(Number(e.target.value))}
+              className="max-w-[200px]"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Délai minimum d'annulation (heures)</h3>
+            <p className="text-xs text-zinc-500">Ex: 24 pour interdire l'annulation tardive. Laissez à 0 pour autoriser à tout moment.</p>
+            <Input 
+              type="number" 
+              value={minCancellationHours} 
+              onChange={(e) => setMinCancellationHours(Number(e.target.value))}
+              className="max-w-[200px]"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Nombre max de réservations par semaine / membre</h3>
+            <p className="text-xs text-zinc-500">Laissez à 0 pour illimité.</p>
+            <Input 
+              type="number" 
+              value={maxBookingsPerWeek} 
+              onChange={(e) => setMaxBookingsPerWeek(Number(e.target.value))}
+              className="max-w-[200px]"
+            />
+          </div>
+
+          <div className="space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Horaires de disponibilité</h3>
             <div className="space-y-4">
               {['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map((dayName, index) => {
@@ -489,7 +542,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                             className="!py-1 !px-2 w-32"
                           />
                           <Button 
-                            variant="outline" 
+                            variant="secondary" 
                             className="!p-1 !h-8 !w-8 flex items-center justify-center text-red-500 border-red-200 hover:bg-red-50"
                             onClick={() => {
                               const newSchedule = [...schedule];

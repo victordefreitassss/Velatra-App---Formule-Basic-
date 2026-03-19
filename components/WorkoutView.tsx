@@ -203,11 +203,27 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
            </div>
         </div>
         {groupedExercises.map((group, gIndex) => {
+          const getGroupDescription = (type: string) => {
+            switch (type.toLowerCase()) {
+              case 'superset': return "Enchaînez ces exercices sans temps de repos entre eux.";
+              case 'biset': return "Enchaînez ces 2 exercices ciblant le même muscle sans repos.";
+              case 'triset': return "Enchaînez ces 3 exercices sans temps de repos.";
+              case 'giantset': return "Enchaînez ces 4 exercices ou plus sans temps de repos.";
+              case 'dropset': return "Allez jusqu'à l'échec, baissez le poids de 20% et repartez sans repos.";
+              default: return "Enchaînez ces exercices selon les indications.";
+            }
+          };
+
           return (
-            <div key={gIndex} className={group.isGroup ? "p-6 rounded-[32px] border-2 border-velatra-accent/30 bg-velatra-accent/5 space-y-6 relative" : "space-y-6"}>
+            <div key={gIndex} className={group.isGroup ? "p-6 rounded-[32px] border-2 border-velatra-accent/30 bg-velatra-accent/5 space-y-6 relative mt-12" : "space-y-6"}>
               {group.isGroup && (
-                <div className="absolute -top-3 left-6 bg-velatra-accent text-zinc-900 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-md">
-                  {group.groupName || 'SUPERSET'}
+                <div className="absolute -top-5 left-6 bg-velatra-accent text-zinc-900 px-4 py-2 rounded-2xl shadow-md max-w-[80%]">
+                  <div className="text-[10px] font-black uppercase tracking-widest mb-1">
+                    {group.groupName || 'SUPERSET'}
+                  </div>
+                  <div className="text-xs font-medium leading-tight opacity-90">
+                    {getGroupDescription(group.groupName || 'superset')}
+                  </div>
                 </div>
               )}
               {group.exercises.map(({ entry: exEntry, index: exIndex }) => {

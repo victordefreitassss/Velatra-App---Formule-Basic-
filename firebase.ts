@@ -23,6 +23,7 @@ import {
   getDocs,
   addDoc
 } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAY7wpl0pigmWaUg4JRA_0y_dKAjnX17nA",
@@ -36,6 +37,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
@@ -57,5 +59,8 @@ export {
   query,
   where,
   getDocs,
-  addDoc
+  addDoc,
+  ref,
+  uploadBytes,
+  getDownloadURL
 };
