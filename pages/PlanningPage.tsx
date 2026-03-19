@@ -79,9 +79,43 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   const handleBookSlot = async () => {
     if (!selectedSlot || !state.user || !state.user.clubId) return;
 
-    if (!isCoach && (state.user.credits || 0) <= 0) {
-      showToast("Vous n'avez pas assez de crédits pour réserver.", "error");
-      return;
+    if (!isCoach) {
+      if ((state.user.credits || 0) <= 0) {
+        showToast("Vous n'avez pas assez de crédits pour réserver.", "error");
+        return;
+      }
+
+      const now = new Date();
+      const hoursUntilSlot = (selectedSlot.start.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const minAdvance = bookingSettings.minAdvanceBookingHours || 0;
+      
+      if (hoursUntilSlot < minAdvance) {
+        showToast(`Vous devez réserver au moins ${minAdvance}h à l'avance.`, "error");
+        return;
+      }
+
+      const maxBookings = bookingSettings.maxBookingsPerWeek || 0;
+      if (maxBookings > 0) {
+        // Calculate start and end of current week
+        const startOfWeek = new Date(now);
+        startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
+        startOfWeek.setHours(0, 0, 0, 0);
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        const bookingsThisWeek = state.bookings.filter(b => 
+          b.memberId === Number(state.user?.id) && 
+          b.status === 'confirmed' &&
+          new Date(b.startTime) >= startOfWeek &&
+          new Date(b.startTime) <= endOfWeek
+        ).length;
+
+        if (bookingsThisWeek >= maxBookings) {
+          showToast(`Vous avez atteint la limite de ${maxBookings} réservations cette semaine.`, "error");
+          return;
+        }
+      }
     }
 
     try {
@@ -113,6 +147,18 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   };
 
   const handleCancelBooking = async (booking: Booking) => {
+    if (!isCoach) {
+      const now = new Date();
+      const bookingTime = new Date(booking.startTime);
+      const hoursUntilSlot = (bookingTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const minCancellation = bookingSettings.minCancellationHours || 0;
+
+      if (hoursUntilSlot < minCancellation) {
+        showToast(`L'annulation n'est plus possible à moins de ${minCancellation}h de la séance.`, "error");
+        return;
+      }
+    }
+
     if (!confirm("Voulez-vous vraiment annuler cette réservation ?")) return;
 
     try {
@@ -172,11 +218,11 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
       </div>
 
       <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-zinc-200 shadow-sm">
-        <Button variant="outline" className="!px-3" onClick={() => setCurrentWeekOffset(prev => prev - 1)}>&larr;</Button>
+        <Button variant="secondary" className="!px-3" onClick={() => setCurrentWeekOffset(prev => prev - 1)}>&larr;</Button>
         <div className="font-bold text-zinc-900 text-sm md:text-base text-center">
           Semaine du {weekDates[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au {weekDates[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
         </div>
-        <Button variant="outline" className="!px-3" onClick={() => setCurrentWeekOffset(prev => prev + 1)}>&rarr;</Button>
+        <Button variant="secondary" className="!px-3" onClick={() => setCurrentWeekOffset(prev => prev + 1)}>&rarr;</Button>
       </div>
 
       {/* Mobile-first Date Strip */}
@@ -260,7 +306,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                     )}
                     
                     {(isCoach || isMyBooking) && !isPast && (
-                      <Button variant="outline" className={`w-full !py-2 !text-xs ${isCoach ? 'border-zinc-700 hover:bg-zinc-800 text-white' : 'border-white/30 hover:bg-white/20 text-white'}`} onClick={() => handleCancelBooking(bookingForSlot)}>
+                      <Button variant="secondary" className={`w-full !py-2 !text-xs ${isCoach ? 'border-zinc-700 hover:bg-zinc-800 text-white' : 'border-white/30 hover:bg-white/20 text-white'}`} onClick={() => handleCancelBooking(bookingForSlot)}>
                         Annuler la réservation
                       </Button>
                     )}
