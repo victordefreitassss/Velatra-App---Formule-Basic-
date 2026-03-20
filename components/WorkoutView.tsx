@@ -7,6 +7,15 @@ import { db, doc, setDoc, updateDoc, deleteDoc } from '../firebase';
 import { PROGRAM_DURATION_WEEKS } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const getTargetRepsForSet = (repsString: string | number | undefined, setIndex: number): string => {
+  if (typeof repsString === 'number') return String(repsString);
+  if (!repsString) return '';
+  const parts = repsString.split(',').map(s => s.trim());
+  if (parts.length === 0) return '';
+  if (setIndex < parts.length) return parts[setIndex];
+  return parts[parts.length - 1];
+};
+
 interface WorkoutViewProps {
   program: Program;
   member: User;
@@ -19,7 +28,26 @@ interface WorkoutViewProps {
 
 export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClose, onComplete, state, setState, showToast }) => {
   const currentDay = program.days[program.currentDayIndex % program.nbDays];
-  const [sessionData, setSessionData] = useState<Record<string, string>>({});
+  const [sessionData, setSessionData] = useState<Record<string, string>>(() => {
+    const initialData: Record<string, string> = {};
+    currentDay.exercises.forEach((exEntry, exIndex) => {
+      const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
+      
+      const baseEx = state.exercises.find(e => e.id === exEntry.exId);
+      const lastPerf = baseEx?.perfId ? state.performances.filter(p => p.memberId === Number(member.id) && p.exId === baseEx.perfId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
+
+      for (let i = 0; i < numSets; i++) {
+        const targetReps = getTargetRepsForSet(exEntry.reps, i);
+        if (targetReps) {
+          initialData[`${exIndex}-${i}-reps`] = targetReps;
+        }
+        if (lastPerf && lastPerf.weight) {
+          initialData[`${exIndex}-${i}-weight`] = String(lastPerf.weight);
+        }
+      }
+    });
+    return initialData;
+  });
   const [completedExercises, setCompletedExercises] = useState<number[]>([]);
   const [sessionXP, setSessionXP] = useState(0);
 
@@ -46,9 +74,17 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
     if (setIndex === 0) {
       const exEntry = currentDay.exercises[exIndex];
       const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
+      const hasCommaReps = typeof exEntry.reps === 'string' && exEntry.reps.includes(',');
+      
       for (let i = 1; i < numSets; i++) {
         const targetKey = `${exIndex}-${i}-${field}`;
-        if (!newData[targetKey]) newData[targetKey] = value;
+        if (!newData[targetKey]) {
+          if (field === 'reps' && hasCommaReps) {
+            newData[targetKey] = getTargetRepsForSet(exEntry.reps, i);
+          } else {
+            newData[targetKey] = value;
+          }
+        }
       }
     }
     setSessionData(newData);
@@ -354,15 +390,15 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                                   </div>
                                   <div className="relative flex items-center">
                                      <button 
-                                       onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || "0") - 1))))}
+                                       onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") - 1))))}
                                        className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                      >-</button>
-                                     <Input type="number" inputMode="numeric" placeholder="REPS" className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
+                                     <Input type="number" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || "REPS"} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
                                      <button 
-                                       onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || "0") + 1)))}
+                                       onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") + 1)))}
                                        className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                      >+</button>
-                                     <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Répétitions</span>
+                                     <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase whitespace-nowrap">Répétitions {exEntry.reps ? `(Cible: ${getTargetRepsForSet(exEntry.reps, sIdx)})` : ''}</span>
                                   </div>
                                </div>
                             </div>

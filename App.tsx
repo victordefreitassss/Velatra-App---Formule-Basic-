@@ -461,7 +461,8 @@ export default function App() {
       setState(prev => ({ ...prev, invoices }));
     });
 
-    const unsubExercises = onSnapshot(query(collection(db, "exercises"), where("clubId", "in", ["global", clubId])), (snap) => {
+    const clubIds = Array.from(new Set(["global", clubId]));
+    const unsubExercises = onSnapshot(query(collection(db, "exercises"), where("clubId", "in", clubIds)), (snap) => {
       const fetchedExercises: Exercise[] = [];
       snap.forEach(d => fetchedExercises.push(d.data() as Exercise));
       

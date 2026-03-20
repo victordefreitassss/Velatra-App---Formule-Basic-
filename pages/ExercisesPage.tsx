@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { AppState, Exercise } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
-import { PlusIcon, SearchIcon, DumbbellIcon, Trash2Icon, Edit2Icon, XIcon, CheckIcon, SaveIcon } from '../components/Icons';
+import { PlusIcon, SearchIcon, DumbbellIcon, Trash2Icon, Edit2Icon, XIcon, CheckIcon, SaveIcon, CameraIcon } from '../components/Icons';
 import { EXERCISE_CATEGORIES } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -166,36 +166,37 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                       <Badge variant="accent" className="!text-[8px] animate-bounce shadow-sm">SUGGESTION IA</Badge>
                     </div>
                   )}
-                
-                {/* Actions Overlay */}
-                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 p-4 gap-2">
-                   <Button 
-                     variant="glass" 
-                     fullWidth 
-                     className="!py-2 !text-[10px] !rounded-xl shadow-sm" 
-                     onClick={() => setEditingEx(ex)}
-                   >
-                     MODIFIER PHOTO 📷
-                   </Button>
-                   <button 
-                    onClick={async () => {
-                      if(confirm("Supprimer cet exercice de la base ?")) {
-                        try {
-                          await deleteDoc(doc(db, "exercises", ex.id.toString()));
-                          showToast("Exercice supprimé");
-                        } catch (err) {
-                          showToast("Erreur lors de la suppression", "error");
+                  
+                  {/* Persistent Actions */}
+                  <div className="absolute top-2 right-2 flex gap-2 z-10">
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setEditingEx(ex); }}
+                      className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-600 hover:text-velatra-accent hover:bg-white shadow-sm transition-all"
+                      title="Modifier la photo"
+                    >
+                      <CameraIcon size={14} />
+                    </button>
+                    <button 
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if(confirm("Supprimer cet exercice de la base ?")) {
+                          try {
+                            await deleteDoc(doc(db, "exercises", ex.id.toString()));
+                            showToast("Exercice supprimé");
+                          } catch (err) {
+                            showToast("Erreur lors de la suppression", "error");
+                          }
                         }
-                      }
-                    }}
-                    className="text-red-500/60 hover:text-red-500 text-[10px] font-black uppercase tracking-widest mt-2 transition-colors bg-white/50 px-3 py-1 rounded-lg"
-                   >
-                     Supprimer
-                   </button>
-                </div>
+                      }}
+                      className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-600 hover:text-red-500 hover:bg-white shadow-sm transition-all"
+                      title="Supprimer l'exercice"
+                    >
+                      <Trash2Icon size={14} />
+                    </button>
+                  </div>
               </div>
               <div className="p-4 border-t border-zinc-200/50">
-                <div className="font-black text-sm truncate group-hover:text-velatra-accent transition-colors tracking-tight">{ex.name}</div>
+                <div className="font-black text-sm truncate group-hover:text-velatra-accent transition-colors tracking-tight pr-8">{ex.name}</div>
                 <div className="flex justify-between items-center mt-2">
                   <Badge variant="dark" className="!bg-zinc-900/5 !p-0 !border-none !text-zinc-900">{ex.cat}</Badge>
                   <div className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">{ex.equip}</div>
@@ -214,7 +215,8 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+          onClick={() => setShowAddModal(false)}
         >
            <motion.div
              initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -222,6 +224,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
              exit={{ scale: 0.95, opacity: 0, y: 20 }}
              transition={{ type: "spring", stiffness: 300, damping: 30 }}
              className="w-full max-w-md"
+             onClick={e => e.stopPropagation()}
            >
              <Card className="w-full !p-8 border-zinc-200/50 relative shadow-2xl bg-white/80 backdrop-blur-2xl">
               <button onClick={() => setShowAddModal(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 transition-colors bg-white/50 p-2 rounded-full hover:bg-white">
@@ -284,7 +287,34 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                        if (file) {
                          const reader = new FileReader();
                          reader.onloadend = () => {
-                           setNewEx({...newEx, photo: reader.result as string});
+                           const img = new Image();
+                           img.onload = () => {
+                             const canvas = document.createElement('canvas');
+                             const MAX_WIDTH = 800;
+                             const MAX_HEIGHT = 800;
+                             let width = img.width;
+                             let height = img.height;
+
+                             if (width > height) {
+                               if (width > MAX_WIDTH) {
+                                 height *= MAX_WIDTH / width;
+                                 width = MAX_WIDTH;
+                               }
+                             } else {
+                               if (height > MAX_HEIGHT) {
+                                 width *= MAX_HEIGHT / height;
+                                 height = MAX_HEIGHT;
+                               }
+                             }
+
+                             canvas.width = width;
+                             canvas.height = height;
+                             const ctx = canvas.getContext('2d');
+                             ctx?.drawImage(img, 0, 0, width, height);
+                             const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                             setNewEx({...newEx, photo: dataUrl});
+                           };
+                           img.src = reader.result as string;
                          };
                          reader.readAsDataURL(file);
                        }
@@ -311,7 +341,8 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+          onClick={() => setEditingEx(null)}
         >
            <motion.div
              initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -319,6 +350,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
              exit={{ scale: 0.95, opacity: 0, y: 20 }}
              transition={{ type: "spring", stiffness: 300, damping: 30 }}
              className="w-full max-w-md"
+             onClick={e => e.stopPropagation()}
            >
              <Card className="w-full !p-8 border-zinc-200/50 relative shadow-2xl bg-white/80 backdrop-blur-2xl">
               <button onClick={() => setEditingEx(null)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 transition-colors bg-white/50 p-2 rounded-full hover:bg-white">
@@ -350,7 +382,34 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                        if (file) {
                          const reader = new FileReader();
                          reader.onloadend = () => {
-                           setEditingEx({...editingEx, photo: reader.result as string});
+                           const img = new Image();
+                           img.onload = () => {
+                             const canvas = document.createElement('canvas');
+                             const MAX_WIDTH = 800;
+                             const MAX_HEIGHT = 800;
+                             let width = img.width;
+                             let height = img.height;
+
+                             if (width > height) {
+                               if (width > MAX_WIDTH) {
+                                 height *= MAX_WIDTH / width;
+                                 width = MAX_WIDTH;
+                               }
+                             } else {
+                               if (height > MAX_HEIGHT) {
+                                 width *= MAX_HEIGHT / height;
+                                 height = MAX_HEIGHT;
+                               }
+                             }
+
+                             canvas.width = width;
+                             canvas.height = height;
+                             const ctx = canvas.getContext('2d');
+                             ctx?.drawImage(img, 0, 0, width, height);
+                             const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                             setEditingEx({...editingEx, photo: dataUrl});
+                           };
+                           img.src = reader.result as string;
                          };
                          reader.readAsDataURL(file);
                        }
