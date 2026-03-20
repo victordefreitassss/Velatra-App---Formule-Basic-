@@ -462,9 +462,20 @@ export default function App() {
     });
 
     const unsubExercises = onSnapshot(query(collection(db, "exercises"), where("clubId", "in", ["global", clubId])), (snap) => {
-      const exercises: Exercise[] = [];
-      snap.forEach(d => exercises.push(d.data() as Exercise));
-      setState(prev => ({ ...prev, exercises: exercises.length > 0 ? exercises : INIT_EXERCISES }));
+      const fetchedExercises: Exercise[] = [];
+      snap.forEach(d => fetchedExercises.push(d.data() as Exercise));
+      
+      const mergedExercises = [...INIT_EXERCISES];
+      fetchedExercises.forEach(fetchedEx => {
+        const index = mergedExercises.findIndex(ex => ex.id === fetchedEx.id);
+        if (index >= 0) {
+          mergedExercises[index] = fetchedEx;
+        } else {
+          mergedExercises.push(fetchedEx);
+        }
+      });
+      
+      setState(prev => ({ ...prev, exercises: mergedExercises }));
     });
 
     const unsubCrmClients = onSnapshot(query(collection(db, "crmClients"), where("clubId", "==", clubId)), (snap) => {

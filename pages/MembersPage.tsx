@@ -227,16 +227,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     setIsGeneratingProgram(true);
     try {
       const { generateSportsProgram } = await import('../services/aiService');
-      const { INIT_EXERCISES } = await import('../constants');
       
-      const generatedData = await generateSportsProgram(selectedProfile, INIT_EXERCISES);
+      const generatedData = await generateSportsProgram(selectedProfile, state.exercises);
       
       const validDays = (generatedData.days || []).map((day: any) => ({
         ...day,
         name: day.name || `Jour`,
         exercises: (day.exercises || []).map((ex: any) => ({
           ...ex,
-          exId: INIT_EXERCISES.some(e => e.id === ex.exId) ? ex.exId : INIT_EXERCISES[0].id
+          exId: state.exercises.some(e => e.id === ex.exId) ? ex.exId : state.exercises[0].id
         }))
       }));
 
