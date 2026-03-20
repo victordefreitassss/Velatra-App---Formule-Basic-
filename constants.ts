@@ -18,7 +18,7 @@ export const GOALS: Goal[] = [
 ];
 
 export const EXERCISE_CATEGORIES = [
-  "Jambes", "Poitrine", "Dos", "Épaules", "Bras", "Abdos", "Cardio", "Mobilité", "Circuit Training", "Full Body"
+  "Jambes", "Poitrine", "Dos", "Épaules", "Bras", "Abdos", "Cardio", "Mobilité", "Circuit Training", "Full Body", "Remise en forme", "Stretching"
 ];
 
 export const INIT_EXERCISES: Exercise[] = [
@@ -31,6 +31,8 @@ export const INIT_EXERCISES: Exercise[] = [
   { id: 6, clubId: "global", name: "Soulevé de terre roumain", cat: "Jambes", equip: "Barre", photo: null, perfId: "sdt_roumain" },
   { id: 7, clubId: "global", name: "Hip Thrust", cat: "Jambes", equip: "Barre", photo: null, perfId: "hip_thrust" },
   { id: 8, clubId: "global", name: "Mollets debout", cat: "Jambes", equip: "Machine", photo: null, perfId: "mollets" },
+  { id: 9, clubId: "global", name: "Fentes bulgares", cat: "Jambes", equip: "Haltères", photo: null, perfId: "fentes_bulgares" },
+  { id: 10, clubId: "global", name: "Goblet Squat", cat: "Jambes", equip: "Kettlebell", photo: null, perfId: "goblet_squat" },
   
   // Poitrine
   { id: 11, clubId: "global", name: "Développé couché", cat: "Poitrine", equip: "Barre", photo: null, perfId: "dc_barre" },
@@ -39,6 +41,9 @@ export const INIT_EXERCISES: Exercise[] = [
   { id: 14, clubId: "global", name: "Dips (Pectoraux)", cat: "Poitrine", equip: "Poids du corps", photo: null, perfId: "dips_pecs" },
   { id: 15, clubId: "global", name: "Pompes", cat: "Poitrine", equip: "Poids du corps", photo: null, perfId: "pompes" },
   { id: 16, clubId: "global", name: "Poulie vis-à-vis", cat: "Poitrine", equip: "Poulie", photo: null, perfId: "poulie_vis" },
+  { id: 17, clubId: "global", name: "Pompes sur genoux", cat: "Poitrine", equip: "Poids du corps", photo: null, perfId: "pompes_genoux" },
+  { id: 18, clubId: "global", name: "Développé machine", cat: "Poitrine", equip: "Machine", photo: null, perfId: "dev_machine_pecs" },
+  { id: 19, clubId: "global", name: "Pec Deck", cat: "Poitrine", equip: "Machine", photo: null, perfId: "pec_deck" },
   
   // Dos
   { id: 21, clubId: "global", name: "Tractions", cat: "Dos", equip: "Poids du corps", photo: null, perfId: "tractions" },
@@ -48,6 +53,8 @@ export const INIT_EXERCISES: Exercise[] = [
   { id: 25, clubId: "global", name: "Rowing haltère (bûcheron)", cat: "Dos", equip: "Haltère", photo: null, perfId: "rowing_haltere" },
   { id: 26, clubId: "global", name: "Soulevé de terre", cat: "Dos", equip: "Barre", photo: null, perfId: "sdt" },
   { id: 27, clubId: "global", name: "Pull-over poulie haute", cat: "Dos", equip: "Poulie", photo: null, perfId: "pullover_poulie" },
+  { id: 28, clubId: "global", name: "Tirage vertical prise serrée", cat: "Dos", equip: "Machine", photo: null, perfId: "tirage_serre" },
+  { id: 29, clubId: "global", name: "Rowing machine", cat: "Dos", equip: "Machine", photo: null, perfId: "rowing_machine" },
 
   // Épaules
   { id: 31, clubId: "global", name: "Développé militaire", cat: "Épaules", equip: "Barre", photo: null, perfId: "dm" },
@@ -56,6 +63,8 @@ export const INIT_EXERCISES: Exercise[] = [
   { id: 34, clubId: "global", name: "Oiseau (Arrière d'épaule)", cat: "Épaules", equip: "Haltères", photo: null, perfId: "oiseau" },
   { id: 35, clubId: "global", name: "Face Pull", cat: "Épaules", equip: "Poulie", photo: null, perfId: "face_pull" },
   { id: 36, clubId: "global", name: "Haussements d'épaules (Shrugs)", cat: "Épaules", equip: "Haltères", photo: null, perfId: "shrugs" },
+  { id: 37, clubId: "global", name: "Élévations frontales", cat: "Épaules", equip: "Haltères", photo: null, perfId: "elev_front" },
+  { id: 38, clubId: "global", name: "Développé machine (Épaules)", cat: "Épaules", equip: "Machine", photo: null, perfId: "dev_machine_epaules" },
 
   // Bras
   { id: 41, clubId: "global", name: "Curl barre EZ", cat: "Bras", equip: "Barre", photo: null, perfId: "curl" },
@@ -64,6 +73,8 @@ export const INIT_EXERCISES: Exercise[] = [
   { id: 44, clubId: "global", name: "Extension triceps poulie", cat: "Bras", equip: "Poulie", photo: null, perfId: "ext_triceps" },
   { id: 45, clubId: "global", name: "Barre au front", cat: "Bras", equip: "Barre EZ", photo: null, perfId: "barre_front" },
   { id: 46, clubId: "global", name: "Dips (Triceps)", cat: "Bras", equip: "Poids du corps", photo: null, perfId: "dips_tri" },
+  { id: 47, clubId: "global", name: "Curl pupitre", cat: "Bras", equip: "Machine", photo: null, perfId: "curl_pupitre" },
+  { id: 48, clubId: "global", name: "Extension triceps corde", cat: "Bras", equip: "Poulie", photo: null, perfId: "ext_tri_corde" },
 
   // Abdos
   { id: 51, clubId: "global", name: "Crunch au sol", cat: "Abdos", equip: "Poids du corps", photo: null, perfId: "crunch" },
@@ -71,6 +82,8 @@ export const INIT_EXERCISES: Exercise[] = [
   { id: 53, clubId: "global", name: "Relevé de jambes suspendu", cat: "Abdos", equip: "Barre fixe", photo: null, perfId: "releve_jambes" },
   { id: 54, clubId: "global", name: "Russian Twist", cat: "Abdos", equip: "Poids", photo: null, perfId: "russian_twist" },
   { id: 55, clubId: "global", name: "Ab Wheel (Roulette)", cat: "Abdos", equip: "Accessoire", photo: null, perfId: "ab_wheel" },
+  { id: 56, clubId: "global", name: "Gainage latéral", cat: "Abdos", equip: "Poids du corps", photo: null, perfId: "gainage_lat" },
+  { id: 57, clubId: "global", name: "Relevé de bassin", cat: "Abdos", equip: "Poids du corps", photo: null, perfId: "releve_bassin" },
 
   // Cardio
   { id: 61, clubId: "global", name: "Tapis de course", cat: "Cardio", equip: "Machine", photo: null, perfId: "tapis" },
@@ -80,6 +93,9 @@ export const INIT_EXERCISES: Exercise[] = [
   { id: 65, clubId: "global", name: "Corde à sauter", cat: "Cardio", equip: "Accessoire", photo: null, perfId: "corde" },
   { id: 66, clubId: "global", name: "Assault Bike", cat: "Cardio", equip: "Machine", photo: null, perfId: "assault_bike" },
   { id: 67, clubId: "global", name: "SkiErg", cat: "Cardio", equip: "Machine", photo: null, perfId: "skierg" },
+  { id: 68, clubId: "global", name: "Marche rapide", cat: "Cardio", equip: "Poids du corps", photo: null, perfId: "marche" },
+  { id: 69, clubId: "global", name: "Vélo droit", cat: "Cardio", equip: "Machine", photo: null, perfId: "velo_droit" },
+  { id: 70, clubId: "global", name: "Vélo allongé", cat: "Cardio", equip: "Machine", photo: null, perfId: "velo_allonge" },
 
   // Circuit Training / Full Body
   { id: 71, clubId: "global", name: "Burpees", cat: "Circuit Training", equip: "Poids du corps", photo: null, perfId: "burpees" },
@@ -89,7 +105,24 @@ export const INIT_EXERCISES: Exercise[] = [
   { id: 75, clubId: "global", name: "Battle Rope", cat: "Circuit Training", equip: "Corde", photo: null, perfId: "battle_rope" },
   { id: 76, clubId: "global", name: "Thruster", cat: "Circuit Training", equip: "Barre/Haltères", photo: null, perfId: "thruster" },
   { id: 77, clubId: "global", name: "Mountain Climbers", cat: "Circuit Training", equip: "Poids du corps", photo: null, perfId: "mountain_climbers" },
-  { id: 78, clubId: "global", name: "Jumping Jacks", cat: "Circuit Training", equip: "Poids du corps", photo: null, perfId: "jumping_jacks" }
+  { id: 78, clubId: "global", name: "Jumping Jacks", cat: "Circuit Training", equip: "Poids du corps", photo: null, perfId: "jumping_jacks" },
+
+  // Remise en forme
+  { id: 81, clubId: "global", name: "Montée de genoux", cat: "Remise en forme", equip: "Poids du corps", photo: null, perfId: "montee_genoux" },
+  { id: 82, clubId: "global", name: "Talons fesses", cat: "Remise en forme", equip: "Poids du corps", photo: null, perfId: "talons_fesses" },
+  { id: 83, clubId: "global", name: "Squat poids du corps", cat: "Remise en forme", equip: "Poids du corps", photo: null, perfId: "squat_pdc" },
+  { id: 84, clubId: "global", name: "Fentes alternées", cat: "Remise en forme", equip: "Poids du corps", photo: null, perfId: "fentes_pdc" },
+  { id: 85, clubId: "global", name: "Step-ups (Montée sur banc)", cat: "Remise en forme", equip: "Banc", photo: null, perfId: "step_ups" },
+  { id: 86, clubId: "global", name: "Tirage élastique", cat: "Remise en forme", equip: "Élastique", photo: null, perfId: "tirage_elastique" },
+
+  // Stretching / Mobilité
+  { id: 91, clubId: "global", name: "Étirement ischio-jambiers", cat: "Stretching", equip: "Poids du corps", photo: null, perfId: "etirement_ischios" },
+  { id: 92, clubId: "global", name: "Étirement quadriceps", cat: "Stretching", equip: "Poids du corps", photo: null, perfId: "etirement_quads" },
+  { id: 93, clubId: "global", name: "Étirement pectoraux", cat: "Stretching", equip: "Poids du corps", photo: null, perfId: "etirement_pecs" },
+  { id: 94, clubId: "global", name: "Étirement dos", cat: "Stretching", equip: "Poids du corps", photo: null, perfId: "etirement_dos" },
+  { id: 95, clubId: "global", name: "Mobilité hanches (90/90)", cat: "Mobilité", equip: "Poids du corps", photo: null, perfId: "mobilite_hanches" },
+  { id: 96, clubId: "global", name: "Rotations thoraciques", cat: "Mobilité", equip: "Poids du corps", photo: null, perfId: "rotations_thoraciques" },
+  { id: 97, clubId: "global", name: "Cat-Cow (Dos rond/creux)", cat: "Mobilité", equip: "Poids du corps", photo: null, perfId: "cat_cow" }
 ];
 
 export const CLUB_INFO: ClubInfo = {

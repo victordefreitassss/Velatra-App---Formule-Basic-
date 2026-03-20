@@ -459,51 +459,59 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                         
                         return (
                           <div key={exIdx} className="relative">
-                            <div className={`bg-white p-6 rounded-3xl border relative group hover:border-velatra-accent/40 transition-all shadow-xl ${group.isGroup ? 'border-none ring-1 ring-zinc-200' : 'border-zinc-200'}`}>
+                            <div className={`bg-white p-4 sm:p-6 rounded-3xl border relative group hover:border-velatra-accent/40 transition-all shadow-xl ${group.isGroup ? 'border-none ring-1 ring-zinc-200' : 'border-zinc-200'}`}>
                               {group.isGroup && (
                                 <div className="absolute -left-6 md:-left-10 top-1/2 -translate-y-1/2 w-6 md:w-10 h-1 bg-velatra-accent/30" />
                               )}
-                              <div className="flex flex-col gap-6">
-                                <div className="flex gap-4 items-end">
-                                  <div className="w-16 h-16 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center shrink-0 overflow-hidden">
-                                    {baseEx?.photo ? (
-                                      <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                      <div className="text-velatra-accent">
-                                        <DumbbellIcon size={24} />
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex-1 space-y-1">
-                                    <label className="text-[9px] font-black text-velatra-accent uppercase tracking-widest ml-1">Mouvement</label>
-                                    <select 
-                                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-sm font-black text-zinc-900 focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
-                                      value={ex.exId}
-                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'exId', parseInt(e.target.value))}
+                              <div className="flex flex-col gap-4 sm:gap-6">
+                                <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+                                  <div className="flex items-center gap-4 w-full">
+                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center shrink-0 overflow-hidden">
+                                      {baseEx?.photo ? (
+                                        <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
+                                      ) : (
+                                        <div className="text-velatra-accent">
+                                          <DumbbellIcon size={24} />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex-1 space-y-1">
+                                      <label className="text-[9px] font-black text-velatra-accent uppercase tracking-widest ml-1">Mouvement</label>
+                                      <select 
+                                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm font-black text-zinc-900 focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
+                                        value={ex.exId}
+                                        onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'exId', parseInt(e.target.value))}
+                                      >
+                                        {EXERCISE_CATEGORIES.map(cat => (
+                                          <optgroup key={cat} label={cat} className="bg-velatra-bg text-zinc-900">
+                                            {exercises.filter(e => e.cat === cat).map(e => (
+                                              <option key={e.id} value={e.id}>{e.name}</option>
+                                            ))}
+                                          </optgroup>
+                                        ))}
+                                      </select>
+                                    </div>
+                                    <button 
+                                      onClick={() => handleRemoveEx(selectedDayIdx, exIdx)}
+                                      className="p-3 sm:hidden text-red-500/20 hover:text-red-500 transition-colors"
                                     >
-                                      {EXERCISE_CATEGORIES.map(cat => (
-                                        <optgroup key={cat} label={cat} className="bg-velatra-bg text-zinc-900">
-                                          {exercises.filter(e => e.cat === cat).map(e => (
-                                            <option key={e.id} value={e.id}>{e.name}</option>
-                                          ))}
-                                        </optgroup>
-                                      ))}
-                                    </select>
+                                      <Trash2Icon size={20} />
+                                    </button>
                                   </div>
                                   <button 
                                     onClick={() => handleRemoveEx(selectedDayIdx, exIdx)}
-                                    className="p-4 text-red-500/20 hover:text-red-500 transition-colors"
+                                    className="p-4 hidden sm:block text-red-500/20 hover:text-red-500 transition-colors"
                                   >
                                     <Trash2Icon size={20} />
                                   </button>
                                 </div>
 
-                                <div className="grid grid-cols-2 sm:grid-cols-6 gap-6 bg-zinc-50 p-5 rounded-2xl border border-zinc-200">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-6 bg-zinc-50 p-4 sm:p-5 rounded-2xl border border-zinc-200">
                                   <div className="space-y-1">
                                     <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">SÉRIES</label>
                                     <Input 
                                       type="number" 
-                                      className="text-center !rounded-xl !text-base font-black !bg-white"
+                                      className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
                                       value={ex.sets || ''}
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'sets', parseInt(e.target.value) || 0)}
                                     />
@@ -511,7 +519,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                   <div className="space-y-1">
                                     <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">RÉPÉTITIONS</label>
                                     <Input 
-                                      className="text-center !rounded-xl !text-base font-black !bg-white"
+                                      className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
                                       value={ex.reps}
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'reps', e.target.value)}
                                     />
@@ -519,7 +527,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                   <div className="space-y-1">
                                     <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">REPOS (SEC)</label>
                                     <Input 
-                                      className="text-center !rounded-xl !text-base font-black !bg-white"
+                                      className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
                                       value={ex.rest}
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'rest', e.target.value)}
                                     />
@@ -527,7 +535,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                   <div className="space-y-1">
                                     <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">TEMPO</label>
                                     <Input 
-                                      className="text-center !rounded-xl !text-base font-black !bg-white"
+                                      className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
                                       value={ex.tempo || ''}
                                       placeholder="Ex: 2010"
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'tempo', e.target.value)}
@@ -536,7 +544,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                   <div className="space-y-1">
                                     <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">TYPE</label>
                                     <select 
-                                      className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-center text-sm font-black text-zinc-900 focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
+                                      className="w-full bg-white border border-zinc-200 rounded-xl p-2 sm:p-3 text-center text-xs sm:text-sm font-black text-zinc-900 focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
                                       value={ex.setType || 'normal'}
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setType', e.target.value)}
                                     >
@@ -552,7 +560,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                     <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block" title="Même numéro = même groupe (Superset)">GROUPE</label>
                                     <Input 
                                       type="number" 
-                                      className="text-center !rounded-xl !text-base font-black !bg-white"
+                                      className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
                                       value={ex.setGroup || ''}
                                       placeholder="Ex: 1"
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setGroup', parseInt(e.target.value) || null)}
