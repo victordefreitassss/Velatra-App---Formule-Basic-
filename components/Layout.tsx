@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { User, Page, Club } from '../types';
 import { 
   HomeIcon, UsersIcon, LayersIcon, BarChartIcon, 
@@ -116,11 +117,18 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
                   key={item.id}
                   onClick={() => onPageChange(item.id as Page)}
                   className={`
-                    flex items-center justify-between px-4 py-3 rounded-xl w-full transition-all duration-300 group
-                    ${activePage === item.id ? 'bg-velatra-accent text-white shadow-[0_0_15px_rgba(99,102,241,0.2)] scale-[1.01]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}
+                    relative flex items-center justify-between px-4 py-3 rounded-xl w-full transition-all duration-300 group
+                    ${activePage === item.id ? 'text-white' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}
                   `}
                 >
-                  <div className="flex items-center gap-3 relative">
+                  {activePage === item.id && (
+                    <motion.div
+                      layoutId="activeMenuIndicator"
+                      className="absolute inset-0 bg-velatra-accent rounded-xl shadow-[0_0_15px_rgba(99,102,241,0.2)]"
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                  <div className="flex items-center gap-3 relative z-10">
                     <item.icon size={18} strokeWidth={activePage === item.id ? 2.5 : 2} className={`${activePage === item.id ? '' : 'group-hover:scale-110 transition-transform duration-300'}`} />
                     <span className="text-[11px] font-bold uppercase tracking-[1.5px]">{item.label}</span>
                     {item.id === 'chat' && unreadMessagesCount > 0 && (
@@ -128,7 +136,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
                     )}
                   </div>
                   {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' && (
-                    <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity" />
+                    <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity relative z-10" />
                   )}
                 </button>
               ))}
@@ -157,10 +165,19 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
         </div>
       </aside>
 
-      <main className="flex-1 md:ml-[280px] min-h-screen relative">
-        <div className="px-3 py-4 md:p-12 max-w-6xl mx-auto pb-32 md:pb-12">
-          {children}
-        </div>
+      <main className="flex-1 md:ml-[280px] min-h-screen relative overflow-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div 
+            key={activePage}
+            initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="px-3 py-4 md:p-12 max-w-6xl mx-auto pb-32 md:pb-12"
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
 
         {showTimer && (
           <div className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-[100] animate-in slide-in-from-bottom-10 duration-500">

@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { Program, User, Exercise, AppState, SessionLog, Performance, ExerciseEntry } from '../types';
 import { Button, Input, Badge, Card } from './UI';
-import { XIcon, CheckIcon, DumbbellIcon, InfoIcon, RefreshCwIcon, SparklesIcon, TrophyIcon } from './Icons';
+import { XIcon, CheckIcon, DumbbellIcon, InfoIcon, RefreshCwIcon, SparklesIcon, TrophyIcon, LinkIcon } from './Icons';
 import { db, doc, setDoc, updateDoc, deleteDoc } from '../firebase';
 import { PROGRAM_DURATION_WEEKS } from '../constants';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface WorkoutViewProps {
   program: Program;
@@ -21,6 +22,23 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
   const [sessionData, setSessionData] = useState<Record<string, string>>({});
   const [completedExercises, setCompletedExercises] = useState<number[]>([]);
   const [sessionXP, setSessionXP] = useState(0);
+
+  const containerVariants: any = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants: any = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { type: "spring", stiffness: 300, damping: 24 }
+    }
+  };
 
   const handleInputChange = (exIndex: number, setIndex: number, field: string, value: string) => {
     const key = `${exIndex}-${setIndex}-${field}`;
@@ -173,25 +191,52 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
   };
 
   return (
-    <div className="fixed inset-0 bg-zinc-50 z-[100] flex flex-col page-transition">
-      <header className="glass border-b border-zinc-200 px-4 py-4 md:px-8 md:py-6 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-             {currentDay.duration && (
-               <Badge variant="dark" className="!text-[8px] !px-1.5 !py-0.5 italic">
-                 ~{currentDay.duration} MIN
-               </Badge>
-             )}
-             <div className="flex items-center gap-1 text-velatra-accent font-bold text-[10px] animate-pulse">
-                <SparklesIcon size={12}/> {sessionXP} XP
-             </div>
+    <motion.div 
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 50 }}
+      className="fixed inset-0 bg-zinc-50 z-[100] flex flex-col page-transition"
+    >
+      <header className="glass border-b border-zinc-200 px-4 py-4 md:px-8 md:py-6 flex flex-col sticky top-0 z-20">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+               {currentDay.duration && (
+                 <Badge variant="dark" className="!text-[8px] !px-1.5 !py-0.5 italic">
+                   ~{currentDay.duration} MIN
+                 </Badge>
+               )}
+               <div className="flex items-center gap-1 text-velatra-accent font-bold text-[10px] animate-pulse">
+                  <SparklesIcon size={12}/> {sessionXP} XP
+               </div>
+            </div>
+            <div className="font-display font-bold text-2xl md:text-3xl tracking-tight text-zinc-900 leading-none truncate pr-4">{currentDay.name}</div>
           </div>
-          <div className="font-display font-bold text-2xl md:text-3xl tracking-tight text-zinc-900 leading-none truncate pr-4">{currentDay.name}</div>
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={onClose} 
+            className="p-3 bg-zinc-50 rounded-full text-zinc-500 hover:text-zinc-900 transition-all hover:bg-red-500 shrink-0"
+          >
+            <XIcon size={20} />
+          </motion.button>
         </div>
-        <button onClick={onClose} className="p-3 bg-zinc-50 rounded-full text-zinc-500 hover:text-zinc-900 transition-all hover:bg-red-500 shrink-0"><XIcon size={20} /></button>
+        <div className="w-full h-1.5 bg-zinc-200 rounded-full mt-4 overflow-hidden">
+          <motion.div 
+            className="h-full bg-velatra-accent"
+            initial={{ width: 0 }}
+            animate={{ width: `${(completedExercises.length / currentDay.exercises.length) * 100}%` }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+          />
+        </div>
       </header>
-      <div className="flex-1 overflow-y-auto px-4 py-6 md:px-16 space-y-8 no-scrollbar">
-        <div className="flex justify-between items-center bg-zinc-50 p-6 rounded-[32px] border border-zinc-200">
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="flex-1 overflow-y-auto px-4 py-6 md:px-16 space-y-8 no-scrollbar"
+      >
+        <motion.div variants={itemVariants} className="flex justify-between items-center bg-zinc-50 p-6 rounded-[32px] border border-zinc-200">
            <div className="space-y-1">
               <span className="text-[10px] font-black uppercase tracking-[4px] text-zinc-900">Progression Cycle</span>
               <div className="text-sm font-black text-zinc-900 italic">
@@ -201,7 +246,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
            <div className="w-14 h-14 bg-velatra-accent/10 rounded-2xl flex items-center justify-center text-velatra-accent shadow-inner">
               <TrophyIcon size={28} />
            </div>
-        </div>
+        </motion.div>
         {groupedExercises.map((group, gIndex) => {
           const getGroupDescription = (type: string) => {
             switch (type.toLowerCase()) {
@@ -215,110 +260,183 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
           };
 
           return (
-            <div key={gIndex} className={group.isGroup ? "p-6 rounded-[32px] border-2 border-velatra-accent/30 bg-velatra-accent/5 space-y-6 relative mt-12" : "space-y-6"}>
+            <motion.div 
+              variants={itemVariants} 
+              key={gIndex} 
+              className={group.isGroup ? "relative pl-6 md:pl-10 space-y-8 mt-16" : "space-y-8"}
+              transition={{ duration: 0.3 }}
+            >
               {group.isGroup && (
-                <div className="absolute -top-5 left-6 bg-velatra-accent text-zinc-900 px-4 py-2 rounded-2xl shadow-md max-w-[80%]">
-                  <div className="text-[10px] font-black uppercase tracking-widest mb-1">
-                    {group.groupName || 'SUPERSET'}
-                  </div>
-                  <div className="text-xs font-medium leading-tight opacity-90">
-                    {getGroupDescription(group.groupName || 'superset')}
-                  </div>
-                </div>
+                <>
+                  {/* Ligne verticale de liaison */}
+                  <motion.div 
+                    initial={{ height: 0 }}
+                    animate={{ height: '100%' }}
+                    transition={{ duration: 0.8, ease: "easeInOut" }}
+                    className="absolute left-0 top-0 w-2 bg-gradient-to-b from-velatra-accent to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" 
+                  />
+                  
+                  <motion.div 
+                    initial={{ x: -20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="absolute -top-8 left-0 bg-velatra-accent text-zinc-900 px-4 py-2 rounded-r-2xl rounded-tl-2xl shadow-lg z-10 flex flex-col gap-1"
+                  >
+                    <div className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                      <LinkIcon size={12} /> {group.groupName || 'SUPERSET'}
+                    </div>
+                    <div className="text-[9px] font-bold opacity-80 leading-tight max-w-[200px]">
+                      {getGroupDescription(group.groupName || 'superset')}
+                    </div>
+                  </motion.div>
+                </>
               )}
-              {group.exercises.map(({ entry: exEntry, index: exIndex }) => {
+              {group.exercises.map(({ entry: exEntry, index: exIndex }, i) => {
                 const baseEx = state.exercises.find(e => e.id === exEntry.exId);
                 const isValidated = completedExercises.includes(exIndex);
                 const pr = baseEx?.perfId ? state.performances.filter(p => p.memberId === Number(member.id) && p.exId === baseEx.perfId).sort((a, b) => b.weight - a.weight)[0] : null;
+                const isLastInGroup = i === group.exercises.length - 1;
                 
                 return (
-                  <div key={exIndex} id={`exercise-${exIndex}`} className={`transition-all duration-500 ${isValidated ? 'opacity-20 grayscale scale-95 pointer-events-none' : ''}`}>
-                    <Card className="!p-8 border-none ring-1 ring-zinc-200 bg-white shadow-2xl relative">
-                      <div className="flex gap-4 md:gap-8 items-center mb-6 md:mb-10">
-                        <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-white border border-zinc-200 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
-                          {baseEx?.photo ? (
-                            <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="text-velatra-accent">
-                              <DumbbellIcon size={40} />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-[10px] text-velatra-accent font-black uppercase tracking-[3px] mb-1 md:mb-2">{baseEx?.cat}</div>
-                          <div className="font-black text-2xl md:text-3xl tracking-tighter leading-none text-zinc-900 italic uppercase mb-2 md:mb-3">{baseEx?.name}</div>
-                          <div className="flex flex-wrap gap-2 mb-2">
-                            {exEntry.setType && exEntry.setType !== 'normal' && !group.isGroup && (
-                              <Badge variant="orange" className="uppercase">{exEntry.setType}</Badge>
-                            )}
-                            {exEntry.tempo && (
-                              <Badge variant="dark" className="uppercase">Tempo: {exEntry.tempo}</Badge>
-                            )}
-                            {exEntry.rest && (
-                              <Badge variant="dark" className="uppercase">Repos: {exEntry.rest}s</Badge>
+                  <div key={exIndex} className="relative">
+                    <div id={`exercise-${exIndex}`} className={`transition-all duration-500 ${isValidated ? 'opacity-30 grayscale scale-[0.98] pointer-events-none' : ''}`}>
+                      <Card className={`!p-6 md:!p-8 bg-white shadow-xl relative border-none ring-1 ring-zinc-200 ${group.isGroup ? 'hover:ring-velatra-accent/50 transition-all' : ''}`}>
+                        {group.isGroup && (
+                          <div className="absolute -left-6 md:-left-10 top-1/2 -translate-y-1/2 w-6 md:w-10 h-1 bg-velatra-accent/30" />
+                        )}
+                        <div className="flex gap-4 md:gap-8 items-center mb-6 md:mb-10">
+                          <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-white border border-zinc-200 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
+                            {baseEx?.photo ? (
+                              <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="text-velatra-accent">
+                                <DumbbellIcon size={40} />
+                              </div>
                             )}
                           </div>
-                          {pr && (
-                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
-                              <TrophyIcon size={12} className="text-yellow-500" /> PR: {pr.weight}kg x {pr.reps}
+                          <div className="flex-1">
+                            <div className="text-[10px] text-velatra-accent font-black uppercase tracking-[3px] mb-1 md:mb-2">{baseEx?.cat}</div>
+                            <div className="font-black text-2xl md:text-3xl tracking-tighter leading-none text-zinc-900 italic uppercase mb-2 md:mb-3">{baseEx?.name}</div>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              {exEntry.setType && exEntry.setType !== 'normal' && !group.isGroup && (
+                                <Badge variant="orange" className="uppercase">{exEntry.setType}</Badge>
+                              )}
+                              {exEntry.tempo && (
+                                <Badge variant="dark" className="uppercase">Tempo: {exEntry.tempo}</Badge>
+                              )}
+                              {exEntry.rest && (
+                                <Badge variant="dark" className="uppercase">Repos: {exEntry.rest}s</Badge>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 gap-4 md:gap-6 mb-8 md:mb-10">
-                        {Array.from({ length: (typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1) }).map((_, sIdx) => (
-                          <div key={sIdx} className="flex items-center gap-3 md:gap-6 group animate-in slide-in-from-left">
-                             <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center text-xs font-black text-zinc-900 group-focus-within:border-velatra-accent transition-all shrink-0">{sIdx+1}</div>
-                             <div className="flex-1 grid grid-cols-2 gap-2 md:gap-4">
-                                <div className="relative flex items-center">
-                                   <button 
-                                     onClick={() => handleInputChange(exIndex, sIdx, 'weight', String(Math.max(0, (parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") - 1))))}
-                                     className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
-                                   >-</button>
-                                   <Input type="number" inputMode="decimal" placeholder="KG" className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
-                                   <button 
-                                     onClick={() => handleInputChange(exIndex, sIdx, 'weight', String((parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") + 1)))}
-                                     className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
-                                   >+</button>
-                                   <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Charge</span>
-                                </div>
-                                <div className="relative flex items-center">
-                                   <button 
-                                     onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || "0") - 1))))}
-                                     className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
-                                   >-</button>
-                                   <Input type="number" inputMode="numeric" placeholder="REPS" className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
-                                   <button 
-                                     onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || "0") + 1)))}
-                                     className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
-                                   >+</button>
-                                   <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Répétitions</span>
-                                </div>
-                             </div>
+                            {pr && (
+                              <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
+                                <TrophyIcon size={12} className="text-yellow-500" /> PR: {pr.weight}kg x {pr.reps}
+                              </div>
+                            )}
                           </div>
-                        ))}
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:gap-6 mb-8 md:mb-10">
+                          {Array.from({ length: (typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1) }).map((_, sIdx) => (
+                            <div key={sIdx} className="flex items-center gap-3 md:gap-6 group animate-in slide-in-from-left">
+                               <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center text-xs font-black text-zinc-900 group-focus-within:border-velatra-accent transition-all shrink-0">{sIdx+1}</div>
+                               <div className="flex-1 grid grid-cols-2 gap-2 md:gap-4">
+                                  <div className="relative flex items-center">
+                                     <button 
+                                       onClick={() => handleInputChange(exIndex, sIdx, 'weight', String(Math.max(0, (parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") - 1))))}
+                                       className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                     >-</button>
+                                     <Input type="number" inputMode="decimal" placeholder="KG" className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
+                                     <button 
+                                       onClick={() => handleInputChange(exIndex, sIdx, 'weight', String((parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") + 1)))}
+                                       className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                     >+</button>
+                                     <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Charge</span>
+                                  </div>
+                                  <div className="relative flex items-center">
+                                     <button 
+                                       onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || "0") - 1))))}
+                                       className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                     >-</button>
+                                     <Input type="number" inputMode="numeric" placeholder="REPS" className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
+                                     <button 
+                                       onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || "0") + 1)))}
+                                       className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                     >+</button>
+                                     <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Répétitions</span>
+                                  </div>
+                               </div>
+                            </div>
+                          ))}
+                        </div>
+                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                          <Button 
+                            variant={isValidated ? "success" : "primary"} 
+                            fullWidth 
+                            className={`!py-5 !rounded-[24px] font-black italic tracking-widest text-base shadow-xl transition-colors duration-300 ${isValidated ? 'shadow-emerald-500/20 bg-emerald-500 text-white' : 'shadow-velatra-accent/20'}`} 
+                            onClick={() => toggleExerciseValidation(exIndex)}
+                          >
+                             <AnimatePresence mode="wait">
+                               {isValidated ? (
+                                 <motion.div 
+                                   key="validated"
+                                   initial={{ scale: 0, opacity: 0 }} 
+                                   animate={{ scale: 1, opacity: 1 }} 
+                                   exit={{ scale: 0, opacity: 0 }}
+                                   className="flex items-center justify-center gap-2"
+                                 >
+                                   <CheckIcon size={20} /> FAIT
+                                 </motion.div>
+                               ) : (
+                                 <motion.div 
+                                   key="validate"
+                                   initial={{ opacity: 0 }} 
+                                   animate={{ opacity: 1 }} 
+                                   exit={{ opacity: 0 }}
+                                 >
+                                   VALIDER MOUVEMENT
+                                 </motion.div>
+                               )}
+                             </AnimatePresence>
+                          </Button>
+                        </motion.div>
+                      </Card>
+                    </div>
+                    {group.isGroup && !isLastInGroup && (
+                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center justify-center">
+                        <motion.div 
+                          animate={{ 
+                            scale: [1, 1.2, 1],
+                            opacity: [0.5, 1, 0.5]
+                          }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          className="w-8 h-8 rounded-full bg-velatra-accent/10 text-velatra-accent flex items-center justify-center backdrop-blur-sm border border-velatra-accent/30"
+                        >
+                          <LinkIcon size={14} />
+                        </motion.div>
                       </div>
-                      <Button variant="primary" fullWidth className="!py-5 !rounded-[24px] font-black italic tracking-widest text-base shadow-xl shadow-velatra-accent/20" onClick={() => toggleExerciseValidation(exIndex)}>
-                         VALIDER MOUVEMENT
-                      </Button>
-                    </Card>
+                    )}
                   </div>
                 );
               })}
-            </div>
+            </motion.div>
           );
         })}
         <div className="h-32" />
-      </div>
-      <footer className="glass border-t border-zinc-200 p-8 backdrop-blur-3xl flex flex-col gap-4">
+      </motion.div>
+      <motion.footer 
+        variants={itemVariants}
+        className="glass border-t border-zinc-200 p-8 backdrop-blur-3xl flex flex-col gap-4"
+      >
         <div className="flex justify-between items-center px-4">
            <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">Récompense de séance</div>
            <div className="text-sm font-black text-velatra-accent italic">+{loyaltyPoints} XP</div>
         </div>
-        <Button variant="success" fullWidth onClick={finishSession} className="!py-6 !rounded-[32px] font-black text-xl italic shadow-2xl shadow-emerald-500/20" disabled={completedExercises.length < currentDay.exercises.length}>
-          TERMINER MA SÉANCE
-        </Button>
-      </footer>
-    </div>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Button variant="success" fullWidth onClick={finishSession} className="!py-6 !rounded-[32px] font-black text-xl italic shadow-2xl shadow-emerald-500/20" disabled={completedExercises.length < currentDay.exercises.length}>
+            TERMINER MA SÉANCE
+          </Button>
+        </motion.div>
+      </motion.footer>
+    </motion.div>
   );
 };

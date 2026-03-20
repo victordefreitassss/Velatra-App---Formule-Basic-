@@ -5,6 +5,20 @@ import { Card, StatBox, Button, Input, Badge } from './UI';
 import { RefreshCwIcon, PlusIcon, SearchIcon, Trash2Icon, PlayIcon, LayersIcon, FlameIcon, MessageCircleIcon, SparklesIcon, BarChartIcon, LockIcon, CalendarIcon, InfoIcon, ClockIcon, CheckCircleIcon, UserIcon, FileTextIcon, TargetIcon } from './Icons';
 import { db, doc, deleteDoc, updateDoc, setDoc } from '../firebase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { motion } from 'framer-motion';
+
+const containerVariants: any = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const itemVariants: any = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 interface CoachDashboardProps {
   state: AppState;
@@ -23,8 +37,13 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   const todayStr = new Date().toISOString().split('T')[0];
   const tasksToday = state.tasks?.filter(t => t.status === 'todo' && t.dueDate === todayStr) || [];
 
-  // 2. Agenda du Jour (Placeholder since events aren't in state yet)
-  const eventsToday: any[] = []; // Future feature
+  // 2. Prochaines Séances
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const upcomingEvents = state.bookings.filter(b => {
+    const bDate = new Date(b.startTime);
+    return bDate.getTime() >= todayStart.getTime() && b.status === 'confirmed';
+  }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()).slice(0, 5);
 
   // 3. Alertes de Rétention
   const membersAtRisk = members.filter(u => {
@@ -96,187 +115,235 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-20">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-1">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-8 pb-20"
+    >
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-1">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Accueil</h1>
-          <p className="text-zinc-900 text-[10px] uppercase tracking-[3px] font-bold">Votre Centre de Contrôle</p>
+          <p className="text-zinc-500 text-[10px] uppercase tracking-[3px] font-bold">Votre Centre de Contrôle</p>
         </div>
         <div className="flex gap-3">
           <Button variant="secondary" onClick={onToggleTimer} className="flex-1 sm:flex-none !rounded-2xl !py-3 shadow-xl shadow-white/5">
             <RefreshCwIcon size={18} className="mr-2" /> TIMER
           </Button>
         </div>
-      </div>
+      </motion.div>
 
       {/* 4. Raccourcis Rapides */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <button onClick={() => setState(s => ({ ...s, page: 'users' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white border border-zinc-200 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
-          <div className="w-12 h-12 rounded-2xl bg-velatra-accent/10 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform">
+      <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'users' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-velatra-accent/5 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
             <UserIcon size={24} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Nouveau Membre</span>
-        </button>
-        <button onClick={() => setState(s => ({ ...s, page: 'presets' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white border border-zinc-200 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
-          <div className="w-12 h-12 rounded-2xl bg-velatra-accent/10 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform">
+        </motion.button>
+        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'presets' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-velatra-accent/5 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
             <FileTextIcon size={24} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Créer Programme</span>
-        </button>
-        <button onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white border border-zinc-200 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
-          <div className="w-12 h-12 rounded-2xl bg-velatra-accent/10 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform">
+        </motion.button>
+        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-velatra-accent/5 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
             <BarChartIcon size={24} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Nouvelle Vente</span>
-        </button>
-        <button onClick={() => setState(s => ({ ...s, page: 'crm_pipeline' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white border border-zinc-200 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
-          <div className="w-12 h-12 rounded-2xl bg-velatra-accent/10 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform">
+        </motion.button>
+        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'crm_pipeline' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-velatra-accent/5 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
             <TargetIcon size={24} />
           </div>
           <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Nouveau Prospect</span>
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Left Column */}
         <div className="lg:col-span-8 space-y-8">
           
           {/* 5. Chiffres Clés */}
-          <section className="space-y-4">
+          <motion.section variants={itemVariants} className="space-y-4">
             <div className="flex justify-between items-center px-1">
               <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Chiffres Clés</h2>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <StatBox label="Séances (mois)" value={sessionsThisMonth} />
-              <StatBox label="Moyenne / jour" value={avgSessionsPerDay} />
+              <StatBox label="Séances (mois)" value={sessionsThisMonth} className="bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm" />
+              <StatBox label="Moyenne / jour" value={avgSessionsPerDay} className="bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm" />
               <StatBox 
                 label={showAnnual ? "ARR" : "MRR"} 
                 value={`${showAnnual ? (mrr * 12).toFixed(0) : mrr.toFixed(0)}€`} 
                 locked={!isClassic} 
                 onClick={() => isClassic ? setShowAnnual(!showAnnual) : setState(s => ({ ...s, page: 'crm_finances' }))} 
-                className={isClassic ? "cursor-pointer hover:ring-2 hover:ring-velatra-accent/50 transition-all" : ""}
+                className={`bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm ${isClassic ? "cursor-pointer hover:ring-2 hover:ring-velatra-accent/50 transition-all" : ""}`}
               />
-              <StatBox label="Panier Moyen" value={`${arpu.toFixed(0)}€`} locked={!isClassic} onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} />
+              <StatBox label="Panier Moyen" value={`${arpu.toFixed(0)}€`} locked={!isClassic} onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} className="bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm" />
             </div>
-          </section>
+          </motion.section>
 
           {/* 1. Actions Urgentes */}
-          <section className="space-y-4">
+          <motion.section variants={itemVariants} className="space-y-4">
             <div className="flex justify-between items-center px-1">
               <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Actions Urgentes</h2>
               <Badge variant="blue">AUJOURD'HUI</Badge>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="!p-5 bg-white border-zinc-200 hover:border-velatra-accent/30 cursor-pointer" onClick={() => setState(s => ({ ...s, page: 'users' }))}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-orange-500/10 text-orange-500 rounded-xl"><FileTextIcon size={20} /></div>
-                  <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Plans</div>
-                </div>
-                <div className="text-3xl font-black text-zinc-900">{planRequests.length}</div>
-                <div className="text-[10px] font-bold text-zinc-500 uppercase mt-1">En attente</div>
-              </Card>
-              <Card className="!p-5 bg-white border-zinc-200 hover:border-velatra-accent/30 cursor-pointer" onClick={() => setState(s => ({ ...s, page: 'chat' }))}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-blue-500/10 text-blue-500 rounded-xl"><MessageCircleIcon size={20} /></div>
-                  <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Messages</div>
-                </div>
-                <div className="text-3xl font-black text-zinc-900">{unreadMessages.length}</div>
-                <div className="text-[10px] font-bold text-zinc-500 uppercase mt-1">Non lus</div>
-              </Card>
-              <Card className="!p-5 bg-white border-zinc-200 hover:border-velatra-accent/30 cursor-pointer" onClick={() => setState(s => ({ ...s, page: 'crm_tasks' }))}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 bg-green-500/10 text-green-500 rounded-xl"><CheckCircleIcon size={20} /></div>
-                  <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Tâches</div>
-                </div>
-                <div className="text-3xl font-black text-zinc-900">{tasksToday.length}</div>
-                <div className="text-[10px] font-bold text-zinc-500 uppercase mt-1">Pour aujourd'hui</div>
-              </Card>
+              <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
+                <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:border-velatra-accent/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'users' }))}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2.5 bg-orange-500/10 text-orange-500 rounded-xl"><FileTextIcon size={20} /></div>
+                    <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Plans</div>
+                  </div>
+                  <div className="text-4xl font-display font-bold text-zinc-900">{planRequests.length}</div>
+                  <div className="text-[10px] font-bold text-zinc-500 uppercase mt-2 tracking-widest">En attente</div>
+                </Card>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
+                <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:border-velatra-accent/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'chat' }))}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl"><MessageCircleIcon size={20} /></div>
+                    <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Messages</div>
+                  </div>
+                  <div className="text-4xl font-display font-bold text-zinc-900">{unreadMessages.length}</div>
+                  <div className="text-[10px] font-bold text-zinc-500 uppercase mt-2 tracking-widest">Non lus</div>
+                </Card>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
+                <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:border-velatra-accent/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'crm_tasks' }))}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2.5 bg-green-500/10 text-green-500 rounded-xl"><CheckCircleIcon size={20} /></div>
+                    <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Tâches</div>
+                  </div>
+                  <div className="text-4xl font-display font-bold text-zinc-900">{tasksToday.length}</div>
+                  <div className="text-[10px] font-bold text-zinc-500 uppercase mt-2 tracking-widest">Pour aujourd'hui</div>
+                </Card>
+              </motion.div>
             </div>
-          </section>
+          </motion.section>
 
-          {/* 2. Agenda du Jour */}
-          <section className="space-y-4">
+          {/* 2. Prochaines Séances */}
+          <motion.section variants={itemVariants} className="space-y-4">
             <div className="flex justify-between items-center px-1">
-              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Agenda du Jour</h2>
-              <Button variant="secondary" className="!py-1.5 !px-3 !text-[9px]" onClick={() => setState(s => ({ ...s, page: 'calendar' }))}>VOIR PLANNING</Button>
+              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Prochaines Séances</h2>
+              <Button variant="secondary" className="!py-1.5 !px-3 !text-[9px]" onClick={() => setState(s => ({ ...s, page: 'planning' }))}>VOIR PLANNING</Button>
             </div>
-            <Card className="!p-8 bg-zinc-50 border-dashed border-zinc-200 flex flex-col items-center justify-center text-center">
-              <CalendarIcon size={32} className="text-zinc-400 mb-3" />
-              <p className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Aucune séance prévue aujourd'hui</p>
-              <p className="text-[10px] text-zinc-500 mt-2">Gérez vos créneaux depuis l'onglet Planning.</p>
-            </Card>
-          </section>
+            {upcomingEvents.length === 0 ? (
+              <Card className="!p-8 bg-white/60 backdrop-blur-xl border-dashed border-zinc-200/50 flex flex-col items-center justify-center text-center shadow-sm">
+                <CalendarIcon size={32} className="text-zinc-400 mb-3" />
+                <p className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Aucune séance prévue</p>
+                <p className="text-[10px] text-zinc-500 mt-2">Gérez vos créneaux depuis l'onglet Planning.</p>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {upcomingEvents.map((event, idx) => {
+                  const member = state.users.find(u => Number(u.id) === event.memberId);
+                  const startTime = new Date(event.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                  const endTime = new Date(event.endTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                  const isToday = new Date(event.startTime).toDateString() === new Date().toDateString();
+                  const eventDate = new Date(event.startTime).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+                  return (
+                    <Card key={idx} className="!p-4 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-velatra-accent/10 text-velatra-accent flex flex-col items-center justify-center font-black text-xs leading-none">
+                          <span className="text-[9px] mb-0.5 opacity-80">{isToday ? "AUJ" : eventDate.slice(0, 5)}</span>
+                          <span>{startTime}</span>
+                        </div>
+                        <div>
+                          <div className="font-bold text-zinc-900">{member?.name || 'Membre Inconnu'}</div>
+                          <div className="text-xs text-zinc-500">{startTime} - {endTime}</div>
+                        </div>
+                      </div>
+                      <Button variant="secondary" className="!py-2 !px-3 !text-[10px]" onClick={() => setState(s => ({ ...s, page: 'planning' }))}>
+                        DÉTAILS
+                      </Button>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </motion.section>
         </div>
 
         {/* Right Column */}
         <div className="lg:col-span-4 space-y-8">
           
           {/* 3. Alertes de Rétention */}
-          <section className="space-y-4">
+          <motion.section variants={itemVariants} className="space-y-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 px-1 italic">Alertes Rétention</h2>
             <div className="space-y-3">
               {failedSubs.map(sub => {
                 const member = members.find(m => m.id === sub.memberId);
                 if (!member) return null;
                 return (
-                  <Card key={`sub_${sub.id}`} className="!p-4 border-orange-500/20 bg-orange-500/5 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500"><InfoIcon size={20}/></div>
-                      <div>
-                        <div className="text-xs font-black text-zinc-900">{member.name}</div>
-                        <div className="text-[9px] font-bold text-orange-500 uppercase">Paiement Échoué</div>
+                  <motion.div key={`sub_${sub.id}`} whileHover={{ scale: 1.02, x: -4 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
+                    <Card className="!p-4 border-orange-500/30 bg-orange-500/10 backdrop-blur-md flex items-center justify-between shadow-sm hover:shadow-orange-500/20 transition-all">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-600 shadow-inner"><InfoIcon size={20}/></div>
+                        <div>
+                          <div className="text-xs font-black text-zinc-900">{member.name}</div>
+                          <div className="text-[9px] font-bold text-orange-600 uppercase tracking-widest mt-0.5">Paiement Échoué</div>
+                        </div>
                       </div>
-                    </div>
-                  </Card>
+                    </Card>
+                  </motion.div>
                 );
               })}
 
               {membersAtRisk.map(m => (
-                <Card key={`risk_${m.id}`} className="!p-4 border-red-500/20 bg-red-500/5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 font-black">{m.avatar}</div>
-                    <div>
-                      <div className="text-xs font-black text-zinc-900">{m.name}</div>
-                      <div className="text-[9px] font-bold text-red-500 uppercase">Inactif depuis 7j+</div>
+                <motion.div key={`risk_${m.id}`} whileHover={{ scale: 1.02, x: -4 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
+                  <Card className="!p-4 border-red-500/30 bg-red-500/10 backdrop-blur-md flex items-center justify-between shadow-sm hover:shadow-red-500/20 transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center text-red-600 font-black shadow-inner">{m.avatar}</div>
+                      <div>
+                        <div className="text-xs font-black text-zinc-900">{m.name}</div>
+                        <div className="text-[9px] font-bold text-red-600 uppercase tracking-widest mt-0.5">Inactif depuis 7j+</div>
+                      </div>
                     </div>
-                  </div>
-                  <button onClick={() => handleLaunchCoaching(m)} className="p-2 text-zinc-500 hover:text-zinc-900"><PlayIcon size={18}/></button>
-                </Card>
+                    <button onClick={() => handleLaunchCoaching(m)} className="p-2 text-zinc-500 hover:text-red-600 transition-colors bg-white/50 rounded-lg hover:bg-white/80"><PlayIcon size={18}/></button>
+                  </Card>
+                </motion.div>
               ))}
 
               {membersAtRisk.length === 0 && failedSubs.length === 0 && (
-                <p className="text-xs text-zinc-900 italic p-4 text-center">Tout est au vert ✅</p>
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-zinc-500 font-bold uppercase tracking-widest p-6 text-center bg-white/40 backdrop-blur-md rounded-3xl border border-zinc-200/50">
+                  Tout est au vert <span className="text-green-500 ml-1">✅</span>
+                </motion.div>
               )}
             </div>
-          </section>
+          </motion.section>
 
           {/* Flux d'activité */}
-          <section className="space-y-4">
+          <motion.section variants={itemVariants} className="space-y-4">
             <div className="flex justify-between items-center px-1">
               <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Activité</h2>
             </div>
             <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-              {state.feed.filter(f => f.clubId === state.user?.clubId).map((item) => (
-                <Card key={item.id} className="!p-4 bg-zinc-50 border-zinc-200 flex items-center gap-4 group hover:border-velatra-accent/30 transition-all">
-                  <div className="p-2 bg-velatra-accent/10 rounded-xl text-velatra-accent">
-                    {item.title.includes("Feedback") ? <MessageCircleIcon size={20}/> : <SparklesIcon size={20}/>}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-xs font-bold text-zinc-900">{item.title}</div>
-                    <div className="text-[9px] text-zinc-900 font-black uppercase tracking-widest mt-1">
-                      {new Date(item.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} • {item.userName}
+              {state.feed.filter(f => f.clubId === state.user?.clubId).map((item, i) => (
+                <motion.div key={item.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                  <Card className="!p-4 bg-white/60 backdrop-blur-xl border-zinc-200/50 flex items-center gap-4 group hover:border-velatra-accent/30 transition-all shadow-sm hover:shadow-md">
+                    <div className="p-2.5 bg-gradient-to-br from-velatra-accent/20 to-velatra-accent/5 rounded-xl text-velatra-accent shadow-inner group-hover:scale-110 transition-transform">
+                      {item.title.includes("Feedback") ? <MessageCircleIcon size={20}/> : <SparklesIcon size={20}/>}
                     </div>
-                  </div>
-                </Card>
+                    <div className="flex-1">
+                      <div className="text-xs font-bold text-zinc-900 group-hover:text-velatra-accent transition-colors">{item.title}</div>
+                      <div className="text-[9px] text-zinc-500 font-black uppercase tracking-widest mt-1">
+                        {new Date(item.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} • {item.userName}
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
               ))}
               {state.feed.length === 0 && (
-                <p className="text-center py-8 text-zinc-900 italic text-xs uppercase tracking-widest opacity-30">Aucune activité récente</p>
+                <p className="text-center py-8 text-zinc-500 italic text-xs uppercase tracking-widest opacity-50">Aucune activité récente</p>
               )}
             </div>
-          </section>
+          </motion.section>
 
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

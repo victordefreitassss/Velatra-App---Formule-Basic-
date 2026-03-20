@@ -7,6 +7,7 @@ import { CalendarIcon, RefreshCwIcon, TargetIcon, BarChartIcon, TrophyIcon, Flam
 import { GoogleGenAI } from "@google/genai";
 import { db, doc, updateDoc, setDoc } from '../firebase';
 import Markdown from 'react-markdown';
+import { motion } from 'framer-motion';
 
 interface MemberDashboardProps {
   state: AppState;
@@ -14,6 +15,21 @@ interface MemberDashboardProps {
   showToast: (m: string, t?: any) => void;
   onToggleTimer: () => void;
 }
+
+const containerVariants: any = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants: any = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setState, showToast, onToggleTimer }) => {
   const user = state.user!;
@@ -140,9 +156,14 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
   const latestNewsletter = state.newsletters?.[0];
 
   return (
-    <div className="space-y-6 page-transition pb-24">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6 page-transition pb-24"
+    >
       {/* Header Section */}
-      <div className="flex items-center justify-between px-2 pt-2">
+      <motion.div variants={itemVariants} className="flex items-center justify-between px-2 pt-2">
         <div>
           <h1 className="text-3xl font-display font-bold tracking-tight leading-none mb-1 text-zinc-900">Salut, {user.name.split(' ')[0]}</h1>
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-[2px] font-bold">
@@ -152,51 +173,74 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
             </div>
           </div>
         </div>
-        <div className="relative" onClick={() => setState(s => ({ ...s, page: 'profile' }))}>
+        <motion.div 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="relative" 
+          onClick={() => setState(s => ({ ...s, page: 'profile' }))}
+        >
           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-velatra-accent to-velatra-accentDark flex items-center justify-center font-bold text-lg shadow-[0_0_15px_rgba(99,102,241,0.3)] text-zinc-900 ring-2 ring-zinc-200 cursor-pointer">
             {user.avatar}
           </div>
           <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-[#050505] shadow-lg">
             LVL {Math.floor(user.xp / 1000) + 1}
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Main Action: Today's Session */}
-      <section className="px-2">
+      <motion.section variants={itemVariants} className="px-2">
         {program ? (
-          <div 
+          <motion.div 
+            whileHover={{ scale: 1.02, y: -4 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => setState(prev => ({ ...prev, page: 'calendar' }))}
-            className="bg-gradient-to-br from-velatra-accent to-velatra-accentDark rounded-3xl p-6 relative overflow-hidden shadow-[0_10px_40px_rgba(99,102,241,0.3)] cursor-pointer active:scale-[0.98] transition-all"
+            className="bg-zinc-900 rounded-[2rem] p-8 relative overflow-hidden shadow-2xl cursor-pointer transition-all border border-zinc-800 group"
           >
-            <div className="absolute top-0 right-0 w-40 h-40 bg-zinc-100 rounded-full -mr-10 -mt-10 blur-2xl" />
-            <div className="relative z-10 flex flex-col h-full justify-between gap-6">
+            {/* Animated Background Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-velatra-accent/20 to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
+            
+            {/* Glowing Orb */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-velatra-accent/30 rounded-full blur-[60px] group-hover:bg-velatra-accent/40 transition-colors duration-500" />
+
+            <div className="relative z-10 flex flex-col h-full justify-between gap-8">
               <div className="flex justify-between items-start">
                 <div className="flex-1 pr-4">
-                  <Badge variant="dark" className="!bg-zinc-50 !text-zinc-900 border-zinc-200 mb-2 backdrop-blur-md">
+                  <Badge className="bg-white/10 text-white border-white/20 backdrop-blur-md mb-4 font-bold tracking-widest text-[10px]">
                     S{Math.floor(program.currentDayIndex / program.nbDays) + 1} • J{(program.currentDayIndex % program.nbDays) + 1}
                   </Badge>
-                  <h2 className="text-3xl font-black tracking-tighter text-zinc-900 uppercase italic leading-none">
+                  <h2 className="text-4xl font-display font-bold text-white leading-tight mb-2">
                     {program.days[program.currentDayIndex % program.nbDays]?.name || 'Séance du jour'}
                   </h2>
+                  <p className="text-zinc-400 text-sm font-medium">
+                    {program.name} • Objectif: {user.objectifs?.[0] || 'Général'}
+                  </p>
                 </div>
-                <div className="w-12 h-12 rounded-full bg-zinc-50 backdrop-blur-md flex items-center justify-center text-zinc-900 shadow-inner">
+                <div className="w-14 h-14 rounded-full bg-velatra-accent text-zinc-900 flex items-center justify-center shadow-[0_0_30px_rgba(99,102,241,0.5)] group-hover:scale-110 transition-transform duration-500">
                   <TargetIcon size={24} />
                 </div>
               </div>
               
-              <div className="flex items-center justify-between bg-zinc-50 backdrop-blur-md rounded-2xl p-4 border border-zinc-200">
-                <span className="font-black text-zinc-900 tracking-widest text-sm">DÉMARRER</span>
-                <div className="w-8 h-8 rounded-full bg-white text-velatra-accent flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3l14 9-14 9V3z"/></svg>
-                </div>
+              <div className="flex items-center justify-between bg-white/5 backdrop-blur-md rounded-2xl p-4 border border-white/10 group-hover:bg-white/10 transition-colors">
+                <span className="font-black text-white tracking-widest text-sm uppercase">Démarrer l'entraînement</span>
+                <motion.div 
+                  animate={{ x: [0, 5, 0] }}
+                  transition={{ repeat: Infinity, duration: 1.5 }}
+                  className="w-10 h-10 rounded-full bg-velatra-accent text-zinc-900 flex items-center justify-center shadow-lg"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </motion.div>
               </div>
             </div>
-          </div>
+          </motion.div>
         ) : (
           <div className="space-y-3">
             {lastArchive && (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-4">
+              <motion.div 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-4"
+              >
                 <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0">
                   <TrophyIcon size={20} />
                 </div>
@@ -204,11 +248,13 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                   <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Cycle Terminé</div>
                   <div className="text-xs font-bold text-zinc-900">Bravo pour "{lastArchive.name}" !</div>
                 </div>
-              </div>
+              </motion.div>
             )}
-            <div 
+            <motion.div 
+              whileHover={!user.planRequested ? { scale: 1.02 } : {}}
+              whileTap={!user.planRequested ? { scale: 0.98 } : {}}
               onClick={!user.planRequested ? requestPlan : undefined}
-              className={`rounded-3xl p-6 text-center border-2 border-dashed transition-all ${user.planRequested ? 'bg-zinc-50 border-zinc-200 cursor-default' : 'bg-velatra-accent/5 border-velatra-accent/30 cursor-pointer active:scale-[0.98]'}`}
+              className={`rounded-3xl p-6 text-center border-2 border-dashed transition-all ${user.planRequested ? 'bg-zinc-50 border-zinc-200 cursor-default' : 'bg-velatra-accent/5 border-velatra-accent/30 cursor-pointer'}`}
             >
               <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3 ${user.planRequested ? 'bg-zinc-100 text-zinc-500' : 'bg-velatra-accent/20 text-velatra-accent'}`}>
                 <CalendarIcon size={24} />
@@ -218,63 +264,69 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
               <Button variant={user.planRequested ? "glass" : "primary"} disabled={user.planRequested} className="w-full !py-4 !rounded-xl">
                 {user.planRequested ? "DEMANDE EN COURS..." : "DEMANDER MON PROGRAMME"}
               </Button>
-            </div>
+            </motion.div>
           </div>
         )}
-      </section>
+      </motion.section>
 
       {/* AI Coach Quick Access */}
-      <section className="px-2">
-        <div 
+      <motion.section variants={itemVariants} className="px-2">
+        <motion.div 
+          whileHover={{ scale: 1.02, y: -2 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setState(s => ({ ...s, page: 'ai_coach' }))}
-          className="bg-zinc-50 border border-zinc-200 rounded-3xl p-5 cursor-pointer active:scale-[0.98] transition-all relative overflow-hidden"
+          className="bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-[2rem] p-6 cursor-pointer transition-all relative overflow-hidden shadow-sm hover:shadow-md group"
         >
-          <div className="absolute -right-4 -top-4 text-velatra-accent/5">
-            <MessageCircleIcon size={100} />
+          <div className="absolute -right-4 -top-4 text-velatra-accent/5 group-hover:text-velatra-accent/10 transition-colors duration-500">
+            <MessageCircleIcon size={120} />
           </div>
-          <div className="relative z-10 flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-velatra-accent/20 flex items-center justify-center text-velatra-accent shrink-0 border border-velatra-accent/20">
-              <MessageCircleIcon size={24} />
+          <div className="relative z-10 flex items-start gap-5">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-velatra-accent/5 flex items-center justify-center text-velatra-accent shrink-0 border border-velatra-accent/20 shadow-inner group-hover:scale-110 transition-transform duration-500">
+              <MessageCircleIcon size={28} />
             </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-1">
+            <div className="flex-1 pt-1">
+              <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Discussions</h3>
               </div>
-              <p className="text-xs text-zinc-500 font-medium leading-relaxed italic line-clamp-2">
+              <p className="text-sm text-zinc-500 font-medium leading-relaxed">
                 Échange avec ton coach ou le Coach IA.
               </p>
             </div>
           </div>
-        </div>
-      </section>
+        </motion.div>
+      </motion.section>
 
       {/* Quick Stats Grid */}
-      <section className="px-2 grid grid-cols-2 gap-3">
-        <div 
+      <motion.section variants={itemVariants} className="px-2 grid grid-cols-2 gap-4">
+        <motion.div 
+          whileHover={{ scale: 1.03, y: -2 }}
+          whileTap={{ scale: 0.97 }}
           onClick={() => setState(s => ({ ...s, page: 'history' }))}
-          className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-all flex flex-col items-center justify-center text-center gap-2"
+          className="bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-[2rem] p-6 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-3 shadow-sm hover:shadow-md group"
         >
-          <div className="text-velatra-accent"><CalendarIcon size={24} /></div>
+          <div className="w-12 h-12 rounded-full bg-velatra-accent/10 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform duration-500"><CalendarIcon size={24} /></div>
           <div>
-            <div className="text-2xl font-black text-zinc-900 leading-none">{myLogs.length}</div>
-            <div className="text-[9px] font-bold text-zinc-900 uppercase tracking-widest mt-1">Sessions</div>
+            <div className="text-3xl font-display font-bold text-zinc-900 leading-none mb-1">{myLogs.length}</div>
+            <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Sessions</div>
           </div>
-        </div>
-        <div 
+        </motion.div>
+        <motion.div 
+          whileHover={{ scale: 1.03, y: -2 }}
+          whileTap={{ scale: 0.97 }}
           onClick={() => setState(s => ({ ...s, page: 'performances' }))}
-          className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 cursor-pointer active:scale-[0.98] transition-all flex flex-col items-center justify-center text-center gap-2"
+          className="bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-[2rem] p-6 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-3 shadow-sm hover:shadow-md group"
         >
-          <div className="text-orange-400"><TrophyIcon size={24} /></div>
+          <div className="w-12 h-12 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-500"><TrophyIcon size={24} /></div>
           <div>
-            <div className="text-2xl font-black text-zinc-900 leading-none">{state.performances.filter(p => Number(p.memberId) === Number(user.id)).length}</div>
-            <div className="text-[9px] font-bold text-zinc-900 uppercase tracking-widest mt-1">Records</div>
+            <div className="text-3xl font-display font-bold text-zinc-900 leading-none mb-1">{state.performances.filter(p => Number(p.memberId) === Number(user.id)).length}</div>
+            <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Records</div>
           </div>
-        </div>
-      </section>
+        </motion.div>
+      </motion.section>
 
       {/* Newsletter / Announcements (Swipeable or compact) */}
       {latestNewsletter && (
-        <section className="px-2">
+        <motion.section variants={itemVariants} className="px-2">
           <div className="bg-gradient-to-r from-velatra-accent/10 to-transparent border border-velatra-accent/20 rounded-2xl p-4 relative overflow-hidden">
             <div className="flex items-center gap-3 mb-2">
               <MegaphoneIcon size={16} className="text-velatra-accent" />
@@ -283,12 +335,12 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
             <h3 className="text-sm font-bold text-zinc-900 mb-1">{latestNewsletter.title}</h3>
             <p className="text-xs text-zinc-500 line-clamp-2">{latestNewsletter.content.replace(/[*_#]/g, '')}</p>
           </div>
-        </section>
+        </motion.section>
       )}
 
       {/* Coach Feedback */}
       {program && (
-        <section className="px-2">
+        <motion.section variants={itemVariants} className="px-2">
           <div className="bg-white border border-zinc-200 rounded-3xl p-5">
             <h3 className="text-xs font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2 mb-3">
               <MessageCircleIcon size={14} className="text-zinc-900" /> Mot au coach
@@ -300,17 +352,19 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                 value={remark}
                 onChange={e => setRemark(e.target.value)}
               />
-              <button 
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 disabled={isSavingRemark || !remark || remark === (program?.memberRemarks || "")}
                 onClick={saveRemark}
-                className="w-12 h-12 rounded-xl bg-zinc-100 text-zinc-900 flex items-center justify-center disabled:opacity-30 active:scale-95 transition-all"
+                className="w-12 h-12 rounded-xl bg-zinc-100 text-zinc-900 flex items-center justify-center disabled:opacity-30 transition-all"
               >
                 {isSavingRemark ? <RefreshCwIcon size={16} className="animate-spin" /> : <SendIcon size={16} />}
-              </button>
+              </motion.button>
             </div>
           </div>
-        </section>
+        </motion.section>
       )}
-    </div>
+    </motion.div>
   );
 };

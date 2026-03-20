@@ -237,13 +237,34 @@ export default function App() {
 
     const unsubProgs = onSnapshot(query(collection(db, "programs"), where("clubId", "==", clubId)), (snap) => {
       const allProgs: Program[] = [];
+      const now = new Date();
+
       snap.forEach(d => {
-        const data = d.data();
+        const data = d.data() as Program;
+
+        if (data.durationWeeks && data.startDate) {
+          const startDate = new Date(data.startDate);
+          const endDate = new Date(startDate.getTime() + data.durationWeeks * 7 * 24 * 60 * 60 * 1000);
+          
+          if (now > endDate) {
+            // Archiver automatiquement le programme expiré
+            const archiveRef = doc(db, "archivedPrograms", data.id.toString());
+            setDoc(archiveRef, { 
+              ...data, 
+              endDate: now.toISOString().split('T')[0], 
+              status: "expired" 
+            }).then(() => {
+              deleteDoc(doc(db, "programs", data.id.toString())).catch(console.error);
+            }).catch(console.error);
+            return; // Ne pas l'ajouter à la liste active
+          }
+        }
+
         allProgs.push({
           ...data,
           id: Number(data.id),
           memberId: Number(data.memberId)
-        } as Program);
+        });
       });
       setState(prev => ({ ...prev, programs: allProgs }));
     });

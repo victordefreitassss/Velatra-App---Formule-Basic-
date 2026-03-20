@@ -5,6 +5,22 @@ import { AppleIcon, TargetIcon, UserIcon, PlusIcon, Trash2Icon, ChevronLeftIcon,
 import { SparklesIcon, RefreshCwIcon, CameraIcon } from 'lucide-react';
 import { db, doc, updateDoc, setDoc } from '../firebase';
 import { GoogleGenAI } from '@google/genai';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const containerVariants: import('framer-motion').Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants: import('framer-motion').Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: string, type?: 'success' | 'error') => void }> = ({ state, showToast }) => {
   const [dietPreference, setDietPreference] = useState<string>("Standard");
@@ -299,6 +315,11 @@ export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: s
                 <option value="Pescétarien">Pescétarien</option>
               </select>
             </div>
+
+            <div className="space-y-1 pt-2">
+              <label className="text-[10px] uppercase font-bold text-zinc-500">Durée (semaines)</label>
+              <div className="text-zinc-900 font-bold">{plan.durationWeeks || 4} semaines</div>
+            </div>
           </Card>
         </div>
 
@@ -318,54 +339,61 @@ export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: s
             )}
           </div>
 
-          <div className="space-y-4">
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="space-y-4"
+          >
             {planMeals.map((meal) => (
-              <Card key={meal.id} className="p-5 bg-zinc-50 border-zinc-200">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                  <div className="md:col-span-4 space-y-2">
-                    <div className="font-bold text-zinc-900 text-lg">{meal.name}</div>
-                    <Button 
-                      variant="primary" 
-                      className="!py-2 !px-4 !text-[10px] flex items-center gap-2 mt-4"
-                      onClick={() => {
-                        setNewFood({ name: meal.name, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat });
-                        setIsAdding(true);
-                        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-                      }}
-                    >
-                      <AppleIcon size={14} />
-                      CE QUE J'AI MANGÉ
-                    </Button>
+              <motion.div key={meal.id} variants={itemVariants}>
+                <Card className="p-5 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:shadow-lg transition-all duration-300">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div className="md:col-span-4 space-y-2">
+                      <div className="font-bold text-zinc-900 text-lg">{meal.name}</div>
+                      <Button 
+                        variant="primary" 
+                        className="!py-2 !px-4 !text-[10px] flex items-center gap-2 mt-4"
+                        onClick={() => {
+                          setNewFood({ name: meal.name, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat });
+                          setIsAdding(true);
+                          window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                        }}
+                      >
+                        <AppleIcon size={14} />
+                        CE QUE J'AI MANGÉ
+                      </Button>
+                    </div>
+                    
+                    <div className="md:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3 content-start">
+                      <div className="space-y-1 bg-white/50 rounded-xl p-3 text-center border border-zinc-200/50">
+                        <label className="text-[9px] uppercase font-black text-zinc-500 tracking-widest block">Calories</label>
+                        <span className="font-bold text-zinc-900">{meal.calories}</span>
+                      </div>
+                      <div className="space-y-1 bg-white/50 rounded-xl p-3 text-center border border-zinc-200/50">
+                        <label className="text-[9px] uppercase font-black text-blue-400 tracking-widest block">Protéines</label>
+                        <span className="font-bold text-zinc-900">{meal.protein}g</span>
+                      </div>
+                      <div className="space-y-1 bg-white/50 rounded-xl p-3 text-center border border-zinc-200/50">
+                        <label className="text-[9px] uppercase font-black text-green-400 tracking-widest block">Glucides</label>
+                        <span className="font-bold text-zinc-900">{meal.carbs}g</span>
+                      </div>
+                      <div className="space-y-1 bg-white/50 rounded-xl p-3 text-center border border-zinc-200/50">
+                        <label className="text-[9px] uppercase font-black text-yellow-400 tracking-widest block">Lipides</label>
+                        <span className="font-bold text-zinc-900">{meal.fat}g</span>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="md:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-3 content-start">
-                    <div className="space-y-1 bg-zinc-50 rounded-xl p-3 text-center">
-                      <label className="text-[9px] uppercase font-bold text-zinc-500 block">Calories</label>
-                      <span className="font-bold text-zinc-900">{meal.calories}</span>
-                    </div>
-                    <div className="space-y-1 bg-zinc-50 rounded-xl p-3 text-center">
-                      <label className="text-[9px] uppercase font-bold text-blue-400 block">Protéines</label>
-                      <span className="font-bold text-zinc-900">{meal.protein}g</span>
-                    </div>
-                    <div className="space-y-1 bg-zinc-50 rounded-xl p-3 text-center">
-                      <label className="text-[9px] uppercase font-bold text-green-400 block">Glucides</label>
-                      <span className="font-bold text-zinc-900">{meal.carbs}g</span>
-                    </div>
-                    <div className="space-y-1 bg-zinc-50 rounded-xl p-3 text-center">
-                      <label className="text-[9px] uppercase font-bold text-yellow-400 block">Lipides</label>
-                      <span className="font-bold text-zinc-900">{meal.fat}g</span>
-                    </div>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </motion.div>
             ))}
             
             {planMeals.length === 0 && (
-              <div className="text-center py-12 border border-dashed border-zinc-200 rounded-2xl">
+              <motion.div variants={itemVariants} className="text-center py-12 border border-dashed border-zinc-200 rounded-2xl">
                 <p className="text-zinc-500 text-sm">Aucun repas défini dans ce plan.</p>
-              </div>
+              </motion.div>
             )}
-          </div>
+          </motion.div>
           
           {/* Meal Totals vs Target */}
           {planMeals.length > 0 && (
@@ -395,49 +423,70 @@ export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: s
               </Button>
             </div>
 
+            <AnimatePresence>
             {isAdding && (
-              <Card className="p-4 bg-zinc-50 border-zinc-200 animate-in fade-in slide-in-from-top-2">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Nom de l'aliment / repas</label>
-                    <Input 
-                      value={newFood.name}
-                      onChange={e => setNewFood({...newFood, name: e.target.value})}
-                      placeholder="Ex: Poulet au riz, Pomme..."
-                      autoFocus
-                    />
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              >
+                <Card className="p-4 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-xl">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest mb-1 block">Nom de l'aliment / repas</label>
+                      <Input 
+                        value={newFood.name}
+                        onChange={e => setNewFood({...newFood, name: e.target.value})}
+                        placeholder="Ex: Poulet au riz, Pomme..."
+                        autoFocus
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest mb-1 block">Kcal</label>
+                        <Input type="number" value={newFood.calories || ''} onChange={e => setNewFood({...newFood, calories: parseInt(e.target.value) || 0})} placeholder="0" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-black text-blue-400 tracking-widest mb-1 block">Prot (g)</label>
+                        <Input type="number" value={newFood.protein || ''} onChange={e => setNewFood({...newFood, protein: parseInt(e.target.value) || 0})} placeholder="0" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-black text-green-400 tracking-widest mb-1 block">Gluc (g)</label>
+                        <Input type="number" value={newFood.carbs || ''} onChange={e => setNewFood({...newFood, carbs: parseInt(e.target.value) || 0})} placeholder="0" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase font-black text-yellow-400 tracking-widest mb-1 block">Lip (g)</label>
+                        <Input type="number" value={newFood.fat || ''} onChange={e => setNewFood({...newFood, fat: parseInt(e.target.value) || 0})} placeholder="0" />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button variant="secondary" onClick={() => setIsAdding(false)} className="!py-2 !text-xs">Annuler</Button>
+                      <Button variant="primary" onClick={handleAddFood} disabled={!newFood.name || isSaving} className="!py-2 !text-xs">
+                        {isSaving ? <RefreshCwIcon size={14} className="animate-spin" /> : 'Enregistrer'}
+                      </Button>
+                    </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-2">
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-zinc-500 mb-1 block">Kcal</label>
-                      <Input type="number" value={newFood.calories || ''} onChange={e => setNewFood({...newFood, calories: parseInt(e.target.value) || 0})} placeholder="0" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-blue-400 mb-1 block">Prot (g)</label>
-                      <Input type="number" value={newFood.protein || ''} onChange={e => setNewFood({...newFood, protein: parseInt(e.target.value) || 0})} placeholder="0" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-green-400 mb-1 block">Gluc (g)</label>
-                      <Input type="number" value={newFood.carbs || ''} onChange={e => setNewFood({...newFood, carbs: parseInt(e.target.value) || 0})} placeholder="0" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] uppercase font-bold text-yellow-400 mb-1 block">Lip (g)</label>
-                      <Input type="number" value={newFood.fat || ''} onChange={e => setNewFood({...newFood, fat: parseInt(e.target.value) || 0})} placeholder="0" />
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button variant="secondary" onClick={() => setIsAdding(false)} className="!py-2 !text-xs">Annuler</Button>
-                    <Button variant="primary" onClick={handleAddFood} disabled={!newFood.name || isSaving} className="!py-2 !text-xs">
-                      {isSaving ? <RefreshCwIcon size={14} className="animate-spin" /> : 'Enregistrer'}
-                    </Button>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </motion.div>
             )}
+            </AnimatePresence>
 
-            <div className="space-y-2">
+            <motion.div 
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              className="space-y-2"
+            >
+              <AnimatePresence>
               {currentLog?.foods.map((food) => (
-                <div key={food.id} className="flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-xl hover:border-zinc-300 transition-colors">
+                <motion.div 
+                  key={food.id} 
+                  variants={itemVariants}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  layout
+                  className="flex items-center justify-between p-4 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-xl hover:border-zinc-300 transition-colors shadow-sm"
+                >
                   <div>
                     <div className="font-bold text-zinc-900 text-sm">{food.name}</div>
                     <div className="flex gap-3 text-[10px] font-bold mt-1">
@@ -453,15 +502,16 @@ export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: s
                   >
                     <Trash2Icon size={16} />
                   </button>
-                </div>
+                </motion.div>
               ))}
+              </AnimatePresence>
 
               {(!currentLog?.foods || currentLog.foods.length === 0) && !isAdding && (
-                <div className="text-center py-8 border border-dashed border-zinc-200 rounded-2xl">
+                <motion.div variants={itemVariants} className="text-center py-8 border border-dashed border-zinc-200 rounded-2xl">
                   <p className="text-zinc-500 text-sm">Aucun aliment enregistré aujourd'hui.</p>
-                </div>
+                </motion.div>
               )}
-            </div>
+            </motion.div>
           </div>
 
           {/* Shopping List */}

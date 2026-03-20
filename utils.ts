@@ -60,3 +60,87 @@ export function blobToBase64(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+export function updateNutritionPlanForWeight(plan: any, newWeight: number): any {
+  if (!plan || !newWeight) return plan;
+  
+  const { height, age, gender, activityLevel, goal } = plan;
+  if (!height || !age || !gender || !activityLevel || !goal) return plan;
+
+  // Recalculate BMR
+  let bmrCalc = (10 * newWeight) + (6.25 * height) - (5 * age);
+  bmrCalc += gender === 'M' ? 5 : -161;
+  const bmr = Math.round(bmrCalc);
+
+  // Recalculate TDEE
+  const ACTIVITY_MULTIPLIERS: Record<string, number> = {
+    "Sédentaire": 1.2,
+    "Légèrement actif": 1.375,
+    "Modérément actif": 1.55,
+    "Très actif": 1.725,
+    "Extrêmement actif": 1.9
+  };
+  const tdee = Math.round(bmr * (ACTIVITY_MULTIPLIERS[activityLevel] || 1.2));
+
+  // Recalculate Target Calories
+  const GOAL_ADJUSTMENTS: Record<string, number> = {
+    "Perte de poids": -500,
+    "Recomposition corporelle": 0,
+    "Renforcement musculaire": 300,
+    "Prise de masse": 500
+  };
+  const targetCalories = tdee + (GOAL_ADJUSTMENTS[goal] || 0);
+
+  // Recalculate Macros
+  let proteinMultiplier = 1.6;
+  if (goal === 'Prise de masse' || goal === 'Renforcement musculaire') proteinMultiplier = 1.8;
+  if (goal === 'Perte de poids') proteinMultiplier = 2.0;
+  
+  const protein = Math.round(newWeight * proteinMultiplier);
+  const proteinCals = protein * 4;
+  
+  let fatPercentage = 0.30;
+  if (goal === 'Perte de poids') fatPercentage = 0.35;
+  
+  const fat = Math.round((targetCalories * fatPercentage) / 9);
+  const fatCals = fat * 9;
+  
+  const carbsCals = targetCalories - proteinCals - fatCals;
+  const carbs = Math.max(0, Math.round(carbsCals / 4));
+
+  // Recalculate meals if they exist
+  let updatedMeals = plan.meals || [];
+  if (updatedMeals.length > 0) {
+    // Basic distribution: Breakfast 25%, Lunch 35%, Snack 10%, Dinner 30%
+    const distributions: Record<string, number> = {
+      'breakfast': 0.25,
+      'lunch': 0.35,
+      'snack': 0.10,
+      'dinner': 0.30
+    };
+    
+    updatedMeals = updatedMeals.map((meal: any) => {
+      const dist = distributions[meal.id] || (1 / updatedMeals.length);
+      return {
+        ...meal,
+        calories: Math.round(targetCalories * dist),
+        protein: Math.round(protein * dist),
+        carbs: Math.round(carbs * dist),
+        fat: Math.round(fat * dist)
+      };
+    });
+  }
+
+  return {
+    ...plan,
+    weight: newWeight,
+    bmr,
+    tdee,
+    targetCalories,
+    protein,
+    carbs,
+    fat,
+    meals: updatedMeals,
+    updatedAt: new Date().toISOString()
+  };
+}
