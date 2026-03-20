@@ -3,6 +3,22 @@ import { AppState, Booking, User } from '../types';
 import { Card, Button, Badge } from '../components/UI';
 import { CalendarIcon, PlusIcon, ClockIcon, UserIcon, CheckIcon, XIcon, TargetIcon } from '../components/Icons';
 import { db, collection, addDoc, updateDoc, doc, deleteDoc, query, where, getDocs } from '../firebase';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const containerVariants: import('framer-motion').Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05
+    }
+  }
+};
+
+const itemVariants: import('framer-motion').Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
@@ -200,14 +216,19 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   };
 
   return (
-    <div className="space-y-8 page-transition pb-20">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
+    <motion.div 
+      className="space-y-8 pb-20"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Planning</h1>
           <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">Réservation de Séances</p>
         </div>
         {!isCoach && (
-          <div className="bg-velatra-accent/10 px-4 py-2 rounded-2xl flex items-center gap-3">
+          <div className="bg-velatra-accent/10 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-sm">
             <TargetIcon size={20} className="text-velatra-accent" />
             <div>
               <div className="text-[10px] uppercase font-bold text-velatra-accent tracking-widest">Crédits restants</div>
@@ -215,18 +236,18 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
             </div>
           </div>
         )}
-      </div>
+      </motion.div>
 
-      <div className="flex items-center justify-between bg-white p-4 rounded-3xl border border-zinc-200 shadow-sm">
-        <Button variant="secondary" className="!px-3" onClick={() => setCurrentWeekOffset(prev => prev - 1)}>&larr;</Button>
+      <motion.div variants={itemVariants} className="flex items-center justify-between bg-white/60 backdrop-blur-xl p-4 rounded-3xl border border-zinc-200/50 shadow-sm">
+        <Button variant="secondary" className="!px-3 hover:bg-white/80" onClick={() => setCurrentWeekOffset(prev => prev - 1)}>&larr;</Button>
         <div className="font-bold text-zinc-900 text-sm md:text-base text-center">
           Semaine du {weekDates[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au {weekDates[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
         </div>
-        <Button variant="secondary" className="!px-3" onClick={() => setCurrentWeekOffset(prev => prev + 1)}>&rarr;</Button>
-      </div>
+        <Button variant="secondary" className="!px-3 hover:bg-white/80" onClick={() => setCurrentWeekOffset(prev => prev + 1)}>&rarr;</Button>
+      </motion.div>
 
       {/* Mobile-first Date Strip */}
-      <div className="flex overflow-x-auto pb-4 -mx-4 px-4 gap-3 snap-x hide-scrollbar">
+      <motion.div variants={itemVariants} className="flex overflow-x-auto pb-4 -mx-4 px-4 gap-3 snap-x hide-scrollbar">
         {weekDates.map((date, idx) => {
           const isSelected = date.toDateString() === selectedDate.toDateString();
           const isToday = date.toDateString() === new Date().toDateString();
@@ -239,7 +260,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                   ? 'bg-velatra-accent text-white border-velatra-accent shadow-lg shadow-velatra-accent/30 scale-105' 
                   : isToday 
                     ? 'bg-velatra-accent/10 text-velatra-accent border-velatra-accent/20' 
-                    : 'bg-white text-zinc-500 border-zinc-200 hover:border-velatra-accent/30'
+                    : 'bg-white/60 backdrop-blur-xl text-zinc-500 border-zinc-200/50 hover:border-velatra-accent/30 hover:bg-white'
               }`}
             >
               <span className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isSelected ? 'text-white/80' : ''}`}>
@@ -251,28 +272,33 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
             </button>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* Selected Date Slots */}
-      <div className="mt-4">
+      <motion.div variants={itemVariants} className="mt-4">
         <h2 className="text-lg font-black text-zinc-900 mb-4 capitalize flex items-center gap-2">
           <CalendarIcon size={20} className="text-velatra-accent" />
           {selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        >
           {(() => {
             const slots = getAvailableSlots(selectedDate);
             const dayBookings = getBookingsForDate(selectedDate);
 
             if (slots.length === 0) {
               return (
-                <div className="col-span-full text-center py-12 bg-white rounded-3xl border border-zinc-200 border-dashed">
-                  <div className="w-12 h-12 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-3 text-zinc-400">
+                <motion.div variants={itemVariants} className="col-span-full text-center py-12 bg-white/40 backdrop-blur-md rounded-3xl border border-zinc-200/50 border-dashed">
+                  <div className="w-12 h-12 bg-white/60 rounded-full flex items-center justify-center mx-auto mb-3 text-zinc-400 shadow-sm">
                     <ClockIcon size={24} />
                   </div>
                   <p className="text-zinc-500 font-medium">Aucun créneau disponible ce jour</p>
-                </div>
+                </motion.div>
               );
             }
 
@@ -284,19 +310,19 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                 const isMyBooking = bookingForSlot.memberId === Number(state.user?.id);
                 const member = state.users.find(u => Number(u.id) === bookingForSlot.memberId);
                 
-                const bgColor = isCoach ? 'bg-zinc-900 text-white' : (isMyBooking ? 'bg-velatra-accent text-white shadow-lg shadow-velatra-accent/20' : 'bg-zinc-50 text-zinc-500 border border-zinc-200');
+                const bgColor = isCoach ? 'bg-zinc-900 text-white shadow-lg' : (isMyBooking ? 'bg-velatra-accent text-white shadow-lg shadow-velatra-accent/20' : 'bg-white/60 backdrop-blur-xl text-zinc-500 border border-zinc-200/50 shadow-sm');
                 
                 return (
-                  <div key={sIdx} className={`${bgColor} p-4 rounded-2xl flex flex-col justify-between min-h-[100px] ${isPast ? 'opacity-50' : ''}`}>
+                  <motion.div key={sIdx} variants={itemVariants} className={`${bgColor} p-4 rounded-2xl flex flex-col justify-between min-h-[100px] transition-all ${isPast ? 'opacity-50' : 'hover:scale-[1.02]'}`}>
                     <div className="flex justify-between items-start mb-2">
                       <div className="font-black text-lg">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
                       {isMyBooking && !isCoach && (
-                        <Badge variant="dark" className="!bg-white/20 !text-white !border-none">Ma séance</Badge>
+                        <Badge variant="dark" className="!bg-white/20 !text-white !border-none shadow-sm">Ma séance</Badge>
                       )}
                     </div>
                     
                     {isCoach ? (
-                      <div className="flex items-center gap-2 text-zinc-300 text-sm mb-3 bg-white/10 p-2 rounded-xl">
+                      <div className="flex items-center gap-2 text-zinc-300 text-sm mb-3 bg-white/10 p-2 rounded-xl backdrop-blur-sm">
                         <UserIcon size={14} /> <span className="font-bold">{member?.name || 'Inconnu'}</span>
                       </div>
                     ) : (
@@ -306,104 +332,122 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                     )}
                     
                     {(isCoach || isMyBooking) && !isPast && (
-                      <Button variant="secondary" className={`w-full !py-2 !text-xs ${isCoach ? 'border-zinc-700 hover:bg-zinc-800 text-white' : 'border-white/30 hover:bg-white/20 text-white'}`} onClick={() => handleCancelBooking(bookingForSlot)}>
+                      <Button variant="secondary" className={`w-full !py-2 !text-xs transition-colors ${isCoach ? 'border-zinc-700 hover:bg-zinc-800 text-white' : 'border-white/30 hover:bg-white/20 text-white'}`} onClick={() => handleCancelBooking(bookingForSlot)}>
                         Annuler la réservation
                       </Button>
                     )}
-                  </div>
+                  </motion.div>
                 );
               }
 
               if (isPast) {
                 return (
-                  <div key={sIdx} className="p-4 rounded-2xl border border-dashed border-zinc-200 text-zinc-400 bg-zinc-50/50 flex flex-col justify-center min-h-[100px]">
+                  <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-2xl border border-dashed border-zinc-200/50 text-zinc-400 bg-white/30 backdrop-blur-sm flex flex-col justify-center min-h-[100px]">
                     <div className="font-black text-lg mb-1">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
                     <div className="text-[10px] uppercase tracking-widest font-bold">Créneau passé</div>
-                  </div>
+                  </motion.div>
                 );
               }
 
               if (isCoach) {
                 return (
-                  <div key={sIdx} className="p-4 rounded-2xl border border-dashed border-zinc-200 text-zinc-500 bg-white flex flex-col justify-center min-h-[100px]">
+                  <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-2xl border border-dashed border-zinc-200/50 text-zinc-500 bg-white/60 backdrop-blur-xl flex flex-col justify-center min-h-[100px] shadow-sm">
                     <div className="font-black text-lg mb-1">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
                     <div className="text-[10px] uppercase tracking-widest font-bold">Créneau libre</div>
-                  </div>
+                  </motion.div>
                 );
               }
 
               return (
-                <button
+                <motion.button
                   key={sIdx}
+                  variants={itemVariants}
+                  whileHover={{ y: -4, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     setSelectedSlot(slot);
                     setIsBookingModalOpen(true);
                   }}
-                  className="p-4 rounded-2xl border border-zinc-200 hover:border-velatra-accent hover:bg-velatra-accent/5 transition-all text-zinc-900 bg-white flex flex-col justify-center items-center group min-h-[100px] shadow-sm hover:shadow-md"
+                  className="p-4 rounded-2xl border border-zinc-200/50 hover:border-velatra-accent hover:bg-white/80 transition-all text-zinc-900 bg-white/60 backdrop-blur-xl flex flex-col justify-center items-center group min-h-[100px] shadow-sm hover:shadow-md"
                 >
                   <div className="font-black text-xl mb-1 group-hover:text-velatra-accent transition-colors">{formatTime(slot.start)}</div>
                   <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 group-hover:text-velatra-accent/70">Réserver</div>
-                </button>
+                </motion.button>
               );
             });
           })()}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
+      <AnimatePresence>
       {isBookingModalOpen && selectedSlot && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md p-8 bg-white border-zinc-200 animate-in zoom-in-95">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">Confirmer la réservation</h2>
-              <button onClick={() => setIsBookingModalOpen(false)} className="text-zinc-500 hover:text-zinc-900">
-                <XIcon size={24} />
-              </button>
-            </div>
-            
-            <div className="space-y-6">
-              <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 flex items-center gap-4">
-                <div className="w-12 h-12 bg-velatra-accent/10 rounded-xl flex items-center justify-center text-velatra-accent">
-                  <CalendarIcon size={24} />
-                </div>
-                <div>
-                  <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Date & Heure</div>
-                  <div className="font-bold text-zinc-900 capitalize">{formatDate(selectedSlot.start)}</div>
-                  <div className="text-sm text-zinc-600">{formatTime(selectedSlot.start)} - {formatTime(selectedSlot.end)}</div>
-                </div>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="w-full max-w-md"
+          >
+            <Card className="w-full p-8 bg-white/80 backdrop-blur-2xl border-zinc-200/50 shadow-2xl">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">Confirmer la réservation</h2>
+                <button onClick={() => setIsBookingModalOpen(false)} className="text-zinc-500 hover:text-zinc-900 transition-colors bg-white/50 p-2 rounded-full hover:bg-white">
+                  <XIcon size={24} />
+                </button>
               </div>
-
-              <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 flex items-center justify-between">
-                <div>
-                  <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Coût</div>
-                  <div className="font-bold text-zinc-900">1 Crédit Coaching</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Solde actuel</div>
-                  <div className={`font-bold ${((state.user?.credits || 0) > 0) ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {state.user?.credits || 0} Crédits
+              
+              <div className="space-y-6">
+                <div className="bg-white/60 backdrop-blur-xl p-4 rounded-2xl border border-zinc-200/50 flex items-center gap-4 shadow-sm">
+                  <div className="w-12 h-12 bg-velatra-accent/10 rounded-xl flex items-center justify-center text-velatra-accent shadow-inner">
+                    <CalendarIcon size={24} />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Date & Heure</div>
+                    <div className="font-bold text-zinc-900 capitalize">{formatDate(selectedSlot.start)}</div>
+                    <div className="text-sm text-zinc-600">{formatTime(selectedSlot.start)} - {formatTime(selectedSlot.end)}</div>
                   </div>
                 </div>
-              </div>
 
-              <Button 
-                variant="primary" 
-                className="w-full !py-4" 
-                onClick={handleBookSlot}
-                disabled={(state.user?.credits || 0) <= 0}
-              >
-                <CheckIcon size={18} className="mr-2" />
-                CONFIRMER LA RÉSERVATION
-              </Button>
-              
-              {(state.user?.credits || 0) <= 0 && (
-                <p className="text-xs text-center text-red-500 font-bold">
-                  Vous n'avez pas assez de crédits pour réserver cette séance.
-                </p>
-              )}
-            </div>
-          </Card>
-        </div>
+                <div className="bg-white/60 backdrop-blur-xl p-4 rounded-2xl border border-zinc-200/50 flex items-center justify-between shadow-sm">
+                  <div>
+                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Coût</div>
+                    <div className="font-bold text-zinc-900">1 Crédit Coaching</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Solde actuel</div>
+                    <div className={`font-bold ${((state.user?.credits || 0) > 0) ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {state.user?.credits || 0} Crédits
+                    </div>
+                  </div>
+                </div>
+
+                <Button 
+                  variant="primary" 
+                  className="w-full !py-4 shadow-lg shadow-velatra-accent/20" 
+                  onClick={handleBookSlot}
+                  disabled={(state.user?.credits || 0) <= 0}
+                >
+                  <CheckIcon size={18} className="mr-2" />
+                  CONFIRMER LA RÉSERVATION
+                </Button>
+                
+                {(state.user?.credits || 0) <= 0 && (
+                  <p className="text-xs text-center text-red-500 font-bold bg-red-500/10 p-3 rounded-xl border border-red-500/20">
+                    Vous n'avez pas assez de crédits pour réserver cette séance.
+                  </p>
+                )}
+              </div>
+            </Card>
+          </motion.div>
+        </motion.div>
       )}
-    </div>
+      </AnimatePresence>
+    </motion.div>
   );
 };

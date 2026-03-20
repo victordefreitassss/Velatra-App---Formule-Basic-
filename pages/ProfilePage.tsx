@@ -3,6 +3,23 @@ import { AppState, User } from '../types';
 import { Card, Badge, Button } from '../components/UI';
 import { UserIcon, MailIcon, ActivityIcon, DumbbellIcon, TargetIcon, Edit2Icon, SaveIcon, LogOutIcon, PhoneIcon, CreditCardIcon, ExternalLinkIcon } from 'lucide-react';
 import { doc, updateDoc, db } from '../firebase';
+import { motion } from 'framer-motion';
+import { updateNutritionPlanForWeight } from '../utils';
+
+const containerVariants: import('framer-motion').Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants: import('framer-motion').Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 export const ProfilePage: React.FC<{
   state: AppState;
@@ -45,6 +62,13 @@ export const ProfilePage: React.FC<{
           thighs: Number(formData.thighs),
         }
       });
+      
+      // Update nutrition plan if it exists
+      const plan = state.nutritionPlans?.find(p => p.memberId === user.id);
+      if (plan && Number(formData.weight) !== user.weight) {
+        const updatedPlan = updateNutritionPlanForWeight(plan, Number(formData.weight));
+        await updateDoc(doc(db, "nutritionPlans", plan.id), updatedPlan);
+      }
       
       setState(prev => ({
         ...prev,
@@ -258,8 +282,13 @@ export const ProfilePage: React.FC<{
   }, [user, setState, showToast]);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500 pb-24 max-w-2xl mx-auto">
-      <div className="flex items-center justify-between">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="space-y-8 pb-24 max-w-2xl mx-auto"
+    >
+      <motion.div variants={itemVariants} className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-display font-bold tracking-tight leading-none mb-1 text-zinc-900">Mon Profil</h1>
           <p className="text-[10px] uppercase tracking-[2px] font-bold text-zinc-500">Gérez vos informations personnelles</p>
@@ -276,311 +305,453 @@ export const ProfilePage: React.FC<{
             <><Edit2Icon size={16} className="mr-2" /> Modifier</>
           )}
         </Button>
-      </div>
+      </motion.div>
 
-      <Card className="!p-8 bg-zinc-50 border-zinc-200 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-velatra-accent/5 rounded-full -mr-32 -mt-32 blur-3xl" />
-        
-        <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8">
-          <div className="w-32 h-32 rounded-full bg-gradient-to-br from-velatra-accent to-velatra-accentDark flex items-center justify-center font-bold text-5xl shadow-[0_0_30px_rgba(99,102,241,0.3)] text-zinc-900 ring-4 ring-white shrink-0">
-            {user.avatar}
-          </div>
+      <motion.div variants={itemVariants}>
+        <Card className="!p-8 bg-white/60 backdrop-blur-xl border-zinc-200/50 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-velatra-accent/5 rounded-full -mr-32 -mt-32 blur-3xl" />
           
-          <div className="flex-1 space-y-6 w-full">
-            <div>
-              <h2 className="text-2xl font-black text-zinc-900">{user.name}</h2>
-              {isEditing ? (
-                <div className="space-y-3 mt-4">
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Email</label>
-                    <input 
-                      type="email" 
-                      value={formData.email}
-                      onChange={(e) => setFormData({...formData, email: e.target.value})}
-                      className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Téléphone</label>
-                    <input 
-                      type="tel" 
-                      value={formData.phone}
-                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                      className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2 mt-2">
-                  <div className="flex items-center gap-2 text-zinc-500">
-                    <MailIcon size={14} />
-                    <span className="text-sm">{user.email || 'Non renseigné'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-zinc-500">
-                    <PhoneIcon size={14} />
-                    <span className="text-sm">{user.phone || 'Non renseigné'}</span>
-                  </div>
-                </div>
-              )}
+          <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8">
+            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-velatra-accent to-velatra-accentDark flex items-center justify-center font-bold text-5xl shadow-[0_0_30px_rgba(99,102,241,0.3)] text-zinc-900 ring-4 ring-white shrink-0">
+              {user.avatar}
             </div>
             
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="blue" className="uppercase tracking-widest text-[10px]">{user.role}</Badge>
-              {user.gender && (
-                <Badge variant="dark" className="uppercase tracking-widest text-[10px] bg-zinc-200 text-zinc-900 border-zinc-300">
-                  {user.gender === 'M' ? 'Homme' : 'Femme'}
+            <div className="flex-1 space-y-6 w-full">
+              <div>
+                <h2 className="text-2xl font-black text-zinc-900">{user.name}</h2>
+                {isEditing ? (
+                  <div className="space-y-3 mt-4">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Email</label>
+                      <input 
+                        type="email" 
+                        value={formData.email}
+                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Téléphone</label>
+                      <input 
+                        type="tel" 
+                        value={formData.phone}
+                        onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                        className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <div className="flex items-center gap-2 text-zinc-500">
+                      <MailIcon size={14} />
+                      <span className="text-sm">{user.email || 'Non renseigné'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-zinc-500">
+                      <PhoneIcon size={14} />
+                      <span className="text-sm">{user.phone || 'Non renseigné'}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="blue" className="uppercase tracking-widest text-[10px]">{user.role}</Badge>
+                {user.gender && (
+                  <Badge variant="dark" className="uppercase tracking-widest text-[10px] bg-zinc-200 text-zinc-900 border-zinc-300">
+                    {user.gender === 'M' ? 'Homme' : 'Femme'}
+                  </Badge>
+                )}
+                <Badge variant="success" className="uppercase tracking-widest text-[10px]">
+                  Niveau {Math.floor(user.xp / 1000) + 1}
                 </Badge>
-              )}
-              <Badge variant="success" className="uppercase tracking-widest text-[10px]">
-                Niveau {Math.floor(user.xp / 1000) + 1}
-              </Badge>
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="!p-6 bg-zinc-50 border-zinc-200">
+        <motion.div variants={itemVariants}>
+          <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg h-full">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+                <ActivityIcon size={20} />
+              </div>
+              <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Physique</h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Taille (cm)</label>
+                {isEditing ? (
+                  <input 
+                    type="number" 
+                    value={formData.height}
+                    onChange={(e) => setFormData({...formData, height: Number(e.target.value)})}
+                    className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                  />
+                ) : (
+                  <div className="text-lg font-medium text-zinc-900">{user.height ? `${user.height} cm` : 'Non renseigné'}</div>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Poids (kg)</label>
+                {isEditing ? (
+                  <input 
+                    type="number" 
+                    value={formData.weight}
+                    onChange={(e) => setFormData({...formData, weight: Number(e.target.value)})}
+                    className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                  />
+                ) : (
+                  <div className="text-lg font-medium text-zinc-900">{user.weight ? `${user.weight} kg` : 'Non renseigné'}</div>
+                )}
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={itemVariants}>
+          <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg h-full">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+                <DumbbellIcon size={20} />
+              </div>
+              <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Entraînement</h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Niveau</label>
+                {isEditing ? (
+                  <select 
+                    value={formData.experienceLevel}
+                    onChange={(e) => setFormData({...formData, experienceLevel: e.target.value as any})}
+                    className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                  >
+                    <option value="Débutant">Débutant</option>
+                    <option value="Intermédiaire">Intermédiaire</option>
+                    <option value="Avancé">Avancé</option>
+                  </select>
+                ) : (
+                  <div className="text-lg font-medium text-zinc-900">{user.experienceLevel || 'Non renseigné'}</div>
+                )}
+              </div>
+              
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Équipement</label>
+                {isEditing ? (
+                  <select 
+                    value={formData.equipment}
+                    onChange={(e) => setFormData({...formData, equipment: e.target.value as any})}
+                    className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                  >
+                    <option value="Salle de sport">Salle de sport</option>
+                    <option value="Maison avec matériel">Maison avec matériel</option>
+                    <option value="Poids du corps">Poids du corps</option>
+                  </select>
+                ) : (
+                  <div className="text-lg font-medium text-zinc-900">{user.equipment || 'Non renseigné'}</div>
+                )}
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+
+      <motion.div variants={itemVariants}>
+        <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+              <TargetIcon size={20} />
+            </div>
+            <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Objectifs</h3>
+          </div>
+          
+          <div className="flex flex-wrap gap-3">
+            {user.objectifs && user.objectifs.length > 0 ? (
+              user.objectifs.map((obj, idx) => (
+                <div key={idx} className="px-4 py-2 bg-white/50 border border-zinc-200/50 rounded-xl text-sm font-medium text-zinc-900 shadow-sm">
+                  {obj}
+                </div>
+              ))
+            ) : (
+              <p className="text-zinc-500 italic text-sm">Aucun objectif renseigné.</p>
+            )}
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* Measurements Section */}
+      <motion.div variants={itemVariants}>
+        <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
               <ActivityIcon size={20} />
             </div>
-            <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Physique</h3>
+            <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Mensurations (cm)</h3>
           </div>
           
-          <div className="space-y-4">
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Taille (cm)</label>
-              {isEditing ? (
-                <input 
-                  type="number" 
-                  value={formData.height}
-                  onChange={(e) => setFormData({...formData, height: Number(e.target.value)})}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
-                />
-              ) : (
-                <div className="text-lg font-medium text-zinc-900">{user.height ? `${user.height} cm` : 'Non renseigné'}</div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            {[
+              { label: 'Poitrine', key: 'chest' },
+              { label: 'Taille', key: 'waist' },
+              { label: 'Hanches', key: 'hips' },
+              { label: 'Bras', key: 'arms' },
+              { label: 'Cuisses', key: 'thighs' }
+            ].map(measurement => (
+              <div key={measurement.key}>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">{measurement.label}</label>
+                {isEditing ? (
+                  <input 
+                    type="number" 
+                    value={(formData as any)[measurement.key]}
+                    onChange={(e) => setFormData({...formData, [measurement.key]: Number(e.target.value)})}
+                    className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                  />
+                ) : (
+                  <div className="text-lg font-medium text-zinc-900">{(user.measurements as any)?.[measurement.key] ? `${(user.measurements as any)[measurement.key]} cm` : '-'}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      </motion.div>
+
+      {user.role === 'member' && (
+        <motion.div variants={itemVariants}>
+          <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+                  <CreditCardIcon size={20} />
+                </div>
+                <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Abonnement</h3>
+              </div>
+              {state.currentClub?.settings?.payment?.stripeSecretKey && user.stripeCustomerId && (
+                <Button variant="secondary" onClick={handleManageSubscription} className="text-sm">
+                  Gérer mon abonnement <ExternalLinkIcon size={14} className="ml-2" />
+                </Button>
               )}
             </div>
             
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Poids (kg)</label>
-              {isEditing ? (
-                <input 
-                  type="number" 
-                  value={formData.weight}
-                  onChange={(e) => setFormData({...formData, weight: Number(e.target.value)})}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
-                />
-              ) : (
-                <div className="text-lg font-medium text-zinc-900">{user.weight ? `${user.weight} kg` : 'Non renseigné'}</div>
-              )}
+            <div className="space-y-4">
+              {(() => {
+                const subscription = state.subscriptions.find(s => s.memberId === user.id && s.status === 'active');
+                if (subscription) {
+                  return (
+                    <div className="bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex flex-col gap-4 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-zinc-900">{subscription.planName}</p>
+                          <p className="text-xs text-zinc-500 mt-1">
+                            {subscription.price}€ / {subscription.billingCycle === 'monthly' ? 'mois' : subscription.billingCycle === 'yearly' ? 'an' : 'fois'}
+                          </p>
+                        </div>
+                        <Badge variant="success" className="uppercase tracking-widest text-[10px]">Actif</Badge>
+                      </div>
+                      {subscription.contractUrl && (
+                        <div className="pt-4 border-t border-zinc-200/50">
+                          <a href={subscription.contractUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-velatra-accent flex items-center gap-2 hover:underline">
+                            <ExternalLinkIcon size={16} /> Voir mon contrat
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return (
+                  <div className="bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex items-center justify-between shadow-sm">
+                    <div>
+                      <p className="text-sm font-medium text-zinc-900">Aucun abonnement actif</p>
+                      <p className="text-xs text-zinc-500 mt-1">Vous n'avez pas d'abonnement en cours.</p>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
-          </div>
-        </Card>
-
-        <Card className="!p-6 bg-zinc-50 border-zinc-200">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
-              <DumbbellIcon size={20} />
-            </div>
-            <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Entraînement</h3>
-          </div>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Niveau</label>
-              {isEditing ? (
-                <select 
-                  value={formData.experienceLevel}
-                  onChange={(e) => setFormData({...formData, experienceLevel: e.target.value as any})}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
-                >
-                  <option value="Débutant">Débutant</option>
-                  <option value="Intermédiaire">Intermédiaire</option>
-                  <option value="Avancé">Avancé</option>
-                </select>
-              ) : (
-                <div className="text-lg font-medium text-zinc-900">{user.experienceLevel || 'Non renseigné'}</div>
-              )}
-            </div>
-            
-            <div>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Équipement</label>
-              {isEditing ? (
-                <select 
-                  value={formData.equipment}
-                  onChange={(e) => setFormData({...formData, equipment: e.target.value as any})}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
-                >
-                  <option value="Salle de sport">Salle de sport</option>
-                  <option value="Maison avec matériel">Maison avec matériel</option>
-                  <option value="Poids du corps">Poids du corps</option>
-                </select>
-              ) : (
-                <div className="text-lg font-medium text-zinc-900">{user.equipment || 'Non renseigné'}</div>
-              )}
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <Card className="!p-6 bg-zinc-50 border-zinc-200">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
-            <TargetIcon size={20} />
-          </div>
-          <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Objectifs</h3>
-        </div>
-        
-        <div className="flex flex-wrap gap-3">
-          {user.objectifs && user.objectifs.length > 0 ? (
-            user.objectifs.map((obj, idx) => (
-              <div key={idx} className="px-4 py-2 bg-white border border-zinc-200 rounded-xl text-sm font-medium text-zinc-900">
-                {obj}
-              </div>
-            ))
-          ) : (
-            <p className="text-zinc-500 italic text-sm">Aucun objectif renseigné.</p>
-          )}
-        </div>
-      </Card>
-
-      {/* Measurements Section */}
-      <Card className="!p-6 bg-zinc-50 border-zinc-200">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
-            <ActivityIcon size={20} />
-          </div>
-          <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Mensurations (cm)</h3>
-        </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {[
-            { label: 'Poitrine', key: 'chest' },
-            { label: 'Taille', key: 'waist' },
-            { label: 'Hanches', key: 'hips' },
-            { label: 'Bras', key: 'arms' },
-            { label: 'Cuisses', key: 'thighs' }
-          ].map(measurement => (
-            <div key={measurement.key}>
-              <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">{measurement.label}</label>
-              {isEditing ? (
-                <input 
-                  type="number" 
-                  value={(formData as any)[measurement.key]}
-                  onChange={(e) => setFormData({...formData, [measurement.key]: Number(e.target.value)})}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
-                />
-              ) : (
-                <div className="text-lg font-medium text-zinc-900">{(user.measurements as any)?.[measurement.key] ? `${(user.measurements as any)[measurement.key]} cm` : '-'}</div>
-              )}
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {user.role === 'member' && state.currentClub?.settings?.payment?.stripeSecretKey && user.stripeCustomerId && (
-        <Card className="!p-6 bg-zinc-50 border-zinc-200">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
-                <CreditCardIcon size={20} />
-              </div>
-              <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Abonnement</h3>
-            </div>
-            <Button variant="secondary" onClick={handleManageSubscription} className="text-sm">
-              Gérer mon abonnement <ExternalLinkIcon size={14} className="ml-2" />
-            </Button>
-          </div>
-          
-          <div className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-zinc-900">Statut de l'abonnement</p>
-              <p className="text-xs text-zinc-500 mt-1">Gérez vos paiements et factures via le portail sécurisé Stripe.</p>
-            </div>
-            <Badge variant="success" className="uppercase tracking-widest text-[10px]">Actif</Badge>
-          </div>
-        </Card>
+          </Card>
+        </motion.div>
       )}
 
       {/* Integrations Section */}
-      <Card className="!p-6 bg-zinc-50 border-zinc-200">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
-            <ActivityIcon size={20} />
-          </div>
-          <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Connexions & Applications</h3>
-        </div>
-        
-        <div className="space-y-4">
-          {/* Apple Santé */}
-          <div className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between opacity-60 grayscale">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#FF2D55]">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-              </div>
-              <div>
-                <p className="text-sm font-bold text-zinc-900">Apple Santé</p>
-                <p className="text-xs text-zinc-500 mt-1">Synchronisez vos calories brûlées et votre activité quotidienne.</p>
-                <p className="text-[10px] font-bold text-velatra-accent uppercase tracking-wider mt-1">Prochaine MaJ</p>
-              </div>
+      <motion.div variants={itemVariants}>
+        <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+              <ActivityIcon size={20} />
             </div>
-            <Button 
-              variant="secondary" 
-              className="text-sm opacity-50 cursor-not-allowed"
-              disabled
-            >
-              Connecter
-            </Button>
+            <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Connexions & Applications</h3>
           </div>
-
-          {/* Google Fit */}
-          <div className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center justify-between opacity-60 grayscale">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#4285F4]">
-                <ActivityIcon size={24} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-zinc-900">Google Fit</p>
-                <p className="text-xs text-zinc-500 mt-1">Synchronisez vos données d'activité depuis Android.</p>
-                <p className="text-[10px] font-bold text-velatra-accent uppercase tracking-wider mt-1">Prochaine MaJ</p>
-              </div>
-            </div>
-            <Button 
-              variant="secondary" 
-              className="text-sm opacity-50 cursor-not-allowed"
-              disabled
-            >
-              Connecter
-            </Button>
-          </div>
-
-          {/* Strava */}
-          <div className="bg-white border border-zinc-200 rounded-xl p-4 flex flex-col gap-4 opacity-60 grayscale">
-            <div className="flex items-center justify-between">
+          
+          <div className="space-y-4">
+            {/* Apple Santé */}
+            <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex items-center justify-between shadow-sm transition-all ${!user.integrations?.appleHealth ? 'opacity-80' : ''}`}>
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#FC4C02]">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#FF2D55]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-zinc-900">Strava</p>
-                  <p className="text-xs text-zinc-500 mt-1">Synchronisez vos courses et sorties vélo.</p>
-                  <p className="text-[10px] font-bold text-velatra-accent uppercase tracking-wider mt-1">Prochaine MaJ</p>
+                  <p className="text-sm font-bold text-zinc-900">Apple Santé</p>
+                  <p className="text-xs text-zinc-500 mt-1">Synchronisez vos calories brûlées et votre activité quotidienne.</p>
+                  {user.integrations?.appleHealth && <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mt-1">Connecté</p>}
                 </div>
               </div>
               <Button 
-                variant="secondary" 
-                className="text-sm opacity-50 cursor-not-allowed"
-                disabled
+                variant={user.integrations?.appleHealth ? "ghost" : "secondary"} 
+                className="text-sm"
+                onClick={() => {
+                  if (user.integrations?.appleHealth) {
+                    const userRef = doc(db, "users", (user as any).firebaseUid);
+                    updateDoc(userRef, {
+                      "integrations.appleHealth": false
+                    }).then(() => {
+                      setState(prev => ({
+                        ...prev,
+                        user: {
+                          ...prev.user!,
+                          integrations: {
+                            ...prev.user!.integrations,
+                            appleHealth: false
+                          }
+                        }
+                      }));
+                      showToast("Apple Santé déconnecté", "success");
+                    });
+                  } else {
+                    const userRef = doc(db, "users", (user as any).firebaseUid);
+                    updateDoc(userRef, {
+                      "integrations.appleHealth": true
+                    }).then(() => {
+                      setState(prev => ({
+                        ...prev,
+                        user: {
+                          ...prev.user!,
+                          integrations: {
+                            ...prev.user!.integrations,
+                            appleHealth: true
+                          }
+                        }
+                      }));
+                      showToast("Apple Santé connecté avec succès !", "success");
+                    });
+                  }
+                }}
               >
-                Connecter
+                {user.integrations?.appleHealth ? 'Déconnecter' : 'Connecter'}
               </Button>
             </div>
+
+            {/* MyFitnessPal */}
+            <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex items-center justify-between shadow-sm transition-all ${!user.integrations?.myFitnessPal ? 'opacity-80' : ''}`}>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#0066EE]">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-zinc-900">MyFitnessPal</p>
+                  <p className="text-xs text-zinc-500 mt-1">Synchronisez vos repas et macros.</p>
+                  {user.integrations?.myFitnessPal && <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mt-1">Connecté</p>}
+                </div>
+              </div>
+              <Button 
+                variant={user.integrations?.myFitnessPal ? "ghost" : "secondary"} 
+                className="text-sm"
+                onClick={() => {
+                  if (user.integrations?.myFitnessPal) {
+                    const userRef = doc(db, "users", (user as any).firebaseUid);
+                    updateDoc(userRef, {
+                      "integrations.myFitnessPal": false
+                    }).then(() => {
+                      setState(prev => ({
+                        ...prev,
+                        user: {
+                          ...prev.user!,
+                          integrations: {
+                            ...prev.user!.integrations,
+                            myFitnessPal: false
+                          }
+                        }
+                      }));
+                      showToast("MyFitnessPal déconnecté", "success");
+                    });
+                  } else {
+                    const userRef = doc(db, "users", (user as any).firebaseUid);
+                    updateDoc(userRef, {
+                      "integrations.myFitnessPal": true
+                    }).then(() => {
+                      setState(prev => ({
+                        ...prev,
+                        user: {
+                          ...prev.user!,
+                          integrations: {
+                            ...prev.user!.integrations,
+                            myFitnessPal: true
+                          }
+                        }
+                      }));
+                      showToast("MyFitnessPal connecté avec succès !", "success");
+                    });
+                  }
+                }}
+              >
+                {user.integrations?.myFitnessPal ? 'Déconnecter' : 'Connecter'}
+              </Button>
+            </div>
+
+            {/* Google Fit */}
+            <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex items-center justify-between shadow-sm transition-all ${!user.integrations?.googleFit ? 'opacity-80' : ''}`}>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#4285F4]">
+                  <ActivityIcon size={24} />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-zinc-900">Google Fit</p>
+                  <p className="text-xs text-zinc-500 mt-1">Synchronisez vos données d'activité depuis Android.</p>
+                  {user.integrations?.googleFit && <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mt-1">Connecté</p>}
+                </div>
+              </div>
+              <Button 
+                variant={user.integrations?.googleFit ? "ghost" : "secondary"} 
+                className="text-sm"
+                onClick={handleConnectGoogleFit}
+              >
+                {user.integrations?.googleFit ? 'Déconnecter' : 'Connecter'}
+              </Button>
+            </div>
+
+            {/* Strava */}
+            <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex flex-col gap-4 shadow-sm transition-all ${!user.integrations?.strava ? 'opacity-80' : ''}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#FC4C02]">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-zinc-900">Strava</p>
+                    <p className="text-xs text-zinc-500 mt-1">Synchronisez vos courses et sorties vélo.</p>
+                    {user.integrations?.strava && <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mt-1">Connecté</p>}
+                  </div>
+                </div>
+                <Button 
+                  variant={user.integrations?.strava ? "ghost" : "secondary"} 
+                  className="text-sm"
+                  onClick={handleConnectStrava}
+                >
+                  {user.integrations?.strava ? 'Déconnecter' : 'Connecter'}
+                </Button>
+              </div>
+              {user.integrations?.strava && user.integrations?.stravaTokens && (
+                <div className="pt-4 border-t border-zinc-200/50">
+                  <StravaActivities tokens={user.integrations.stravaTokens} />
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </Card>
-    </div>
+        </Card>
+      </motion.div>
+    </motion.div>
   );
 };
 

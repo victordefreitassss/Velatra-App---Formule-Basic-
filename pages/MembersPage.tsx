@@ -9,9 +9,24 @@ import {
 import { db, doc, setDoc, updateDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage } from '../firebase';
 import { GOALS } from '../constants';
 import { generateNutritionPlan } from '../services/aiService';
+import { updateNutritionPlanForWeight } from '../utils';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const containerVariants: any = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
+  }
+};
+
+const itemVariants: any = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [search, setSearch] = useState("");
@@ -88,6 +103,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
     try {
       await setDoc(doc(db, "bodyData", scanData.id.toString()), scanData);
+      
+      // Update nutrition plan if it exists
+      const plan = state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id));
+      if (plan) {
+        const updatedPlan = updateNutritionPlanForWeight(plan, weightVal);
+        await updateDoc(doc(db, "nutritionPlans", plan.id), updatedPlan);
+      }
+      
       showToast("Scan balancé enregistré");
       setNewScan({ weight: "", fat: "", muscle: "" });
     } catch (err) {
@@ -312,6 +335,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         gender: selectedProfile.gender,
         activityLevel: "Modérément actif",
         goal: (selectedProfile.objectifs[0] as any) || "Perte de poids",
+        durationWeeks: 4,
         bmr: 0,
         tdee: 0,
         targetCalories: parseInt(plan.calories_totales) || 0,
@@ -658,31 +682,40 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+      >
         {members.map(u => {
           const stats = getMemberStats(u.id);
           const hasFeedback = stats.program?.memberRemarks;
           return (
-            <Card key={u.id} className={`flex flex-col gap-4 border-none ring-1 transition-all !p-6 bg-white ${hasFeedback ? 'ring-orange-500/30' : 'ring-zinc-200 hover:ring-velatra-accent/30'}`}>
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-zinc-100 border border-zinc-200 flex items-center justify-center font-black text-2xl text-velatra-accent shadow-lg">
-                  {u.avatar}
-                </div>
-                <div className="flex-1">
-                  <div className="font-black text-lg text-zinc-900 leading-none mb-2">{u.name}</div>
-                  <div className="flex gap-2">
-                    <Badge variant="dark" className="!bg-zinc-50 !p-1 !text-[8px]">{stats.perfs.length} PR</Badge>
-                    {hasFeedback && <Badge variant="orange" className="!p-1 !text-[8px] animate-pulse">FEEDBACK</Badge>}
+            <motion.div key={u.id} variants={itemVariants} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }}>
+              <Card className={`flex flex-col gap-4 border-none ring-1 transition-all !p-6 bg-white/60 backdrop-blur-xl ${hasFeedback ? 'ring-orange-500/30' : 'ring-zinc-200/50 hover:ring-velatra-accent/30'} shadow-sm hover:shadow-md h-full`}>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-50 border border-white flex items-center justify-center font-black text-2xl text-zinc-700 shadow-inner">
+                    {u.avatar}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-black text-lg text-zinc-900 leading-none mb-2 uppercase tracking-tight">{u.name}</div>
+                    <div className="flex gap-2">
+                      <Badge variant="dark" className="!bg-zinc-100 !text-zinc-500 !border-zinc-200 !p-1 !text-[8px]">{stats.perfs.length} PR</Badge>
+                      {hasFeedback && <Badge variant="orange" className="!bg-orange-500/10 !text-orange-500 !border-orange-500/20 !p-1 !text-[8px] animate-pulse">FEEDBACK</Badge>}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <Button variant="secondary" className="!py-3.5 !text-[10px] !rounded-xl font-black tracking-widest italic" onClick={() => setSelectedProfile(u)}>
-                VOIR LE DOSSIER
-              </Button>
-            </Card>
+                <div className="mt-auto pt-4">
+                  <Button variant="secondary" className="w-full !py-3.5 !text-[10px] !rounded-xl font-black tracking-widest italic" onClick={() => setSelectedProfile(u)}>
+                    VOIR LE DOSSIER
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       {selectedProfile && (() => {
         const stats = getMemberStats(selectedProfile.id);
@@ -715,13 +748,25 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         };
 
         return (
-          <div className="fixed inset-0 bg-white/95 backdrop-blur-3xl z-[500] flex items-start justify-center p-0 md:p-8 overflow-y-auto">
-            <div className="w-full max-w-6xl bg-zinc-50 min-h-screen md:min-h-0 md:rounded-[48px] border border-zinc-200 shadow-2xl relative overflow-hidden animate-in zoom-in duration-300 my-0 md:my-8">
-              <button onClick={closeProfile} className="fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-white/90 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border border-zinc-200 hover:bg-red-500 hover:border-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
+          <AnimatePresence>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[500] flex items-start justify-center p-0 md:p-8 overflow-y-auto"
+            >
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="w-full max-w-6xl bg-white/90 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border border-white/20 shadow-2xl relative overflow-hidden my-0 md:my-8"
+              >
+                <button onClick={closeProfile} className="fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-white/90 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border border-zinc-200 hover:bg-red-500 hover:border-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12">
-                {/* SIDEBAR */}
-                <div className="lg:col-span-4 bg-zinc-50 border-r border-zinc-200 p-6 md:p-10 space-y-8 md:space-y-10 pt-20 md:pt-10">
+                <div className="grid grid-cols-1 lg:grid-cols-12">
+                  {/* SIDEBAR */}
+                  <div className="lg:col-span-4 bg-white/50 border-r border-white/20 p-6 md:p-10 space-y-8 md:space-y-10 pt-20 md:pt-10">
                   <div className="text-center relative">
                     <div className="w-24 h-24 rounded-[32px] bg-gradient-to-br from-velatra-accent to-velatra-accentDark flex items-center justify-center text-4xl font-black mx-auto mb-6 shadow-2xl">{selectedProfile.avatar}</div>
                     <button 
@@ -1484,20 +1529,34 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </section>
                 </div>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
+          </AnimatePresence>
         );
       })()}
 
+      <AnimatePresence>
       {isEditingInfo && selectedProfile && (
-        <div className="fixed inset-0 bg-white/90 backdrop-blur-md z-[600] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <Card className="w-full max-w-lg !p-8 border-zinc-200 relative shadow-2xl">
-            <button onClick={() => setIsEditingInfo(false)} className="absolute top-6 right-6 text-zinc-900/40 hover:text-zinc-900">
-              <XIcon size={24} />
-            </button>
-            
-            <h2 className="text-2xl font-black mb-1 uppercase italic">Modifier Profil</h2>
-            <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">Informations de base de l'athlète</p>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
+        >
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="w-full max-w-lg"
+          >
+            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl border-white/20 relative shadow-2xl">
+              <button onClick={() => setIsEditingInfo(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-100 p-2 rounded-full transition-colors">
+                <XIcon size={20} />
+              </button>
+              
+              <h2 className="text-2xl font-black mb-1 uppercase italic">Modifier Profil</h2>
+              <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">Informations de base de l'athlète</p>
 
             <div className="space-y-5">
               <div className="grid grid-cols-2 gap-4">
@@ -1595,18 +1654,33 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
             </div>
           </Card>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
+      <AnimatePresence>
       {isAdjustingTargets && (
-        <div className="fixed inset-0 bg-white/90 backdrop-blur-md z-[600] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <Card className="w-full max-w-md !p-8 border-zinc-200 relative shadow-2xl">
-            <button onClick={() => setIsAdjustingTargets(false)} className="absolute top-6 right-6 text-zinc-900/40 hover:text-zinc-900">
-              <XIcon size={24} />
-            </button>
-            
-            <h2 className="text-2xl font-black mb-1 uppercase italic">Cibles Nutritionnelles</h2>
-            <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">Ajuster avant génération</p>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
+        >
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="w-full max-w-md"
+          >
+            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl border-white/20 relative shadow-2xl">
+              <button onClick={() => setIsAdjustingTargets(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-100 p-2 rounded-full transition-colors">
+                <XIcon size={20} />
+              </button>
+              
+              <h2 className="text-2xl font-black mb-1 uppercase italic">Cibles Nutritionnelles</h2>
+              <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">Ajuster avant génération</p>
 
             <div className="space-y-5">
               <div className="space-y-1">
@@ -1653,15 +1727,30 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
             </div>
           </Card>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
+      <AnimatePresence>
       {isAddingMember && (
-        <div className="fixed inset-0 bg-white/90 backdrop-blur-md z-[600] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <Card className="w-full max-w-lg !p-8 border-zinc-200 relative shadow-2xl">
-            <button onClick={() => setIsAddingMember(false)} className="absolute top-6 right-6 text-zinc-900/40 hover:text-zinc-900">
-              <XIcon size={24} />
-            </button>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
+        >
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="w-full max-w-lg"
+          >
+            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl border-white/20 relative shadow-2xl">
+              <button onClick={() => setIsAddingMember(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-100 p-2 rounded-full transition-colors">
+                <XIcon size={20} />
+              </button>
             
             <h2 className="text-2xl font-black mb-1 uppercase italic">Nouveau Profil</h2>
             <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">Créer un membre manuellement</p>
@@ -1788,12 +1877,26 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
             </div>
           </Card>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
+      <AnimatePresence>
       {nutritionPlan && (
-        <div className="fixed inset-0 bg-white/95 backdrop-blur-3xl z-[700] flex items-start justify-center p-0 md:p-8 overflow-y-auto">
-          <div className="w-full max-w-4xl bg-zinc-50 min-h-screen md:min-h-0 md:rounded-[48px] border border-emerald-500/20 shadow-[0_0_100px_rgba(16,185,129,0.1)] relative overflow-hidden animate-in zoom-in duration-300 my-0 md:my-8 p-8 md:p-12">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[700] flex items-start justify-center p-0 md:p-8 overflow-y-auto"
+        >
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="w-full max-w-4xl bg-white/90 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border border-emerald-500/20 shadow-[0_0_100px_rgba(16,185,129,0.1)] relative overflow-hidden my-0 md:my-8 p-8 md:p-12"
+          >
             <button onClick={() => setNutritionPlan(null)} className="fixed top-4 right-4 md:top-10 md:right-10 p-4 bg-white/90 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[800] border border-zinc-200 hover:bg-red-500 hover:border-red-500 transition-all shadow-xl"><XIcon size={24} /></button>
             
             <div className="flex items-center gap-4 mb-8">
@@ -1860,9 +1963,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 ))}
               </ul>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 };

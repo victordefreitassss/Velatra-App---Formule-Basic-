@@ -3,6 +3,22 @@ import { AppState, SupplementProduct, SupplementOrder } from '../types';
 import { Card, Button, Badge } from '../components/UI';
 import { ShoppingCartIcon, PlusIcon, MinusIcon } from '../components/Icons';
 import { db, doc, setDoc } from '../firebase';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const containerVariants: import('framer-motion').Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants: import('framer-motion').Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 export const MemberSupplementsPage: React.FC<{ state: AppState, showToast: any }> = ({ state, showToast }) => {
   const [cart, setCart] = useState<{product: SupplementProduct, quantity: number}[]>([]);
@@ -106,50 +122,59 @@ export const MemberSupplementsPage: React.FC<{ state: AppState, showToast: any }
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          >
+            <AnimatePresence>
             {filteredProducts.map(product => {
               const inCart = cart.find(item => item.product.id === product.id)?.quantity || 0;
               return (
-                <Card key={product.id} className="bg-zinc-50 border-zinc-200 flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-start mb-2">
-                      <Badge variant="blue">{product.cat}</Badge>
-                      {product.stock <= 0 && <Badge variant="orange">Rupture</Badge>}
-                    </div>
-                    <h3 className="text-lg font-bold text-zinc-900 mb-1">{product.nom}</h3>
-                    <div className="text-2xl font-black text-velatra-accent mb-4">{product.prixVente} €</div>
-                  </div>
-                  <div className="flex items-center justify-between border-t border-zinc-200 pt-4 mt-2">
-                    {inCart > 0 ? (
-                      <div className="flex items-center gap-3 bg-zinc-50 rounded-xl p-1">
-                        <button onClick={() => removeFromCart(product.id)} className="w-8 h-8 flex items-center justify-center text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors">
-                          <MinusIcon size={16} />
-                        </button>
-                        <span className="font-bold text-zinc-900 w-4 text-center">{inCart}</span>
-                        <button onClick={() => addToCart(product)} disabled={product.stock <= inCart} className="w-8 h-8 flex items-center justify-center text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors disabled:opacity-50">
-                          <PlusIcon size={16} />
-                        </button>
+                <motion.div key={product.id} variants={itemVariants} layout exit={{ opacity: 0, scale: 0.95 }}>
+                  <Card className="bg-white/60 backdrop-blur-xl border-zinc-200/50 flex flex-col justify-between h-full hover:shadow-lg transition-all duration-300">
+                    <div>
+                      <div className="flex justify-between items-start mb-2">
+                        <Badge variant="blue">{product.cat}</Badge>
+                        {product.stock <= 0 && <Badge variant="orange">Rupture</Badge>}
                       </div>
-                    ) : (
-                      <Button 
-                        variant="primary" 
-                        onClick={() => addToCart(product)} 
-                        disabled={product.stock <= 0}
-                        className="w-full"
-                      >
-                        <ShoppingCartIcon size={16} className="mr-2" /> Ajouter
-                      </Button>
-                    )}
-                  </div>
-                </Card>
+                      <h3 className="text-lg font-bold text-zinc-900 mb-1">{product.nom}</h3>
+                      <div className="text-2xl font-black text-velatra-accent mb-4">{product.prixVente} €</div>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-zinc-200/50 pt-4 mt-2">
+                      {inCart > 0 ? (
+                        <div className="flex items-center gap-3 bg-zinc-50 rounded-xl p-1">
+                          <button onClick={() => removeFromCart(product.id)} className="w-8 h-8 flex items-center justify-center text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors">
+                            <MinusIcon size={16} />
+                          </button>
+                          <span className="font-bold text-zinc-900 w-4 text-center">{inCart}</span>
+                          <button onClick={() => addToCart(product)} disabled={product.stock <= inCart} className="w-8 h-8 flex items-center justify-center text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors disabled:opacity-50">
+                            <PlusIcon size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <Button 
+                          variant="primary" 
+                          onClick={() => addToCart(product)} 
+                          disabled={product.stock <= 0}
+                          className="w-full"
+                        >
+                          <ShoppingCartIcon size={16} className="mr-2" /> Ajouter
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                </motion.div>
               );
             })}
+            </AnimatePresence>
             {state.supplementProducts.length === 0 && (
-              <div className="col-span-full text-center py-12 text-zinc-500 italic">
+              <motion.div variants={itemVariants} className="col-span-full text-center py-12 text-zinc-500 italic">
                 Aucun produit disponible pour le moment.
-              </div>
+              </motion.div>
             )}
-          </div>
+          </motion.div>
         </div>
 
         <div>

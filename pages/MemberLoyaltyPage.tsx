@@ -2,6 +2,22 @@ import React from 'react';
 import { AppState } from '../types';
 import { Card, Badge } from '../components/UI';
 import { GiftIcon, CheckIcon } from '../components/Icons';
+import { motion } from 'framer-motion';
+
+const containerVariants: import('framer-motion').Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants: import('framer-motion').Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
 
 export const MemberLoyaltyPage: React.FC<{ state: AppState }> = ({ state }) => {
   const user = state.user!;
@@ -38,27 +54,34 @@ export const MemberLoyaltyPage: React.FC<{ state: AppState }> = ({ state }) => {
         <div className="text-xs text-zinc-500 mt-2">XP cumulés</div>
       </Card>
 
-      <div className="space-y-4">
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="space-y-4"
+      >
         <h2 className="text-xl font-bold text-zinc-900 mb-4">Récompenses & Paliers</h2>
         {rewards.map((r, i) => {
           const unlocked = xp >= r.cost;
           return (
-            <Card key={i} className={`flex items-center gap-4 ${!unlocked ? 'opacity-50 grayscale' : 'border-velatra-warning'}`}>
-              <div className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center font-bold ${unlocked ? 'bg-velatra-warning text-velatra-bg' : 'bg-velatra-bg border border-velatra-border text-zinc-900'}`}>
-                {unlocked ? <CheckIcon size={24} /> : <span className="text-lg">{r.cost}</span>}
-                {!unlocked && <span className="text-[8px] uppercase">XP</span>}
-              </div>
-              <div className="flex-1">
-                <div className="font-bold flex items-center gap-2 text-zinc-900 text-lg">
-                   {r.title} 
-                   {unlocked && <Badge variant="orange">Débloqué</Badge>}
+            <motion.div key={i} variants={itemVariants}>
+              <Card className={`flex items-center gap-4 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:shadow-lg transition-all duration-300 ${!unlocked ? 'opacity-50 grayscale' : 'border-velatra-warning/50'}`}>
+                <div className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center font-bold ${unlocked ? 'bg-velatra-warning text-velatra-bg' : 'bg-zinc-100 border border-zinc-200 text-zinc-900'}`}>
+                  {unlocked ? <CheckIcon size={24} /> : <span className="text-lg">{r.cost}</span>}
+                  {!unlocked && <span className="text-[8px] uppercase">XP</span>}
                 </div>
-                <div className="text-sm text-zinc-500">{r.desc}</div>
-              </div>
-            </Card>
+                <div className="flex-1">
+                  <div className="font-bold flex items-center gap-2 text-zinc-900 text-lg">
+                     {r.title} 
+                     {unlocked && <Badge variant="orange">Débloqué</Badge>}
+                  </div>
+                  <div className="text-sm text-zinc-500">{r.desc}</div>
+                </div>
+              </Card>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
     </div>
   );
 };

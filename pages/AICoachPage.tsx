@@ -6,6 +6,7 @@ import { GoogleGenAI } from "@google/genai";
 import { CLUB_INFO, COACHES, INIT_SUPPLEMENTS } from '../constants';
 import Markdown from 'react-markdown';
 import { MessagesPage } from './MessagesPage';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [activeTab, setActiveTab] = useState<'ai' | 'human'>('human');
@@ -96,48 +97,88 @@ RÈGLES DE REDIRECTION IMPORTANTES :
     }
   };
 
+  const containerVariants: any = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants: any = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { type: "spring", stiffness: 300, damping: 24 }
+    }
+  };
+
   return (
-    <div className="space-y-4 page-transition pb-24 h-[calc(100vh-100px)] flex flex-col">
-      <div className="flex items-center justify-between px-1 shrink-0">
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-4 pb-24 h-[calc(100vh-100px)] flex flex-col"
+    >
+      <motion.div variants={itemVariants} className="flex items-center justify-between px-1 shrink-0">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Discussions</h1>
           <p className="text-zinc-900 text-[10px] uppercase tracking-[3px] font-bold">Échange avec ton coach</p>
         </div>
-        <div className="p-4 bg-velatra-accent/10 rounded-2xl text-velatra-accent shadow-inner">
+        <div className="p-4 bg-velatra-accent/10 rounded-2xl text-velatra-accent shadow-inner backdrop-blur-md">
           <MessageCircleIcon size={32} />
         </div>
-      </div>
+      </motion.div>
 
-      <div className="flex bg-zinc-50 rounded-xl p-1 shrink-0">
+      <motion.div variants={itemVariants} className="flex bg-white/50 backdrop-blur-md rounded-xl p-1 shrink-0 border border-zinc-200/50 shadow-sm">
         <button 
-          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'human' ? 'bg-velatra-accent text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-900'}`} 
+          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'human' ? 'bg-velatra-accent text-white shadow-lg shadow-velatra-accent/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white/40'}`} 
           onClick={() => setActiveTab('human')}
         >
           <MessageCircleIcon size={16} /> {coachName}
         </button>
         <button 
-          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'ai' ? 'bg-velatra-accent text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-900'}`} 
+          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'ai' ? 'bg-velatra-accent text-white shadow-lg shadow-velatra-accent/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white/40'}`} 
           onClick={() => setActiveTab('ai')}
         >
           <BotIcon size={16} /> Coach IA
         </button>
-      </div>
+      </motion.div>
 
-      {activeTab === 'ai' ? (
-        <Card className="flex-1 flex flex-col items-center justify-center bg-white border-zinc-200 p-8 text-center">
-          <div className="w-20 h-20 bg-velatra-accent/10 rounded-full flex items-center justify-center text-velatra-accent mb-6">
-            <BotIcon size={40} />
-          </div>
-          <h2 className="text-2xl font-display font-bold text-zinc-900 mb-2">Coach IA en préparation</h2>
-          <p className="text-zinc-500 max-w-md">
-            Ton assistant personnel virtuel est en cours d'entraînement. Il sera disponible dans la prochaine mise à jour (MAJ) de l'application !
-          </p>
-        </Card>
-      ) : (
-        <div className="flex-1 overflow-hidden bg-white rounded-3xl border border-zinc-200 p-4">
-          <MessagesPage state={state} setState={setState} showToast={showToast} embedded={true} />
-        </div>
-      )}
-    </div>
+      <AnimatePresence mode="wait">
+        {activeTab === 'ai' ? (
+          <motion.div
+            key="ai"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 flex flex-col"
+          >
+            <Card className="flex-1 flex flex-col items-center justify-center bg-white/60 backdrop-blur-xl border-zinc-200/50 p-8 text-center shadow-sm">
+              <div className="w-20 h-20 bg-velatra-accent/10 rounded-full flex items-center justify-center text-velatra-accent mb-6 shadow-inner">
+                <BotIcon size={40} />
+              </div>
+              <h2 className="text-2xl font-display font-bold text-zinc-900 mb-2">Coach IA en préparation</h2>
+              <p className="text-zinc-500 max-w-md">
+                Ton assistant personnel virtuel est en cours d'entraînement. Il sera disponible dans la prochaine mise à jour (MAJ) de l'application !
+              </p>
+            </Card>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="human"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 overflow-hidden bg-white/60 backdrop-blur-xl rounded-3xl border border-zinc-200/50 p-4 shadow-sm"
+          >
+            <MessagesPage state={state} setState={setState} showToast={showToast} embedded={true} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 };

@@ -417,6 +417,7 @@ export interface NutritionPlan {
   meals: Meal[];
   liste_courses?: string[];
   aiGenerated?: boolean;
+  durationWeeks?: number;
 }
 
 export enum AppointmentSource { PROSPECT = 'PROSPECT', SETTER = 'SETTER' }

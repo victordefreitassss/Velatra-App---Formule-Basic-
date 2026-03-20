@@ -3,7 +3,7 @@ import { Program, Preset, Exercise, Day, ExerciseEntry, AppState } from '../type
 import { Button, Input, Card, Badge } from './UI';
 import { 
   PlusIcon, Trash2Icon, ChevronLeftIcon, SaveIcon, 
-  DumbbellIcon, LayersIcon, InfoIcon, MessageCircleIcon, RefreshCwIcon 
+  DumbbellIcon, LayersIcon, InfoIcon, MessageCircleIcon, RefreshCwIcon, LinkIcon
 } from './Icons';
 import { EXERCISE_CATEGORIES, GOALS } from '../constants';
 
@@ -105,10 +105,71 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
 
   const handleUpdateEx = (dayIdx: number, exIdx: number, field: keyof ExerciseEntry, value: any) => {
     const newDays = [...formData.days];
-    newDays[dayIdx].exercises[exIdx] = {
-      ...newDays[dayIdx].exercises[exIdx],
-      [field]: value
-    };
+    const currentEx = newDays[dayIdx].exercises[exIdx];
+    
+    if (field === 'setType') {
+      const newType = value as string;
+      const isGroupType = ['superset', 'biset', 'triset', 'giantset'].includes(newType);
+      const currentGroup = currentEx.setGroup;
+      
+      if (isGroupType) {
+        if (currentGroup !== null && currentGroup > 0) {
+          // Already in a group, update type for all in the group
+          newDays[dayIdx].exercises = newDays[dayIdx].exercises.map((e: ExerciseEntry) => {
+            if (e.setGroup === currentGroup) {
+              return { ...e, setType: newType as any };
+            }
+            return e;
+          });
+        } else {
+          // Create a new group
+          let count = 2;
+          if (newType === 'triset') count = 3;
+          if (newType === 'giantset') count = 4;
+          
+          const allGroups = newDays[dayIdx].exercises.map((e: ExerciseEntry) => e.setGroup).filter((g: number | null) => g !== null && g > 0) as number[];
+          const nextGroupId = allGroups.length > 0 ? Math.max(...allGroups) + 1 : 1;
+          
+          for (let i = 0; i < count; i++) {
+            if (exIdx + i < newDays[dayIdx].exercises.length) {
+              newDays[dayIdx].exercises[exIdx + i] = {
+                ...newDays[dayIdx].exercises[exIdx + i],
+                setGroup: nextGroupId,
+                setType: newType as any
+              };
+            }
+          }
+        }
+      } else if (newType === 'normal') {
+        if (currentGroup !== null && currentGroup > 0) {
+          // Ungroup all in this group
+          newDays[dayIdx].exercises = newDays[dayIdx].exercises.map((e: ExerciseEntry) => {
+            if (e.setGroup === currentGroup) {
+              return { ...e, setGroup: null, setType: 'normal' };
+            }
+            return e;
+          });
+        } else {
+          newDays[dayIdx].exercises[exIdx] = {
+            ...currentEx,
+            setGroup: null,
+            setType: 'normal'
+          };
+        }
+      } else {
+        // Dropset, custom, etc.
+        newDays[dayIdx].exercises[exIdx] = {
+          ...currentEx,
+          [field]: value
+        };
+      }
+    } else {
+      newDays[dayIdx].exercises[exIdx] = {
+        ...currentEx,
+        [field]: value
+      };
+    }
+    
     setFormData({ ...formData, days: newDays });
   };
 
@@ -329,112 +390,191 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                   <span className="text-[10px] font-black uppercase tracking-[3px] text-zinc-900">PROGRAMMATION ({formData.days[selectedDayIdx]?.exercises?.length || 0} MOUVEMENTS)</span>
                 </div>
                 
-                {(formData.days[selectedDayIdx]?.exercises || []).map((ex: ExerciseEntry, exIdx: number) => {
-                  if (!ex) return null;
-                  const baseEx = exercises.find(e => e.id === ex.exId);
+                {(() => {
+                  const exercisesList = formData.days[selectedDayIdx]?.exercises || [];
+                  const groupedExercises: { isGroup: boolean; groupName?: string; exercises: { entry: ExerciseEntry; index: number }[] }[] = [];
                   
-                  return (
-                    <div key={exIdx} className="bg-white p-6 rounded-3xl border border-zinc-200 relative group hover:border-velatra-accent/40 transition-all shadow-inner">
-                      <div className="flex flex-col gap-6">
-                        <div className="flex gap-4 items-end">
-                          <div className="w-16 h-16 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center shrink-0 overflow-hidden">
-                            {baseEx?.photo ? (
-                              <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="text-velatra-accent">
-                                <DumbbellIcon size={24} />
+                  let currentGroup: number | null = null;
+                  let currentGroupType: string | null = null;
+                  let currentGroupItems: { entry: ExerciseEntry; index: number }[] = [];
+
+                  exercisesList.forEach((exEntry, exIndex) => {
+                    if (exEntry.setGroup && exEntry.setGroup > 0) {
+                      if (currentGroup === exEntry.setGroup) {
+                        currentGroupItems.push({ entry: exEntry, index: exIndex });
+                      } else {
+                        if (currentGroupItems.length > 0) {
+                          groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
+                        }
+                        currentGroup = exEntry.setGroup;
+                        currentGroupType = exEntry.setType;
+                        currentGroupItems = [{ entry: exEntry, index: exIndex }];
+                      }
+                    } else {
+                      if (currentGroupItems.length > 0) {
+                        groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
+                        currentGroupItems = [];
+                        currentGroup = null;
+                        currentGroupType = null;
+                      }
+                      groupedExercises.push({ isGroup: false, exercises: [{ entry: exEntry, index: exIndex }] });
+                    }
+                  });
+                  if (currentGroupItems.length > 0) {
+                    groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
+                  }
+
+                  return groupedExercises.map((group, gIndex) => {
+                    const getGroupDescription = (type: string) => {
+                      switch (type.toLowerCase()) {
+                        case 'superset': return "Enchaînez ces exercices sans temps de repos entre eux.";
+                        case 'biset': return "Enchaînez ces 2 exercices ciblant le même muscle sans repos.";
+                        case 'triset': return "Enchaînez ces 3 exercices sans temps de repos.";
+                        case 'giantset': return "Enchaînez ces 4 exercices ou plus sans temps de repos.";
+                        case 'dropset': return "Allez jusqu'à l'échec, baissez le poids de 20% et repartez sans repos.";
+                        default: return "Enchaînez ces exercices selon les indications.";
+                      }
+                    };
+
+                    return (
+                      <div key={gIndex} className={group.isGroup ? "relative pl-6 md:pl-10 space-y-8 mt-16" : "space-y-8"}>
+                        {group.isGroup && (
+                          <>
+                            {/* Ligne verticale de liaison */}
+                            <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-velatra-accent to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+                            
+                            <div className="absolute -top-8 left-0 bg-velatra-accent text-zinc-900 px-4 py-2 rounded-r-2xl rounded-tl-2xl shadow-lg z-10 flex flex-col gap-1">
+                              <div className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                                <LinkIcon size={12} /> {group.groupName || 'SUPERSET'} {group.exercises[0]?.entry.setGroup}
+                              </div>
+                              <div className="text-[9px] font-bold opacity-80 leading-tight max-w-[200px]">
+                                {getGroupDescription(group.groupName || 'superset')}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                        {group.exercises.map(({ entry: ex, index: exIdx }, i) => {
+                          const baseEx = exercises.find(e => e.id === ex.exId);
+                          const isLastInGroup = i === group.exercises.length - 1;
+                        
+                        return (
+                          <div key={exIdx} className="relative">
+                            <div className={`bg-white p-6 rounded-3xl border relative group hover:border-velatra-accent/40 transition-all shadow-xl ${group.isGroup ? 'border-none ring-1 ring-zinc-200' : 'border-zinc-200'}`}>
+                              {group.isGroup && (
+                                <div className="absolute -left-6 md:-left-10 top-1/2 -translate-y-1/2 w-6 md:w-10 h-1 bg-velatra-accent/30" />
+                              )}
+                              <div className="flex flex-col gap-6">
+                                <div className="flex gap-4 items-end">
+                                  <div className="w-16 h-16 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center shrink-0 overflow-hidden">
+                                    {baseEx?.photo ? (
+                                      <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="text-velatra-accent">
+                                        <DumbbellIcon size={24} />
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 space-y-1">
+                                    <label className="text-[9px] font-black text-velatra-accent uppercase tracking-widest ml-1">Mouvement</label>
+                                    <select 
+                                      className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-sm font-black text-zinc-900 focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
+                                      value={ex.exId}
+                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'exId', parseInt(e.target.value))}
+                                    >
+                                      {EXERCISE_CATEGORIES.map(cat => (
+                                        <optgroup key={cat} label={cat} className="bg-velatra-bg text-zinc-900">
+                                          {exercises.filter(e => e.cat === cat).map(e => (
+                                            <option key={e.id} value={e.id}>{e.name}</option>
+                                          ))}
+                                        </optgroup>
+                                      ))}
+                                    </select>
+                                  </div>
+                                  <button 
+                                    onClick={() => handleRemoveEx(selectedDayIdx, exIdx)}
+                                    className="p-4 text-red-500/20 hover:text-red-500 transition-colors"
+                                  >
+                                    <Trash2Icon size={20} />
+                                  </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 sm:grid-cols-6 gap-6 bg-zinc-50 p-5 rounded-2xl border border-zinc-200">
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">SÉRIES</label>
+                                    <Input 
+                                      type="number" 
+                                      className="text-center !rounded-xl !text-base font-black !bg-white"
+                                      value={ex.sets || ''}
+                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'sets', parseInt(e.target.value) || 0)}
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">RÉPÉTITIONS</label>
+                                    <Input 
+                                      className="text-center !rounded-xl !text-base font-black !bg-white"
+                                      value={ex.reps}
+                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'reps', e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">REPOS (SEC)</label>
+                                    <Input 
+                                      className="text-center !rounded-xl !text-base font-black !bg-white"
+                                      value={ex.rest}
+                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'rest', e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">TEMPO</label>
+                                    <Input 
+                                      className="text-center !rounded-xl !text-base font-black !bg-white"
+                                      value={ex.tempo || ''}
+                                      placeholder="Ex: 2010"
+                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'tempo', e.target.value)}
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">TYPE</label>
+                                    <select 
+                                      className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-center text-sm font-black text-zinc-900 focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
+                                      value={ex.setType || 'normal'}
+                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setType', e.target.value)}
+                                    >
+                                      <option value="normal">Normal</option>
+                                      <option value="superset">Superset</option>
+                                      <option value="biset">Bi-set</option>
+                                      <option value="triset">Tri-set</option>
+                                      <option value="giantset">Giant-set</option>
+                                      <option value="dropset">Drop-set</option>
+                                    </select>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block" title="Même numéro = même groupe (Superset)">GROUPE</label>
+                                    <Input 
+                                      type="number" 
+                                      className="text-center !rounded-xl !text-base font-black !bg-white"
+                                      value={ex.setGroup || ''}
+                                      placeholder="Ex: 1"
+                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setGroup', parseInt(e.target.value) || null)}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            {group.isGroup && !isLastInGroup && (
+                              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-velatra-accent/10 text-velatra-accent flex items-center justify-center backdrop-blur-sm border border-velatra-accent/30">
+                                  <LinkIcon size={14} />
+                                </div>
                               </div>
                             )}
                           </div>
-                          <div className="flex-1 space-y-1">
-                            <label className="text-[9px] font-black text-velatra-accent uppercase tracking-widest ml-1">Mouvement</label>
-                            <select 
-                              className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-sm font-black text-zinc-900 focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
-                              value={ex.exId}
-                              onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'exId', parseInt(e.target.value))}
-                            >
-                              {EXERCISE_CATEGORIES.map(cat => (
-                                <optgroup key={cat} label={cat} className="bg-velatra-bg text-zinc-900">
-                                  {exercises.filter(e => e.cat === cat).map(e => (
-                                    <option key={e.id} value={e.id}>{e.name}</option>
-                                  ))}
-                                </optgroup>
-                              ))}
-                            </select>
-                          </div>
-                          <button 
-                            onClick={() => handleRemoveEx(selectedDayIdx, exIdx)}
-                            className="p-4 text-red-500/20 hover:text-red-500 transition-colors"
-                          >
-                            <Trash2Icon size={20} />
-                          </button>
-                        </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-6 gap-6 bg-zinc-50 p-5 rounded-2xl border border-zinc-200">
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">SÉRIES</label>
-                          <Input 
-                            type="number" 
-                            className="text-center !rounded-xl !text-base font-black !bg-white"
-                            value={ex.sets || ''}
-                            onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'sets', parseInt(e.target.value) || 0)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">RÉPÉTITIONS</label>
-                          <Input 
-                            className="text-center !rounded-xl !text-base font-black !bg-white"
-                            value={ex.reps}
-                            onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'reps', e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">REPOS (SEC)</label>
-                          <Input 
-                            className="text-center !rounded-xl !text-base font-black !bg-white"
-                            value={ex.rest}
-                            onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'rest', e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">TEMPO</label>
-                          <Input 
-                            className="text-center !rounded-xl !text-base font-black !bg-white"
-                            value={ex.tempo || ''}
-                            placeholder="Ex: 2010"
-                            onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'tempo', e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">TYPE</label>
-                          <select 
-                            className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-center text-sm font-black text-zinc-900 focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
-                            value={ex.setType || 'normal'}
-                            onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setType', e.target.value)}
-                          >
-                            <option value="normal">Normal</option>
-                            <option value="superset">Superset</option>
-                            <option value="biset">Bi-set</option>
-                            <option value="triset">Tri-set</option>
-                            <option value="giantset">Giant-set</option>
-                            <option value="dropset">Drop-set</option>
-                          </select>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block" title="Même numéro = même groupe (Superset)">GROUPE</label>
-                          <Input 
-                            type="number" 
-                            className="text-center !rounded-xl !text-base font-black !bg-white"
-                            value={ex.setGroup || ''}
-                            placeholder="Ex: 1"
-                            onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setGroup', parseInt(e.target.value) || null)}
-                          />
-                        </div>
-                      </div>
+                        );
+                      })}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
 
                 <button 
                   onClick={() => handleAddExercise(selectedDayIdx)}

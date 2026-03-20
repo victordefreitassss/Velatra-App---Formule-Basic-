@@ -6,6 +6,7 @@ import { db, doc, setDoc } from '../firebase';
 import { SparklesIcon, RefreshCwIcon } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { MemberNutritionView } from '../components/MemberNutritionView';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   "Sédentaire": 1.2,
@@ -27,6 +28,21 @@ const GOAL_ADJUSTMENTS: Record<Goal, number> = {
   "Autre": 0
 };
 
+const containerVariants: import('framer-motion').Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05
+    }
+  }
+};
+
+const itemVariants: import('framer-motion').Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
+
 export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast: (msg: string, type?: 'success' | 'error') => void }> = ({ state, setState, showToast }) => {
   if (state.user?.role === 'member') {
     return <MemberNutritionView state={state} showToast={showToast} />;
@@ -44,6 +60,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('Modérément actif');
   const [goal, setGoal] = useState<Goal>('Sport santé bien-être');
   const [dietPreference, setDietPreference] = useState<string>('Standard');
+  const [durationWeeks, setDurationWeeks] = useState<number>(4);
   
   const [isSaving, setIsSaving] = useState(false);
 
@@ -74,6 +91,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       setActivityLevel(existingPlan.activityLevel);
       setGoal(existingPlan.goal);
       setDietPreference(existingPlan.dietPreference || 'Standard');
+      setDurationWeeks(existingPlan.durationWeeks || 4);
     } else {
       setWeight(member.weight || 70);
       setHeight(member.height || 175);
@@ -81,6 +99,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       setGender(member.gender || 'M');
       setGoal(member.objectifs?.[0] || 'Sport santé bien-être');
       setDietPreference('Standard');
+      setDurationWeeks(4);
     }
   };
 
@@ -142,6 +161,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
         activityLevel,
         goal,
         dietPreference,
+        durationWeeks,
         bmr,
         tdee,
         targetCalories,
@@ -193,11 +213,16 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
 
   if (selectedMember) {
     return (
-      <div className="space-y-8 page-transition pb-20">
-        <div className="flex items-center gap-4 px-1">
+      <motion.div 
+        className="space-y-8 pb-20"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <motion.div variants={itemVariants} className="flex items-center gap-4 px-1">
           <button 
             onClick={() => setSelectedMember(null)}
-            className="p-2 bg-zinc-50 hover:bg-zinc-100 rounded-full transition-colors text-zinc-900"
+            className="p-2 bg-white/60 backdrop-blur-xl hover:bg-white/80 rounded-full transition-colors text-zinc-900 border border-zinc-200/50 shadow-sm"
           >
             <ChevronLeftIcon size={20} />
           </button>
@@ -206,16 +231,16 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
             <p className="text-[10px] text-velatra-accent font-bold uppercase tracking-[3px] mt-2">{selectedMember.name}</p>
           </div>
           <div className="ml-auto">
-            <Button variant="success" onClick={handleSavePlan} disabled={isSaving} className="!rounded-full !py-2 !px-4">
+            <Button variant="success" onClick={handleSavePlan} disabled={isSaving} className="!rounded-full !py-2 !px-4 shadow-md hover:shadow-lg transition-shadow">
               <SaveIcon size={16} className="mr-2" /> {isSaving ? 'ENREGISTREMENT...' : 'ENREGISTRER'}
             </Button>
           </div>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
           {/* Left Column: Metrics & Calculations */}
-          <div className="space-y-6">
-            <Card className="p-6 bg-zinc-50 border-zinc-200 space-y-4">
+          <motion.div variants={itemVariants} className="space-y-6">
+            <Card className="p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm space-y-4">
               <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 mb-4 flex items-center gap-2">
                 <UserIcon size={16} /> Profil Métabolique
               </h3>
@@ -223,22 +248,22 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] uppercase font-bold text-zinc-500">Poids (kg)</label>
-                  <Input type="number" value={weight || ''} onChange={e => setWeight(Number(e.target.value) || 0)} className="!py-2" />
+                  <Input type="number" value={weight || ''} onChange={e => setWeight(Number(e.target.value) || 0)} className="!py-2 !bg-white/80" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] uppercase font-bold text-zinc-500">Taille (cm)</label>
-                  <Input type="number" value={height || ''} onChange={e => setHeight(Number(e.target.value) || 0)} className="!py-2" />
+                  <Input type="number" value={height || ''} onChange={e => setHeight(Number(e.target.value) || 0)} className="!py-2 !bg-white/80" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] uppercase font-bold text-zinc-500">Âge</label>
-                  <Input type="number" value={age || ''} onChange={e => setAge(Number(e.target.value) || 0)} className="!py-2" />
+                  <Input type="number" value={age || ''} onChange={e => setAge(Number(e.target.value) || 0)} className="!py-2 !bg-white/80" />
                 </div>
                 <div className="space-y-1">
                   <label className="text-[10px] uppercase font-bold text-zinc-500">Sexe</label>
                   <select 
                     value={gender} 
                     onChange={e => setGender(e.target.value as Gender)}
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent"
+                    className="w-full bg-white/80 border border-zinc-200/50 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                   >
                     <option value="M">Homme</option>
                     <option value="F">Femme</option>
@@ -251,7 +276,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                 <select 
                   value={activityLevel} 
                   onChange={e => setActivityLevel(e.target.value as ActivityLevel)}
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent"
+                  className="w-full bg-white/80 border border-zinc-200/50 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                 >
                   {Object.keys(ACTIVITY_MULTIPLIERS).map(level => (
                     <option key={level} value={level}>{level}</option>
@@ -264,7 +289,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                 <select 
                   value={goal} 
                   onChange={e => setGoal(e.target.value as Goal)}
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent"
+                  className="w-full bg-white/80 border border-zinc-200/50 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                 >
                   {Object.keys(GOAL_ADJUSTMENTS).map(g => (
                     <option key={g} value={g}>{g}</option>
@@ -275,7 +300,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
               <div className="space-y-1 pt-2">
                 <label className="text-[10px] uppercase font-bold text-zinc-500">Régime Alimentaire</label>
                 <select 
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent"
+                  className="w-full bg-white/80 border border-zinc-200/50 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                   value={dietPreference}
                   onChange={(e) => setDietPreference(e.target.value)}
                 >
@@ -287,14 +312,26 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                   <option value="Pescétarien">Pescétarien</option>
                 </select>
               </div>
+
+              <div className="space-y-1 pt-2">
+                <label className="text-[10px] uppercase font-bold text-zinc-500">Durée (semaines)</label>
+                <Input 
+                  type="number" 
+                  value={durationWeeks} 
+                  onChange={e => setDurationWeeks(Number(e.target.value))} 
+                  className="bg-white/80 border-zinc-200/50"
+                  min={1}
+                  max={52}
+                />
+              </div>
             </Card>
 
-            <Card className="p-6 bg-gradient-to-br from-velatra-accent/20 to-zinc-100 border-velatra-accent/30 space-y-6">
+            <Card className="p-6 bg-gradient-to-br from-velatra-accent/20 to-white/60 backdrop-blur-xl border-velatra-accent/30 shadow-sm space-y-6">
               <h3 className="text-sm font-black uppercase tracking-widest text-velatra-accent flex items-center gap-2">
                 <TargetIcon size={16} /> Objectifs Journaliers
               </h3>
 
-              <div className="flex items-end justify-between border-b border-zinc-200 pb-4">
+              <div className="flex items-end justify-between border-b border-zinc-200/50 pb-4">
                 <div>
                   <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Calories Cibles</div>
                   <div className="text-4xl font-black text-zinc-900 tabular-nums leading-none">{targetCalories}</div>
@@ -308,47 +345,66 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
               <div className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs font-bold">
-                    <span className="text-blue-400">Protéines</span>
+                    <span className="text-blue-500">Protéines</span>
                     <span className="text-zinc-900">{macros.protein}g <span className="text-zinc-900/30 text-[10px]">({Math.round((macros.protein * 4 / targetCalories) * 100)}%)</span></span>
                   </div>
-                  <div className="h-2 bg-zinc-50 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(macros.protein * 4 / targetCalories) * 100}%` }} />
+                  <div className="h-2 bg-white/80 rounded-full overflow-hidden border border-zinc-100/50">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(macros.protein * 4 / targetCalories) * 100}%` }}
+                      transition={{ duration: 1, delay: 0.2 }}
+                      className="h-full bg-blue-500 rounded-full" 
+                    />
                   </div>
                 </div>
                 
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs font-bold">
-                    <span className="text-green-400">Glucides</span>
+                    <span className="text-green-500">Glucides</span>
                     <span className="text-zinc-900">{macros.carbs}g <span className="text-zinc-900/30 text-[10px]">({Math.round((macros.carbs * 4 / targetCalories) * 100)}%)</span></span>
                   </div>
-                  <div className="h-2 bg-zinc-50 rounded-full overflow-hidden">
-                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${(macros.carbs * 4 / targetCalories) * 100}%` }} />
+                  <div className="h-2 bg-white/80 rounded-full overflow-hidden border border-zinc-100/50">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(macros.carbs * 4 / targetCalories) * 100}%` }}
+                      transition={{ duration: 1, delay: 0.4 }}
+                      className="h-full bg-green-500 rounded-full" 
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs font-bold">
-                    <span className="text-yellow-400">Lipides</span>
+                    <span className="text-yellow-500">Lipides</span>
                     <span className="text-zinc-900">{macros.fat}g <span className="text-zinc-900/30 text-[10px]">({Math.round((macros.fat * 9 / targetCalories) * 100)}%)</span></span>
                   </div>
-                  <div className="h-2 bg-zinc-50 rounded-full overflow-hidden">
-                    <div className="h-full bg-yellow-500 rounded-full" style={{ width: `${(macros.fat * 9 / targetCalories) * 100}%` }} />
+                  <div className="h-2 bg-white/80 rounded-full overflow-hidden border border-zinc-100/50">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${(macros.fat * 9 / targetCalories) * 100}%` }}
+                      transition={{ duration: 1, delay: 0.6 }}
+                      className="h-full bg-yellow-500 rounded-full" 
+                    />
                   </div>
                 </div>
               </div>
             </Card>
-          </div>
+          </motion.div>
 
           {/* Right Column: Weekly Summary */}
-          <div className="space-y-6">
-            <Card className="p-6 bg-zinc-50 border-zinc-200 space-y-4">
+          <motion.div variants={itemVariants} className="space-y-6">
+            <Card className="p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm space-y-4">
               <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
                 <AppleIcon size={16} className="text-velatra-accent" /> Résumé de la semaine
               </h3>
               
               <div className="space-y-3">
                 {weeklyLogs.map((log, idx) => (
-                  <div key={idx} className="bg-white p-3 rounded-xl border border-zinc-200">
+                  <motion.div 
+                    key={idx} 
+                    variants={itemVariants}
+                    className="bg-white/80 backdrop-blur-sm p-3 rounded-xl border border-zinc-200/50 shadow-sm transition-transform hover:scale-[1.02]"
+                  >
                     <div className="flex justify-between items-center mb-2">
                       <div className="font-bold text-sm text-zinc-900 capitalize">{log.dayName} <span className="text-xs text-zinc-500 font-normal">({log.date.split('-').reverse().join('/')})</span></div>
                       {log.hasLog ? (
@@ -360,48 +416,53 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                     
                     {log.hasLog ? (
                       <div className="grid grid-cols-4 gap-2 text-center">
-                        <div className="bg-zinc-50 rounded-lg p-2">
+                        <div className="bg-white rounded-lg p-2 border border-zinc-100/50 shadow-sm">
                           <div className="text-[10px] uppercase font-bold text-zinc-500">Kcal</div>
                           <div className={`text-xs font-bold ${log.totalCals > targetCalories ? 'text-red-500' : 'text-zinc-900'}`}>{log.totalCals}</div>
                         </div>
-                        <div className="bg-blue-50 rounded-lg p-2">
-                          <div className="text-[10px] uppercase font-bold text-blue-400">Prot</div>
+                        <div className="bg-blue-50/50 rounded-lg p-2 border border-blue-100/50 shadow-sm">
+                          <div className="text-[10px] uppercase font-bold text-blue-500">Prot</div>
                           <div className="text-xs font-bold text-blue-600">{log.totalProt}g</div>
                         </div>
-                        <div className="bg-green-50 rounded-lg p-2">
-                          <div className="text-[10px] uppercase font-bold text-green-400">Gluc</div>
+                        <div className="bg-green-50/50 rounded-lg p-2 border border-green-100/50 shadow-sm">
+                          <div className="text-[10px] uppercase font-bold text-green-500">Gluc</div>
                           <div className="text-xs font-bold text-green-600">{log.totalCarbs}g</div>
                         </div>
-                        <div className="bg-yellow-50 rounded-lg p-2">
+                        <div className="bg-yellow-50/50 rounded-lg p-2 border border-yellow-100/50 shadow-sm">
                           <div className="text-[10px] uppercase font-bold text-yellow-500">Lip</div>
                           <div className="text-xs font-bold text-yellow-600">{log.totalFat}g</div>
                         </div>
                       </div>
                     ) : (
-                      <div className="text-xs text-zinc-500 text-center py-2 bg-zinc-50 rounded-lg">
+                      <div className="text-xs text-zinc-500 text-center py-2 bg-white/50 rounded-lg border border-zinc-100/50">
                         Aucun repas enregistré
                       </div>
                     )}
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </Card>
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="space-y-8 page-transition pb-20">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
+    <motion.div 
+      className="space-y-8 pb-20"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Nutrition</h1>
           <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">Plans Alimentaires</p>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="space-y-4">
+      <motion.div variants={itemVariants} className="space-y-4">
         <div className="relative max-w-md">
           <SearchIcon size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-900" />
           <input 
@@ -409,7 +470,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
             placeholder="Rechercher un membre..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl py-3 pl-14 pr-4 text-zinc-900 font-bold focus:outline-none focus:border-velatra-accent transition-colors"
+            className="w-full bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-2xl py-3 pl-14 pr-4 text-zinc-900 font-bold focus:outline-none focus:border-velatra-accent transition-colors shadow-sm"
           />
         </div>
 
@@ -418,48 +479,65 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
             <button
               key={f}
               onClick={() => setFilterPlan(f)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterPlan === f ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${filterPlan === f ? 'bg-velatra-accent text-white' : 'bg-white/60 backdrop-blur-xl text-zinc-500 hover:text-zinc-900 hover:bg-white/80 border border-zinc-200/50'}`}
             >
               {f}
             </button>
           ))}
         </div>
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {members.map(member => {
-          const hasPlan = state.nutritionPlans.some(p => p.memberId === member.id);
-          
-          return (
-            <Card 
-              key={member.id} 
-              className="p-5 cursor-pointer hover:border-velatra-accent/50 transition-all group bg-zinc-50"
-              onClick={() => handleSelectMember(member)}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-velatra-accent/20 to-zinc-100 border border-zinc-200 flex items-center justify-center font-black text-lg text-velatra-accent">
-                  {member.avatar ? <img src={member.avatar} alt="" className="w-full h-full rounded-full object-cover" /> : member.name.charAt(0)}
-                </div>
-                <div className="flex-1">
-                  <div className="font-bold text-zinc-900 group-hover:text-velatra-accent transition-colors">{member.name}</div>
-                  <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
-                    {hasPlan ? (
-                      <span className="text-green-400 flex items-center gap-1"><AppleIcon size={10} /> Plan Actif</span>
-                    ) : (
-                      <span className="opacity-50">Aucun plan</span>
-                    )}
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+      >
+        <AnimatePresence>
+          {members.map(member => {
+            const hasPlan = state.nutritionPlans.some(p => p.memberId === member.id);
+            
+            return (
+              <motion.div 
+                key={member.id} 
+                variants={itemVariants} 
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                whileHover={{ y: -4 }} 
+                whileTap={{ scale: 0.98 }}
+              >
+                <Card 
+                  className="p-5 cursor-pointer hover:border-velatra-accent/50 transition-all group bg-white/60 backdrop-blur-xl border-zinc-200/50 h-full shadow-sm hover:shadow-md"
+                  onClick={() => handleSelectMember(member)}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-velatra-accent/20 to-zinc-100 border border-zinc-200/50 flex items-center justify-center font-black text-lg text-velatra-accent shadow-sm">
+                      {member.avatar ? <img src={member.avatar} alt="" className="w-full h-full rounded-full object-cover" /> : member.name.charAt(0)}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-bold text-zinc-900 group-hover:text-velatra-accent transition-colors">{member.name}</div>
+                      <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
+                        {hasPlan ? (
+                          <span className="text-green-500 flex items-center gap-1"><AppleIcon size={10} /> Plan Actif</span>
+                        ) : (
+                          <span className="opacity-50">Aucun plan</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </Card>
-          );
-        })}
+                </Card>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
         {members.length === 0 && (
           <div className="col-span-full py-12 text-center text-zinc-500">
             Aucun membre trouvé.
           </div>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
