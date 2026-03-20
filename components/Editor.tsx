@@ -521,8 +521,12 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                     <Input 
                                       className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
                                       value={ex.reps}
+                                      placeholder="Ex: 10 ou 6,8,10"
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'reps', e.target.value)}
                                     />
+                                    <div className="text-[8px] text-zinc-500 text-center leading-tight mt-1">
+                                      Séparez par des virgules pour des reps différentes (ex: 12,10,8)
+                                    </div>
                                   </div>
                                   <div className="space-y-1">
                                     <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">REPOS (SEC)</label>
