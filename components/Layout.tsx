@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { User, Page, Club } from '../types';
 import { 
   HomeIcon, UsersIcon, LayersIcon, BarChartIcon, 
-  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon, FolderIcon, PlayCircleIcon, UserIcon
+  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon, FolderIcon, PlayCircleIcon, UserIcon, ActivityIcon
 } from './Icons';
 import { Timer } from './Timer';
 
@@ -44,6 +44,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
   const coachItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = [
     { id: 'home', icon: HomeIcon, label: 'Accueil', category: 'Principal' },
     { id: 'users', icon: UsersIcon, label: 'Membres', category: 'Principal' },
+    { id: 'coaching', icon: ActivityIcon, label: 'Coaching', category: 'Principal' },
     { id: 'chat', icon: MessageCircleIcon, label: 'Discussion', category: 'Principal' },
     { id: 'calendar', icon: CalendarIcon, label: 'Planning', category: 'Principal' },
     { id: 'presets', icon: LayersIcon, label: 'Modèles', category: 'Bibliothèque' },

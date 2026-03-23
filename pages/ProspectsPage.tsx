@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AppState, Prospect, User } from '../types';
 import { db, doc, updateDoc, setDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs } from '../firebase';
 import { Plus, Search, Trash2, Mail, Phone, Clock, CheckCircle, XCircle, UserPlus, X } from 'lucide-react';
@@ -217,6 +218,8 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
         </div>
       </div>
 
+      {createPortal(
+      <>
       {convertingProspect && (
         <div className="fixed inset-0 bg-white/90 backdrop-blur-md z-[600] flex items-center justify-center p-4 animate-in fade-in duration-300">
           <Card className="w-full max-w-md !p-8 border-zinc-200 relative shadow-2xl">
@@ -257,6 +260,9 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
             </div>
           </Card>
         </div>
+      )}
+      </>,
+      document.body
       )}
 
       {isAdding && (

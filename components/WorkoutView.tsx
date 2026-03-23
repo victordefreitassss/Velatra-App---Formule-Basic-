@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Program, User, Exercise, AppState, SessionLog, Performance, ExerciseEntry } from '../types';
 import { Button, Input, Badge, Card } from './UI';
 import { XIcon, CheckIcon, DumbbellIcon, InfoIcon, RefreshCwIcon, SparklesIcon, TrophyIcon, LinkIcon } from './Icons';
@@ -24,9 +25,10 @@ interface WorkoutViewProps {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
   showToast: (m: string, t?: any) => void;
+  isCoachView?: boolean;
 }
 
-export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClose, onComplete, state, setState, showToast }) => {
+export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClose, onComplete, state, setState, showToast, isCoachView }) => {
   const currentDay = program.days[program.currentDayIndex % program.nbDays];
   const [sessionData, setSessionData] = useState<Record<string, string>>(() => {
     const initialData: Record<string, string> = {};
@@ -92,9 +94,14 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
 
   const isExerciseComplete = (exIndex: number) => {
     const exEntry = currentDay.exercises[exIndex];
+    const baseEx = state.exercises.find(e => e.id === exEntry.exId);
     const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
     for (let i = 0; i < numSets; i++) {
-      if (!sessionData[`${exIndex}-${i}-weight`] || !sessionData[`${exIndex}-${i}-reps`]) return false;
+      if (baseEx?.cat === 'Cardio') {
+        if (!sessionData[`${exIndex}-${i}-duration`]) return false;
+      } else {
+        if (!sessionData[`${exIndex}-${i}-weight`] || !sessionData[`${exIndex}-${i}-reps`]) return false;
+      }
     }
     return true;
   };
@@ -164,7 +171,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
       memberId: Number(member.id),
       date: new Date().toISOString().split('T')[0],
       week: Math.ceil((program.currentDayIndex + 1) / program.nbDays),
-      isCoaching: currentDay.isCoaching,
+      isCoaching: isCoachView || currentDay.isCoaching,
       dayName: currentDay.name,
       exerciseData: sessionData
     };
@@ -173,13 +180,17 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
     currentDay.exercises.forEach((exEntry, exIndex) => {
       const baseEx = state.exercises.find(e => e.id === exEntry.exId);
       if (baseEx?.perfId) {
-        let maxWeight = 0, associatedReps = 0;
+        let maxWeight = 0, associatedReps = 0, duration = "";
         const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
         for (let i = 0; i < numSets; i++) {
-          const w = parseFloat(sessionData[`${exIndex}-${i}-weight`]), r = parseInt(sessionData[`${exIndex}-${i}-reps`], 10);
-          if (w > maxWeight) { maxWeight = w; associatedReps = r; }
+          if (baseEx.cat === 'Cardio') {
+            duration = sessionData[`${exIndex}-${i}-duration`] || "";
+          } else {
+            const w = parseFloat(sessionData[`${exIndex}-${i}-weight`]), r = parseInt(sessionData[`${exIndex}-${i}-reps`], 10);
+            if (w > maxWeight) { maxWeight = w; associatedReps = r; }
+          }
         }
-        if (maxWeight > 0) perfs.push({ 
+        if (maxWeight > 0 || duration) perfs.push({ 
           id: Date.now() + exIndex, 
           clubId: member.clubId,
           memberId: Number(member.id), 
@@ -187,6 +198,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
           exId: baseEx.perfId, 
           weight: maxWeight, 
           reps: associatedReps, 
+          duration: duration,
           fromCoaching: log.isCoaching 
         });
       }
@@ -199,6 +211,16 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
     const newLevel = Math.floor(totalXP / 1000) + 1;
 
     await updateDoc(userRef, { xp: totalXP, streak: newStreak, lastWorkoutDate: log.date });
+
+    // Resolve any "Relance" tasks for this member
+    const relanceTasks = state.tasks?.filter(t => t.relatedMemberId === member.id && t.status === 'todo' && t.title.includes('Relance')) || [];
+    for (const t of relanceTasks) {
+      try {
+        await updateDoc(doc(db, "tasks", t.id.toString()), { status: 'done' });
+      } catch (err) {
+        console.error("Error updating task:", err);
+      }
+    }
 
     if (newLevel > oldLevel) {
       showToast(`NOUVEAU NIVEAU ATTEINT : ${newLevel} ! 🏆`, "success");
@@ -226,7 +248,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
     onComplete(log, perfs);
   };
 
-  return (
+  return createPortal(
     <motion.div 
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
@@ -369,6 +391,12 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                                 <TrophyIcon size={12} className="text-yellow-500" /> PR: {pr.weight}kg x {pr.reps}
                               </div>
                             )}
+                            {exEntry.notes && (
+                              <div className="mt-3 p-3 bg-velatra-accent/5 border border-velatra-accent/20 rounded-xl text-xs text-zinc-700 font-medium leading-relaxed">
+                                <span className="text-[9px] font-black text-velatra-accent uppercase tracking-widest block mb-1">Notes du coach</span>
+                                {exEntry.notes}
+                              </div>
+                            )}
                           </div>
                         </div>
                         <div className="grid grid-cols-1 gap-4 md:gap-6 mb-8 md:mb-10">
@@ -376,30 +404,44 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                             <div key={sIdx} className="flex items-center gap-3 md:gap-6 group animate-in slide-in-from-left">
                                <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center text-xs font-black text-zinc-900 group-focus-within:border-velatra-accent transition-all shrink-0">{sIdx+1}</div>
                                <div className="flex-1 grid grid-cols-2 gap-2 md:gap-4">
-                                  <div className="relative flex items-center">
-                                     <button 
-                                       onClick={() => handleInputChange(exIndex, sIdx, 'weight', String(Math.max(0, (parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") - 1))))}
-                                       className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
-                                     >-</button>
-                                     <Input type="number" inputMode="decimal" placeholder="KG" className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
-                                     <button 
-                                       onClick={() => handleInputChange(exIndex, sIdx, 'weight', String((parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") + 1)))}
-                                       className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
-                                     >+</button>
-                                     <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Charge</span>
-                                  </div>
-                                  <div className="relative flex items-center">
-                                     <button 
-                                       onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") - 1))))}
-                                       className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
-                                     >-</button>
-                                     <Input type="number" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || "REPS"} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
-                                     <button 
-                                       onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") + 1)))}
-                                       className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
-                                     >+</button>
-                                     <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase whitespace-nowrap">Répétitions {exEntry.reps ? `(Cible: ${getTargetRepsForSet(exEntry.reps, sIdx)})` : ''}</span>
-                                  </div>
+                                  {baseEx?.cat === 'Cardio' ? (
+                                    <div className="relative flex items-center col-span-2">
+                                      <Input 
+                                        placeholder={exEntry.duration || "DURÉE (ex: 15 min)"} 
+                                        className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-4" 
+                                        value={sessionData[`${exIndex}-${sIdx}-duration`] || ""} 
+                                        onChange={e => handleInputChange(exIndex, sIdx, 'duration', e.target.value)} 
+                                      />
+                                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Temps</span>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="relative flex items-center">
+                                         <button 
+                                           onClick={() => handleInputChange(exIndex, sIdx, 'weight', String(Math.max(0, (parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") - 1))))}
+                                           className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                         >-</button>
+                                         <Input type="number" inputMode="decimal" placeholder="KG" className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
+                                         <button 
+                                           onClick={() => handleInputChange(exIndex, sIdx, 'weight', String((parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") + 1)))}
+                                           className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                         >+</button>
+                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Charge</span>
+                                      </div>
+                                      <div className="relative flex items-center">
+                                         <button 
+                                           onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") - 1))))}
+                                           className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                         >-</button>
+                                         <Input type="number" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || "REPS"} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
+                                         <button 
+                                           onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") + 1)))}
+                                           className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                         >+</button>
+                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase whitespace-nowrap">Répétitions {exEntry.reps ? `(Cible: ${getTargetRepsForSet(exEntry.reps, sIdx)})` : ''}</span>
+                                      </div>
+                                    </>
+                                  )}
                                </div>
                             </div>
                           ))}
@@ -473,6 +515,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
           </Button>
         </motion.div>
       </motion.footer>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 };

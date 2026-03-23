@@ -233,12 +233,22 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                         onChange={e => updateCoach(coach.id, 'whatsapp', e.target.value)}
                         placeholder="Numéro WhatsApp"
                       />
-                      <Input 
-                        className="!py-1 !px-2 !text-[10px]"
-                        value={coach.photo || ""}
-                        onChange={e => updateCoach(coach.id, 'photo', e.target.value)}
-                        placeholder="URL de la photo"
-                      />
+                      {coach.photo?.startsWith('data:image') ? (
+                        <div className="flex items-center gap-2 p-1.5 bg-white/60 border border-zinc-200/50 rounded-lg">
+                          <img src={coach.photo} alt="Preview" className="w-6 h-6 object-cover rounded" />
+                          <span className="text-[9px] font-bold text-emerald-500 flex-1">Image chargée</span>
+                          <button onClick={() => updateCoach(coach.id, 'photo', '')} className="p-1 text-zinc-400 hover:text-red-500">
+                            <XIcon size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <Input 
+                          className="!py-1 !px-2 !text-[10px]"
+                          value={coach.photo || ""}
+                          onChange={e => updateCoach(coach.id, 'photo', e.target.value)}
+                          placeholder="URL de la photo"
+                        />
+                      )}
                       <div className="flex flex-col gap-1">
                         <label className="text-[8px] font-black uppercase text-zinc-900 tracking-widest ml-1">Ou charger un fichier</label>
                         <input 

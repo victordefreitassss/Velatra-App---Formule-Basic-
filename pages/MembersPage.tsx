@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AppState, User, Performance, BodyData, Program, Gender, Goal, Subscription, Plan, NutritionPlan, Payment, Invoice } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { 
@@ -8,8 +9,7 @@ import {
 } from '../components/Icons';
 import { db, doc, setDoc, updateDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage } from '../firebase';
 import { GOALS } from '../constants';
-import { generateNutritionPlan } from '../services/aiService';
-import { updateNutritionPlanForWeight } from '../utils';
+import { calculateNutritionPlan, updateNutritionPlanForWeight } from '../utils';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
@@ -28,10 +28,18 @@ const itemVariants: any = {
   visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
+import { ErrorBoundary } from '../components/ErrorBoundary';
+
 export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("Tous");
+  const [filter, setFilter] = useState(state.memberFilter || "Tous");
   const [selectedProfile, setSelectedProfile] = useState<User | null>(state.selectedMember || null);
+
+  useEffect(() => {
+    if (state.memberFilter) {
+      setFilter(state.memberFilter);
+    }
+  }, [state.memberFilter]);
 
   useEffect(() => {
     if (state.selectedMember) {
@@ -74,6 +82,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     if (filter === "Inactifs") return !u.lastWorkoutDate || (new Date().getTime() - new Date(u.lastWorkoutDate).getTime()) >= 30 * 24 * 60 * 60 * 1000;
     if (filter === "Avec Programme") return state.programs.some(p => p.memberId === Number(u.id));
     if (filter === "Sans Programme") return !state.programs.some(p => p.memberId === Number(u.id));
+    if (filter === "Demande de Plan") return u.planRequested;
     
     return true;
   });
@@ -318,7 +327,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       const bodySorted = memberBody.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       const latestScan = bodySorted[0];
 
-      const plan = await generateNutritionPlan(selectedProfile, latestScan, nutritionTargets);
+      const plan = calculateNutritionPlan(selectedProfile, latestScan, nutritionTargets);
       
       const planId = state.nutritionPlans?.find(p => p.memberId === mid)?.id || Date.now().toString();
       
@@ -344,7 +353,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         meals: plan.repas?.map((r: any, idx: number) => ({
           id: Date.now().toString() + idx,
           name: r.type.replace('_', ' '),
-          description: (r.aliments || []).join(', '),
+          description: '',
           calories: parseInt(r.calories) || 0,
           protein: parseInt(r.proteines) || 0,
           carbs: parseInt(r.glucides) || 0,
@@ -368,9 +377,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const getMemberStats = (memberId: number) => {
     const mid = Number(memberId);
-    const memberPerfs = state.performances.filter(p => Number(p.memberId) === mid);
-    const memberBody = state.bodyData.filter(b => Number(b.memberId) === mid);
-    const program = state.programs.find(p => Number(p.memberId) === mid);
+    const memberPerfs = (state.performances || []).filter(p => Number(p.memberId) === mid);
+    const memberBody = (state.bodyData || []).filter(b => Number(b.memberId) === mid);
+    const program = (state.programs || []).find(p => Number(p.memberId) === mid);
 
     const topPerfs = memberPerfs.reduce((acc: any, curr) => {
       if (!acc[curr.exId] || acc[curr.exId].weight < curr.weight) {
@@ -379,9 +388,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       return acc;
     }, {});
 
-    const memberOrders = state.supplementOrders.filter(o => Number(o.adherentId) === mid);
+    const memberOrders = (state.supplementOrders || []).filter(o => Number(o.adherentId) === mid);
     const totalSpent = memberOrders.filter(o => o.status === 'completed').reduce((acc, curr) => acc + curr.total, 0);
-    const subscription = state.subscriptions.find(s => s.memberId === mid && s.status === 'active');
+    const subscription = (state.subscriptions || []).find(s => s.memberId === mid && s.status === 'active');
 
     return { 
       perfs: Object.values(topPerfs) as Performance[], 
@@ -669,7 +678,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         </div>
         
         <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
-          {["Tous", "Actifs", "Inactifs", "Avec Programme", "Sans Programme"].map(f => (
+          {["Tous", "Demande de Plan", "Actifs", "Inactifs", "Avec Programme", "Sans Programme"].map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -692,16 +701,17 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           const hasFeedback = stats.program?.memberRemarks;
           return (
             <motion.div key={u.id} variants={itemVariants} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }}>
-              <Card className={`flex flex-col gap-4 border-none ring-1 transition-all !p-6 bg-white/60 backdrop-blur-xl ${hasFeedback ? 'ring-orange-500/30' : 'ring-zinc-200/50 hover:ring-velatra-accent/30'} shadow-sm hover:shadow-md h-full`}>
+              <Card className={`flex flex-col gap-4 border-none ring-1 transition-all !p-6 bg-white/60 backdrop-blur-xl ${u.planRequested || hasFeedback ? 'ring-orange-500/30' : 'ring-zinc-200/50 hover:ring-velatra-accent/30'} shadow-sm hover:shadow-md h-full`}>
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-50 border border-white flex items-center justify-center font-black text-2xl text-zinc-700 shadow-inner">
                     {u.avatar}
                   </div>
                   <div className="flex-1">
                     <div className="font-black text-lg text-zinc-900 leading-none mb-2 uppercase tracking-tight">{u.name}</div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Badge variant="dark" className="!bg-zinc-100 !text-zinc-500 !border-zinc-200 !p-1 !text-[8px]">{stats.perfs.length} PR</Badge>
                       {hasFeedback && <Badge variant="orange" className="!bg-orange-500/10 !text-orange-500 !border-orange-500/20 !p-1 !text-[8px] animate-pulse">FEEDBACK</Badge>}
+                      {u.planRequested && <Badge variant="orange" className="!bg-orange-500/10 !text-orange-500 !border-orange-500/20 !p-1 !text-[8px] animate-pulse">DEMANDE PLAN</Badge>}
                     </div>
                   </div>
                 </div>
@@ -716,7 +726,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         })}
       </motion.div>
 
-      {selectedProfile && (() => {
+      {createPortal(
+        <AnimatePresence>
+        {selectedProfile && (() => {
         const stats = getMemberStats(selectedProfile.id);
         const progDays = stats.program ? stats.program.nbDays * 7 : 0;
         const progCompletion = stats.program ? Math.round(((stats.program.currentDayIndex + 1) / (progDays || 1)) * 100) : 0;
@@ -747,7 +759,6 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         };
 
         return (
-          <AnimatePresence>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -761,7 +772,37 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="w-full max-w-6xl bg-white/90 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border border-white/20 shadow-2xl relative overflow-hidden my-0 md:my-8"
               >
+                <ErrorBoundary>
                 <button onClick={closeProfile} className="fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-white/90 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border border-zinc-200 hover:bg-red-500 hover:border-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
+
+                {selectedProfile.planRequested && (
+                  <div className="bg-orange-500 text-white p-4 flex items-center justify-between z-[500] relative">
+                    <div className="flex items-center gap-3">
+                      <FileTextIcon size={20} />
+                      <div>
+                        <div className="font-black uppercase tracking-widest text-xs">Demande de programme en attente</div>
+                        <div className="text-[10px] opacity-80">Ce membre a demandé un nouveau programme d'entraînement.</div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="secondary" className="!py-1.5 !px-3 !text-[10px] !bg-white/20 !text-white !border-white/30 hover:!bg-white/30" onClick={async () => {
+                        if (selectedProfile.firebaseUid) {
+                          try {
+                            await updateDoc(doc(db, "users", selectedProfile.firebaseUid), { planRequested: false });
+                            setSelectedProfile({ ...selectedProfile, planRequested: false });
+                          } catch (err) {
+                            console.error("Error updating planRequested:", err);
+                          }
+                        }
+                      }}>
+                        IGNORER
+                      </Button>
+                      <Button variant="primary" className="!py-1.5 !px-3 !text-[10px] !bg-white !text-orange-500 hover:!bg-zinc-100" onClick={() => handleEditProgram(selectedProfile)}>
+                        CRÉER PROGRAMME
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-12">
                   {/* SIDEBAR */}
@@ -885,9 +926,24 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           <span className="text-[10px] font-black uppercase tracking-widest">Feedback Adhérent</span>
                        </div>
                        <p className="text-sm font-bold text-zinc-900 italic leading-relaxed">"{stats.program.memberRemarks}"</p>
-                       <Button variant="secondary" fullWidth className="!py-2 !text-[9px] !rounded-xl" onClick={() => handleEditProgram(selectedProfile)}>
-                          ADAPTER LE PLAN
-                       </Button>
+                       <div className="flex gap-2">
+                         <Button variant="secondary" className="flex-1 !py-2 !text-[9px] !rounded-xl" onClick={async () => {
+                           if (stats.program) {
+                             try {
+                               await updateDoc(doc(db, "programs", stats.program.id.toString()), { memberRemarks: "" });
+                               // No need to update local state manually as onSnapshot will handle it, 
+                               // but for immediate UI feedback we might want to refresh stats if they are derived from state
+                             } catch (err) {
+                               console.error("Error clearing memberRemarks:", err);
+                             }
+                           }
+                         }}>
+                            MARQUER COMME TRAITÉ
+                         </Button>
+                         <Button variant="primary" className="flex-1 !py-2 !text-[9px] !rounded-xl" onClick={() => handleEditProgram(selectedProfile)}>
+                            ADAPTER LE PLAN
+                         </Button>
+                       </div>
                     </div>
                   )}
 
@@ -1068,6 +1124,16 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           </div>
                           <span className="text-[8px] text-zinc-900 uppercase tracking-widest">+2.5kg auto</span>
                         </div>
+
+                        <Button 
+                          variant="primary" 
+                          onClick={() => {
+                            setState(s => ({ ...s, workout: stats.program, workoutMember: selectedProfile }));
+                          }} 
+                          className="!py-3 !text-[10px] w-full mt-4 !rounded-xl shadow-xl shadow-velatra-accent/20"
+                        >
+                          LANCER SÉANCE COACHING
+                        </Button>
                       </div>
                     ) : (
                       <div className="bg-zinc-50 rounded-3xl p-8 border border-dashed border-zinc-200 text-center">
@@ -1258,9 +1324,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         </div>
                       )}
                       
-                      {state.payments?.filter(p => p.memberId === Number(selectedProfile.id)).length > 0 ? (
+                      {(state.payments?.filter(p => p.memberId === Number(selectedProfile.id))?.length || 0) > 0 ? (
                         <div className="space-y-4">
-                          {state.payments.filter(p => p.memberId === Number(selectedProfile.id))
+                          {(state.payments || []).filter(p => p.memberId === Number(selectedProfile.id))
                             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                             .map(payment => {
                               const invoice = state.invoices?.find(inv => inv.paymentId === payment.id);
@@ -1316,9 +1382,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     
                     {state.currentClub?.plan === 'classic' || state.currentClub?.plan === 'premium' ? (
                       <div className="bg-white border border-zinc-200 rounded-[40px] p-8 shadow-inner">
-                        {state.logs.filter(log => log.memberId === Number(selectedProfile.id) && log.isCoaching).length > 0 ? (
+                        {(state.logs || []).filter(log => log.memberId === Number(selectedProfile.id) && log.isCoaching).length > 0 ? (
                           <div className="space-y-4">
-                            {state.logs.filter(log => log.memberId === Number(selectedProfile.id) && log.isCoaching)
+                            {(state.logs || []).filter(log => log.memberId === Number(selectedProfile.id) && log.isCoaching)
                               .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                               .map(log => (
                               <div key={log.id} className="flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl">
@@ -1472,7 +1538,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       {stats.perfs.length > 0 ? stats.perfs.map(p => {
-                        const ex = state.exercises.find(e => e.perfId === p.exId);
+                        const ex = (state.exercises || []).find(e => e.perfId === p.exId);
                         return (
                           <div key={p.id} className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl flex justify-between items-center group hover:bg-zinc-50 transition-all">
                              <div>
@@ -1528,12 +1594,16 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </section>
                 </div>
               </div>
+              </ErrorBoundary>
             </motion.div>
           </motion.div>
-          </AnimatePresence>
         );
       })()}
+      </AnimatePresence>,
+      document.body
+      )}
 
+      {createPortal(
       <AnimatePresence>
       {isEditingInfo && selectedProfile && (
         <motion.div 
@@ -1656,8 +1726,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           </motion.div>
         </motion.div>
       )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
 
+      {createPortal(
       <AnimatePresence>
       {isAdjustingTargets && (
         <motion.div 
@@ -1729,8 +1802,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           </motion.div>
         </motion.div>
       )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
 
+      {createPortal(
       <AnimatePresence>
       {isAddingMember && (
         <motion.div 
@@ -1879,8 +1955,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           </motion.div>
         </motion.div>
       )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
 
+      {createPortal(
       <AnimatePresence>
       {nutritionPlan && (
         <motion.div 
@@ -1931,7 +2010,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 if (!repas) return null;
                 return (
                 <div key={idx} className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6">
-                  <div className="flex justify-between items-center mb-4 pb-4 border-b border-zinc-200">
+                  <div className="flex justify-between items-center">
                     <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">{repas.name || `Repas ${idx + 1}`}</h4>
                     <div className="flex items-center gap-3">
                       <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full uppercase tracking-widest">{repas.calories} kcal</span>
@@ -1940,13 +2019,6 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       <span className="text-[10px] font-black text-yellow-400 bg-yellow-500/10 px-3 py-1 rounded-full uppercase tracking-widest">{repas.fat}g L</span>
                     </div>
                   </div>
-                  <ul className="space-y-2">
-                    {(repas.description || '').split(', ').map((aliment: string, i: number) => (
-                      <li key={i} className="text-sm text-zinc-900 flex items-start gap-3">
-                        <span className="text-emerald-500 mt-1">•</span> {aliment}
-                      </li>
-                    ))}
-                  </ul>
                 </div>
               )})}
             </div>
@@ -1965,7 +2037,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           </motion.div>
         </motion.div>
       )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </div>
   );
 };

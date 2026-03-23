@@ -57,8 +57,8 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        showToast("Fichier trop lourd (max 2Mo)", "error");
+      if (file.size > 700 * 1024) {
+        showToast("Fichier trop lourd (max 700Ko)", "error");
         return;
       }
       setFileName(file.name);
