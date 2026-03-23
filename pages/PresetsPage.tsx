@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AppState, Preset, Program, User } from '../types';
 import { Card, Button, Badge, Input } from '../components/UI';
 import { PlusIcon, LayersIcon, Edit2Icon, Trash2Icon, SearchIcon, CheckIcon, UserIcon, XIcon } from '../components/Icons';
-import { db, doc, setDoc } from '../firebase';
+import { db, doc, setDoc, deleteDoc } from '../firebase';
 import { GOALS } from '../constants';
 
 export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
@@ -168,12 +169,37 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
                     <Edit2Icon size={14} className="mr-2" /> MODIFIER
                   </Button>
                   <button 
-                    onClick={() => {
+                    onClick={async () => {
+                      const newPreset = JSON.parse(JSON.stringify(p));
+                      newPreset.id = Date.now();
+                      newPreset.name = `${p.name} (Copie)`;
+                      try {
+                        await setDoc(doc(db, "presets", newPreset.id.toString()), newPreset);
+                        setState((s:AppState) => ({ ...s, presets: [...s.presets, newPreset] }));
+                        showToast("Modèle dupliqué", "success");
+                      } catch (err) {
+                        showToast("Erreur lors de la duplication", "error");
+                      }
+                    }}
+                    className="p-3 bg-zinc-50 text-zinc-400 hover:text-velatra-accent hover:bg-velatra-accent/10 rounded-xl transition-all"
+                    title="Dupliquer"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  </button>
+                  <button 
+                    onClick={async () => {
                       if(confirm("Supprimer ce preset ?")) {
-                        setState((s:AppState) => ({ ...s, presets: s.presets.filter(pr => pr.id !== p.id) }));
+                        try {
+                          await deleteDoc(doc(db, "presets", p.id.toString()));
+                          setState((s:AppState) => ({ ...s, presets: s.presets.filter(pr => pr.id !== p.id) }));
+                          showToast("Modèle supprimé", "success");
+                        } catch (err) {
+                          showToast("Erreur lors de la suppression", "error");
+                        }
                       }
                     }}
                     className="p-3 bg-red-500/5 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                    title="Supprimer"
                   >
                     <Trash2Icon size={18} />
                   </button>
@@ -184,6 +210,8 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
         })()}
       </div>
 
+      {createPortal(
+      <>
       {assigningTo && (
         <div className="fixed inset-0 bg-white/95 backdrop-blur-xl z-[600] flex items-center justify-center p-4 animate-in fade-in duration-300">
           <Card className="w-full max-w-md !p-10 border-zinc-200 relative shadow-[0_0_100px_rgba(0,0,0,1)]">
@@ -225,6 +253,9 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
             </div>
           </Card>
         </div>
+      )}
+      </>,
+      document.body
       )}
     </div>
   );

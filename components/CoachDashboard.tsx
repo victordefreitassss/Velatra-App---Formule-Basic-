@@ -50,7 +50,19 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     if (!u.lastWorkoutDate) return true;
     const last = new Date(u.lastWorkoutDate).getTime();
     const now = new Date().getTime();
-    return (now - last) > (86400000 * 7); // Plus de 7 jours sans séance
+    const isInactive = (now - last) > (86400000 * 7); // Plus de 7 jours sans séance
+    
+    if (!isInactive) return false;
+
+    // Si le coach a déjà traité l'alerte (tâche "Relance" terminée récemment), on n'affiche plus l'alerte
+    const hasRecentDoneTask = state.tasks?.some(t => 
+      t.relatedMemberId === u.id && 
+      t.title.includes('Relance') && 
+      t.status === 'done' &&
+      (now - new Date(t.dueDate).getTime()) < (86400000 * 7)
+    );
+
+    return !hasRecentDoneTask;
   });
   const failedSubs = state.subscriptions?.filter(s => (s.status === 'past_due' || s.status === 'unpaid') && s.clubId === state.user?.clubId) || [];
 
@@ -135,7 +147,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
 
       {/* 4. Raccourcis Rapides */}
       <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'users' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'users', memberFilter: 'Tous' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-velatra-accent/5 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
             <UserIcon size={24} />
           </div>
@@ -192,7 +204,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
-                <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:border-velatra-accent/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'users' }))}>
+                <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:border-velatra-accent/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'users', memberFilter: 'Demande de Plan' }))}>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-2.5 bg-orange-500/10 text-orange-500 rounded-xl"><FileTextIcon size={20} /></div>
                     <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Plans</div>
@@ -333,6 +345,19 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                         {new Date(item.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} • {item.userName}
                       </div>
                     </div>
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await deleteDoc(doc(db, "feed", item.id.toString()));
+                        } catch (err) {
+                          console.error("Error deleting feed item:", err);
+                        }
+                      }}
+                      className="p-2 text-zinc-400 hover:text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Marquer comme traité"
+                    >
+                      <CheckCircleIcon size={18} />
+                    </button>
                   </Card>
                 </motion.div>
               ))}

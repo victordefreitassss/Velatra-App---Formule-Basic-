@@ -3,7 +3,8 @@ import { Program, Preset, Exercise, Day, ExerciseEntry, AppState } from '../type
 import { Button, Input, Card, Badge } from './UI';
 import { 
   PlusIcon, Trash2Icon, ChevronLeftIcon, SaveIcon, 
-  DumbbellIcon, LayersIcon, InfoIcon, MessageCircleIcon, RefreshCwIcon, LinkIcon
+  DumbbellIcon, LayersIcon, InfoIcon, MessageCircleIcon, RefreshCwIcon, LinkIcon,
+  ArrowUpIcon, ArrowDownIcon, CopyIcon
 } from './Icons';
 import { EXERCISE_CATEGORIES, GOALS } from '../constants';
 
@@ -15,6 +16,7 @@ interface ProgramEditorProps {
   onSave: (data: Program | Preset) => void;
   onCancel: () => void;
   allPresets?: Preset[]; 
+  member?: any;
 }
 
 export const ProgramEditor: React.FC<ProgramEditorProps> = ({ 
@@ -24,7 +26,8 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   clubId,
   onSave, 
   onCancel,
-  allPresets = []
+  allPresets = [],
+  member
 }) => {
   const isEditingProgram = !!program;
   const initialData = program || preset || {
@@ -86,12 +89,15 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   };
 
   const handleAddExercise = (dayIdx: number) => {
+    const currentDayExercises = formData.days[dayIdx].exercises;
+    const lastEx = currentDayExercises.length > 0 ? currentDayExercises[currentDayExercises.length - 1] : null;
+
     const newEx: ExerciseEntry = {
       exId: exercises[0].id,
-      sets: 3,
-      reps: "10-12",
-      rest: "90",
-      tempo: "2010",
+      sets: lastEx ? lastEx.sets : 3,
+      reps: lastEx ? lastEx.reps : "10-12",
+      rest: lastEx ? lastEx.rest : "90",
+      tempo: lastEx ? lastEx.tempo : "2010",
       duration: "",
       notes: "",
       setGroup: null,
@@ -179,23 +185,54 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
     setFormData({ ...formData, days: newDays });
   };
 
+  const handleDuplicateDay = (dayIdx: number) => {
+    const dayToDuplicate = JSON.parse(JSON.stringify(formData.days[dayIdx]));
+    dayToDuplicate.name = `${dayToDuplicate.name} (Copie)`;
+    const newDays = [...formData.days];
+    newDays.splice(dayIdx + 1, 0, dayToDuplicate);
+    setFormData({
+      ...formData,
+      nbDays: newDays.length,
+      days: newDays
+    });
+    setSelectedDayIdx(dayIdx + 1);
+  };
+
+  const handleDuplicateEx = (dayIdx: number, exIdx: number) => {
+    const newDays = [...formData.days];
+    const exToDuplicate = JSON.parse(JSON.stringify(newDays[dayIdx].exercises[exIdx]));
+    newDays[dayIdx].exercises.splice(exIdx + 1, 0, exToDuplicate);
+    setFormData({ ...formData, days: newDays });
+  };
+
+  const handleMoveEx = (dayIdx: number, exIdx: number, direction: 'up' | 'down') => {
+    const newDays = [...formData.days];
+    const exercises = newDays[dayIdx].exercises;
+    if (direction === 'up' && exIdx > 0) {
+      [exercises[exIdx - 1], exercises[exIdx]] = [exercises[exIdx], exercises[exIdx - 1]];
+    } else if (direction === 'down' && exIdx < exercises.length - 1) {
+      [exercises[exIdx], exercises[exIdx + 1]] = [exercises[exIdx + 1], exercises[exIdx]];
+    }
+    setFormData({ ...formData, days: newDays });
+  };
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-24 px-4 page-transition">
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-zinc-200/50 -mx-4 px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 shadow-sm">
         <div className="flex items-center gap-4">
-          <button onClick={onCancel} className="p-2 text-zinc-500 hover:text-zinc-900 transition-colors">
+          <button onClick={onCancel} className="p-2 text-zinc-500 hover:text-zinc-900 transition-colors bg-white rounded-full shadow-sm">
             <ChevronLeftIcon size={24} />
           </button>
           <div>
-            <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">
+            <h1 className="text-2xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">
               {isEditingProgram ? "ADAPTER LE PLAN" : "ÉDITION MODÈLE"}
             </h1>
-            <p className="text-velatra-accent text-[10px] uppercase tracking-[3px] font-bold mt-2">Expert Coaching <span className="text-zinc-900">VELATRA</span></p>
+            <p className="text-velatra-accent text-[10px] uppercase tracking-[3px] font-bold mt-1">Expert Coaching <span className="text-zinc-900">VELATRA</span></p>
           </div>
         </div>
         <div className="flex gap-2">
           {isEditingProgram && (
-             <Button onClick={() => setShowPresets(!showPresets)} variant="secondary" className="!rounded-full font-black text-[10px] tracking-widest italic">
+             <Button onClick={() => setShowPresets(!showPresets)} variant="secondary" className="!rounded-full font-black text-[10px] tracking-widest italic shadow-sm">
                 {showPresets ? "X" : "APPLIQUER MODÈLE"}
              </Button>
           )}
@@ -252,14 +289,34 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
           </div>
 
           {isEditingProgram ? (
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Date de début</label>
-              <Input 
-                type="date"
-                value={formData.startDate} 
-                onChange={e => setFormData({...formData, startDate: e.target.value})}
-              />
-            </div>
+            <>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Date de début</label>
+                <Input 
+                  type="date"
+                  value={formData.startDate} 
+                  onChange={e => setFormData({...formData, startDate: e.target.value})}
+                />
+              </div>
+              {member && (
+                <div className="space-y-2 col-span-1 md:col-span-2 mt-2 p-4 bg-zinc-100/50 rounded-2xl border border-zinc-200/50">
+                  <div className="flex items-center gap-2 text-zinc-900 mb-2">
+                    <InfoIcon size={16} className="text-velatra-accent" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Profil de {member.name}</span>
+                  </div>
+                  {member.objectifs && member.objectifs.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {member.objectifs.map((o: string) => (
+                        <Badge key={o} variant="dark" className="!bg-white !text-zinc-600 !border-zinc-200 !text-[8px]">{o}</Badge>
+                      ))}
+                    </div>
+                  )}
+                  {member.notes && (
+                    <p className="text-xs text-zinc-600 italic leading-relaxed">"{member.notes}"</p>
+                  )}
+                </div>
+              )}
+            </>
           ) : (
             <div className="space-y-1">
               <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Objectifs du Modèle</label>
@@ -290,15 +347,24 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
 
         {/* Remarks display for coach - Critical for adaptive coaching */}
         {isEditingProgram && formData.memberRemarks && (
-          <div className="p-5 bg-orange-500/10 border-2 border-orange-500/30 rounded-[32px] flex gap-5 items-center animate-in zoom-in duration-500">
-             <div className="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0">
-                <MessageCircleIcon size={24} />
+          <div className="p-5 bg-orange-500/10 border-2 border-orange-500/30 rounded-[32px] flex flex-col sm:flex-row gap-5 items-start sm:items-center justify-between animate-in zoom-in duration-500">
+             <div className="flex gap-5 items-center">
+               <div className="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0">
+                  <MessageCircleIcon size={24} />
+               </div>
+               <div>
+                  <div className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">RETOUR ADHÉRENT (À TRAITER) :</div>
+                  <p className="text-base font-black text-zinc-900 italic leading-tight">"{formData.memberRemarks}"</p>
+                  <p className="text-[9px] text-zinc-900 font-bold uppercase mt-1">Ajustez les intensités ou remplacez les exercices concernés ci-dessous.</p>
+               </div>
              </div>
-             <div>
-                <div className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">RETOUR ADHÉRENT (À TRAITER) :</div>
-                <p className="text-base font-black text-zinc-900 italic leading-tight">"{formData.memberRemarks}"</p>
-                <p className="text-[9px] text-zinc-900 font-bold uppercase mt-1">Ajustez les intensités ou remplacez les exercices concernés ci-dessous.</p>
-             </div>
+             <Button 
+               variant="secondary" 
+               onClick={() => setFormData({...formData, memberRemarks: ""})}
+               className="!py-2 !px-4 !rounded-xl !text-[10px] font-black tracking-widest whitespace-nowrap shrink-0"
+             >
+               MARQUER COMME TRAITÉ
+             </Button>
           </div>
         )}
       </Card>
@@ -376,13 +442,60 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                     </div>
                   </div>
                 </div>
-                <button 
-                  onClick={() => handleRemoveDay(selectedDayIdx)}
-                  className="p-3 text-red-500/30 hover:text-red-500 transition-colors"
-                  title="Supprimer ce jour"
-                >
-                  <Trash2Icon size={24} />
-                </button>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => {
+                        if (selectedDayIdx > 0) {
+                          const newDays = [...formData.days];
+                          const temp = newDays[selectedDayIdx];
+                          newDays[selectedDayIdx] = newDays[selectedDayIdx - 1];
+                          newDays[selectedDayIdx - 1] = temp;
+                          setFormData({...formData, days: newDays});
+                          setSelectedDayIdx(selectedDayIdx - 1);
+                        }
+                      }}
+                      disabled={selectedDayIdx === 0}
+                      className="p-3 text-zinc-400 hover:text-velatra-accent disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-velatra-accent/10"
+                      title="Déplacer vers la gauche"
+                    >
+                      <ArrowUpIcon size={20} className="-rotate-90" />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (selectedDayIdx < formData.days.length - 1) {
+                          const newDays = [...formData.days];
+                          const temp = newDays[selectedDayIdx];
+                          newDays[selectedDayIdx] = newDays[selectedDayIdx + 1];
+                          newDays[selectedDayIdx + 1] = temp;
+                          setFormData({...formData, days: newDays});
+                          setSelectedDayIdx(selectedDayIdx + 1);
+                        }
+                      }}
+                      disabled={selectedDayIdx === formData.days.length - 1}
+                      className="p-3 text-zinc-400 hover:text-velatra-accent disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-velatra-accent/10"
+                      title="Déplacer vers la droite"
+                    >
+                      <ArrowDownIcon size={20} className="-rotate-90" />
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => handleDuplicateDay(selectedDayIdx)}
+                      className="p-3 text-zinc-400 hover:text-velatra-accent transition-colors bg-zinc-50 rounded-xl hover:bg-velatra-accent/10 flex-1 flex justify-center"
+                      title="Dupliquer ce jour"
+                    >
+                      <CopyIcon size={20} />
+                    </button>
+                    <button 
+                      onClick={() => handleRemoveDay(selectedDayIdx)}
+                      className="p-3 text-red-500/30 hover:text-red-500 transition-colors bg-zinc-50 rounded-xl hover:bg-red-50 flex-1 flex justify-center"
+                      title="Supprimer ce jour"
+                    >
+                      <Trash2Icon size={20} />
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-6">
@@ -491,19 +604,67 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                         ))}
                                       </select>
                                     </div>
+                                    <div className="flex sm:hidden gap-1">
+                                      <button 
+                                        onClick={() => handleMoveEx(selectedDayIdx, exIdx, 'up')}
+                                        disabled={exIdx === 0}
+                                        className="p-2 text-zinc-400 hover:text-velatra-accent disabled:opacity-30 transition-colors"
+                                      >
+                                        <ArrowUpIcon size={18} />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleMoveEx(selectedDayIdx, exIdx, 'down')}
+                                        disabled={exIdx === formData.days[selectedDayIdx].exercises.length - 1}
+                                        className="p-2 text-zinc-400 hover:text-velatra-accent disabled:opacity-30 transition-colors"
+                                      >
+                                        <ArrowDownIcon size={18} />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleDuplicateEx(selectedDayIdx, exIdx)}
+                                        className="p-2 text-zinc-400 hover:text-velatra-accent transition-colors"
+                                      >
+                                        <CopyIcon size={18} />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleRemoveEx(selectedDayIdx, exIdx)}
+                                        className="p-2 text-red-500/30 hover:text-red-500 transition-colors"
+                                      >
+                                        <Trash2Icon size={18} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="hidden sm:flex gap-1">
+                                    <button 
+                                      onClick={() => handleMoveEx(selectedDayIdx, exIdx, 'up')}
+                                      disabled={exIdx === 0}
+                                      className="p-3 text-zinc-400 hover:text-velatra-accent disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-velatra-accent/10"
+                                      title="Monter"
+                                    >
+                                      <ArrowUpIcon size={18} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleMoveEx(selectedDayIdx, exIdx, 'down')}
+                                      disabled={exIdx === formData.days[selectedDayIdx].exercises.length - 1}
+                                      className="p-3 text-zinc-400 hover:text-velatra-accent disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-velatra-accent/10"
+                                      title="Descendre"
+                                    >
+                                      <ArrowDownIcon size={18} />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDuplicateEx(selectedDayIdx, exIdx)}
+                                      className="p-3 text-zinc-400 hover:text-velatra-accent transition-colors bg-zinc-50 rounded-xl hover:bg-velatra-accent/10"
+                                      title="Dupliquer"
+                                    >
+                                      <CopyIcon size={18} />
+                                    </button>
                                     <button 
                                       onClick={() => handleRemoveEx(selectedDayIdx, exIdx)}
-                                      className="p-3 sm:hidden text-red-500/20 hover:text-red-500 transition-colors"
+                                      className="p-3 text-red-500/30 hover:text-red-500 transition-colors bg-zinc-50 rounded-xl hover:bg-red-50"
+                                      title="Supprimer"
                                     >
-                                      <Trash2Icon size={20} />
+                                      <Trash2Icon size={18} />
                                     </button>
                                   </div>
-                                  <button 
-                                    onClick={() => handleRemoveEx(selectedDayIdx, exIdx)}
-                                    className="p-4 hidden sm:block text-red-500/20 hover:text-red-500 transition-colors"
-                                  >
-                                    <Trash2Icon size={20} />
-                                  </button>
                                 </div>
 
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-6 bg-zinc-50 p-4 sm:p-5 rounded-2xl border border-zinc-200">
@@ -517,16 +678,20 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                     />
                                   </div>
                                   <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">RÉPÉTITIONS</label>
+                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">
+                                      {baseEx?.cat === 'Cardio' ? 'DURÉE' : 'RÉPÉTITIONS'}
+                                    </label>
                                     <Input 
                                       className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
-                                      value={ex.reps}
-                                      placeholder="Ex: 10 ou 6,8,10"
-                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'reps', e.target.value)}
+                                      value={baseEx?.cat === 'Cardio' ? (ex.duration || '') : ex.reps}
+                                      placeholder={baseEx?.cat === 'Cardio' ? "Ex: 15 min" : "Ex: 10 ou 6,8,10"}
+                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, baseEx?.cat === 'Cardio' ? 'duration' : 'reps', e.target.value)}
                                     />
-                                    <div className="text-[8px] text-zinc-500 text-center leading-tight mt-1">
-                                      Séparez par des virgules pour des reps différentes (ex: 12,10,8)
-                                    </div>
+                                    {baseEx?.cat !== 'Cardio' && (
+                                      <div className="text-[8px] text-zinc-500 text-center leading-tight mt-1">
+                                        Séparez par des virgules pour des reps différentes (ex: 12,10,8)
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="space-y-1">
                                     <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">REPOS (SEC)</label>
@@ -537,11 +702,13 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                     />
                                   </div>
                                   <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">TEMPO</label>
+                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">
+                                      {baseEx?.cat === 'Cardio' ? 'INTENSITÉ' : 'TEMPO'}
+                                    </label>
                                     <Input 
                                       className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
                                       value={ex.tempo || ''}
-                                      placeholder="Ex: 2010"
+                                      placeholder={baseEx?.cat === 'Cardio' ? "Ex: Niv 5" : "Ex: 2010"}
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'tempo', e.target.value)}
                                     />
                                   </div>
@@ -570,6 +737,16 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setGroup', parseInt(e.target.value) || null)}
                                     />
                                   </div>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest ml-1">NOTES / CONSIGNES (OPTIONNEL)</label>
+                                  <Input 
+                                    className="!rounded-xl !text-sm font-medium !bg-zinc-50"
+                                    value={ex.notes || ''}
+                                    placeholder="Ex: Focus sur l'excentrique, garder les coudes serrés..."
+                                    onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'notes', e.target.value)}
+                                  />
                                 </div>
                               </div>
                             </div>

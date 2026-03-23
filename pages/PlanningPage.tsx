@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { AppState, Booking, User } from '../types';
 import { Card, Button, Badge } from '../components/UI';
 import { CalendarIcon, PlusIcon, ClockIcon, UserIcon, CheckIcon, XIcon, TargetIcon } from '../components/Icons';
@@ -379,6 +380,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
         </motion.div>
       </motion.div>
 
+      {createPortal(
       <AnimatePresence>
       {isBookingModalOpen && selectedSlot && (
         <motion.div 
@@ -447,7 +449,9 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
           </motion.div>
         </motion.div>
       )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </motion.div>
   );
 };

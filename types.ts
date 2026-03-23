@@ -215,6 +215,11 @@ export interface SessionLog {
   dayName: string;
   exerciseData: Record<string, string>;
   totalVolume?: number;
+  notes?: string;
+  score?: number;
+  rpe?: number;
+  duration?: number;
+  coachId?: number;
 }
 
 export interface Performance {
@@ -225,6 +230,7 @@ export interface Performance {
   exId: string;
   weight: number;
   reps: number;
+  duration?: string;
   fromCoaching: boolean;
 }
 
@@ -377,7 +383,7 @@ export interface Newsletter {
   author: string;
 }
 
-export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "videos" | "community";
+export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "videos" | "community" | "coaching";
 
 export type ActivityLevel = "Sédentaire" | "Légèrement actif" | "Modérément actif" | "Très actif" | "Extrêmement actif";
 
@@ -541,10 +547,12 @@ export interface AppState {
   editingProg: Program | null;
   editingPreset: Preset | null;
   workout: Program | null;
+  workoutIsProgramSession?: boolean;
   workoutData: Record<string, string>;
   workoutMember: User | null;
   validatedExercises: number[];
   modal: string | null;
   toast: { message: string, type: 'success' | 'error' | 'info' } | null;
   aiSuggestion?: string;
+  memberFilter?: string;
 }

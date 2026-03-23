@@ -176,21 +176,12 @@ Ta mission est de générer un plan nutritionnel personnalisé pour un utilisate
 Tu dois suivre strictement les étapes ci-dessous.
 ${targetInstructions}
 ÉTAPE 5 — Répartition des repas
-Distribue les calories sur plusieurs repas :
+Distribue les calories et les macros sur plusieurs repas :
 3 repas : petit-déjeuner 30%, déjeuner 40%, dîner 30%
 4 repas : petit-déjeuner 25%, déjeuner 30%, collation 15%, dîner 30%
 5 repas : petit-déjeuner 25%, collation 10%, déjeuner 30%, collation 10%, dîner 25%
 
-ÉTAPE 6 — Génération des repas
-Pour chaque repas : proposer des aliments réalistes, respecter les macros calculées, respecter le régime alimentaire, éviter les allergies, inclure protéines, glucides, lipides et fibres.
-
-ÉTAPE 7 — Adapter au régime alimentaire
-Régimes possibles : standard, végétarien, vegan, keto, halal, sans lactose, sans gluten
-
-ÉTAPE 8 — Générer la liste de courses
-Créer une liste de courses hebdomadaire basée sur le plan alimentaire.
-
-ÉTAPE 9 — Format de sortie obligatoire
+ÉTAPE 6 — Format de sortie obligatoire
 Retourner uniquement un objet JSON structuré avec :
 {
 "calories_totales": "",
@@ -205,43 +196,36 @@ Retourner uniquement un objet JSON structuré avec :
 "calories": "",
 "proteines": "",
 "glucides": "",
-"lipides": "",
-"aliments": []
+"lipides": ""
 },
 {
 "type": "dejeuner",
 "calories": "",
 "proteines": "",
 "glucides": "",
-"lipides": "",
-"aliments": []
+"lipides": ""
 },
 {
 "type": "collation",
 "calories": "",
 "proteines": "",
 "glucides": "",
-"lipides": "",
-"aliments": []
+"lipides": ""
 },
 {
 "type": "diner",
 "calories": "",
 "proteines": "",
 "glucides": "",
-"lipides": "",
-"aliments": []
+"lipides": ""
 }
 ],
 "liste_courses": []
 }
 
-ÉTAPE 10 — Contraintes importantes
-* Les repas doivent être équilibrés et réalistes.
-* Les quantités doivent être indiquées en grammes.
+ÉTAPE 7 — Contraintes importantes
 * Les macros doivent correspondre aux calories totales.
-* Les aliments doivent être cohérents avec le régime alimentaire choisi.
-* Le plan doit être adapté à une journée type d’un pratiquant de fitness.
+* Ne propose aucun aliment spécifique ni aucun texte descriptif. L'adhérent remplira ses repas lui-même. Ne retourne que les macros et calories pour chaque repas.
 
 Voici les données utilisateur :
 âge : ${user.age}
@@ -283,11 +267,7 @@ nombre de repas : 4
                 calories: { type: Type.STRING },
                 proteines: { type: Type.STRING },
                 glucides: { type: Type.STRING },
-                lipides: { type: Type.STRING },
-                aliments: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING }
-                }
+                lipides: { type: Type.STRING }
               }
             }
           },

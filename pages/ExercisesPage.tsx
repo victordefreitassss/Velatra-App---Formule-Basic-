@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AppState, Exercise } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { PlusIcon, SearchIcon, DumbbellIcon, Trash2Icon, Edit2Icon, XIcon, CheckIcon, SaveIcon, CameraIcon } from '../components/Icons';
@@ -170,11 +171,27 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                   {/* Persistent Actions */}
                   <div className="absolute top-2 right-2 flex gap-2 z-10">
                     <button 
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const newEx = { ...ex, id: Date.now(), name: `${ex.name} (Copie)` };
+                        try {
+                          await setDoc(doc(db, "exercises", newEx.id.toString()), newEx);
+                          showToast("Exercice dupliqué");
+                        } catch (err) {
+                          showToast("Erreur lors de la duplication", "error");
+                        }
+                      }}
+                      className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-600 hover:text-velatra-accent hover:bg-white shadow-sm transition-all"
+                      title="Dupliquer l'exercice"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    </button>
+                    <button 
                       onClick={(e) => { e.stopPropagation(); setEditingEx(ex); }}
                       className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-600 hover:text-velatra-accent hover:bg-white shadow-sm transition-all"
-                      title="Modifier la photo"
+                      title="Modifier l'exercice"
                     >
-                      <CameraIcon size={14} />
+                      <Edit2Icon size={14} />
                     </button>
                     <button 
                       onClick={async (e) => {
@@ -209,6 +226,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
       </motion.div>
 
       {/* Modal d'ajout Manuel */}
+      {createPortal(
       <AnimatePresence>
       {showAddModal && (
         <motion.div 
@@ -267,13 +285,23 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">URL de la Photo</label>
-                   <Input 
-                    placeholder="https://..."
-                    value={newEx.photo || ""}
-                    onChange={e => setNewEx({...newEx, photo: e.target.value})}
-                    className="!bg-white/60 backdrop-blur-xl !border-zinc-200/50 shadow-sm"
-                   />
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Photo (URL ou Fichier)</label>
+                   {newEx.photo?.startsWith('data:image') ? (
+                     <div className="flex items-center gap-3 p-2 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-xl shadow-sm">
+                       <img src={newEx.photo} alt="Preview" className="w-10 h-10 object-cover rounded-lg" />
+                       <span className="text-xs font-bold text-emerald-500 flex-1">Image chargée avec succès</span>
+                       <button onClick={() => setNewEx({...newEx, photo: ""})} className="p-2 text-zinc-400 hover:text-red-500">
+                         <XIcon size={16} />
+                       </button>
+                     </div>
+                   ) : (
+                     <Input 
+                      placeholder="https://..."
+                      value={newEx.photo || ""}
+                      onChange={e => setNewEx({...newEx, photo: e.target.value})}
+                      className="!bg-white/60 backdrop-blur-xl !border-zinc-200/50 shadow-sm"
+                     />
+                   )}
                 </div>
 
                 <div className="space-y-1">
@@ -333,8 +361,11 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
            </motion.div>
         </motion.div>
       )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
       {/* Modal d'édition */}
+      {createPortal(
       <AnimatePresence>
       {editingEx && (
         <motion.div 
@@ -357,18 +388,59 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 <XIcon size={24} />
               </button>
               
-              <h2 className="text-2xl font-black mb-1">MODIFIER PHOTO</h2>
+              <h2 className="text-2xl font-black mb-1">MODIFIER L'EXERCICE</h2>
               <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">{editingEx.name}</p>
 
               <div className="space-y-5">
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">URL de la Photo</label>
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Nom du mouvement</label>
                    <Input 
-                    placeholder="https://..."
-                    value={editingEx.photo || ""}
-                    onChange={e => setEditingEx({...editingEx, photo: e.target.value})}
+                    placeholder="Ex: Leg Press Incliné"
+                    value={editingEx.name}
+                    onChange={e => setEditingEx({...editingEx, name: e.target.value})}
                     className="!bg-white/60 backdrop-blur-xl !border-zinc-200/50 shadow-sm"
                    />
+                </div>
+
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Catégorie</label>
+                   <select 
+                     className="w-full bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-xl p-4 text-sm text-zinc-900 focus:border-velatra-accent outline-none appearance-none shadow-sm"
+                     value={editingEx.cat}
+                     onChange={e => setEditingEx({...editingEx, cat: e.target.value})}
+                   >
+                     {EXERCISE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                   </select>
+                </div>
+
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Équipement requis</label>
+                   <Input 
+                    placeholder="Ex: Machine, Barre, Haltères..."
+                    value={editingEx.equip}
+                    onChange={e => setEditingEx({...editingEx, equip: e.target.value})}
+                    className="!bg-white/60 backdrop-blur-xl !border-zinc-200/50 shadow-sm"
+                   />
+                </div>
+
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Photo (URL ou Fichier)</label>
+                   {editingEx.photo?.startsWith('data:image') ? (
+                     <div className="flex items-center gap-3 p-2 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-xl shadow-sm">
+                       <img src={editingEx.photo} alt="Preview" className="w-10 h-10 object-cover rounded-lg" />
+                       <span className="text-xs font-bold text-emerald-500 flex-1">Image chargée avec succès</span>
+                       <button onClick={() => setEditingEx({...editingEx, photo: ""})} className="p-2 text-zinc-400 hover:text-red-500">
+                         <XIcon size={16} />
+                       </button>
+                     </div>
+                   ) : (
+                     <Input 
+                      placeholder="https://..."
+                      value={editingEx.photo || ""}
+                      onChange={e => setEditingEx({...editingEx, photo: e.target.value})}
+                      className="!bg-white/60 backdrop-blur-xl !border-zinc-200/50 shadow-sm"
+                     />
+                   )}
                 </div>
 
                 <div className="space-y-1">
@@ -428,7 +500,9 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
            </motion.div>
         </motion.div>
       )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </motion.div>
   );
 };

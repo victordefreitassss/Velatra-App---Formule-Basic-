@@ -61,6 +61,97 @@ export function blobToBase64(file: File): Promise<string> {
   });
 }
 
+export function calculateNutritionPlan(user: any, latestScan?: any, targets?: { calories: number, protein: number, carbs: number, fat: number }) {
+  const weight = latestScan?.weight || user.weight || 70;
+  const heightCm = user.height || 170;
+  const heightM = heightCm / 100;
+  const age = user.age || 30;
+  const gender = user.gender || 'M';
+
+  // Équation de Black et al. (1996)
+  const wFactor = Math.pow(weight, 0.48);
+  const hFactor = Math.pow(heightM, 0.50);
+  const aFactor = Math.pow(age, -0.13);
+
+  let bmr = 0;
+  if (gender === 'M') {
+    bmr = 259 * wFactor * hFactor * aFactor;
+  } else {
+    bmr = 230 * wFactor * hFactor * aFactor;
+  }
+
+  // TDEE avec facteur d'activité modéré par défaut
+  const tdee = bmr * 1.55;
+
+  let targetCalories = Math.round(tdee);
+  const goal = (user.objectifs && user.objectifs[0]) ? user.objectifs[0].toLowerCase() : '';
+
+  if (goal.includes('perte') || goal.includes('mincir')) {
+    targetCalories -= 500;
+  } else if (goal.includes('masse') || goal.includes('muscle')) {
+    targetCalories += 300;
+  }
+
+  let protein = 0;
+  let fat = 0;
+  let carbs = 0;
+
+  if (targets) {
+    targetCalories = targets.calories;
+    protein = targets.protein;
+    carbs = targets.carbs;
+    fat = targets.fat;
+  } else {
+    // Macros standard
+    protein = Math.round(weight * 2.0); // 2g par kg
+    fat = Math.round(weight * 1.0); // 1g par kg
+    const remainingCalories = targetCalories - (protein * 4) - (fat * 9);
+    carbs = Math.max(0, Math.round(remainingCalories / 4));
+  }
+
+  const meals = [
+    {
+      type: 'Petit-déjeuner',
+      calories: Math.round(targetCalories * 0.25),
+      proteines: Math.round(protein * 0.25),
+      glucides: Math.round(carbs * 0.25),
+      lipides: Math.round(fat * 0.25)
+    },
+    {
+      type: 'Déjeuner',
+      calories: Math.round(targetCalories * 0.30),
+      proteines: Math.round(protein * 0.30),
+      glucides: Math.round(carbs * 0.30),
+      lipides: Math.round(fat * 0.30)
+    },
+    {
+      type: 'Collation',
+      calories: Math.round(targetCalories * 0.15),
+      proteines: Math.round(protein * 0.15),
+      glucides: Math.round(carbs * 0.15),
+      lipides: Math.round(fat * 0.15)
+    },
+    {
+      type: 'Dîner',
+      calories: Math.round(targetCalories * 0.30),
+      proteines: Math.round(protein * 0.30),
+      glucides: Math.round(carbs * 0.30),
+      lipides: Math.round(fat * 0.30)
+    }
+  ];
+
+  return {
+    calories_totales: targetCalories,
+    macros: {
+      proteines_g: protein,
+      glucides_g: carbs,
+      lipides_g: fat
+    },
+    repas: meals,
+    liste_courses: []
+  };
+}
+
 export function updateNutritionPlanForWeight(plan: any, newWeight: number): any {
   if (!plan || !newWeight) return plan;
   

@@ -19,12 +19,14 @@ import { Layout } from './components/Layout';
 import { Login } from './components/Login';
 import { Toast } from './components/Toast';
 import { WorkoutView } from './components/WorkoutView';
+import { CoachingSessionView } from './components/CoachingSessionView';
 import { ProgramEditor } from './components/Editor';
 
 // Pages
 import { CoachDashboard } from './components/CoachDashboard';
 import { MemberDashboard } from './components/MemberDashboard';
 import { MembersPage } from './pages/MembersPage';
+import { CoachingPage } from './pages/CoachingPage';
 import { PresetsPage } from './pages/PresetsPage';
 import { ExercisesPage } from './pages/ExercisesPage';
 import { MessagesPage } from './pages/MessagesPage';
@@ -536,9 +538,18 @@ export default function App() {
           exercises={state.exercises}
           clubId={user.clubId}
           allPresets={state.presets}
+          member={state.editingProg ? state.users.find(u => u.id === state.editingProg!.memberId) : undefined}
           onSave={async (data) => {
             const dataWithClub = { ...data, clubId: user.clubId };
             await setDoc(doc(db, state.editingProg ? "programs" : "presets", data.id.toString()), dataWithClub);
+            
+            if (state.editingProg) {
+              const member = state.users.find(u => u.id === state.editingProg!.memberId);
+              if (member && member.firebaseUid && member.planRequested) {
+                await updateDoc(doc(db, "users", member.firebaseUid), { planRequested: false });
+              }
+            }
+
             setState(s => ({ ...s, editingProg: null, editingPreset: null }));
             showToast("Enregistré");
           }}
@@ -576,6 +587,7 @@ export default function App() {
       switch (page) {
         case 'home': return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
         case 'users': return <MembersPage state={state} setState={setState} showToast={showToast} />;
+        case 'coaching': return <CoachingPage state={state} setState={setState} showToast={showToast} />;
         case 'presets': return <PresetsPage state={state} setState={setState} showToast={showToast} />;
         case 'exercises': return <ExercisesPage state={state} setState={setState} showToast={showToast} />;
         case 'history': return <HistoryPage state={state} setState={setState} />;
@@ -633,28 +645,52 @@ export default function App() {
   const unreadMessagesCount = state.messages.filter(m => !m.read && m.to === state.user?.id).length;
 
   return (
-    <Layout user={state.user} club={state.currentClub} activePage={state.page} onPageChange={(p) => setState(s => ({ ...s, page: p }))} onLogout={handleLogout} unreadMessagesCount={unreadMessagesCount}>
-      {renderActivePageContent(state.user)}
+    <>
+      <Layout user={state.user} club={state.currentClub} activePage={state.page} onPageChange={(p) => setState(s => ({ ...s, page: p }))} onLogout={handleLogout} unreadMessagesCount={unreadMessagesCount}>
+        {renderActivePageContent(state.user)}
+      </Layout>
+      
       {state.toast && <Toast message={state.toast.message} type={state.toast.type} />}
       {state.workout && state.workoutMember && (
-        <WorkoutView 
-          program={state.workout} 
-          member={state.workoutMember} 
-          state={state}
-          setState={setState}
-          showToast={showToast}
-          onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null }))}
-          onComplete={async (log, perfs) => {
-            const logWithClub = { ...log, clubId: state.user?.clubId };
-            const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
-            
-            await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
-            for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
-            setState(s => ({ ...s, workout: null, workoutMember: null }));
-            showToast("Séance enregistrée !");
-          }}
-        />
+        (state.user?.role === 'coach' || state.user?.role === 'owner' || state.user?.role === 'superadmin') ? (
+          <CoachingSessionView 
+            program={state.workout} 
+            member={state.workoutMember} 
+            state={state}
+            showToast={showToast}
+            isProgramSession={state.workoutIsProgramSession}
+            onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }))}
+            onComplete={async (log, perfs) => {
+              const logWithClub = { ...log, clubId: state.user?.clubId };
+              const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
+              
+              await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
+              for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
+              setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
+              showToast("Séance de coaching enregistrée !");
+            }}
+          />
+        ) : (
+          <WorkoutView 
+            program={state.workout} 
+            member={state.workoutMember} 
+            state={state}
+            setState={setState}
+            showToast={showToast}
+            isCoachView={false}
+            onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null }))}
+            onComplete={async (log, perfs) => {
+              const logWithClub = { ...log, clubId: state.user?.clubId };
+              const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
+              
+              await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
+              for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
+              setState(s => ({ ...s, workout: null, workoutMember: null }));
+              showToast("Séance enregistrée !");
+            }}
+          />
+        )
       )}
-    </Layout>
+    </>
   );
 }
