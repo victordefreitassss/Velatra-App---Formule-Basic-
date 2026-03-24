@@ -7,6 +7,20 @@ import { SparklesIcon, RefreshCwIcon, Wand2Icon } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
 import { estimateFoodMacros } from '../services/aiService';
 
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
+      return process.env.GEMINI_API_KEY;
+    }
+  } catch (e) {}
+  try {
+    if (import.meta && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+      return import.meta.env.VITE_GEMINI_API_KEY;
+    }
+  } catch (e) {}
+  return '';
+};
+
 export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: string, type?: 'success' | 'error') => void }> = ({ state, showToast }) => {
   const user = state.user!;
   const plan = state.nutritionPlans.find(p => p.memberId === Number(user.id));
@@ -110,7 +124,7 @@ export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: s
 
     setIsGenerating(true);
     try {
-      const rawApiKey = process.env.GEMINI_API_KEY as string;
+      const rawApiKey = getApiKey();
       const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
       const ai = new GoogleGenAI({ apiKey });
       
