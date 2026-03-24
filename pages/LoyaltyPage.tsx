@@ -176,7 +176,7 @@ export const LoyaltyPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
                     </div>
                     
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Button 
                         variant="primary" 
                         className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-none shadow-lg shadow-emerald-500/20"

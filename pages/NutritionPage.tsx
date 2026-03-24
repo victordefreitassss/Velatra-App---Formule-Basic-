@@ -69,7 +69,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       if (u.role !== 'member') return false;
       if (!u.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
       
-      const hasPlan = state.nutritionPlans.some(p => p.memberId === u.id);
+      const hasPlan = state.nutritionPlans.some(p => p.memberId === Number(u.id));
       if (filterPlan === 'Avec Plan' && !hasPlan) return false;
       if (filterPlan === 'Sans Plan' && hasPlan) return false;
       
@@ -81,15 +81,15 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
     setSelectedMember(member);
     
     // Load existing plan or initialize from user data
-    const existingPlan = state.nutritionPlans.find(p => p.memberId === member.id);
+    const existingPlan = state.nutritionPlans.find(p => p.memberId === Number(member.id));
     
     if (existingPlan) {
-      setWeight(existingPlan.weight);
-      setHeight(existingPlan.height);
-      setAge(existingPlan.age);
-      setGender(existingPlan.gender);
-      setActivityLevel(existingPlan.activityLevel);
-      setGoal(existingPlan.goal);
+      setWeight(existingPlan.weight || member.weight || 70);
+      setHeight(existingPlan.height || member.height || 175);
+      setAge(existingPlan.age || member.age || 30);
+      setGender(existingPlan.gender || member.gender || 'M');
+      setActivityLevel(existingPlan.activityLevel || 'Modérément actif');
+      setGoal(existingPlan.goal || member.objectifs?.[0] || 'Sport santé bien-être');
       setDietPreference(existingPlan.dietPreference || 'Standard');
       setDurationWeeks(existingPlan.durationWeeks || 4);
     } else {
@@ -113,11 +113,11 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
   }, [weight, height, age, gender]);
 
   const tdee = useMemo(() => {
-    return Math.round(bmr * ACTIVITY_MULTIPLIERS[activityLevel]);
+    return Math.round(bmr * (ACTIVITY_MULTIPLIERS[activityLevel] || 1.2));
   }, [bmr, activityLevel]);
 
   const targetCalories = useMemo(() => {
-    return tdee + GOAL_ADJUSTMENTS[goal];
+    return tdee + (GOAL_ADJUSTMENTS[goal] || 0);
   }, [tdee, goal]);
 
   const macros = useMemo(() => {
@@ -146,13 +146,14 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
     setIsSaving(true);
     
     try {
-      const planId = state.nutritionPlans.find(p => p.memberId === selectedMember.id)?.id || Date.now().toString();
+      const existingPlan = state.nutritionPlans.find(p => p.memberId === Number(selectedMember.id));
+      const planId = existingPlan?.id || Date.now().toString();
       
       const planData: NutritionPlan = {
         id: planId,
-        memberId: selectedMember.id,
+        memberId: Number(selectedMember.id),
         clubId: state.user.clubId,
-        createdAt: new Date().toISOString(),
+        createdAt: existingPlan?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         weight,
         height,
@@ -168,7 +169,9 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
         protein: macros.protein,
         carbs: macros.carbs,
         fat: macros.fat,
-        meals: []
+        meals: existingPlan?.meals || [],
+        liste_courses: existingPlan?.liste_courses || [],
+        aiGenerated: existingPlan?.aiGenerated || false
       };
       
       await setDoc(doc(db, "nutritionPlans", planId), planData);
@@ -191,7 +194,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       const d = new Date(today);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
-      const log = state.nutritionLogs.find(l => l.userId === selectedMember.id && l.date === dateStr);
+      const log = state.nutritionLogs.find(l => l.userId === Number(selectedMember.id) && l.date === dateStr);
       
       const totalCals = log?.foods.reduce((sum, f) => sum + f.calories, 0) || 0;
       const totalProt = log?.foods.reduce((sum, f) => sum + f.protein, 0) || 0;
@@ -212,6 +215,8 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
   }, [selectedMember, state.nutritionLogs]);
 
   if (selectedMember) {
+    const existingPlan = state.nutritionPlans.find(p => p.memberId === Number(selectedMember.id));
+
     return (
       <motion.div 
         className="space-y-8 pb-20"
@@ -219,7 +224,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
         initial="hidden"
         animate="visible"
       >
-        <motion.div variants={itemVariants} className="flex items-center gap-4 px-1">
+        <motion.div variants={itemVariants} className="flex items-center gap-4 px-1 max-w-4xl mx-auto w-full">
           <button 
             onClick={() => setSelectedMember(null)}
             className="p-2 bg-white/60 backdrop-blur-xl hover:bg-white/80 rounded-full transition-colors text-zinc-900 border border-zinc-200/50 shadow-sm"
@@ -237,9 +242,9 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
           </div>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto w-full">
           {/* Left Column: Metrics & Calculations */}
-          <motion.div variants={itemVariants} className="space-y-6">
+          <div className="space-y-6">
             <Card className="p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm space-y-4">
               <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 mb-4 flex items-center gap-2">
                 <UserIcon size={16} /> Profil Métabolique
@@ -346,12 +351,12 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs font-bold">
                     <span className="text-blue-500">Protéines</span>
-                    <span className="text-zinc-900">{macros.protein}g <span className="text-zinc-900/30 text-[10px]">({Math.round((macros.protein * 4 / targetCalories) * 100)}%)</span></span>
+                    <span className="text-zinc-900">{macros.protein}g <span className="text-zinc-900/30 text-[10px]">({targetCalories > 0 ? Math.round((macros.protein * 4 / targetCalories) * 100) : 0}%)</span></span>
                   </div>
                   <div className="h-2 bg-white/80 rounded-full overflow-hidden border border-zinc-100/50">
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: `${(macros.protein * 4 / targetCalories) * 100}%` }}
+                      animate={{ width: `${targetCalories > 0 ? (macros.protein * 4 / targetCalories) * 100 : 0}%` }}
                       transition={{ duration: 1, delay: 0.2 }}
                       className="h-full bg-blue-500 rounded-full" 
                     />
@@ -361,12 +366,12 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs font-bold">
                     <span className="text-green-500">Glucides</span>
-                    <span className="text-zinc-900">{macros.carbs}g <span className="text-zinc-900/30 text-[10px]">({Math.round((macros.carbs * 4 / targetCalories) * 100)}%)</span></span>
+                    <span className="text-zinc-900">{macros.carbs}g <span className="text-zinc-900/30 text-[10px]">({targetCalories > 0 ? Math.round((macros.carbs * 4 / targetCalories) * 100) : 0}%)</span></span>
                   </div>
                   <div className="h-2 bg-white/80 rounded-full overflow-hidden border border-zinc-100/50">
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: `${(macros.carbs * 4 / targetCalories) * 100}%` }}
+                      animate={{ width: `${targetCalories > 0 ? (macros.carbs * 4 / targetCalories) * 100 : 0}%` }}
                       transition={{ duration: 1, delay: 0.4 }}
                       className="h-full bg-green-500 rounded-full" 
                     />
@@ -376,12 +381,12 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                 <div className="space-y-2">
                   <div className="flex justify-between text-xs font-bold">
                     <span className="text-yellow-500">Lipides</span>
-                    <span className="text-zinc-900">{macros.fat}g <span className="text-zinc-900/30 text-[10px]">({Math.round((macros.fat * 9 / targetCalories) * 100)}%)</span></span>
+                    <span className="text-zinc-900">{macros.fat}g <span className="text-zinc-900/30 text-[10px]">({targetCalories > 0 ? Math.round((macros.fat * 9 / targetCalories) * 100) : 0}%)</span></span>
                   </div>
                   <div className="h-2 bg-white/80 rounded-full overflow-hidden border border-zinc-100/50">
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: `${(macros.fat * 9 / targetCalories) * 100}%` }}
+                      animate={{ width: `${targetCalories > 0 ? (macros.fat * 9 / targetCalories) * 100 : 0}%` }}
                       transition={{ duration: 1, delay: 0.6 }}
                       className="h-full bg-yellow-500 rounded-full" 
                     />
@@ -389,10 +394,10 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
               </div>
             </Card>
-          </motion.div>
+          </div>
 
           {/* Right Column: Weekly Summary */}
-          <motion.div variants={itemVariants} className="space-y-6">
+          <div className="space-y-6">
             <Card className="p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm space-y-4">
               <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
                 <AppleIcon size={16} className="text-velatra-accent" /> Résumé de la semaine
@@ -400,9 +405,8 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
               
               <div className="space-y-3">
                 {weeklyLogs.map((log, idx) => (
-                  <motion.div 
+                  <div 
                     key={idx} 
-                    variants={itemVariants}
                     className="bg-white/80 backdrop-blur-sm p-3 rounded-xl border border-zinc-200/50 shadow-sm transition-transform hover:scale-[1.02]"
                   >
                     <div className="flex justify-between items-center mb-2">
@@ -438,12 +442,64 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                         Aucun repas enregistré
                       </div>
                     )}
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </Card>
+          </div>
+        </motion.div>
+
+        {existingPlan && existingPlan.meals && existingPlan.meals.length > 0 && (
+          <motion.div variants={itemVariants} className="max-w-4xl mx-auto space-y-6 w-full">
+            <Card className="p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm space-y-4">
+              <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
+                <AppleIcon size={16} className="text-velatra-accent" /> Plan Alimentaire Généré
+              </h3>
+              <div className="space-y-4">
+                {existingPlan.meals.map((repas: any, idx: number) => {
+                  const mealTotalCals = repas.calories || 0;
+                  const mealTotalProt = repas.protein || 0;
+                  const mealTotalCarbs = repas.carbs || 0;
+                  const mealTotalFat = repas.fat || 0;
+                  
+                  return (
+                    <div key={idx} className="bg-white/80 border border-zinc-200/50 rounded-2xl p-4 shadow-sm">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-bold text-zinc-900">{repas.name}</h4>
+                        <div className="text-xs font-bold text-zinc-500 bg-zinc-100 px-2 py-1 rounded-lg">
+                          {mealTotalCals} kcal
+                        </div>
+                      </div>
+                      
+                      <div className="text-sm text-zinc-600 mb-4 whitespace-pre-wrap">
+                        {repas.description}
+                      </div>
+                      
+                      <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest">
+                        <div className="text-blue-500">Prot: {mealTotalProt}g</div>
+                        <div className="text-green-500">Gluc: {mealTotalCarbs}g</div>
+                        <div className="text-yellow-500">Lip: {mealTotalFat}g</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+
+            {existingPlan.liste_courses && existingPlan.liste_courses.length > 0 && (
+              <Card className="p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm space-y-4">
+                <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
+                  🛒 Liste de Courses
+                </h3>
+                <ul className="list-disc list-inside space-y-1 text-sm text-zinc-600">
+                  {existingPlan.liste_courses.map((item: string, idx: number) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </Card>
+            )}
           </motion.div>
-        </div>
+        )}
       </motion.div>
     );
   }
@@ -495,7 +551,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       >
         <AnimatePresence>
           {members.map(member => {
-            const hasPlan = state.nutritionPlans.some(p => p.memberId === member.id);
+            const hasPlan = state.nutritionPlans.some(p => p.memberId === Number(member.id));
             
             return (
               <motion.div 

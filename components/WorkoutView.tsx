@@ -388,7 +388,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                             </div>
                             {pr && (
                               <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
-                                <TrophyIcon size={12} className="text-yellow-500" /> PR: {pr.weight}kg x {pr.reps}
+                                <TrophyIcon size={12} className="text-yellow-500" /> PR: {baseEx?.cat === 'Cardio' ? (pr.duration || 'N/A') : (baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? `${pr.weight}kg x ${pr.reps}s` : `${pr.weight}kg x ${pr.reps}`}
                               </div>
                             )}
                             {exEntry.notes && (
@@ -412,7 +412,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                                         value={sessionData[`${exIndex}-${sIdx}-duration`] || ""} 
                                         onChange={e => handleInputChange(exIndex, sIdx, 'duration', e.target.value)} 
                                       />
-                                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Temps</span>
+                                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Temps / Distance</span>
                                     </div>
                                   ) : (
                                     <>
@@ -421,24 +421,24 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                                            onClick={() => handleInputChange(exIndex, sIdx, 'weight', String(Math.max(0, (parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") - 1))))}
                                            className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                          >-</button>
-                                         <Input type="number" inputMode="decimal" placeholder="KG" className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
+                                         <Input type="number" inputMode="decimal" placeholder={(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "LEST" : "KG"} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
                                          <button 
                                            onClick={() => handleInputChange(exIndex, sIdx, 'weight', String((parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") + 1)))}
                                            className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                          >+</button>
-                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Charge</span>
+                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? 'Lest' : 'Charge'}</span>
                                       </div>
                                       <div className="relative flex items-center">
                                          <button 
                                            onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") - 1))))}
                                            className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                          >-</button>
-                                         <Input type="number" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || "REPS"} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
+                                         <Input type="number" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "SEC" : "REPS")} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
                                          <button 
                                            onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") + 1)))}
                                            className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                          >+</button>
-                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase whitespace-nowrap">Répétitions {exEntry.reps ? `(Cible: ${getTargetRepsForSet(exEntry.reps, sIdx)})` : ''}</span>
+                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase whitespace-nowrap">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? 'Temps (sec)' : 'Répétitions'} {exEntry.reps ? `(Cible: ${getTargetRepsForSet(exEntry.reps, sIdx)})` : ''}</span>
                                       </div>
                                     </>
                                   )}

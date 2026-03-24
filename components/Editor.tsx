@@ -230,7 +230,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
             <p className="text-velatra-accent text-[10px] uppercase tracking-[3px] font-bold mt-1">Expert Coaching <span className="text-zinc-900">VELATRA</span></p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           {isEditingProgram && (
              <Button onClick={() => setShowPresets(!showPresets)} variant="secondary" className="!rounded-full font-black text-[10px] tracking-widest italic shadow-sm">
                 {showPresets ? "X" : "APPLIQUER MODÈLE"}

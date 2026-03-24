@@ -402,7 +402,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               </div>
             ) : (
               <div className="flex flex-col gap-4 w-full sm:w-auto">
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   <span className="text-xs text-zinc-500 font-mono bg-zinc-100 px-2 py-1 rounded">
                     {stripeSecretKey ? `${stripeSecretKey.substring(0, 8)}...` : 'Clé non renseignée'}
                   </span>
@@ -588,7 +588,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
       </Card>
 
       <Card className="p-8 border-zinc-200 bg-white">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
               <SettingsIcon size={24} />
@@ -682,9 +682,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                 <Input placeholder="Description de la formule..." value={editingPlan?.description || ''} onChange={e => setEditingPlan({ ...editingPlan, description: e.target.value })} />
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-zinc-200">
-              <Button variant="secondary" onClick={() => { setIsEditingPlan(false); setEditingPlan(null); }}>ANNULER</Button>
-              <Button variant="primary" onClick={handleSavePlan} disabled={!editingPlan?.name || !editingPlan?.price}>ENREGISTRER</Button>
+            <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 pt-4 border-t border-zinc-200 w-full">
+              <Button variant="secondary" fullWidth onClick={() => { setIsEditingPlan(false); setEditingPlan(null); }}>ANNULER</Button>
+              <Button variant="primary" fullWidth onClick={handleSavePlan} disabled={!editingPlan?.name || !editingPlan?.price}>ENREGISTRER</Button>
             </div>
           </div>
         ) : (

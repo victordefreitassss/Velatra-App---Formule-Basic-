@@ -350,7 +350,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                    />
                 </div>
 
-                <div className="pt-4 flex gap-3">
+                <div className="pt-4 flex flex-col sm:flex-row gap-3">
                   <Button variant="secondary" fullWidth onClick={() => setShowAddModal(false)} className="bg-white/60 hover:bg-white">ANNULER</Button>
                   <Button variant="primary" fullWidth onClick={handleSaveNewEx} className="shadow-lg shadow-velatra-accent/20">
                     CRÉER <CheckIcon size={18} className="ml-2" />
@@ -489,7 +489,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                    />
                 </div>
 
-                <div className="pt-4 flex gap-3">
+                <div className="pt-4 flex flex-col sm:flex-row gap-3">
                   <Button variant="secondary" fullWidth onClick={() => setEditingEx(null)} className="bg-white/60 hover:bg-white">ANNULER</Button>
                   <Button variant="primary" fullWidth onClick={() => handleUpdateEx(editingEx)} className="shadow-lg shadow-velatra-accent/20">
                     ENREGISTRER <SaveIcon size={18} className="ml-2" />

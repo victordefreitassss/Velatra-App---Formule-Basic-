@@ -22,7 +22,7 @@ const itemVariants: import('framer-motion').Variants = {
 
 export const TrophyPage: React.FC<{ state: AppState, setState: any }> = ({ state }) => {
   const user = state.user!;
-  const sessions = state.logs.filter(l => l.memberId === user.id).length;
+  const sessions = state.logs.filter(l => l.memberId === Number(user.id)).length;
 
   const milestones = [
     { title: "Débutant", target: 1, desc: "Première séance validée" },

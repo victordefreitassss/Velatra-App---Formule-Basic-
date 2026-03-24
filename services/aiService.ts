@@ -285,3 +285,136 @@ nombre de repas : 4
   
   return JSON.parse(jsonStr);
 };
+
+export const estimateFoodMacros = async (foodName: string) => {
+  const rawApiKey = process.env.GEMINI_API_KEY;
+  const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
+  if (!apiKey) {
+    throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  const prompt = `Estime les valeurs nutritionnelles pour l'aliment suivant : "${foodName}".
+Donne les valeurs pour une portion standard (précise la portion dans le nom si possible, ex: "Pomme (150g)").
+Retourne uniquement un objet JSON avec les champs suivants :
+{
+  "name": "Nom de l'aliment avec portion",
+  "calories": nombre,
+  "protein": nombre (en g),
+  "carbs": nombre (en g),
+  "fat": nombre (en g)
+}`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          calories: { type: Type.NUMBER },
+          protein: { type: Type.NUMBER },
+          carbs: { type: Type.NUMBER },
+          fat: { type: Type.NUMBER }
+        },
+        required: ["name", "calories", "protein", "carbs", "fat"]
+      }
+    }
+  });
+
+  const jsonStr = response.text?.trim();
+  if (!jsonStr) throw new Error("Réponse vide de l'IA");
+  
+  return JSON.parse(jsonStr);
+};
+
+export const generateAutoReport = async (user: User, bodyData: BodyData[], performances: any[]) => {
+  const rawApiKey = process.env.GEMINI_API_KEY;
+  const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
+  if (!apiKey) {
+    throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  const recentBodyData = bodyData.slice(-3).map(b => `Date: ${b.date}, Poids: ${b.weight}kg, Masse grasse: ${b.fat}%, Muscle: ${b.muscle}kg`).join('\n');
+  const recentPerfs = performances.slice(-5).map(p => `Exo ID: ${p.exId}, Poids: ${p.weight}kg, Reps: ${p.reps}`).join('\n');
+
+  const prompt = `
+Tu es un coach sportif expert. Rédige un bilan de progression court et motivant (environ 100 mots) pour l'adhérent nommé ${user.name}.
+Objectif de l'adhérent : ${(user.objectifs || []).join(', ')}.
+
+Voici ses dernières données corporelles :
+${recentBodyData || "Aucune donnée corporelle récente."}
+
+Voici ses dernières performances :
+${recentPerfs || "Aucune performance récente."}
+
+Le bilan doit être professionnel, encourageant, et prêt à être envoyé par message à l'adhérent.
+`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: prompt,
+  });
+
+  return response.text?.trim() || "Impossible de générer le rapport.";
+};
+
+export const detectStagnation = async (user: User, performances: any[], exercises: any[]) => {
+  const rawApiKey = process.env.GEMINI_API_KEY;
+  const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
+  if (!apiKey) {
+    throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  const perfsWithNames = performances.slice(-20).map(p => {
+    const ex = exercises.find(e => e.id === p.exId);
+    return `Date: ${p.date}, Exercice: ${ex?.name || p.exId}, Poids: ${p.weight}kg, Reps: ${p.reps}`;
+  }).join('\n');
+
+  const prompt = `
+Tu es un expert en biomécanique et en entraînement sportif.
+Analyse les performances récentes de l'adhérent ${user.name} pour détecter d'éventuelles stagnations (plateaux) sur ses exercices.
+
+Performances récentes :
+${perfsWithNames || "Aucune performance récente."}
+
+Retourne uniquement un objet JSON avec :
+{
+  "hasStagnation": boolean,
+  "stagnatingExercises": ["Nom de l'exercice 1", "Nom de l'exercice 2"],
+  "advice": "Conseil court (max 30 mots) pour surmonter la stagnation."
+}
+`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          hasStagnation: { type: Type.BOOLEAN },
+          stagnatingExercises: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING }
+          },
+          advice: { type: Type.STRING }
+        },
+        required: ["hasStagnation", "stagnatingExercises", "advice"]
+      }
+    }
+  });
+
+  const jsonStr = response.text?.trim();
+  if (!jsonStr) throw new Error("Réponse vide de l'IA");
+  
+  return JSON.parse(jsonStr);
+};

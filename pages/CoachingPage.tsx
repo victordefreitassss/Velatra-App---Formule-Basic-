@@ -101,7 +101,7 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
               className="pl-12 !bg-zinc-50"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 mt-4 sm:mt-0">
             <Button variant={filter === 'all' ? 'primary' : 'secondary'} onClick={() => setFilter('all')} className="!py-2">Tous</Button>
             <Button variant={filter === 'active' ? 'primary' : 'secondary'} onClick={() => setFilter('active')} className="!py-2">Actifs</Button>
             <Button variant={filter === 'noprogram' ? 'primary' : 'secondary'} onClick={() => setFilter('noprogram')} className="!py-2">Sans Prog.</Button>

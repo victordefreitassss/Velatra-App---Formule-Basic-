@@ -108,7 +108,7 @@ export const Timer: React.FC = () => {
         )}
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <Button 
           variant={isActive ? "secondary" : "primary"} 
           fullWidth 
