@@ -1439,23 +1439,32 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                        <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Historique Coaching</h3>
                     </div>
                     
-                    {state.currentClub?.plan === 'classic' || state.currentClub?.plan === 'premium' ? (
                       <div className="bg-white border border-zinc-200 rounded-[40px] p-8 shadow-inner">
                         {(state.logs || []).filter(log => log.memberId === Number(selectedProfile.id) && log.isCoaching).length > 0 ? (
                           <div className="space-y-4">
                             {(state.logs || []).filter(log => log.memberId === Number(selectedProfile.id) && log.isCoaching)
                               .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                               .map(log => (
-                              <div key={log.id} className="flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl">
-                                <div>
-                                  <div className="text-sm font-bold text-zinc-900">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                                  <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">{log.dayName} • Semaine {log.week}</div>
+                              <div key={log.id} className="flex flex-col gap-3 p-4 bg-zinc-50 border border-zinc-200 rounded-2xl">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <div className="text-sm font-bold text-zinc-900">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">{log.dayName} • Semaine {log.week}</div>
+                                  </div>
+                                  <div className="text-right">
+                                    <span className="px-3 py-1 bg-velatra-accent/20 text-velatra-accent rounded-full text-[10px] font-black uppercase tracking-widest">
+                                      Terminée
+                                    </span>
+                                  </div>
                                 </div>
-                                <div className="text-right">
-                                  <span className="px-3 py-1 bg-velatra-accent/20 text-velatra-accent rounded-full text-[10px] font-black uppercase tracking-widest">
-                                    Terminée
-                                  </span>
-                                </div>
+                                {log.notes && (
+                                  <div className="mt-2 p-3 bg-velatra-accent/5 rounded-lg border border-velatra-accent/10">
+                                    <div className="flex items-start gap-2">
+                                      <MessageCircleIcon size={14} className="text-velatra-accent mt-0.5 shrink-0" />
+                                      <p className="text-xs text-zinc-700 leading-relaxed italic">"{log.notes}"</p>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -1465,19 +1474,6 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           </div>
                         )}
                       </div>
-                    ) : (
-                      <div className="bg-zinc-50 border border-zinc-200 p-8 rounded-3xl text-center relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-velatra-accent/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-velatra-accent/20"></div>
-                        <CalendarIcon size={32} className="mx-auto text-zinc-500 mb-4" />
-                        <h4 className="text-lg font-black text-zinc-900 uppercase tracking-widest mb-2">Fonctionnalité Premium</h4>
-                        <p className="text-xs text-zinc-500 mb-6 max-w-md mx-auto leading-relaxed">
-                          L'historique détaillé des séances de coaching en lien avec le planning est réservé aux formules Classic et Premium.
-                        </p>
-                        <Button variant="secondary" className="!py-3 !px-6 !text-[10px] !rounded-xl relative z-10 border-velatra-accent/30 hover:border-velatra-accent !bg-velatra-accent/10 !text-velatra-accent" onClick={() => window.open('https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20à%20la%20version%20supérieure%20pour%20débloquer%20l\'historique%20de%20coaching.', '_blank')}>
-                          PASSER À LA VERSION SUPÉRIEURE
-                        </Button>
-                      </div>
-                    )}
                   </section>
 
                   <section className="space-y-8">

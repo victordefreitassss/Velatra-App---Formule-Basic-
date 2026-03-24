@@ -23,7 +23,7 @@ const getApiKey = () => {
 };
 
 export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
-  const [activeTab, setActiveTab] = useState<'ai' | 'human'>('human');
+  const [activeTab, setActiveTab] = useState<'ai' | 'human'>('ai');
   const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([
     { role: 'model', text: `Salut ${(state.user?.name || 'Membre').split(' ')[0]} ! Je suis l'IA de VELATRA. Je connais tout sur le club, tes entraînements et nos compléments. Comment puis-je t'aider aujourd'hui ?` }
   ]);
@@ -168,17 +168,52 @@ RÈGLES DE REDIRECTION IMPORTANTES :
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 flex flex-col"
+            className="flex-1 flex flex-col overflow-hidden bg-white/60 backdrop-blur-xl rounded-3xl border border-zinc-200/50 shadow-sm"
           >
-            <Card className="flex-1 flex flex-col items-center justify-center bg-white/60 backdrop-blur-xl border-zinc-200/50 p-8 text-center shadow-sm">
-              <div className="w-20 h-20 bg-velatra-accent/10 rounded-full flex items-center justify-center text-velatra-accent mb-6 shadow-inner">
-                <BotIcon size={40} />
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.map((msg, idx) => (
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] p-4 rounded-2xl ${msg.role === 'user' ? 'bg-velatra-accent text-white rounded-br-sm shadow-md shadow-velatra-accent/20' : 'bg-white text-zinc-800 rounded-bl-sm border border-zinc-200/50 shadow-sm'}`}>
+                    {msg.role === 'model' ? (
+                      <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-display prose-a:text-velatra-accent">
+                        <Markdown>{msg.text}</Markdown>
+                      </div>
+                    ) : (
+                      <p className="text-[15px] leading-relaxed">{msg.text}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="bg-white p-4 rounded-2xl rounded-bl-sm border border-zinc-200/50 shadow-sm flex items-center gap-2">
+                    <div className="w-2 h-2 bg-velatra-accent rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-velatra-accent rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-velatra-accent rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+            <div className="p-4 bg-white/80 backdrop-blur-md border-t border-zinc-200/50">
+              <div className="flex gap-2">
+                <Input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                  placeholder="Pose ta question au coach IA..."
+                  className="flex-1 bg-white border-zinc-200/50 focus:border-velatra-accent focus:ring-velatra-accent/20 shadow-sm rounded-xl"
+                  disabled={loading}
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={loading || !input.trim()}
+                  className="bg-velatra-accent text-white p-4 rounded-xl hover:bg-velatra-accent/90 disabled:opacity-50 transition-all shadow-md shadow-velatra-accent/20 flex items-center justify-center"
+                >
+                  <SendIcon size={20} />
+                </button>
               </div>
-              <h2 className="text-2xl font-display font-bold text-zinc-900 mb-2">Coach IA en préparation</h2>
-              <p className="text-zinc-500 max-w-md">
-                Ton assistant personnel virtuel est en cours d'entraînement. Il sera disponible dans la prochaine mise à jour (MAJ) de l'application !
-              </p>
-            </Card>
+            </div>
           </motion.div>
         ) : (
           <motion.div

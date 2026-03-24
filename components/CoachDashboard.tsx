@@ -67,9 +67,6 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   const failedSubs = state.subscriptions?.filter(s => (s.status === 'past_due' || s.status === 'unpaid') && s.clubId === state.user?.clubId) || [];
 
   // 5. Chiffres Clés
-  const isPremium = state.user?.role === 'superadmin' || state.currentClub?.plan === 'premium';
-  const isClassic = isPremium || state.currentClub?.plan === 'classic';
-
   const activeSubscriptions = state.subscriptions?.filter(s => s.status === 'active' && s.clubId === state.user?.clubId) || [];
   const mrr = activeSubscriptions.reduce((acc, sub) => {
     if (sub.billingCycle === 'monthly') return acc + sub.price;
@@ -188,11 +185,10 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
               <StatBox 
                 label={showAnnual ? "ARR" : "MRR"} 
                 value={`${showAnnual ? (mrr * 12).toFixed(0) : mrr.toFixed(0)}€`} 
-                locked={!isClassic} 
-                onClick={() => isClassic ? setShowAnnual(!showAnnual) : setState(s => ({ ...s, page: 'crm_finances' }))} 
-                className={`bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm ${isClassic ? "cursor-pointer hover:ring-2 hover:ring-velatra-accent/50 transition-all" : ""}`}
+                onClick={() => setShowAnnual(!showAnnual)} 
+                className={`bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm cursor-pointer hover:ring-2 hover:ring-velatra-accent/50 transition-all`}
               />
-              <StatBox label="Panier Moyen" value={`${arpu.toFixed(0)}€`} locked={!isClassic} onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} className="bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm" />
+              <StatBox label="Panier Moyen" value={`${arpu.toFixed(0)}€`} onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} className="bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm" />
             </div>
           </motion.section>
 
