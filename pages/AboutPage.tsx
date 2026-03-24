@@ -75,7 +75,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
         )}
 
         {isEditing && (
-          <div className="flex gap-2 self-center sm:self-auto">
+          <div className="flex flex-col sm:flex-row gap-2 self-center sm:self-auto">
             <Button variant="danger" onClick={() => setIsEditing(false)} className="!rounded-full !py-2 !px-4">
               ANNULER
             </Button>

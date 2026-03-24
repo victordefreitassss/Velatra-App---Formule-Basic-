@@ -3,24 +3,26 @@ import { AppState, NutritionLog } from '../types';
 import { Card, Button, Input } from './UI';
 import { AppleIcon, PlusIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon } from './Icons';
 import { db, doc, setDoc } from '../firebase';
-import { SparklesIcon, RefreshCwIcon } from 'lucide-react';
+import { SparklesIcon, RefreshCwIcon, Wand2Icon } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
+import { estimateFoodMacros } from '../services/aiService';
 
 export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: string, type?: 'success' | 'error') => void }> = ({ state, showToast }) => {
   const user = state.user!;
-  const plan = state.nutritionPlans.find(p => p.memberId === user.id);
+  const plan = state.nutritionPlans.find(p => p.memberId === Number(user.id));
   
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [isAdding, setIsAdding] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [newFood, setNewFood] = useState({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0 });
   const [isSaving, setIsSaving] = useState(false);
+  const [isEstimating, setIsEstimating] = useState(false);
 
   const currentLog = useMemo(() => {
-    return state.nutritionLogs.find(l => l.userId === user.id && l.date === currentDate) || {
+    return state.nutritionLogs.find(l => l.userId === Number(user.id) && l.date === currentDate) || {
       id: `${user.id}-${currentDate}`,
       clubId: user.clubId,
-      userId: user.id,
+      userId: Number(user.id),
       date: currentDate,
       foods: []
     };
@@ -53,6 +55,30 @@ export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: s
       showToast("Erreur lors de l'ajout", "error");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleAutoCalculate = async () => {
+    if (!newFood.name) {
+      showToast("Entrez d'abord le nom de l'aliment", "error");
+      return;
+    }
+    setIsEstimating(true);
+    try {
+      const result = await estimateFoodMacros(newFood.name);
+      setNewFood({
+        name: result.name,
+        calories: result.calories,
+        protein: result.protein,
+        carbs: result.carbs,
+        fat: result.fat
+      });
+      showToast("Macros estimées avec succès !");
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de l'estimation", "error");
+    } finally {
+      setIsEstimating(false);
     }
   };
 
@@ -164,7 +190,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
 
       {/* Food List */}
       <Card className="p-6 bg-white border-zinc-200">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <h2 className="text-lg font-black uppercase">Repas du jour</h2>
           <Button variant="secondary" onClick={() => setIsAdding(!isAdding)} className="!py-2 !px-4 !text-[10px]">
             <PlusIcon size={12} className="mr-2" /> AJOUTER
@@ -175,7 +201,24 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
           <div className="bg-zinc-50 p-4 rounded-2xl mb-6 space-y-4 border border-zinc-200">
             <div>
               <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Aliment / Repas</label>
-              <Input type="text" placeholder="Ex: Poulet, Riz, Brocolis..." value={newFood.name} onChange={e => setNewFood({...newFood, name: e.target.value})} />
+              <div className="flex gap-2">
+                <Input 
+                  type="text" 
+                  placeholder="Ex: Poulet, Riz, Brocolis..." 
+                  value={newFood.name} 
+                  onChange={e => setNewFood({...newFood, name: e.target.value})} 
+                  className="flex-1"
+                />
+                <Button 
+                  variant="secondary" 
+                  onClick={handleAutoCalculate}
+                  disabled={isEstimating || !newFood.name}
+                  className="!px-3 !py-0 h-[42px] flex items-center justify-center bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200"
+                  title="Calculer les macros automatiquement"
+                >
+                  {isEstimating ? <RefreshCwIcon size={18} className="animate-spin" /> : <Wand2Icon size={18} />}
+                </Button>
+              </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
@@ -205,7 +248,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                 {isGenerating ? <RefreshCwIcon size={14} className="animate-spin" /> : <SparklesIcon size={14} />}
                 Suggérer un plat (IA)
               </Button>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <Button variant="secondary" onClick={() => setIsAdding(false)} className="!py-2">Annuler</Button>
                 <Button variant="primary" onClick={handleAddFood} disabled={isSaving || !newFood.name} className="!py-2">
                   {isSaving ? "Ajout..." : "Valider"}

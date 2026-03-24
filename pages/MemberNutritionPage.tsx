@@ -2,10 +2,11 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { AppState, Meal, NutritionLog } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { AppleIcon, TargetIcon, UserIcon, PlusIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon } from '../components/Icons';
-import { SparklesIcon, RefreshCwIcon, CameraIcon } from 'lucide-react';
+import { SparklesIcon, RefreshCwIcon, CameraIcon, Wand2Icon } from 'lucide-react';
 import { db, doc, updateDoc, setDoc } from '../firebase';
 import { GoogleGenAI } from '@google/genai';
 import { motion, AnimatePresence } from 'framer-motion';
+import { estimateFoodMacros } from '../services/aiService';
 
 const containerVariants: import('framer-motion').Variants = {
   hidden: { opacity: 0 },
@@ -29,19 +30,20 @@ export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: s
   const [isAdding, setIsAdding] = useState(false);
   const [newFood, setNewFood] = useState({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0 });
   const [isSaving, setIsSaving] = useState(false);
+  const [isEstimating, setIsEstimating] = useState(false);
 
   const plan = useMemo(() => {
-    return state.nutritionPlans.find(p => p.memberId === state.user?.id);
+    return state.nutritionPlans.find(p => p.memberId === Number(state.user?.id));
   }, [state.nutritionPlans, state.user]);
 
   const planMeals = plan?.meals || [];
 
   const currentLog = useMemo(() => {
     if (!state.user) return null;
-    return state.nutritionLogs.find(l => l.userId === state.user!.id && l.date === currentDate) || {
+    return state.nutritionLogs.find(l => l.userId === Number(state.user!.id) && l.date === currentDate) || {
       id: `${state.user.id}-${currentDate}`,
       clubId: state.user.clubId,
-      userId: state.user.id,
+      userId: Number(state.user.id),
       date: currentDate,
       foods: []
     };
@@ -128,6 +130,30 @@ export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: s
       showToast("Erreur lors de l'ajout", "error");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleAutoCalculate = async () => {
+    if (!newFood.name) {
+      showToast("Entrez d'abord le nom de l'aliment", "error");
+      return;
+    }
+    setIsEstimating(true);
+    try {
+      const result = await estimateFoodMacros(newFood.name);
+      setNewFood({
+        name: result.name,
+        calories: result.calories,
+        protein: result.protein,
+        carbs: result.carbs,
+        fat: result.fat
+      });
+      showToast("Macros estimées avec succès !");
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur lors de l'estimation", "error");
+    } finally {
+      setIsEstimating(false);
     }
   };
 
@@ -435,12 +461,24 @@ export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: s
                   <div className="space-y-4">
                     <div>
                       <label className="text-[10px] uppercase font-black text-zinc-500 tracking-widest mb-1 block">Nom de l'aliment / repas</label>
-                      <Input 
-                        value={newFood.name}
-                        onChange={e => setNewFood({...newFood, name: e.target.value})}
-                        placeholder="Ex: Poulet au riz, Pomme..."
-                        autoFocus
-                      />
+                      <div className="flex gap-2">
+                        <Input 
+                          value={newFood.name}
+                          onChange={e => setNewFood({...newFood, name: e.target.value})}
+                          placeholder="Ex: Poulet au riz, Pomme..."
+                          autoFocus
+                          className="flex-1"
+                        />
+                        <Button 
+                          variant="secondary" 
+                          onClick={handleAutoCalculate}
+                          disabled={isEstimating || !newFood.name}
+                          className="!px-3 !py-0 h-[42px] flex items-center justify-center bg-velatra-accent/10 border-velatra-accent/20 text-velatra-accent hover:bg-velatra-accent/20"
+                          title="Calculer les macros automatiquement"
+                        >
+                          {isEstimating ? <RefreshCwIcon size={18} className="animate-spin" /> : <Wand2Icon size={18} />}
+                        </Button>
+                      </div>
                     </div>
                     <div className="grid grid-cols-4 gap-2">
                       <div>
@@ -460,9 +498,9 @@ export const MemberNutritionPage: React.FC<{ state: AppState, showToast: (msg: s
                         <Input type="number" value={newFood.fat || ''} onChange={e => setNewFood({...newFood, fat: parseInt(e.target.value) || 0})} placeholder="0" />
                       </div>
                     </div>
-                    <div className="flex justify-end gap-2 pt-2">
-                      <Button variant="secondary" onClick={() => setIsAdding(false)} className="!py-2 !text-xs">Annuler</Button>
-                      <Button variant="primary" onClick={handleAddFood} disabled={!newFood.name || isSaving} className="!py-2 !text-xs">
+                    <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2 w-full">
+                      <Button variant="secondary" fullWidth onClick={() => setIsAdding(false)} className="!py-2 !text-xs">Annuler</Button>
+                      <Button variant="primary" fullWidth onClick={handleAddFood} disabled={!newFood.name || isSaving} className="!py-2 !text-xs">
                         {isSaving ? <RefreshCwIcon size={14} className="animate-spin" /> : 'Enregistrer'}
                       </Button>
                     </div>

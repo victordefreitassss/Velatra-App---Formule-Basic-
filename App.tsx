@@ -125,7 +125,7 @@ export default function App() {
               userData.role = 'superadmin';
             }
             
-            setState(prev => ({ ...prev, user: { ...userData, firebaseUid: firebaseUser.uid } }));
+            setState(prev => ({ ...prev, user: { ...userData, id: Number(userData.id), firebaseUid: firebaseUser.uid } }));
             
             // Fetch Club Data
             if (userData.clubId) {
@@ -279,7 +279,14 @@ export default function App() {
 
     const unsubArchives = onSnapshot(query(collection(db, "archivedPrograms"), where("clubId", "==", clubId)), (snap) => {
       const allArchives: Program[] = [];
-      snap.forEach(d => allArchives.push(d.data() as Program));
+      snap.forEach(d => {
+        const data = d.data();
+        allArchives.push({
+          ...data,
+          id: Number(data.id),
+          memberId: Number(data.memberId)
+        } as Program);
+      });
       setState(prev => ({ ...prev, archivedPrograms: allArchives }));
     });
 
@@ -416,7 +423,13 @@ export default function App() {
 
     const unsubNutritionPlans = onSnapshot(query(collection(db, "nutritionPlans"), where("clubId", "==", clubId)), (snap) => {
       const nutritionPlans: NutritionPlan[] = [];
-      snap.forEach(d => nutritionPlans.push(d.data() as NutritionPlan));
+      snap.forEach(d => {
+        const data = d.data();
+        nutritionPlans.push({
+          ...data,
+          memberId: Number(data.memberId)
+        } as NutritionPlan);
+      });
       setState(prev => ({ ...prev, nutritionPlans }));
     });
 
@@ -433,7 +446,10 @@ export default function App() {
           // Supprimer automatiquement les logs de plus de 30 jours
           deleteDoc(doc(db, "nutritionLogs", d.id)).catch(console.error);
         } else {
-          nutritionLogs.push(item);
+          nutritionLogs.push({
+            ...item,
+            userId: Number(item.userId)
+          });
         }
       });
       setState(prev => ({ ...prev, nutritionLogs }));
@@ -441,13 +457,25 @@ export default function App() {
 
     const unsubSubscriptions = onSnapshot(query(collection(db, "subscriptions"), where("clubId", "==", clubId)), (snap) => {
       const subscriptions: Subscription[] = [];
-      snap.forEach(d => subscriptions.push(d.data() as Subscription));
+      snap.forEach(d => {
+        const data = d.data();
+        subscriptions.push({
+          ...data,
+          memberId: Number(data.memberId)
+        } as Subscription);
+      });
       setState(prev => ({ ...prev, subscriptions }));
     });
 
     const unsubPayments = onSnapshot(query(collection(db, "payments"), where("clubId", "==", clubId)), (snap) => {
       const payments: Payment[] = [];
-      snap.forEach(d => payments.push(d.data() as Payment));
+      snap.forEach(d => {
+        const data = d.data();
+        payments.push({
+          ...data,
+          memberId: Number(data.memberId)
+        } as Payment);
+      });
       setState(prev => ({ ...prev, payments }));
     });
 
@@ -459,7 +487,13 @@ export default function App() {
 
     const unsubInvoices = onSnapshot(query(collection(db, "invoices"), where("clubId", "==", clubId)), (snap) => {
       const invoices: Invoice[] = [];
-      snap.forEach(d => invoices.push(d.data() as Invoice));
+      snap.forEach(d => {
+        const data = d.data();
+        invoices.push({
+          ...data,
+          memberId: Number(data.memberId)
+        } as Invoice);
+      });
       setState(prev => ({ ...prev, invoices }));
     });
 
@@ -538,13 +572,13 @@ export default function App() {
           exercises={state.exercises}
           clubId={user.clubId}
           allPresets={state.presets}
-          member={state.editingProg ? state.users.find(u => u.id === state.editingProg!.memberId) : undefined}
+          member={state.editingProg ? state.users.find(u => Number(u.id) === state.editingProg!.memberId) : undefined}
           onSave={async (data) => {
             const dataWithClub = { ...data, clubId: user.clubId };
             await setDoc(doc(db, state.editingProg ? "programs" : "presets", data.id.toString()), dataWithClub);
             
             if (state.editingProg) {
-              const member = state.users.find(u => u.id === state.editingProg!.memberId);
+              const member = state.users.find(u => Number(u.id) === state.editingProg!.memberId);
               if (member && member.firebaseUid && member.planRequested) {
                 await updateDoc(doc(db, "users", member.firebaseUid), { planRequested: false });
               }

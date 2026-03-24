@@ -191,9 +191,9 @@ export const SupplementsPage: React.FC<{ state: AppState, setState: any, showToa
                         <Input type="number" value={newProduct.stock || ''} onChange={e => setNewProduct({...newProduct, stock: Number(e.target.value) || 0})} className="bg-white/60 backdrop-blur-xl border-zinc-200/50" />
                       </div>
                     </div>
-                    <div className="flex justify-end gap-2 mt-6">
-                      <Button variant="ghost" onClick={() => setShowAddProduct(false)} className="hover:bg-zinc-100/50">Annuler</Button>
-                      <Button variant="primary" onClick={handleAddProduct} className="shadow-lg shadow-velatra-accent/20">Enregistrer</Button>
+                    <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 w-full">
+                      <Button variant="ghost" fullWidth onClick={() => setShowAddProduct(false)} className="hover:bg-zinc-100/50">Annuler</Button>
+                      <Button variant="primary" fullWidth onClick={handleAddProduct} className="shadow-lg shadow-velatra-accent/20">Enregistrer</Button>
                     </div>
                   </Card>
                 </motion.div>

@@ -64,7 +64,7 @@ export const ProfilePage: React.FC<{
       });
       
       // Update nutrition plan if it exists
-      const plan = state.nutritionPlans?.find(p => p.memberId === user.id);
+      const plan = state.nutritionPlans?.find(p => p.memberId === Number(user.id));
       if (plan && Number(formData.weight) !== user.weight) {
         const updatedPlan = updateNutritionPlanForWeight(plan, Number(formData.weight));
         await updateDoc(doc(db, "nutritionPlans", plan.id), updatedPlan);
@@ -538,7 +538,7 @@ export const ProfilePage: React.FC<{
             
             <div className="space-y-4">
               {(() => {
-                const subscription = state.subscriptions.find(s => s.memberId === user.id && s.status === 'active');
+                const subscription = state.subscriptions.find(s => s.memberId === Number(user.id) && s.status === 'active');
                 if (subscription) {
                   return (
                     <div className="bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex flex-col gap-4 shadow-sm">
@@ -587,7 +587,7 @@ export const ProfilePage: React.FC<{
           
           <div className="space-y-4">
             {/* Apple Santé */}
-            <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex items-center justify-between shadow-sm transition-all ${!user.integrations?.appleHealth ? 'opacity-80' : ''}`}>
+            <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm transition-all ${!user.integrations?.appleHealth ? 'opacity-80' : ''}`}>
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#FF2D55]">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
@@ -644,7 +644,7 @@ export const ProfilePage: React.FC<{
             </div>
 
             {/* MyFitnessPal */}
-            <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex items-center justify-between shadow-sm transition-all ${!user.integrations?.myFitnessPal ? 'opacity-80' : ''}`}>
+            <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm transition-all ${!user.integrations?.myFitnessPal ? 'opacity-80' : ''}`}>
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#0066EE]">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
@@ -701,7 +701,7 @@ export const ProfilePage: React.FC<{
             </div>
 
             {/* Google Fit */}
-            <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex items-center justify-between shadow-sm transition-all ${!user.integrations?.googleFit ? 'opacity-80' : ''}`}>
+            <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm transition-all ${!user.integrations?.googleFit ? 'opacity-80' : ''}`}>
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#4285F4]">
                   <ActivityIcon size={24} />
@@ -723,7 +723,7 @@ export const ProfilePage: React.FC<{
 
             {/* Strava */}
             <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex flex-col gap-4 shadow-sm transition-all ${!user.integrations?.strava ? 'opacity-80' : ''}`}>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#FC4C02]">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>

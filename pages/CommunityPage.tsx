@@ -124,7 +124,7 @@ export const CommunityPage: React.FC<{ state: AppState }> = ({ state }) => {
               {recentActivity.length > 0 ? (
                 <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-zinc-200/50 before:to-transparent">
                   {recentActivity.map((log, index) => {
-                    const member = state.users.find(u => u.id === log.memberId);
+                    const member = state.users.find(u => Number(u.id) === log.memberId);
                     if (!member) return null;
                     
                     return (

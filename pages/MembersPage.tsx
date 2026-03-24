@@ -63,6 +63,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [subCommitmentDate, setSubCommitmentDate] = useState('');
   const [subContractUrl, setSubContractUrl] = useState('');
   const [isGeneratingNutrition, setIsGeneratingNutrition] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isDetectingStagnation, setIsDetectingStagnation] = useState(false);
+  const [stagnationResult, setStagnationResult] = useState<any>(null);
   const [isGeneratingProgram, setIsGeneratingProgram] = useState(false);
   const [isAdjustingTargets, setIsAdjustingTargets] = useState(false);
   const [nutritionTargets, setNutritionTargets] = useState({ calories: 2000, protein: 150, carbs: 200, fat: 70 });
@@ -231,6 +234,52 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
+  const handleGenerateReport = async () => {
+    if (!selectedProfile) return;
+    setIsGeneratingReport(true);
+    try {
+      const { generateAutoReport } = await import('../services/aiService');
+      const mid = Number(selectedProfile.id);
+      const memberBody = state.bodyData.filter(b => Number(b.memberId) === mid);
+      const memberPerfs = state.performances.filter(p => Number(p.memberId) === mid);
+      
+      const report = await generateAutoReport(selectedProfile, memberBody, memberPerfs);
+      
+      // Show report in a toast or modal (using toast for simplicity here)
+      showToast("Bilan généré : " + report, "success");
+    } catch (error: any) {
+      console.error("Erreur génération bilan:", error);
+      showToast("Erreur lors de la génération du bilan : " + error.message, "error");
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  const handleDetectStagnation = async () => {
+    if (!selectedProfile) return;
+    setIsDetectingStagnation(true);
+    setStagnationResult(null);
+    try {
+      const { detectStagnation } = await import('../services/aiService');
+      const mid = Number(selectedProfile.id);
+      const memberPerfs = state.performances.filter(p => Number(p.memberId) === mid);
+      
+      const result = await detectStagnation(selectedProfile, memberPerfs, state.exercises);
+      setStagnationResult(result);
+      
+      if (result.hasStagnation) {
+        showToast(`Stagnation détectée sur : ${result.stagnatingExercises.join(', ')}`, "error");
+      } else {
+        showToast("Aucune stagnation détectée, bonne progression !", "success");
+      }
+    } catch (error: any) {
+      console.error("Erreur détection stagnation:", error);
+      showToast("Erreur lors de l'analyse : " + error.message, "error");
+    } finally {
+      setIsDetectingStagnation(false);
+    }
+  };
+
   const handleGenerateProgram = async () => {
     if (!selectedProfile) return;
     setIsGeneratingProgram(true);
@@ -275,9 +324,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       
       showToast("Programme généré avec succès", "success");
       closeProfile();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur génération programme:", error);
-      showToast("Erreur lors de la génération du programme", "error");
+      showToast("Erreur lors de la génération du programme : " + error.message, "error");
     } finally {
       setIsGeneratingProgram(false);
     }
@@ -327,7 +376,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       const bodySorted = memberBody.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       const latestScan = bodySorted[0];
 
-      const plan = calculateNutritionPlan(selectedProfile, latestScan, nutritionTargets);
+      const { generateNutritionPlan } = await import('../services/aiService');
+      const plan = await generateNutritionPlan(selectedProfile, latestScan, nutritionTargets);
       
       const planId = state.nutritionPlans?.find(p => p.memberId === mid)?.id || Date.now().toString();
       
@@ -337,27 +387,27 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         clubId: selectedProfile.clubId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        weight: latestScan?.weight || selectedProfile.weight,
-        height: selectedProfile.height,
-        age: selectedProfile.age,
-        gender: selectedProfile.gender,
+        weight: latestScan?.weight || selectedProfile.weight || 70,
+        height: selectedProfile.height || 175,
+        age: selectedProfile.age || 30,
+        gender: selectedProfile.gender || 'M',
         activityLevel: "Modérément actif",
         goal: (selectedProfile.objectifs[0] as any) || "Perte de poids",
         durationWeeks: 4,
         bmr: 0,
         tdee: 0,
-        targetCalories: parseInt(plan.calories_totales) || 0,
-        protein: parseInt(plan.macros?.proteines_g) || 0,
-        carbs: parseInt(plan.macros?.glucides_g) || 0,
-        fat: parseInt(plan.macros?.lipides_g) || 0,
+        targetCalories: typeof plan.calories_totales === 'number' ? plan.calories_totales : parseInt(plan.calories_totales || "0") || 0,
+        protein: typeof plan.macros?.proteines_g === 'number' ? plan.macros.proteines_g : parseInt(plan.macros?.proteines_g || "0") || 0,
+        carbs: typeof plan.macros?.glucides_g === 'number' ? plan.macros.glucides_g : parseInt(plan.macros?.glucides_g || "0") || 0,
+        fat: typeof plan.macros?.lipides_g === 'number' ? plan.macros.lipides_g : parseInt(plan.macros?.lipides_g || "0") || 0,
         meals: plan.repas?.map((r: any, idx: number) => ({
           id: Date.now().toString() + idx,
           name: r.type.replace('_', ' '),
           description: '',
-          calories: parseInt(r.calories) || 0,
-          protein: parseInt(r.proteines) || 0,
-          carbs: parseInt(r.glucides) || 0,
-          fat: parseInt(r.lipides) || 0
+          calories: typeof r.calories === 'number' ? r.calories : parseInt(r.calories || "0") || 0,
+          protein: typeof r.proteines === 'number' ? r.proteines : parseInt(r.proteines || "0") || 0,
+          carbs: typeof r.glucides === 'number' ? r.glucides : parseInt(r.glucides || "0") || 0,
+          fat: typeof r.lipides === 'number' ? r.lipides : parseInt(r.lipides || "0") || 0
         })) || [],
         liste_courses: plan.liste_courses || [],
         aiGenerated: true
@@ -412,7 +462,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     const subscription: Subscription = {
       id: subId,
       clubId: state.user.clubId,
-      memberId: selectedProfile.id,
+      memberId: Number(selectedProfile.id),
       planId: plan.id,
       planName: plan.name,
       price: plan.price,
@@ -443,7 +493,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const handleUpdateSubscription = async () => {
     if (!selectedProfile) return;
-    const subscription = state.subscriptions.find(s => s.memberId === selectedProfile.id && s.status === 'active');
+    const subscription = state.subscriptions.find(s => s.memberId === Number(selectedProfile.id) && s.status === 'active');
     if (!subscription) return;
 
     try {
@@ -535,7 +585,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleRemind = (payment: Payment) => {
-    const member = state.users.find(u => u.id === payment.memberId);
+    const member = state.users.find(u => Number(u.id) === payment.memberId);
     if (!member || !member.phone) {
       alert("Ce membre n'a pas de numéro de téléphone enregistré.");
       return;
@@ -569,7 +619,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleDownloadInvoice = (invoice: Invoice) => {
-    const member = state.users.find(u => u.id === invoice.memberId);
+    const member = state.users.find(u => Number(u.id) === invoice.memberId);
     const win = window.open('', '_blank');
     if (!win) return;
     win.document.write(`
@@ -653,7 +703,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {expiringSubscriptions.map(sub => {
-                const member = members.find(m => m.id === sub.memberId);
+                const member = members.find(m => Number(m.id) === sub.memberId);
                 if (!member) return null;
                 const isExpired = new Date(sub.commitmentEndDate!) < new Date();
                 return (
@@ -784,7 +834,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         <div className="text-[10px] opacity-80">Ce membre a demandé un nouveau programme d'entraînement.</div>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-col sm:flex-row gap-2">
                       <Button variant="secondary" className="!py-1.5 !px-3 !text-[10px] !bg-white/20 !text-white !border-white/30 hover:!bg-white/30" onClick={async () => {
                         if (selectedProfile.firebaseUid) {
                           try {
@@ -926,7 +976,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           <span className="text-[10px] font-black uppercase tracking-widest">Feedback Adhérent</span>
                        </div>
                        <p className="text-sm font-bold text-zinc-900 italic leading-relaxed">"{stats.program.memberRemarks}"</p>
-                       <div className="flex gap-2">
+                       <div className="flex flex-col sm:flex-row gap-2">
                          <Button variant="secondary" className="flex-1 !py-2 !text-[9px] !rounded-xl" onClick={async () => {
                            if (stats.program) {
                              try {
@@ -1006,7 +1056,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                               <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Ou lien du contrat (optionnel)</label>
                               <Input type="url" placeholder="https://..." value={subContractUrl} onChange={e => setSubContractUrl(e.target.value)} />
                             </div>
-                            <div className="flex gap-2 pt-2">
+                            <div className="flex flex-col sm:flex-row gap-2 pt-2">
                               <button onClick={() => setIsEditingSub(false)} className="flex-1 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
                               <button onClick={handleUpdateSubscription} className="flex-1 bg-velatra-accent text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">Enregistrer</button>
                             </div>
@@ -1082,7 +1132,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                               <Input type="url" placeholder="https://..." value={subContractUrl} onChange={e => setSubContractUrl(e.target.value)} />
                             </div>
 
-                            <div className="flex gap-2 pt-2">
+                            <div className="flex flex-col sm:flex-row gap-2 pt-2">
                               <button onClick={() => setIsAssigningPlan(false)} className="flex-1 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
                               <button onClick={handleAssignSubscription} disabled={!selectedPlanId} className="flex-1 bg-velatra-accent text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50">Confirmer</button>
                             </div>
@@ -1212,28 +1262,37 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
 
                       {/* Feature 3: Auto Report */}
-                      <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl transition-all group relative overflow-hidden opacity-50 grayscale">
+                      <div className={`bg-zinc-50 border border-zinc-200 p-6 rounded-3xl transition-all group relative overflow-hidden ${isGeneratingReport ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-blue-500/50'}`}>
                         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-blue-500/20"></div>
                         <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
                           <BarChartIcon size={16} className="text-blue-400" /> Rapport Automatique
                         </h4>
                         <p className="text-[10px] text-zinc-500 mb-6 leading-relaxed">Générez un bilan complet de la progression du client (poids, mensurations, performances) prêt à être envoyé.</p>
-                        <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl relative z-10 border-blue-500/30 hover:border-blue-500" onClick={() => showToast("Fonctionnalité IA en cours d'activation pour votre club", "info")}>
-                          GÉNÉRER LE BILAN
+                        <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl relative z-10 border-blue-500/30 hover:border-blue-500" onClick={handleGenerateReport} disabled={isGeneratingReport}>
+                          {isGeneratingReport ? "GÉNÉRATION..." : "GÉNÉRER LE BILAN"}
                         </Button>
                       </div>
 
                       {/* Feature 4: Stagnation Detection */}
-                      <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl hover:border-velatra-accent/50 transition-all group relative overflow-hidden">
+                      <div className={`bg-zinc-50 border border-zinc-200 p-6 rounded-3xl transition-all group relative overflow-hidden ${isDetectingStagnation ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-orange-500/50'}`}>
                         <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-orange-500/20"></div>
                         <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
                           <TargetIcon size={16} className="text-orange-400" /> Détection Stagnation
                         </h4>
                         <p className="text-[10px] text-zinc-500 mb-4 leading-relaxed">L'IA analyse les dernières séances pour détecter les plateaux de progression sur les exercices majeurs.</p>
-                        <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3 flex items-center gap-3">
-                          <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></div>
-                          <span className="text-[10px] font-bold text-orange-400 uppercase tracking-widest">Analyse en temps réel active</span>
-                        </div>
+                        
+                        {stagnationResult ? (
+                          <div className={`border rounded-xl p-3 flex flex-col gap-2 ${stagnationResult.hasStagnation ? 'bg-red-500/10 border-red-500/20' : 'bg-green-500/10 border-green-500/20'}`}>
+                            <span className={`text-[10px] font-bold uppercase tracking-widest ${stagnationResult.hasStagnation ? 'text-red-500' : 'text-green-500'}`}>
+                              {stagnationResult.hasStagnation ? 'Stagnation détectée' : 'Progression OK'}
+                            </span>
+                            <p className="text-[10px] text-zinc-600">{stagnationResult.advice}</p>
+                          </div>
+                        ) : (
+                          <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl relative z-10 border-orange-500/30 hover:border-orange-500" onClick={handleDetectStagnation} disabled={isDetectingStagnation}>
+                            {isDetectingStagnation ? "ANALYSE EN COURS..." : "LANCER L'ANALYSE"}
+                          </Button>
+                        )}
                       </div>
 
                       {/* Feature 5: Morphological Analysis */}
@@ -1344,7 +1403,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                     </div>
                                   </div>
                                   
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0">
                                     {payment.status !== 'paid' && (
                                       <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl text-orange-500 border-orange-200 hover:bg-orange-50" onClick={() => handleRemind(payment)}>
                                         <BellIcon size={14} className="mr-1" /> RELANCER
@@ -1710,7 +1769,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 />
               </div>
 
-              <div className="pt-4 flex gap-3">
+              <div className="pt-4 flex flex-col sm:flex-row gap-3">
                 <Button variant="secondary" fullWidth onClick={() => setIsEditingInfo(false)}>ANNULER</Button>
                 <Button variant="success" fullWidth onClick={handleUpdateMemberInfo}>
                   ENREGISTRER <CheckIcon size={18} className="ml-2" />
@@ -1791,7 +1850,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-3">
+              <div className="pt-4 flex flex-col sm:flex-row gap-3">
                 <Button variant="secondary" fullWidth onClick={() => setIsAdjustingTargets(false)}>ANNULER</Button>
                 <Button variant="success" fullWidth onClick={handleGenerateNutrition}>
                   GÉNÉRER LE PLAN <CheckIcon size={18} className="ml-2" />
@@ -1944,7 +2003,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 />
               </div>
 
-              <div className="pt-4 flex gap-3">
+              <div className="pt-4 flex flex-col sm:flex-row gap-3">
                 <Button variant="secondary" fullWidth onClick={() => setIsAddingMember(false)}>ANNULER</Button>
                 <Button variant="success" fullWidth onClick={handleCreateMember}>
                   CRÉER LE MEMBRE <CheckIcon size={18} className="ml-2" />

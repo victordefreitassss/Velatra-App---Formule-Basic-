@@ -33,7 +33,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
     const newProg: Program = {
       id: Date.now(),
       clubId: member.clubId,
-      memberId: member.id,
+      memberId: Number(member.id),
       name: preset.name,
       presetId: preset.id,
       nbDays: preset.nbDays,
@@ -164,7 +164,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
                 <Button variant="primary" fullWidth className="!py-3.5 !text-[10px] !rounded-xl font-black tracking-widest italic" onClick={() => setAssigningTo(p)}>
                   <CheckIcon size={16} className="mr-2" /> ASSIGNER À UN ATHLÈTE
                 </Button>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl font-black tracking-widest italic" onClick={() => setState((s:AppState) => ({ ...s, editingPreset: p }))}>
                     <Edit2Icon size={14} className="mr-2" /> MODIFIER
                   </Button>

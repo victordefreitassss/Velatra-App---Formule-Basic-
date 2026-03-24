@@ -189,19 +189,24 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
       const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
       let maxWeight = 0;
       let bestReps = 0;
+      let duration = "";
 
       for (let i = 0; i < numSets; i++) {
         if (completedSets[`${exIndex}-${i}`]) {
-          const w = parseFloat(sessionData[`${exIndex}-${i}-weight`] || "0");
-          const r = parseInt(sessionData[`${exIndex}-${i}-reps`] || "0");
-          if (w > maxWeight || (w === maxWeight && r > bestReps)) {
-            maxWeight = w;
-            bestReps = r;
+          if (baseEx.cat === 'Cardio') {
+            duration = sessionData[`${exIndex}-${i}-duration`] || "";
+          } else {
+            const w = parseFloat(sessionData[`${exIndex}-${i}-weight`] || "0");
+            const r = parseInt(sessionData[`${exIndex}-${i}-reps`] || "0");
+            if (w > maxWeight || (w === maxWeight && r > bestReps)) {
+              maxWeight = w;
+              bestReps = r;
+            }
           }
         }
       }
 
-      if (maxWeight > 0) {
+      if (maxWeight > 0 || duration) {
         perfs.push({
           id: Date.now() + exIndex,
           clubId: state.user?.clubId || "global",
@@ -210,6 +215,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
           exId: baseEx.perfId,
           weight: maxWeight,
           reps: bestReps,
+          duration,
           fromCoaching: true
         });
       }
@@ -346,7 +352,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                 {lastPerf && (
                   <div className="inline-flex items-center gap-2 bg-velatra-accent/10 text-velatra-accent px-3 py-1.5 rounded-xl text-xs font-bold">
                     <TrophyIcon size={14} />
-                    Dernière perf: {lastPerf.weight}kg x {lastPerf.reps}
+                    Dernière perf: {baseEx?.cat === 'Cardio' ? (lastPerf.duration || 'N/A') : (baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? `${lastPerf.weight}kg x ${lastPerf.reps}s` : `${lastPerf.weight}kg x ${lastPerf.reps}`}
                   </div>
                 )}
                 <div className="mt-3 flex gap-2">
@@ -367,8 +373,14 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
             <div className="bg-zinc-900 rounded-3xl p-4 border border-zinc-800">
               <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-4 mb-4 px-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">
                 <div>Série</div>
-                <div className="text-center">Charge (kg)</div>
-                <div className="text-center">Reps</div>
+                {baseEx?.cat === 'Cardio' ? (
+                  <div className="col-span-2 text-center">Temps / Distance</div>
+                ) : (
+                  <>
+                    <div className="text-center">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? 'Lest (kg)' : 'Charge (kg)'}</div>
+                    <div className="text-center">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? 'Temps (sec)' : 'Reps'}</div>
+                  </>
+                )}
                 <div>Action</div>
               </div>
               
@@ -381,25 +393,42 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                         {setIdx + 1}
                       </div>
                       
-                      <div className="relative">
-                        <input 
-                          type="number"
-                          value={sessionData[`${currentExIndex}-${setIdx}-weight`] || ""}
-                          onChange={e => handleInputChange(currentExIndex, setIdx, 'weight', e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent"
-                          disabled={isDone}
-                        />
-                      </div>
-                      
-                      <div className="relative">
-                        <input 
-                          type="number"
-                          value={sessionData[`${currentExIndex}-${setIdx}-reps`] || ""}
-                          onChange={e => handleInputChange(currentExIndex, setIdx, 'reps', e.target.value)}
-                          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent"
-                          disabled={isDone}
-                        />
-                      </div>
+                      {baseEx?.cat === 'Cardio' ? (
+                        <div className="relative col-span-2">
+                          <input 
+                            type="text"
+                            placeholder="ex: 15 min / 5 km"
+                            value={sessionData[`${currentExIndex}-${setIdx}-duration`] || ""}
+                            onChange={e => handleInputChange(currentExIndex, setIdx, 'duration', e.target.value)}
+                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent"
+                            disabled={isDone}
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="relative">
+                            <input 
+                              type="number"
+                              inputMode="decimal"
+                              value={sessionData[`${currentExIndex}-${setIdx}-weight`] || ""}
+                              onChange={e => handleInputChange(currentExIndex, setIdx, 'weight', e.target.value)}
+                              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent"
+                              disabled={isDone}
+                            />
+                          </div>
+                          
+                          <div className="relative">
+                            <input 
+                              type="number"
+                              inputMode="numeric"
+                              value={sessionData[`${currentExIndex}-${setIdx}-reps`] || ""}
+                              onChange={e => handleInputChange(currentExIndex, setIdx, 'reps', e.target.value)}
+                              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent"
+                              disabled={isDone}
+                            />
+                          </div>
+                        </>
+                      )}
                       
                       <button 
                         onClick={() => toggleSetComplete(currentExIndex, setIdx)}
@@ -439,7 +468,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
             </div>
             
             {/* Navigation Buttons */}
-            <div className="flex gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <Button 
                 variant="secondary" 
                 className="flex-1 !bg-zinc-800 !text-white !border-zinc-700 hover:!bg-zinc-700"

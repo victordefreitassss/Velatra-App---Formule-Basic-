@@ -11,10 +11,10 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
   
   const allArchives = (user.role === 'coach' || user.role === 'owner') 
     ? state.archivedPrograms 
-    : state.archivedPrograms.filter(p => p.memberId === user.id);
+    : state.archivedPrograms.filter(p => p.memberId === Number(user.id));
 
   const archives = allArchives.filter(prog => {
-    const member = state.users.find(u => u.id === prog.memberId);
+    const member = state.users.find(u => Number(u.id) === prog.memberId);
     const memberName = ((prog as any).memberName || member?.name || '').toLowerCase();
     const progName = prog.name.toLowerCase();
     return memberName.includes(searchTerm.toLowerCase()) || progName.includes(searchTerm.toLowerCase());
@@ -72,7 +72,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
           </motion.div>
         ) : (
           archives.map((prog) => {
-            const member = state.users.find(u => u.id === prog.memberId);
+            const member = state.users.find(u => Number(u.id) === prog.memberId);
             return (
               <motion.div variants={itemVariants} key={prog.id}>
                 <Card className="flex flex-col md:flex-row md:items-center justify-between gap-6 border border-zinc-200/50 bg-white/60 backdrop-blur-xl hover:border-velatra-accent/30 !p-8 group transition-all shadow-sm hover:shadow-md">

@@ -118,7 +118,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   }, [membersAtRisk.length, state.tasks.length, state.user?.clubId]);
 
   const handleLaunchCoaching = (member: User) => {
-    const program = state.programs.find(p => p.memberId === member.id);
+    const program = state.programs.find(p => p.memberId === Number(member.id));
     if (!program) {
       showToast("Aucun programme actif", "error");
       return;
@@ -138,7 +138,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
           <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Accueil</h1>
           <p className="text-zinc-500 text-[10px] uppercase tracking-[3px] font-bold">Votre Centre de Contrôle</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <Button variant="secondary" onClick={onToggleTimer} className="flex-1 sm:flex-none !rounded-2xl !py-3 shadow-xl shadow-white/5">
             <RefreshCwIcon size={18} className="mr-2" /> TIMER
           </Button>
@@ -287,7 +287,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
             <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 px-1 italic">Alertes Rétention</h2>
             <div className="space-y-3">
               {failedSubs.map(sub => {
-                const member = members.find(m => m.id === sub.memberId);
+                const member = members.find(m => Number(m.id) === sub.memberId);
                 if (!member) return null;
                 return (
                   <motion.div key={`sub_${sub.id}`} whileHover={{ scale: 1.02, x: -4 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>

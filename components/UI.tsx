@@ -28,15 +28,10 @@ export const StatBox: React.FC<{ label: string, value: string | number, classNam
   </div>
 );
 
-export const Button: React.FC<{ 
-  children: React.ReactNode, 
+export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'success' | 'blue' | 'glass',
-  className?: string, 
-  onClick?: () => void,
-  disabled?: boolean,
-  fullWidth?: boolean,
-  type?: "button" | "submit" | "reset"
-}> = ({ children, variant = 'primary', className = "", onClick, disabled, fullWidth, type = "button" }) => {
+  fullWidth?: boolean
+}> = ({ children, variant = 'primary', className = "", fullWidth, ...props }) => {
   const variants = {
     primary: 'bg-gradient-to-r from-velatra-accent to-velatra-accentDark text-white shadow-md hover:shadow-lg border border-transparent',
     secondary: 'bg-zinc-50 text-zinc-900 border border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300',
@@ -49,12 +44,10 @@ export const Button: React.FC<{
 
   return (
     <button 
-      type={type}
-      disabled={disabled}
-      onClick={onClick}
+      {...props}
       className={`
-        px-6 py-4 rounded-2xl font-semibold text-[13px] tracking-widest uppercase
-        flex items-center justify-center transition-all duration-300 ease-out
+        px-3 sm:px-6 py-3 sm:py-4 rounded-2xl font-semibold text-[10px] sm:text-[13px] tracking-wider sm:tracking-widest uppercase
+        flex items-center justify-center text-center transition-all duration-300 ease-out
         disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.99]
         ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className}
       `}
