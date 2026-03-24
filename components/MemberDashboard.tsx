@@ -9,6 +9,20 @@ import { db, doc, updateDoc, setDoc } from '../firebase';
 import Markdown from 'react-markdown';
 import { motion } from 'framer-motion';
 
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
+      return process.env.GEMINI_API_KEY;
+    }
+  } catch (e) {}
+  try {
+    if (import.meta && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+      return import.meta.env.VITE_GEMINI_API_KEY;
+    }
+  } catch (e) {}
+  return '';
+};
+
 interface MemberDashboardProps {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
@@ -53,7 +67,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
   const getAiAdvice = async () => {
     setAiLoading(true);
     try {
-      const rawApiKey = process.env.GEMINI_API_KEY as string;
+      const rawApiKey = getApiKey();
       const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
       const ai = new GoogleGenAI({ apiKey });
       const recentPerfs = state.performances

@@ -2,8 +2,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { User, BodyData } from "../types";
 
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
+      return process.env.GEMINI_API_KEY;
+    }
+  } catch (e) {}
+  try {
+    if (import.meta && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+      return import.meta.env.VITE_GEMINI_API_KEY;
+    }
+  } catch (e) {}
+  return '';
+};
+
 export const generateSportsProgram = async (user: User, availableExercises: any[]) => {
-  const rawApiKey = process.env.GEMINI_API_KEY;
+  const rawApiKey = getApiKey();
   const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
   if (!apiKey) {
     throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");
@@ -118,7 +132,7 @@ Format de sortie obligatoire (JSON) :
 };
 
 export const generateNutritionPlan = async (user: User, latestScan?: BodyData, targets?: { calories: number, protein: number, carbs: number, fat: number }) => {
-  const rawApiKey = process.env.GEMINI_API_KEY;
+  const rawApiKey = getApiKey();
   const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
   if (!apiKey) {
     throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");
@@ -287,7 +301,7 @@ nombre de repas : 4
 };
 
 export const estimateFoodMacros = async (foodName: string) => {
-  const rawApiKey = process.env.GEMINI_API_KEY;
+  const rawApiKey = getApiKey();
   const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
   if (!apiKey) {
     throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");
@@ -332,7 +346,7 @@ Retourne uniquement un objet JSON avec les champs suivants :
 };
 
 export const generateAutoReport = async (user: User, bodyData: BodyData[], performances: any[]) => {
-  const rawApiKey = process.env.GEMINI_API_KEY;
+  const rawApiKey = getApiKey();
   const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
   if (!apiKey) {
     throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");
@@ -365,7 +379,7 @@ Le bilan doit être professionnel, encourageant, et prêt à être envoyé par m
 };
 
 export const detectStagnation = async (user: User, performances: any[], exercises: any[]) => {
-  const rawApiKey = process.env.GEMINI_API_KEY;
+  const rawApiKey = getApiKey();
   const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
   if (!apiKey) {
     throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");

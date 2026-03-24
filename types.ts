@@ -78,11 +78,7 @@ export interface User {
   firebaseUid?: string;
   integrations?: {
     appleHealth?: boolean;
-    googleFit?: boolean;
-    googleFitTokens?: any;
     myFitnessPal?: boolean;
-    strava?: boolean;
-    stravaTokens?: any;
   };
   measurements?: {
     chest?: number;

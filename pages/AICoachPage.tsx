@@ -8,6 +8,20 @@ import Markdown from 'react-markdown';
 import { MessagesPage } from './MessagesPage';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
+      return process.env.GEMINI_API_KEY;
+    }
+  } catch (e) {}
+  try {
+    if (import.meta && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+      return import.meta.env.VITE_GEMINI_API_KEY;
+    }
+  } catch (e) {}
+  return '';
+};
+
 export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [activeTab, setActiveTab] = useState<'ai' | 'human'>('human');
   const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([
@@ -25,7 +39,7 @@ export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   useEffect(() => {
     try {
-      const rawApiKey = process.env.GEMINI_API_KEY as string;
+      const rawApiKey = getApiKey();
       // Remove any hidden characters, newlines, or spaces that could cause header errors
       const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
       
