@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { AppState, User } from '../types';
+import { AppState, User, SessionLog } from '../types';
 import { Card, Badge, Button } from '../components/UI';
-import { UserIcon, MailIcon, ActivityIcon, DumbbellIcon, TargetIcon, Edit2Icon, SaveIcon, LogOutIcon, PhoneIcon, CreditCardIcon, ExternalLinkIcon } from 'lucide-react';
+import { UserIcon, MailIcon, ActivityIcon, DumbbellIcon, TargetIcon, Edit2Icon, SaveIcon, LogOutIcon, PhoneIcon, CreditCardIcon, ExternalLinkIcon, CalendarIcon, MessageCircleIcon } from 'lucide-react';
 import { doc, updateDoc, db } from '../firebase';
 import { motion } from 'framer-motion';
 import { updateNutritionPlanForWeight } from '../utils';
@@ -28,6 +28,7 @@ export const ProfilePage: React.FC<{
 }> = ({ state, setState, showToast }) => {
   const user = state.user!;
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedLog, setSelectedLog] = useState<SessionLog | null>(null);
   const [formData, setFormData] = useState({
     height: user.height || 0,
     weight: user.weight || 0,
@@ -371,6 +372,57 @@ export const ProfilePage: React.FC<{
       {user.role === 'member' && (
         <motion.div variants={itemVariants}>
           <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+                <CalendarIcon size={20} />
+              </div>
+              <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Historique Coaching</h3>
+            </div>
+            
+            <div className="space-y-4">
+              {(state.logs || []).filter(log => log.memberId === Number(user.id) && log.isCoaching).length > 0 ? (
+                <div className="space-y-4">
+                  {(state.logs || []).filter(log => log.memberId === Number(user.id) && log.isCoaching)
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .map(log => (
+                    <div key={log.id} className="bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex flex-col gap-3 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-bold text-zinc-900">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                          <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">{log.dayName} • Semaine {log.week}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="success" className="uppercase tracking-widest text-[10px]">Terminée</Badge>
+                          <Button variant="secondary" className="!py-1 !px-2 !text-[10px] !rounded-lg" onClick={() => setSelectedLog(log)}>
+                            VOIR RÉCAP
+                          </Button>
+                        </div>
+                      </div>
+                      {log.notes && (
+                        <div className="mt-2 p-3 bg-velatra-accent/5 rounded-lg border border-velatra-accent/10">
+                          <div className="flex items-start gap-2">
+                            <MessageCircleIcon size={14} className="text-velatra-accent mt-0.5 shrink-0" />
+                            <p className="text-xs text-zinc-700 leading-relaxed italic line-clamp-2">"{log.notes}"</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-white/50 border border-zinc-200/50 rounded-xl p-6 text-center shadow-sm">
+                  <p className="text-sm font-medium text-zinc-900">Aucune séance de coaching</p>
+                  <p className="text-xs text-zinc-500 mt-1">Vos récaps de séances apparaîtront ici.</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
+      {user.role === 'member' && (
+        <motion.div variants={itemVariants}>
+          <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
@@ -424,133 +476,7 @@ export const ProfilePage: React.FC<{
         </motion.div>
       )}
 
-      {/* Integrations Section */}
-      <motion.div variants={itemVariants}>
-        <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
-              <ActivityIcon size={20} />
-            </div>
-            <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Connexions & Applications</h3>
-          </div>
-          
-          <div className="space-y-4">
-            {/* Apple Santé */}
-            <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm transition-all ${!user.integrations?.appleHealth ? 'opacity-80' : ''}`}>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#FF2D55]">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-zinc-900">Apple Santé</p>
-                  <p className="text-xs text-zinc-500 mt-1">Synchronisez vos calories brûlées et votre activité quotidienne.</p>
-                  {user.integrations?.appleHealth && <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mt-1">Connecté</p>}
-                </div>
-              </div>
-              <Button 
-                variant={user.integrations?.appleHealth ? "ghost" : "secondary"} 
-                className="text-sm"
-                onClick={() => {
-                  if (user.integrations?.appleHealth) {
-                    const userRef = doc(db, "users", (user as any).firebaseUid);
-                    updateDoc(userRef, {
-                      "integrations.appleHealth": false
-                    }).then(() => {
-                      setState(prev => ({
-                        ...prev,
-                        user: {
-                          ...prev.user!,
-                          integrations: {
-                            ...prev.user!.integrations,
-                            appleHealth: false
-                          }
-                        }
-                      }));
-                      showToast("Apple Santé déconnecté", "success");
-                    });
-                  } else {
-                    const userRef = doc(db, "users", (user as any).firebaseUid);
-                    updateDoc(userRef, {
-                      "integrations.appleHealth": true
-                    }).then(() => {
-                      setState(prev => ({
-                        ...prev,
-                        user: {
-                          ...prev.user!,
-                          integrations: {
-                            ...prev.user!.integrations,
-                            appleHealth: true
-                          }
-                        }
-                      }));
-                      showToast("Apple Santé connecté avec succès !", "success");
-                    });
-                  }
-                }}
-              >
-                {user.integrations?.appleHealth ? 'Déconnecter' : 'Connecter'}
-              </Button>
-            </div>
 
-            {/* MyFitnessPal */}
-            <div className={`bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm transition-all ${!user.integrations?.myFitnessPal ? 'opacity-80' : ''}`}>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-[#0066EE]">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-zinc-900">MyFitnessPal</p>
-                  <p className="text-xs text-zinc-500 mt-1">Synchronisez vos repas et macros.</p>
-                  {user.integrations?.myFitnessPal && <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider mt-1">Connecté</p>}
-                </div>
-              </div>
-              <Button 
-                variant={user.integrations?.myFitnessPal ? "ghost" : "secondary"} 
-                className="text-sm"
-                onClick={() => {
-                  if (user.integrations?.myFitnessPal) {
-                    const userRef = doc(db, "users", (user as any).firebaseUid);
-                    updateDoc(userRef, {
-                      "integrations.myFitnessPal": false
-                    }).then(() => {
-                      setState(prev => ({
-                        ...prev,
-                        user: {
-                          ...prev.user!,
-                          integrations: {
-                            ...prev.user!.integrations,
-                            myFitnessPal: false
-                          }
-                        }
-                      }));
-                      showToast("MyFitnessPal déconnecté", "success");
-                    });
-                  } else {
-                    const userRef = doc(db, "users", (user as any).firebaseUid);
-                    updateDoc(userRef, {
-                      "integrations.myFitnessPal": true
-                    }).then(() => {
-                      setState(prev => ({
-                        ...prev,
-                        user: {
-                          ...prev.user!,
-                          integrations: {
-                            ...prev.user!.integrations,
-                            myFitnessPal: true
-                          }
-                        }
-                      }));
-                      showToast("MyFitnessPal connecté avec succès !", "success");
-                    });
-                  }
-                }}
-              >
-                {user.integrations?.myFitnessPal ? 'Déconnecter' : 'Connecter'}
-              </Button>
-            </div>
-          </div>
-        </Card>
-      </motion.div>
     </motion.div>
   );
 };

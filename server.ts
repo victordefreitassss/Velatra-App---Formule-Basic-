@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import path from "path";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT as string) || 3000;
 
 app.use(express.json());
 

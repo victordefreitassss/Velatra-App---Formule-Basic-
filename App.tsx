@@ -53,8 +53,6 @@ import { MemberLoyaltyPage } from './pages/MemberLoyaltyPage';
 import { DrivePage } from './pages/DrivePage';
 import { VideoLibraryPage } from './pages/VideoLibraryPage';
 import { CommunityPage } from './pages/CommunityPage';
-import { PremiumCTA } from './components/PremiumCTA';
-import { FeatureLockedMessage } from './components/FeatureLockedMessage';
 
 const INITIAL_STATE: AppState = {
   user: null,
@@ -628,16 +626,16 @@ export default function App() {
         case 'about': return <AboutPage state={state} setState={setState} />;
         case 'settings': return <SettingsPage state={state} setState={setState} showToast={showToast} />;
         case 'chat': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
-        case 'crm_pipeline': return isPremium ? <ProspectFlowPage state={state} setState={setState} /> : <PremiumCTA title="ProspectFlow" description="Gérez vos prospects, suivez vos leads et convertissez plus de clients avec notre outil CRM intégré." features={["Pipeline de vente visuel", "Suivi des contacts et relances", "Statistiques de conversion", "Gestion des rendez-vous"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
-        case 'crm_tasks': return isPremium ? <TasksPage state={state} /> : <PremiumCTA title="Tâches" description="Organisez vos journées et ne manquez aucune relance avec le gestionnaire de tâches." features={["To-do list intelligente", "Rappels automatiques", "Liaison avec les prospects"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
-        case 'crm_finances': return isClassic ? <FinancesPage state={state} setState={setState} showToast={showToast} /> : <PremiumCTA title="Finances" description="Suivez vos revenus, gérez vos abonnements et analysez votre rentabilité en temps réel." features={["Tableau de bord financier", "Gestion des abonnements", "Suivi des paiements", "Export comptable"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
+        case 'crm_pipeline': return <ProspectFlowPage state={state} setState={setState} />;
+        case 'crm_tasks': return <TasksPage state={state} />;
+        case 'crm_finances': return <FinancesPage state={state} setState={setState} showToast={showToast} />;
         case 'calendar': return <PlanningPage state={state} setState={setState} showToast={showToast} />;
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;
         case 'drive': return <DrivePage state={state} />;
         case 'videos': return <VideoLibraryPage state={state} />;
-        case 'marketing': return isPremium ? <MarketingPage state={state} setState={setState} /> : <PremiumCTA title="Marketing" description="Développez votre activité avec nos outils marketing intégrés." features={["Campagnes d'emailing", "Création de newsletters", "Automatisation marketing", "Analyse des performances"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
-        case 'supplements': return isPremium ? <SupplementsPage state={state} setState={setState} showToast={showToast} /> : <PremiumCTA title="Boutique" description="Vendez vos compléments alimentaires et équipements directement depuis l'application." features={["Catalogue de produits", "Paiement en ligne", "Gestion des stocks", "Suivi des commandes"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
-        case 'loyalty': return isPremium ? <LoyaltyPage state={state} setState={setState} showToast={showToast} /> : <PremiumCTA title="Fidélité" description="Récompensez vos membres et augmentez leur engagement avec un programme de fidélité sur mesure." features={["Système de points", "Récompenses personnalisées", "Défis et badges", "Classement des membres"]} paymentLink="https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20%C3%A0%20la%20formule%20sup%C3%A9rieure%20pour%20mon%20club%20Velatra." />;
+        case 'marketing': return <MarketingPage state={state} setState={setState} />;
+        case 'supplements': return <SupplementsPage state={state} setState={setState} showToast={showToast} />;
+        case 'loyalty': return <LoyaltyPage state={state} setState={setState} showToast={showToast} />;
         default: return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
       }
     }
@@ -654,8 +652,8 @@ export default function App() {
       case 'about': return <AboutPage state={state} setState={setState} />;
       case 'profile': return <ProfilePage state={state} setState={setState} showToast={showToast} />;
       case 'messages': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
-      case 'supplements': return isPremium ? <MemberSupplementsPage state={state} showToast={showToast} /> : <FeatureLockedMessage title="Boutique" />;
-      case 'loyalty': return isPremium ? <MemberLoyaltyPage state={state} /> : <FeatureLockedMessage title="Fidélité" />;
+      case 'supplements': return <MemberSupplementsPage state={state} showToast={showToast} />;
+      case 'loyalty': return <MemberLoyaltyPage state={state} />;
       default: return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
     }
   };

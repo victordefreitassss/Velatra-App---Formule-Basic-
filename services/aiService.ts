@@ -310,10 +310,12 @@ export const estimateFoodMacros = async (foodName: string) => {
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `Estime les valeurs nutritionnelles pour l'aliment suivant : "${foodName}".
-Donne les valeurs pour une portion standard (précise la portion dans le nom si possible, ex: "Pomme (150g)").
+Donne les valeurs exactes pour la quantité demandée. Si aucune quantité n'est précisée, donne pour une portion standard.
 Retourne uniquement un objet JSON avec les champs suivants :
 {
-  "name": "Nom de l'aliment avec portion",
+  "name": "Nom de l'aliment",
+  "quantity": nombre (ex: 150, 1),
+  "unit": "unité" (ex: "g", "ml", "portion", "unité"),
   "calories": nombre,
   "protein": nombre (en g),
   "carbs": nombre (en g),
@@ -329,12 +331,14 @@ Retourne uniquement un objet JSON avec les champs suivants :
         type: Type.OBJECT,
         properties: {
           name: { type: Type.STRING },
+          quantity: { type: Type.NUMBER },
+          unit: { type: Type.STRING },
           calories: { type: Type.NUMBER },
           protein: { type: Type.NUMBER },
           carbs: { type: Type.NUMBER },
           fat: { type: Type.NUMBER }
         },
-        required: ["name", "calories", "protein", "carbs", "fat"]
+        required: ["name", "quantity", "unit", "calories", "protein", "carbs", "fat"]
       }
     }
   });
@@ -431,4 +435,86 @@ Retourne uniquement un objet JSON avec :
   if (!jsonStr) throw new Error("Réponse vide de l'IA");
   
   return JSON.parse(jsonStr);
+};
+
+export const analyzeMealImage = async (base64Image: string, mimeType: string) => {
+  const rawApiKey = getApiKey();
+  const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
+  if (!apiKey) {
+    throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");
+  }
+  const ai = new GoogleGenAI({ apiKey });
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: base64Image,
+              mimeType: mimeType
+            }
+          },
+          {
+            text: "Analyse ce repas. Renvoie UNIQUEMENT un objet JSON avec les clés suivantes : 'name' (nom du plat, ex: 'Poulet Riz Brocolis'), 'quantity' (nombre estimé, ex: 300), 'unit' (unité, ex: 'g', 'portion', 'ml'), 'calories' (nombre entier), 'protein' (nombre entier), 'carbs' (nombre entier), 'fat' (nombre entier). Ne mets pas de texte autour, juste le JSON."
+          }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.STRING, description: "Nom du plat" },
+            quantity: { type: Type.NUMBER, description: "Quantité estimée" },
+            unit: { type: Type.STRING, description: "Unité (g, portion, ml, unité)" },
+            calories: { type: Type.NUMBER, description: "Calories estimées" },
+            protein: { type: Type.NUMBER, description: "Protéines en grammes" },
+            carbs: { type: Type.NUMBER, description: "Glucides en grammes" },
+            fat: { type: Type.NUMBER, description: "Lipides en grammes" }
+          },
+          required: ["name", "quantity", "unit", "calories", "protein", "carbs", "fat"]
+        }
+      }
+    });
+
+    return JSON.parse(response.text || "{}");
+  } catch (error) {
+    console.error("Erreur analyse repas image:", error);
+    throw error;
+  }
+};
+
+export const generateRecipeFromFridge = async (base64Image: string, mimeType: string) => {
+  const rawApiKey = getApiKey();
+  const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
+  if (!apiKey) {
+    throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");
+  }
+  const ai = new GoogleGenAI({ apiKey });
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              data: base64Image,
+              mimeType: mimeType
+            }
+          },
+          {
+            text: "Voici une photo de mon frigo ou de mes ingrédients. Génère une recette saine, sportive et anti-gaspillage avec ces ingrédients. Renvoie la réponse en Markdown, en incluant un titre accrocheur, la liste des ingrédients, les étapes de préparation, et une estimation des macros (Calories, Protéines, Glucides, Lipides)."
+          }
+        ]
+      }
+    });
+
+    return response.text || "Désolé, je n'ai pas pu générer de recette.";
+  } catch (error) {
+    console.error("Erreur génération recette:", error);
+    throw error;
+  }
 };

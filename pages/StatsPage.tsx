@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { AppState, BodyData } from '../types';
 import { Card, Badge, Input } from '../components/UI';
-import { calculate1RM, calculate8RM, calculate12RM } from '../utils';
 import { TargetIcon, BarChartIcon, TrophyIcon, DatabaseIcon, SearchIcon } from '../components/Icons';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
@@ -39,10 +38,34 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
     muscle: b.muscle
   }));
 
+  const parseDuration = (dur: string | undefined): number => {
+    if (!dur) return 0;
+    const lower = dur.toLowerCase();
+    let totalMins = 0;
+    const hMatch = lower.match(/(\d+)\s*(h|heure)/);
+    if (hMatch) totalMins += parseInt(hMatch[1]) * 60;
+    const mMatch = lower.match(/(\d+)\s*(m|min|minute)/);
+    if (mMatch) totalMins += parseInt(mMatch[1]);
+    if (!hMatch && !mMatch) {
+      const num = parseInt(lower);
+      if (!isNaN(num)) totalMins += num;
+    }
+    return totalMins;
+  };
+
   // Grouper par exercice pour avoir le record max
   const bests = myPerfs.reduce((acc: any, curr) => {
-    if (!acc[curr.exId] || acc[curr.exId].weight < curr.weight) {
-      acc[curr.exId] = curr;
+    const ex = state.exercises.find(e => e.perfId === curr.exId);
+    if (ex?.cat === 'Cardio') {
+      const currDur = parseDuration(curr.duration);
+      const accDur = acc[curr.exId] ? parseDuration(acc[curr.exId].duration) : -1;
+      if (currDur > accDur) {
+        acc[curr.exId] = curr;
+      }
+    } else {
+      if (!acc[curr.exId] || acc[curr.exId].weight < curr.weight) {
+        acc[curr.exId] = curr;
+      }
     }
     return acc;
   }, {});
@@ -226,7 +249,6 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
           </motion.div>
         ) : bestsArray.map((p: any) => {
           const ex = state.exercises.find(e => e.perfId === p.exId);
-          const oneRM = calculate1RM(p.weight, p.reps);
           return (
             <motion.div variants={itemVariants} key={p.exId}>
               <Card className="group border-none ring-1 ring-zinc-200/50 hover:ring-velatra-accent/30 transition-all !p-8 bg-white/60 backdrop-blur-xl shadow-lg h-full">
@@ -240,27 +262,30 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
-                   <div className="bg-white/50 border border-zinc-200/50 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-200 transition-all shadow-sm">
-                      <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Charge</div>
-                      <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.weight}<span className="text-[10px] ml-0.5 opacity-50">kg</span></div>
-                   </div>
-                   <div className="bg-white/50 border border-zinc-200/50 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-200 transition-all shadow-sm">
-                      <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Reps</div>
-                      <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.reps}</div>
-                   </div>
-                   <div className="col-span-2 sm:col-span-1 bg-velatra-accent/5 border border-velatra-accent/20 p-3 md:p-4 rounded-2xl text-center group-hover:bg-velatra-accent/10 transition-all shadow-sm">
-                      <div className="text-[8px] uppercase text-velatra-accent font-black tracking-widest mb-1">Est. 1RM</div>
-                      <div className="font-black text-lg md:text-xl text-velatra-accent italic">{oneRM}<span className="text-[10px] ml-0.5 opacity-50">kg</span></div>
-                   </div>
-                   <div className="bg-white/50 border border-zinc-200/50 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
-                      <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Est. 8RM</div>
-                      <div className="font-black text-lg md:text-xl text-zinc-900 italic">{calculate8RM(oneRM)}<span className="text-[10px] ml-0.5 opacity-50">kg</span></div>
-                   </div>
-                   <div className="bg-white/50 border border-zinc-200/50 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
-                      <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Est. 12RM</div>
-                      <div className="font-black text-lg md:text-xl text-zinc-900 italic">{calculate12RM(oneRM)}<span className="text-[10px] ml-0.5 opacity-50">kg</span></div>
-                   </div>
+                <div className="grid grid-cols-2 gap-2 md:gap-4">
+                   {ex?.cat === 'Cardio' ? (
+                     <>
+                       <div className="bg-white/50 border border-zinc-200/50 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-200 transition-all shadow-sm">
+                          <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Durée</div>
+                          <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.duration || 'N/A'}</div>
+                       </div>
+                       <div className="bg-white/50 border border-zinc-200/50 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-200 transition-all shadow-sm">
+                          <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Calories (Est.)</div>
+                          <div className="font-black text-lg md:text-xl text-zinc-900 italic">{parseDuration(p.duration) * 10}<span className="text-[10px] ml-0.5 opacity-50">kcal</span></div>
+                       </div>
+                     </>
+                   ) : (
+                     <>
+                       <div className="bg-white/50 border border-zinc-200/50 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-200 transition-all shadow-sm">
+                          <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Charge</div>
+                          <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.weight}<span className="text-[10px] ml-0.5 opacity-50">kg</span></div>
+                       </div>
+                       <div className="bg-white/50 border border-zinc-200/50 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-200 transition-all shadow-sm">
+                          <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Reps</div>
+                          <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.reps}</div>
+                       </div>
+                     </>
+                   )}
                 </div>
                 
                 <div className="mt-6 pt-6 border-t border-zinc-200/50 flex justify-between items-center">

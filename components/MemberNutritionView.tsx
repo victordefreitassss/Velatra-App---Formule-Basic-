@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { AppState, NutritionLog } from '../types';
 import { Card, Button, Input } from './UI';
-import { AppleIcon, PlusIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon } from './Icons';
+import { AppleIcon, PlusIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, CameraIcon } from './Icons';
 import { db, doc, setDoc } from '../firebase';
-import { SparklesIcon, RefreshCwIcon, Wand2Icon } from 'lucide-react';
+import { SparklesIcon, RefreshCwIcon, Wand2Icon, ChefHatIcon } from 'lucide-react';
 import { GoogleGenAI } from '@google/genai';
-import { estimateFoodMacros } from '../services/aiService';
+import { estimateFoodMacros, analyzeMealImage, generateRecipeFromFridge } from '../services/aiService';
+import Markdown from 'react-markdown';
 
 const getApiKey = () => {
   try {
@@ -26,11 +27,65 @@ export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: s
   const plan = state.nutritionPlans.find(p => p.memberId === Number(user.id));
   
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isAdding, setIsAdding] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [newFood, setNewFood] = useState({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0 });
+  const [addingMealType, setAddingMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack' | null>(null);
+  const [newFood, setNewFood] = useState({ name: '', quantity: 100, unit: 'g', calories: 0, protein: 0, carbs: 0, fat: 0, mealType: 'breakfast' as 'breakfast' | 'lunch' | 'dinner' | 'snack' });
   const [isSaving, setIsSaving] = useState(false);
   const [isEstimating, setIsEstimating] = useState(false);
+  const [isScanningMeal, setIsScanningMeal] = useState(false);
+  const [isGeneratingRecipe, setIsGeneratingRecipe] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [recipeResult, setRecipeResult] = useState<string | null>(null);
+
+  const mealInputRef = React.useRef<HTMLInputElement>(null);
+  const fridgeInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'meal' | 'fridge') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = (reader.result as string).split(',')[1];
+      const mimeType = file.type;
+
+      if (type === 'meal') {
+        setIsScanningMeal(true);
+        try {
+          const result = await analyzeMealImage(base64String, mimeType);
+          setNewFood({
+            ...newFood,
+            name: result.name,
+            calories: result.calories,
+            protein: result.protein,
+            carbs: result.carbs,
+            fat: result.fat,
+            quantity: result.quantity || 1,
+            unit: result.unit || 'portion'
+          });
+          showToast("Repas analysé avec succès !", "success");
+        } catch (err) {
+          console.error(err);
+          showToast("Erreur lors de l'analyse du repas", "error");
+        } finally {
+          setIsScanningMeal(false);
+        }
+      } else {
+        setIsGeneratingRecipe(true);
+        setRecipeResult(null);
+        try {
+          const result = await generateRecipeFromFridge(base64String, mimeType);
+          setRecipeResult(result);
+          showToast("Recette générée avec succès !", "success");
+        } catch (err) {
+          console.error(err);
+          showToast("Erreur lors de la génération de la recette", "error");
+        } finally {
+          setIsGeneratingRecipe(false);
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const currentLog = useMemo(() => {
     return state.nutritionLogs.find(l => l.userId === Number(user.id) && l.date === currentDate) || {
@@ -56,13 +111,32 @@ export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: s
     if (!newFood.name) return;
     setIsSaving(true);
     try {
+      let foodToAdd = { ...newFood, id: Date.now().toString() };
+      
+      // Auto-calculate if all macros are 0
+      if (newFood.calories === 0 && newFood.protein === 0 && newFood.carbs === 0 && newFood.fat === 0) {
+        showToast("Calcul automatique des macros en cours...", "success");
+        const query = newFood.quantity && newFood.unit ? `${newFood.quantity}${newFood.unit} de ${newFood.name}` : newFood.name;
+        const result = await estimateFoodMacros(query);
+        foodToAdd = {
+          ...foodToAdd,
+          name: result.name,
+          quantity: result.quantity || newFood.quantity,
+          unit: result.unit || newFood.unit,
+          calories: result.calories,
+          protein: result.protein,
+          carbs: result.carbs,
+          fat: result.fat
+        };
+      }
+
       const updatedLog: NutritionLog = {
         ...currentLog,
-        foods: [...currentLog.foods, { ...newFood, id: Date.now().toString() }]
+        foods: [...currentLog.foods, { ...foodToAdd, mealType: addingMealType || 'breakfast' }]
       };
       await setDoc(doc(db, "nutritionLogs", updatedLog.id), updatedLog);
-      setNewFood({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0 });
-      setIsAdding(false);
+      setNewFood({ name: '', quantity: 100, unit: 'g', calories: 0, protein: 0, carbs: 0, fat: 0, mealType: addingMealType || 'breakfast' });
+      setAddingMealType(null);
       showToast("Aliment ajouté");
     } catch (err) {
       console.error(err);
@@ -79,9 +153,13 @@ export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: s
     }
     setIsEstimating(true);
     try {
-      const result = await estimateFoodMacros(newFood.name);
+      const query = newFood.quantity && newFood.unit ? `${newFood.quantity}${newFood.unit} de ${newFood.name}` : newFood.name;
+      const result = await estimateFoodMacros(query);
       setNewFood({
+        ...newFood,
         name: result.name,
+        quantity: result.quantity || newFood.quantity,
+        unit: result.unit || newFood.unit,
         calories: result.calories,
         protein: result.protein,
         carbs: result.carbs,
@@ -202,99 +280,260 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
         </Card>
       </div>
 
+      {/* AI Assistants */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card className="p-4 bg-white border-zinc-200 flex flex-col items-center text-center gap-3">
+          <div className="w-12 h-12 bg-velatra-accent/10 text-velatra-accent rounded-full flex items-center justify-center">
+            <CameraIcon size={24} />
+          </div>
+          <div>
+            <h3 className="font-bold text-zinc-900">Scanner un repas</h3>
+            <p className="text-xs text-zinc-500 mt-1">Prenez votre assiette en photo, l'IA estime les macros.</p>
+          </div>
+          <input 
+            type="file" 
+            accept="image/*" 
+            capture="environment"
+            className="hidden" 
+            ref={mealInputRef} 
+            onChange={(e) => handleImageUpload(e, 'meal')} 
+          />
+          <Button 
+            variant="primary" 
+            className="w-full mt-2 !py-2 text-xs" 
+            onClick={() => mealInputRef.current?.click()}
+            disabled={isScanningMeal}
+          >
+            {isScanningMeal ? <RefreshCwIcon size={14} className="animate-spin mr-2" /> : <CameraIcon size={14} className="mr-2" />}
+            {isScanningMeal ? "Analyse en cours..." : "Prendre une photo"}
+          </Button>
+        </Card>
+
+        <Card className="p-4 bg-white border-zinc-200 flex flex-col items-center text-center gap-3">
+          <div className="w-12 h-12 bg-velatra-accent/10 text-velatra-accent rounded-full flex items-center justify-center">
+            <ChefHatIcon size={24} />
+          </div>
+          <div>
+            <h3 className="font-bold text-zinc-900">Recette Anti-Gaspi</h3>
+            <p className="text-xs text-zinc-500 mt-1">Prenez votre frigo en photo, l'IA crée une recette saine.</p>
+          </div>
+          <input 
+            type="file" 
+            accept="image/*" 
+            className="hidden" 
+            ref={fridgeInputRef} 
+            onChange={(e) => handleImageUpload(e, 'fridge')} 
+          />
+          <Button 
+            variant="primary" 
+            className="w-full mt-2 !py-2 text-xs" 
+            onClick={() => fridgeInputRef.current?.click()}
+            disabled={isGeneratingRecipe}
+          >
+            {isGeneratingRecipe ? <RefreshCwIcon size={14} className="animate-spin mr-2" /> : <ChefHatIcon size={14} className="mr-2" />}
+            {isGeneratingRecipe ? "Génération..." : "Photo des ingrédients"}
+          </Button>
+        </Card>
+      </div>
+
+      {recipeResult && (
+        <Card className="p-6 bg-white border-velatra-accent/30 shadow-md shadow-velatra-accent/10 relative">
+          <button 
+            onClick={() => setRecipeResult(null)}
+            className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-200 rounded-full transition-colors"
+          >
+            <Trash2Icon size={16} />
+          </button>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-velatra-accent/10 text-velatra-accent rounded-xl">
+              <ChefHatIcon size={24} />
+            </div>
+            <h2 className="text-xl font-display font-bold text-zinc-900">Votre Recette IA</h2>
+          </div>
+          <div className="prose prose-sm max-w-none prose-headings:font-display prose-a:text-velatra-accent prose-p:leading-relaxed">
+            <Markdown>{recipeResult}</Markdown>
+          </div>
+        </Card>
+      )}
+
       {/* Food List */}
       <Card className="p-6 bg-white border-zinc-200">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <h2 className="text-lg font-black uppercase">Repas du jour</h2>
-          <Button variant="secondary" onClick={() => setIsAdding(!isAdding)} className="!py-2 !px-4 !text-[10px]">
-            <PlusIcon size={12} className="mr-2" /> AJOUTER
-          </Button>
         </div>
 
-        {isAdding && (
-          <div className="bg-zinc-50 p-4 rounded-2xl mb-6 space-y-4 border border-zinc-200">
-            <div>
-              <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Aliment / Repas</label>
-              <div className="flex gap-2">
-                <Input 
-                  type="text" 
-                  placeholder="Ex: Poulet, Riz, Brocolis..." 
-                  value={newFood.name} 
-                  onChange={e => setNewFood({...newFood, name: e.target.value})} 
-                  className="flex-1"
-                />
-                <Button 
-                  variant="secondary" 
-                  onClick={handleAutoCalculate}
-                  disabled={isEstimating || !newFood.name}
-                  className="!px-3 !py-0 h-[42px] flex items-center justify-center bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200"
-                  title="Calculer les macros automatiquement"
-                >
-                  {isEstimating ? <RefreshCwIcon size={18} className="animate-spin" /> : <Wand2Icon size={18} />}
-                </Button>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div>
-                <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Kcal</label>
-                <Input type="number" value={newFood.calories || ''} onChange={e => setNewFood({...newFood, calories: Number(e.target.value)})} className="!text-center" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-blue-400 ml-1">Prot (g)</label>
-                <Input type="number" value={newFood.protein || ''} onChange={e => setNewFood({...newFood, protein: Number(e.target.value)})} className="!text-center" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-green-400 ml-1">Gluc (g)</label>
-                <Input type="number" value={newFood.carbs || ''} onChange={e => setNewFood({...newFood, carbs: Number(e.target.value)})} className="!text-center" />
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-yellow-500 ml-1">Lip (g)</label>
-                <Input type="number" value={newFood.fat || ''} onChange={e => setNewFood({...newFood, fat: Number(e.target.value)})} className="!text-center" />
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row justify-between gap-2 pt-2">
-              <Button 
-                variant="secondary" 
-                onClick={handleGenerateIdea} 
-                disabled={isGenerating || !newFood.calories || !newFood.protein || !newFood.carbs || !newFood.fat} 
-                className="!py-2 flex items-center justify-center gap-2"
-              >
-                {isGenerating ? <RefreshCwIcon size={14} className="animate-spin" /> : <SparklesIcon size={14} />}
-                Suggérer un plat (IA)
-              </Button>
-              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <Button variant="secondary" onClick={() => setIsAdding(false)} className="!py-2">Annuler</Button>
-                <Button variant="primary" onClick={handleAddFood} disabled={isSaving || !newFood.name} className="!py-2">
-                  {isSaving ? "Ajout..." : "Valider"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
+        <div className="space-y-6">
+          {[
+            { id: 'breakfast', label: 'Petit-déjeuner' },
+            { id: 'lunch', label: 'Déjeuner' },
+            { id: 'snack', label: 'Collation' },
+            { id: 'dinner', label: 'Dîner' }
+          ].map((mealType) => {
+            const mealFoods = currentLog.foods.filter(f => (f.mealType || 'breakfast') === mealType.id);
+            const mealCalories = mealFoods.reduce((sum, f) => sum + f.calories, 0);
 
-        <div className="space-y-3">
-          {currentLog.foods.map(food => (
-            <div key={food.id} className="flex items-center justify-between p-4 bg-zinc-50 rounded-xl border border-zinc-100">
-              <div>
-                <div className="font-bold text-zinc-900">{food.name}</div>
-                <div className="text-xs text-zinc-500 mt-1 flex gap-3">
-                  <span className="text-zinc-900 font-bold">{food.calories} kcal</span>
-                  <span className="text-blue-500">{food.protein}g P</span>
-                  <span className="text-green-500">{food.carbs}g G</span>
-                  <span className="text-yellow-600">{food.fat}g L</span>
+            return (
+              <div key={mealType.id} className="space-y-3">
+                <div className="flex items-center justify-between px-2">
+                  <h4 className="text-xs font-bold text-zinc-700 flex items-center gap-2">
+                    {mealType.label}
+                    {mealCalories > 0 && <span className="text-zinc-400 font-normal">({mealCalories} kcal)</span>}
+                  </h4>
+                  <Button 
+                    variant="secondary" 
+                    onClick={() => setAddingMealType(mealType.id as any)} 
+                    className="!py-1 !px-2 !text-[10px] flex items-center gap-1 bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                  >
+                    <PlusIcon size={12} /> AJOUTER
+                  </Button>
+                </div>
+
+                {addingMealType === mealType.id && (
+                  <div className="bg-zinc-50 p-4 rounded-2xl mb-4 space-y-4 border border-zinc-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-zinc-900">Ajouter à {mealType.label.toLowerCase()}</h4>
+                      <button onClick={() => setAddingMealType(null)} className="text-zinc-400 hover:text-zinc-600">
+                        <Trash2Icon size={16} />
+                      </button>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Aliment / Repas</label>
+                      <div className="flex gap-2">
+                        <Input 
+                          type="text" 
+                          placeholder="Ex: Poulet, Riz, Brocolis..." 
+                          value={newFood.name} 
+                          onChange={e => setNewFood({...newFood, name: e.target.value})} 
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && newFood.name) {
+                              e.preventDefault();
+                              handleAddFood();
+                            }
+                          }}
+                          className="flex-1"
+                        />
+                        <Button 
+                          variant="secondary" 
+                          onClick={handleAutoCalculate}
+                          disabled={isEstimating || !newFood.name}
+                          className="!px-3 !py-0 h-[42px] flex items-center justify-center bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200"
+                          title="Calculer les macros automatiquement"
+                        >
+                          {isEstimating ? <RefreshCwIcon size={18} className="animate-spin" /> : <Wand2Icon size={18} />}
+                        </Button>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          capture="environment" 
+                          ref={mealInputRef} 
+                          onChange={(e) => handleImageUpload(e, 'meal')} 
+                          className="hidden" 
+                        />
+                        <Button 
+                          variant="secondary" 
+                          onClick={() => mealInputRef.current?.click()}
+                          disabled={isScanningMeal}
+                          className="!px-3 !py-0 h-[42px] flex items-center justify-center bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200"
+                          title="Prendre en photo"
+                        >
+                          {isScanningMeal ? <RefreshCwIcon size={18} className="animate-spin" /> : <CameraIcon size={18} />}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Quantité</label>
+                        <Input 
+                          type="number" 
+                          value={newFood.quantity || ''} 
+                          onChange={e => setNewFood({...newFood, quantity: parseFloat(e.target.value) || 0})} 
+                          placeholder="100" 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Unité</label>
+                        <select 
+                          value={newFood.unit} 
+                          onChange={e => setNewFood({...newFood, unit: e.target.value})}
+                          className="w-full h-[42px] px-3 rounded-xl border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-velatra-accent/50"
+                        >
+                          <option value="g">g</option>
+                          <option value="ml">ml</option>
+                          <option value="portion">portion</option>
+                          <option value="unité">unité</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Kcal</label>
+                        <Input type="number" value={newFood.calories || ''} onChange={e => setNewFood({...newFood, calories: Number(e.target.value)})} className="!text-center" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-blue-400 ml-1">Prot (g)</label>
+                        <Input type="number" value={newFood.protein || ''} onChange={e => setNewFood({...newFood, protein: Number(e.target.value)})} className="!text-center" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-green-400 ml-1">Gluc (g)</label>
+                        <Input type="number" value={newFood.carbs || ''} onChange={e => setNewFood({...newFood, carbs: Number(e.target.value)})} className="!text-center" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-black uppercase text-yellow-500 ml-1">Lip (g)</label>
+                        <Input type="number" value={newFood.fat || ''} onChange={e => setNewFood({...newFood, fat: Number(e.target.value)})} className="!text-center" />
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row justify-between gap-2 pt-2">
+                      <Button 
+                        variant="secondary" 
+                        onClick={handleGenerateIdea} 
+                        disabled={isGenerating || !newFood.calories || !newFood.protein || !newFood.carbs || !newFood.fat} 
+                        className="!py-2 flex items-center justify-center gap-2"
+                      >
+                        {isGenerating ? <RefreshCwIcon size={14} className="animate-spin" /> : <SparklesIcon size={14} />}
+                        Suggérer un plat (IA)
+                      </Button>
+                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                        <Button variant="secondary" onClick={() => setAddingMealType(null)} className="!py-2">Annuler</Button>
+                        <Button variant="primary" onClick={handleAddFood} disabled={isSaving || !newFood.name} className="!py-2">
+                          {isSaving ? "Ajout..." : "Valider"}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {mealFoods.map(food => (
+                    <div key={food.id} className="flex items-center justify-between p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+                      <div>
+                        <div className="font-bold text-zinc-900">
+                          {food.name}
+                          {food.quantity && food.unit && <span className="text-zinc-500 font-normal text-xs ml-1">({food.quantity} {food.unit})</span>}
+                        </div>
+                        <div className="text-xs text-zinc-500 mt-1 flex gap-3">
+                          <span className="text-zinc-900 font-bold">{food.calories} kcal</span>
+                          <span className="text-blue-500">{food.protein}g P</span>
+                          <span className="text-green-500">{food.carbs}g G</span>
+                          <span className="text-yellow-600">{food.fat}g L</span>
+                        </div>
+                      </div>
+                      <button onClick={() => handleDeleteFood(food.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2Icon size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {mealFoods.length === 0 && addingMealType !== mealType.id && (
+                    <div className="text-center py-4 border border-dashed border-zinc-200 rounded-xl bg-zinc-50/50">
+                      <p className="text-zinc-400 text-xs italic">Aucun aliment</p>
+                    </div>
+                  )}
                 </div>
               </div>
-              <button onClick={() => handleDeleteFood(food.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">
-                <Trash2Icon size={16} />
-              </button>
-            </div>
-          ))}
-          
-          {currentLog.foods.length === 0 && !isAdding && (
-            <div className="text-center py-8 text-zinc-400 text-sm italic">
-              Aucun aliment enregistré aujourd'hui.
-            </div>
-          )}
+            );
+          })}
         </div>
       </Card>
     </div>
