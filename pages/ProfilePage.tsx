@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AppState, User, SessionLog } from '../types';
 import { Card, Badge, Button } from '../components/UI';
 import { UserIcon, MailIcon, ActivityIcon, DumbbellIcon, TargetIcon, Edit2Icon, SaveIcon, LogOutIcon, PhoneIcon, CreditCardIcon, ExternalLinkIcon, CalendarIcon, MessageCircleIcon } from 'lucide-react';
@@ -476,6 +477,79 @@ export const ProfilePage: React.FC<{
         </motion.div>
       )}
 
+      {selectedLog && createPortal(
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Récapitulatif</h3>
+                <p className="text-sm text-zinc-500">{new Date(selectedLog.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              </div>
+              <button onClick={() => setSelectedLog(null)} className="p-2 bg-zinc-100 rounded-full hover:bg-zinc-200 transition-colors">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Séance</div>
+                <div className="font-bold text-zinc-900">{selectedLog.dayName}</div>
+                <div className="text-sm text-zinc-500">Semaine {selectedLog.week}</div>
+              </div>
+
+              {selectedLog.exercises && selectedLog.exercises.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Exercices réalisés</div>
+                  <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
+                    {selectedLog.exercises.map((ex, i) => (
+                      <div key={i} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3">
+                        <div className="font-bold text-sm text-zinc-900 mb-2">{ex.name}</div>
+                        <div className="grid grid-cols-1 gap-1">
+                          {ex.sets.map((set, j) => (
+                            <div key={j} className="flex items-center justify-between text-xs">
+                              <span className="text-zinc-500 font-medium">Série {j + 1}</span>
+                              <div className="flex gap-3">
+                                {set.weight && <span className="font-bold text-zinc-900">{set.weight} kg</span>}
+                                {set.reps && <span className="font-bold text-zinc-900">{set.reps} reps</span>}
+                                {set.duration && <span className="font-bold text-zinc-900">{set.duration}</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedLog.notes && (
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Notes du Coach</div>
+                  <div className="p-4 bg-velatra-accent/5 rounded-2xl border border-velatra-accent/10">
+                    <p className="text-sm text-zinc-700 leading-relaxed italic">"{selectedLog.notes}"</p>
+                  </div>
+                </div>
+              )}
+
+              {selectedLog.rpe && (
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Difficulté ressentie (RPE)</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-2xl font-black text-velatra-accent">{selectedLog.rpe}</div>
+                    <div className="text-sm text-zinc-500">/ 10</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
 
     </motion.div>
   );

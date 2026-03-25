@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { AppState, User, Performance, BodyData, Program, Gender, Goal, Subscription, Plan, NutritionPlan, Payment, Invoice } from '../types';
+import { AppState, User, Performance, BodyData, Program, Gender, Goal, Subscription, Plan, NutritionPlan, Payment, Invoice, SessionLog } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { 
   SearchIcon, InfoIcon, 
@@ -14,6 +14,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MemberNutritionView } from '../components/MemberNutritionView';
 
 const containerVariants: any = {
   hidden: { opacity: 0 },
@@ -34,6 +35,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState(state.memberFilter || "Tous");
   const [selectedProfile, setSelectedProfile] = useState<User | null>(state.selectedMember || null);
+  const [selectedLog, setSelectedLog] = useState<SessionLog | null>(null);
 
   useEffect(() => {
     if (state.memberFilter) {
@@ -64,12 +66,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [subContractUrl, setSubContractUrl] = useState('');
   const [isGeneratingNutrition, setIsGeneratingNutrition] = useState(false);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [generatedReport, setGeneratedReport] = useState<string | null>(null);
   const [isDetectingStagnation, setIsDetectingStagnation] = useState(false);
   const [stagnationResult, setStagnationResult] = useState<any>(null);
   const [isGeneratingProgram, setIsGeneratingProgram] = useState(false);
   const [isAdjustingTargets, setIsAdjustingTargets] = useState(false);
   const [nutritionTargets, setNutritionTargets] = useState({ calories: 2000, protein: 150, carbs: 200, fat: 70 });
   const [nutritionPlan, setNutritionPlan] = useState<any>(null);
+  const [showNutritionLog, setShowNutritionLog] = useState(false);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [newMemberData, setNewMemberData] = useState<Partial<User> & { password?: string }>({
     name: '', email: '', password: '', phone: '', gender: 'M', age: 30, weight: 70, height: 175, objectifs: [], notes: ''
@@ -237,6 +241,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const handleGenerateReport = async () => {
     if (!selectedProfile) return;
     setIsGeneratingReport(true);
+    setGeneratedReport(null);
     try {
       const { generateAutoReport } = await import('../services/aiService');
       const mid = Number(selectedProfile.id);
@@ -245,8 +250,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       
       const report = await generateAutoReport(selectedProfile, memberBody, memberPerfs);
       
-      // Show report in a toast or modal (using toast for simplicity here)
-      showToast("Bilan généré : " + report, "success");
+      setGeneratedReport(report);
+      showToast("Bilan généré avec succès", "success");
     } catch (error: any) {
       console.error("Erreur génération bilan:", error);
       showToast("Erreur lors de la génération du bilan : " + error.message, "error");
@@ -1255,6 +1260,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                               VOIR LE PLAN ACTUEL
                             </Button>
                           )}
+                          <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl border-emerald-500/30 hover:border-emerald-500" onClick={() => setShowNutritionLog(true)}>
+                            VOIR LE SUIVI JOURNALIER
+                          </Button>
                           <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl border-emerald-500/30 hover:border-emerald-500" onClick={openNutritionTargetsModal} disabled={isGeneratingNutrition}>
                             {isGeneratingNutrition ? "CRÉATION EN COURS..." : (state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)) ? "RÉGÉNÉRER LE PLAN" : "GÉNÉRER LE PLAN")}
                           </Button>
@@ -1268,9 +1276,40 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           <BarChartIcon size={16} className="text-blue-400" /> Rapport Automatique
                         </h4>
                         <p className="text-[10px] text-zinc-500 mb-6 leading-relaxed">Générez un bilan complet de la progression du client (poids, mensurations, performances) prêt à être envoyé.</p>
-                        <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl relative z-10 border-blue-500/30 hover:border-blue-500" onClick={handleGenerateReport} disabled={isGeneratingReport}>
-                          {isGeneratingReport ? "GÉNÉRATION..." : "GÉNÉRER LE BILAN"}
-                        </Button>
+                        
+                        {generatedReport ? (
+                          <div className="space-y-4 relative z-10">
+                            <div className="bg-white border border-zinc-200 rounded-xl p-4 max-h-40 overflow-y-auto text-xs text-zinc-700 whitespace-pre-wrap">
+                              {generatedReport}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Button 
+                                variant="primary" 
+                                fullWidth 
+                                className="!py-3 !text-[10px] !rounded-xl !bg-[#25D366] hover:!bg-[#128C7E] border-none text-white flex items-center justify-center gap-2"
+                                onClick={() => {
+                                  const phone = selectedProfile.phone?.replace(/\D/g, '');
+                                  const url = phone 
+                                    ? `https://wa.me/${phone}?text=${encodeURIComponent(generatedReport)}`
+                                    : `https://wa.me/?text=${encodeURIComponent(generatedReport)}`;
+                                  window.open(url, '_blank');
+                                }}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                </svg>
+                                ENVOYER SUR WHATSAPP
+                              </Button>
+                              <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl border-blue-500/30 hover:border-blue-500" onClick={handleGenerateReport} disabled={isGeneratingReport}>
+                                RÉGÉNÉRER LE BILAN
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl relative z-10 border-blue-500/30 hover:border-blue-500" onClick={handleGenerateReport} disabled={isGeneratingReport}>
+                            {isGeneratingReport ? "GÉNÉRATION..." : "GÉNÉRER LE BILAN"}
+                          </Button>
+                        )}
                       </div>
 
                       {/* Feature 4: Stagnation Detection */}
@@ -1451,17 +1490,20 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                     <div className="text-sm font-bold text-zinc-900">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
                                     <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">{log.dayName} • Semaine {log.week}</div>
                                   </div>
-                                  <div className="text-right">
+                                  <div className="flex items-center gap-2">
                                     <span className="px-3 py-1 bg-velatra-accent/20 text-velatra-accent rounded-full text-[10px] font-black uppercase tracking-widest">
                                       Terminée
                                     </span>
+                                    <Button variant="secondary" className="!py-1 !px-2 !text-[10px] !rounded-lg" onClick={() => setSelectedLog(log)}>
+                                      VOIR RÉCAP
+                                    </Button>
                                   </div>
                                 </div>
                                 {log.notes && (
                                   <div className="mt-2 p-3 bg-velatra-accent/5 rounded-lg border border-velatra-accent/10">
                                     <div className="flex items-start gap-2">
                                       <MessageCircleIcon size={14} className="text-velatra-accent mt-0.5 shrink-0" />
-                                      <p className="text-xs text-zinc-700 leading-relaxed italic">"{log.notes}"</p>
+                                      <p className="text-xs text-zinc-700 leading-relaxed italic line-clamp-2">"{log.notes}"</p>
                                     </div>
                                   </div>
                                 )}
@@ -2095,6 +2137,105 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       </AnimatePresence>,
       document.body
       )}
+
+      {showNutritionLog && selectedProfile && createPortal(
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm" onClick={() => setShowNutritionLog(false)}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-4xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Suivi Journalier Nutrition</h3>
+                <p className="text-sm text-zinc-500">{selectedProfile.name}</p>
+              </div>
+              <button onClick={() => setShowNutritionLog(false)} className="p-2 bg-zinc-100 rounded-full hover:bg-zinc-200 transition-colors">
+                <XIcon size={20} />
+              </button>
+            </div>
+            
+            <MemberNutritionView state={state} showToast={showToast} memberId={Number(selectedProfile.id)} readOnly={true} />
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
+      {selectedLog && createPortal(
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Récapitulatif</h3>
+                <p className="text-sm text-zinc-500">{new Date(selectedLog.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              </div>
+              <button onClick={() => setSelectedLog(null)} className="p-2 bg-zinc-100 rounded-full hover:bg-zinc-200 transition-colors">
+                <XIcon size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Séance</div>
+                <div className="font-bold text-zinc-900">{selectedLog.dayName}</div>
+                <div className="text-sm text-zinc-500">Semaine {selectedLog.week}</div>
+              </div>
+
+              {selectedLog.exercises && selectedLog.exercises.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Exercices réalisés</div>
+                  <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
+                    {selectedLog.exercises.map((ex, i) => (
+                      <div key={i} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3">
+                        <div className="font-bold text-sm text-zinc-900 mb-2">{ex.name}</div>
+                        <div className="grid grid-cols-1 gap-1">
+                          {ex.sets.map((set, j) => (
+                            <div key={j} className="flex items-center justify-between text-xs">
+                              <span className="text-zinc-500 font-medium">Série {j + 1}</span>
+                              <div className="flex gap-3">
+                                {set.weight && <span className="font-bold text-zinc-900">{set.weight} kg</span>}
+                                {set.reps && <span className="font-bold text-zinc-900">{set.reps} reps</span>}
+                                {set.duration && <span className="font-bold text-zinc-900">{set.duration}</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedLog.notes && (
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Notes du Coach</div>
+                  <div className="p-4 bg-velatra-accent/5 rounded-2xl border border-velatra-accent/10">
+                    <p className="text-sm text-zinc-700 leading-relaxed italic">"{selectedLog.notes}"</p>
+                  </div>
+                </div>
+              )}
+
+              {selectedLog.rpe && (
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Difficulté ressentie (RPE)</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-2xl font-black text-velatra-accent">{selectedLog.rpe}</div>
+                    <div className="text-sm text-zinc-500">/ 10</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
     </div>
   );
 };

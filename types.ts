@@ -213,6 +213,11 @@ export interface SessionLog {
   isCoaching: boolean;
   dayName: string;
   exerciseData: Record<string, string>;
+  exercises?: {
+    exId: number;
+    name: string;
+    sets: { weight: string; reps: string; duration: string }[];
+  }[];
   totalVolume?: number;
   notes?: string;
   score?: number;

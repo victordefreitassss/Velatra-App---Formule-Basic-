@@ -679,17 +679,17 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                   </div>
                                   <div className="space-y-1">
                                     <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">
-                                      {baseEx?.cat === 'Cardio' ? 'DURÉE' : 'RÉPÉTITIONS'}
+                                      {baseEx?.cat === 'Cardio' ? 'DURÉE' : 'RÉPÉTITIONS / TEMPS'}
                                     </label>
                                     <Input 
                                       className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
                                       value={baseEx?.cat === 'Cardio' ? (ex.duration || '') : ex.reps}
-                                      placeholder={baseEx?.cat === 'Cardio' ? "Ex: 15 min" : "Ex: 10 ou 6,8,10"}
+                                      placeholder={baseEx?.cat === 'Cardio' ? "Ex: 15 min" : "Ex: 10 ou 30s"}
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, baseEx?.cat === 'Cardio' ? 'duration' : 'reps', e.target.value)}
                                     />
                                     {baseEx?.cat !== 'Cardio' && (
                                       <div className="text-[8px] text-zinc-500 text-center leading-tight mt-1">
-                                        Séparez par des virgules pour des reps différentes (ex: 12,10,8)
+                                        Séparez par des virgules pour des valeurs différentes (ex: 12,10,8 ou 30,45,60)
                                       </div>
                                     )}
                                   </div>

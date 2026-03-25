@@ -1,10 +1,6 @@
 {
-  "name": "Velatra",
   "short_name": "Velatra",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#050505",
-  "theme_color": "#050505",
+  "name": "Velatra Body Coach",
   "icons": [
     {
       "src": "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png",
@@ -16,5 +12,9 @@
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
 }

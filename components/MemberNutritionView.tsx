@@ -22,8 +22,9 @@ const getApiKey = () => {
   return '';
 };
 
-export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: string, type?: 'success' | 'error') => void }> = ({ state, showToast }) => {
-  const user = state.user!;
+export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: string, type?: 'success' | 'error') => void, memberId?: number, readOnly?: boolean }> = ({ state, showToast, memberId, readOnly }) => {
+  const user = memberId ? state.users.find(u => Number(u.id) === memberId) : state.user!;
+  if (!user) return null;
   const plan = state.nutritionPlans.find(p => p.memberId === Number(user.id));
   
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
@@ -245,10 +246,14 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
   return (
     <div className="space-y-6 page-transition pb-20 p-4 sm:p-6 max-w-3xl mx-auto">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-display font-bold tracking-tight text-zinc-900 leading-none">Journal</h1>
-          <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[3px] mt-2">Suivi Nutritionnel</p>
-        </div>
+        {!readOnly ? (
+          <div>
+            <h1 className="text-3xl font-display font-bold tracking-tight text-zinc-900 leading-none">Journal</h1>
+            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[3px] mt-2">Suivi Nutritionnel</p>
+          </div>
+        ) : (
+          <div></div>
+        )}
         <div className="flex items-center gap-2 bg-zinc-50 rounded-xl p-1 border border-zinc-200">
           <button onClick={() => changeDate(-1)} className="p-2 hover:bg-zinc-200 rounded-lg transition-colors"><ChevronLeftIcon size={16} /></button>
           <span className="text-sm font-bold px-2">{new Date(currentDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</span>
@@ -281,60 +286,62 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
       </div>
 
       {/* AI Assistants */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="p-4 bg-white border-zinc-200 flex flex-col items-center text-center gap-3">
-          <div className="w-12 h-12 bg-velatra-accent/10 text-velatra-accent rounded-full flex items-center justify-center">
-            <CameraIcon size={24} />
-          </div>
-          <div>
-            <h3 className="font-bold text-zinc-900">Scanner un repas</h3>
-            <p className="text-xs text-zinc-500 mt-1">Prenez votre assiette en photo, l'IA estime les macros.</p>
-          </div>
-          <input 
-            type="file" 
-            accept="image/*" 
-            capture="environment"
-            className="hidden" 
-            ref={mealInputRef} 
-            onChange={(e) => handleImageUpload(e, 'meal')} 
-          />
-          <Button 
-            variant="primary" 
-            className="w-full mt-2 !py-2 text-xs" 
-            onClick={() => mealInputRef.current?.click()}
-            disabled={isScanningMeal}
-          >
-            {isScanningMeal ? <RefreshCwIcon size={14} className="animate-spin mr-2" /> : <CameraIcon size={14} className="mr-2" />}
-            {isScanningMeal ? "Analyse en cours..." : "Prendre une photo"}
-          </Button>
-        </Card>
+      {!readOnly && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Card className="p-4 bg-white border-zinc-200 flex flex-col items-center text-center gap-3">
+            <div className="w-12 h-12 bg-velatra-accent/10 text-velatra-accent rounded-full flex items-center justify-center">
+              <CameraIcon size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-zinc-900">Scanner un repas</h3>
+              <p className="text-xs text-zinc-500 mt-1">Prenez votre assiette en photo, l'IA estime les macros.</p>
+            </div>
+            <input 
+              type="file" 
+              accept="image/*" 
+              capture="environment"
+              className="hidden" 
+              ref={mealInputRef} 
+              onChange={(e) => handleImageUpload(e, 'meal')} 
+            />
+            <Button 
+              variant="primary" 
+              className="w-full mt-2 !py-2 text-xs" 
+              onClick={() => mealInputRef.current?.click()}
+              disabled={isScanningMeal}
+            >
+              {isScanningMeal ? <RefreshCwIcon size={14} className="animate-spin mr-2" /> : <CameraIcon size={14} className="mr-2" />}
+              {isScanningMeal ? "Analyse en cours..." : "Prendre une photo"}
+            </Button>
+          </Card>
 
-        <Card className="p-4 bg-white border-zinc-200 flex flex-col items-center text-center gap-3">
-          <div className="w-12 h-12 bg-velatra-accent/10 text-velatra-accent rounded-full flex items-center justify-center">
-            <ChefHatIcon size={24} />
-          </div>
-          <div>
-            <h3 className="font-bold text-zinc-900">Recette Anti-Gaspi</h3>
-            <p className="text-xs text-zinc-500 mt-1">Prenez votre frigo en photo, l'IA crée une recette saine.</p>
-          </div>
-          <input 
-            type="file" 
-            accept="image/*" 
-            className="hidden" 
-            ref={fridgeInputRef} 
-            onChange={(e) => handleImageUpload(e, 'fridge')} 
-          />
-          <Button 
-            variant="primary" 
-            className="w-full mt-2 !py-2 text-xs" 
-            onClick={() => fridgeInputRef.current?.click()}
-            disabled={isGeneratingRecipe}
-          >
-            {isGeneratingRecipe ? <RefreshCwIcon size={14} className="animate-spin mr-2" /> : <ChefHatIcon size={14} className="mr-2" />}
-            {isGeneratingRecipe ? "Génération..." : "Photo des ingrédients"}
-          </Button>
-        </Card>
-      </div>
+          <Card className="p-4 bg-white border-zinc-200 flex flex-col items-center text-center gap-3">
+            <div className="w-12 h-12 bg-velatra-accent/10 text-velatra-accent rounded-full flex items-center justify-center">
+              <ChefHatIcon size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-zinc-900">Recette Anti-Gaspi</h3>
+              <p className="text-xs text-zinc-500 mt-1">Prenez votre frigo en photo, l'IA crée une recette saine.</p>
+            </div>
+            <input 
+              type="file" 
+              accept="image/*" 
+              className="hidden" 
+              ref={fridgeInputRef} 
+              onChange={(e) => handleImageUpload(e, 'fridge')} 
+            />
+            <Button 
+              variant="primary" 
+              className="w-full mt-2 !py-2 text-xs" 
+              onClick={() => fridgeInputRef.current?.click()}
+              disabled={isGeneratingRecipe}
+            >
+              {isGeneratingRecipe ? <RefreshCwIcon size={14} className="animate-spin mr-2" /> : <ChefHatIcon size={14} className="mr-2" />}
+              {isGeneratingRecipe ? "Génération..." : "Photo des ingrédients"}
+            </Button>
+          </Card>
+        </div>
+      )}
 
       {recipeResult && (
         <Card className="p-6 bg-white border-velatra-accent/30 shadow-md shadow-velatra-accent/10 relative">
@@ -379,13 +386,15 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                     {mealType.label}
                     {mealCalories > 0 && <span className="text-zinc-400 font-normal">({mealCalories} kcal)</span>}
                   </h4>
-                  <Button 
-                    variant="secondary" 
-                    onClick={() => setAddingMealType(mealType.id as any)} 
-                    className="!py-1 !px-2 !text-[10px] flex items-center gap-1 bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50"
-                  >
-                    <PlusIcon size={12} /> AJOUTER
-                  </Button>
+                  {!readOnly && (
+                    <Button 
+                      variant="secondary" 
+                      onClick={() => setAddingMealType(mealType.id as any)} 
+                      className="!py-1 !px-2 !text-[10px] flex items-center gap-1 bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                    >
+                      <PlusIcon size={12} /> AJOUTER
+                    </Button>
+                  )}
                 </div>
 
                 {addingMealType === mealType.id && (
@@ -519,9 +528,11 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                           <span className="text-yellow-600">{food.fat}g L</span>
                         </div>
                       </div>
-                      <button onClick={() => handleDeleteFood(food.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">
-                        <Trash2Icon size={16} />
-                      </button>
+                      {!readOnly && (
+                        <button onClick={() => handleDeleteFood(food.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">
+                          <Trash2Icon size={16} />
+                        </button>
+                      )}
                     </div>
                   ))}
                   
