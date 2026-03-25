@@ -33,15 +33,40 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
   // State for session data (weight, reps per set)
   const [sessionData, setSessionData] = useState<Record<string, string>>(() => {
     const initialData: Record<string, string> = {};
+    
+    // Find the last session log for this specific day to pre-fill data
+    const lastLog = state.logs
+      ?.filter(l => l.memberId === Number(member.id) && l.dayName === currentDay.name)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
     sessionExercises.forEach((exEntry, exIndex) => {
       const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
       const baseEx = state.exercises.find(e => e.id === exEntry.exId);
       const lastPerf = baseEx?.perfId ? state.performances.filter(p => p.memberId === Number(member.id) && p.exId === baseEx.perfId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
 
+      // Find if this exercise was in the last log
+      const lastLogEx = lastLog?.exercises?.find(e => e.exId === exEntry.exId);
+
       for (let i = 0; i < numSets; i++) {
+        // Pre-fill reps
         const targetReps = getTargetRepsForSet(exEntry.reps, i);
-        if (targetReps) initialData[`${exIndex}-${i}-reps`] = targetReps;
-        if (lastPerf && lastPerf.weight) initialData[`${exIndex}-${i}-weight`] = String(lastPerf.weight);
+        if (lastLogEx && lastLogEx.sets[i] && lastLogEx.sets[i].reps) {
+          initialData[`${exIndex}-${i}-reps`] = lastLogEx.sets[i].reps;
+        } else if (targetReps) {
+          initialData[`${exIndex}-${i}-reps`] = targetReps;
+        }
+
+        // Pre-fill weight
+        if (lastLogEx && lastLogEx.sets[i] && lastLogEx.sets[i].weight) {
+          initialData[`${exIndex}-${i}-weight`] = lastLogEx.sets[i].weight;
+        } else if (lastPerf && lastPerf.weight) {
+          initialData[`${exIndex}-${i}-weight`] = String(lastPerf.weight);
+        }
+
+        // Pre-fill duration
+        if (lastLogEx && lastLogEx.sets[i] && lastLogEx.sets[i].duration) {
+          initialData[`${exIndex}-${i}-duration`] = lastLogEx.sets[i].duration;
+        }
       }
     });
     return initialData;
@@ -164,6 +189,24 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
   const finishSession = async () => {
     const totalVolume = calculateVolume();
     const score = calculateScore();
+    const sessionExercisesList = sessionExercises.map((exEntry, exIndex) => {
+      const baseEx = state.exercises.find(e => e.id === exEntry.exId);
+      const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
+      const sets = [];
+      for (let i = 0; i < numSets; i++) {
+        sets.push({
+          weight: sessionData[`${exIndex}-${i}-weight`] || "",
+          reps: sessionData[`${exIndex}-${i}-reps`] || "",
+          duration: sessionData[`${exIndex}-${i}-duration`] || ""
+        });
+      }
+      return {
+        exId: exEntry.exId,
+        name: baseEx?.name || String(exEntry.exId),
+        sets
+      };
+    });
+
     const log: SessionLog = {
       id: Date.now(),
       clubId: state.user?.clubId || "global",
@@ -173,6 +216,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
       isCoaching: true,
       dayName: currentDay.name,
       exerciseData: sessionData,
+      exercises: sessionExercisesList,
       totalVolume,
       notes: sessionNote,
       score,
@@ -378,7 +422,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                 ) : (
                   <>
                     <div className="text-center">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? 'Lest (kg)' : 'Charge (kg)'}</div>
-                    <div className="text-center">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? 'Temps (sec)' : 'Reps'}</div>
+                    <div className="text-center">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || String(activeEx?.reps).toLowerCase().includes('s')) ? 'Temps (sec)' : 'Reps'}</div>
                   </>
                 )}
                 <div>Action</div>
@@ -410,20 +454,22 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                             <input 
                               type="number"
                               inputMode="decimal"
+                              placeholder={(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "Lest" : "Charge"}
                               value={sessionData[`${currentExIndex}-${setIdx}-weight`] || ""}
                               onChange={e => handleInputChange(currentExIndex, setIdx, 'weight', e.target.value)}
-                              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent"
+                              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent placeholder:text-zinc-600"
                               disabled={isDone}
                             />
                           </div>
                           
                           <div className="relative">
                             <input 
-                              type="number"
+                              type="text"
                               inputMode="numeric"
+                              placeholder={getTargetRepsForSet(activeEx?.reps, setIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || String(activeEx?.reps).toLowerCase().includes('s')) ? "Sec" : "Reps")}
                               value={sessionData[`${currentExIndex}-${setIdx}-reps`] || ""}
                               onChange={e => handleInputChange(currentExIndex, setIdx, 'reps', e.target.value)}
-                              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent"
+                              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent placeholder:text-zinc-600"
                               disabled={isDone}
                             />
                           </div>

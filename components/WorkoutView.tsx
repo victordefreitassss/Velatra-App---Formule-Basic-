@@ -32,19 +32,40 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
   const currentDay = program.days[program.currentDayIndex % program.nbDays];
   const [sessionData, setSessionData] = useState<Record<string, string>>(() => {
     const initialData: Record<string, string> = {};
+    
+    // Find the last session log for this specific day to pre-fill data
+    const lastLog = state.logs
+      ?.filter(l => l.memberId === Number(member.id) && l.dayName === currentDay.name)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+
     currentDay.exercises.forEach((exEntry, exIndex) => {
       const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
       
       const baseEx = state.exercises.find(e => e.id === exEntry.exId);
       const lastPerf = baseEx?.perfId ? state.performances.filter(p => p.memberId === Number(member.id) && p.exId === baseEx.perfId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
 
+      // Find if this exercise was in the last log
+      const lastLogEx = lastLog?.exercises?.find(e => e.exId === exEntry.exId);
+
       for (let i = 0; i < numSets; i++) {
+        // Pre-fill reps
         const targetReps = getTargetRepsForSet(exEntry.reps, i);
-        if (targetReps) {
+        if (lastLogEx && lastLogEx.sets[i] && lastLogEx.sets[i].reps) {
+          initialData[`${exIndex}-${i}-reps`] = lastLogEx.sets[i].reps;
+        } else if (targetReps) {
           initialData[`${exIndex}-${i}-reps`] = targetReps;
         }
-        if (lastPerf && lastPerf.weight) {
+
+        // Pre-fill weight
+        if (lastLogEx && lastLogEx.sets[i] && lastLogEx.sets[i].weight) {
+          initialData[`${exIndex}-${i}-weight`] = lastLogEx.sets[i].weight;
+        } else if (lastPerf && lastPerf.weight) {
           initialData[`${exIndex}-${i}-weight`] = String(lastPerf.weight);
+        }
+
+        // Pre-fill duration
+        if (lastLogEx && lastLogEx.sets[i] && lastLogEx.sets[i].duration) {
+          initialData[`${exIndex}-${i}-duration`] = lastLogEx.sets[i].duration;
         }
       }
     });
@@ -165,6 +186,24 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
   }
 
   const finishSession = async () => {
+    const sessionExercisesList = currentDay.exercises.map((exEntry, exIndex) => {
+      const baseEx = state.exercises.find(e => e.id === exEntry.exId);
+      const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
+      const sets = [];
+      for (let i = 0; i < numSets; i++) {
+        sets.push({
+          weight: sessionData[`${exIndex}-${i}-weight`] || "",
+          reps: sessionData[`${exIndex}-${i}-reps`] || "",
+          duration: sessionData[`${exIndex}-${i}-duration`] || ""
+        });
+      }
+      return {
+        exId: exEntry.exId,
+        name: baseEx?.name || String(exEntry.exId),
+        sets
+      };
+    });
+
     const log: SessionLog = {
       id: Date.now(),
       clubId: member.clubId,
@@ -173,7 +212,8 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
       week: Math.ceil((program.currentDayIndex + 1) / program.nbDays),
       isCoaching: isCoachView || currentDay.isCoaching,
       dayName: currentDay.name,
-      exerciseData: sessionData
+      exerciseData: sessionData,
+      exercises: sessionExercisesList
     };
 
     const perfs: Performance[] = [];
@@ -433,12 +473,12 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                                            onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") - 1))))}
                                            className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                          >-</button>
-                                         <Input type="number" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "SEC" : "REPS")} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
+                                         <Input type="text" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || String(exEntry.reps).toLowerCase().includes('s')) ? "SEC" : "REPS")} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
                                          <button 
                                            onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") + 1)))}
                                            className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                          >+</button>
-                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase whitespace-nowrap">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? 'Temps (sec)' : 'Répétitions'} {exEntry.reps ? `(Cible: ${getTargetRepsForSet(exEntry.reps, sIdx)})` : ''}</span>
+                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase whitespace-nowrap">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || getTargetRepsForSet(exEntry.reps, sIdx).toLowerCase().includes('s')) ? 'Temps (sec)' : 'Répétitions'} {exEntry.reps ? `(Cible: ${getTargetRepsForSet(exEntry.reps, sIdx)})` : ''}</span>
                                       </div>
                                     </>
                                   )}

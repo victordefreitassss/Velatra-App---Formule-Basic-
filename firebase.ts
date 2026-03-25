@@ -24,6 +24,7 @@ import {
   addDoc
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAY7wpl0pigmWaUg4JRA_0y_dKAjnX17nA",
@@ -39,6 +40,16 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+
+let messaging: any = null;
+if (typeof window !== 'undefined' && 'Notification' in window) {
+  try {
+    messaging = getMessaging(app);
+  } catch (e) {
+    console.error("Firebase Messaging not supported", e);
+  }
+}
+export { messaging };
 
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 export const secondaryAuth = getAuth(secondaryApp);
@@ -62,5 +73,7 @@ export {
   addDoc,
   ref,
   uploadBytes,
-  getDownloadURL
+  getDownloadURL,
+  getToken,
+  onMessage
 };

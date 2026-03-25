@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, AppState, Program, Preset, SessionLog, Performance, BodyData, Message, FeedItem,
   SupplementProduct, SupplementOrder, FixedCost, CommissionPayment, Prospect, Newsletter, Club, Exercise,
@@ -9,9 +9,10 @@ import {
   INIT_EXERCISES, CLUB_INFO, COACHES 
 } from './constants';
 import { 
-  auth, db, 
+  auth, db, messaging,
   onAuthStateChanged, signOut, 
-  doc, getDoc, setDoc, onSnapshot, updateDoc, collection, deleteDoc, query, where, getDocs
+  doc, getDoc, setDoc, onSnapshot, updateDoc, collection, deleteDoc, query, where, getDocs,
+  getToken, onMessage
 } from './firebase';
 
 // Layout & UI
@@ -235,9 +236,20 @@ export default function App() {
       setState(prev => ({ ...prev, users: allUsers }));
     });
 
+    let isInitialProgsLoad = true;
     const unsubProgs = onSnapshot(query(collection(db, "programs"), where("clubId", "==", clubId)), (snap) => {
       const allProgs: Program[] = [];
       const now = new Date();
+      let hasNewProgram = false;
+
+      snap.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const prog = change.doc.data() as Program;
+          if (Number(prog.memberId) === Number(state.user?.id)) {
+            hasNewProgram = true;
+          }
+        }
+      });
 
       snap.forEach(d => {
         const data = d.data() as Program;
@@ -267,6 +279,14 @@ export default function App() {
         });
       });
       setState(prev => ({ ...prev, programs: allProgs }));
+
+      if (!isInitialProgsLoad && hasNewProgram && Notification.permission === 'granted') {
+        new Notification("Nouveau programme", {
+          body: "Un nouveau programme d'entraînement vous a été assigné.",
+          icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
+        });
+      }
+      isInitialProgsLoad = false;
     });
 
     const unsubPresets = onSnapshot(query(collection(db, "presets"), where("clubId", "==", clubId)), (snap) => {
@@ -328,6 +348,7 @@ export default function App() {
       setState(prev => ({ ...prev, logs }));
     });
 
+    let isInitialMessagesLoad = true;
     const unsubMessages = onSnapshot(query(collection(db, "messages"), where("clubId", "==", clubId)), (snap) => {
       const messages: Message[] = [];
       let hasNewUnread = false;
@@ -344,12 +365,13 @@ export default function App() {
       snap.forEach(d => messages.push(d.data() as Message));
       setState(prev => ({ ...prev, messages }));
 
-      if (hasNewUnread && Notification.permission === 'granted') {
+      if (!isInitialMessagesLoad && hasNewUnread && Notification.permission === 'granted') {
         new Notification("Nouveau message", {
           body: "Vous avez reçu un nouveau message sur Velatra.",
           icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
         });
       }
+      isInitialMessagesLoad = false;
     });
 
     const unsubFeed = onSnapshot(query(collection(db, "feed"), where("clubId", "==", clubId)), (snap) => {
@@ -389,10 +411,27 @@ export default function App() {
       setState(prev => ({ ...prev, bodyData }));
     });
 
+    let isInitialProspectsLoad = true;
     const unsubProspects = onSnapshot(query(collection(db, "prospects"), where("clubId", "==", clubId)), (snap) => {
       const prospects: Prospect[] = [];
+      let hasNewProspect = false;
+
+      snap.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          hasNewProspect = true;
+        }
+      });
+
       snap.forEach(d => prospects.push({ ...d.data(), firebaseUid: d.id } as Prospect));
       setState(prev => ({ ...prev, prospects }));
+
+      if (!isInitialProspectsLoad && hasNewProspect && state.user?.role !== 'member' && Notification.permission === 'granted') {
+        new Notification("Nouveau prospect", {
+          body: "Un nouveau prospect a été ajouté ou s'est inscrit.",
+          icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
+        });
+      }
+      isInitialProspectsLoad = false;
     });
 
     const unsubNewsletters = onSnapshot(query(collection(db, "newsletters"), where("clubId", "==", clubId)), (snap) => {
@@ -401,16 +440,58 @@ export default function App() {
       setState(prev => ({ ...prev, newsletters: newsletters.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()) }));
     });
 
+    let isInitialTasksLoad = true;
     const unsubTasks = onSnapshot(query(collection(db, "tasks"), where("clubId", "==", clubId)), (snap) => {
       const tasks: Task[] = [];
+      let hasNewTask = false;
+      let newTaskTitle = "";
+
+      snap.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const task = change.doc.data() as Task;
+          if (task.status === 'todo' && task.assignedTo === String(state.user?.id)) {
+            hasNewTask = true;
+            newTaskTitle = task.title;
+          }
+        }
+      });
+
       snap.forEach(d => tasks.push(d.data() as Task));
       setState(prev => ({ ...prev, tasks }));
+
+      if (!isInitialTasksLoad && hasNewTask && Notification.permission === 'granted') {
+        new Notification("Nouvelle tâche", {
+          body: `Vous avez une nouvelle tâche à accomplir : ${newTaskTitle}`,
+          icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
+        });
+      }
+      isInitialTasksLoad = false;
     });
 
+    let isInitialBookingsLoad = true;
     const unsubBookings = onSnapshot(query(collection(db, "bookings"), where("clubId", "==", clubId)), (snap) => {
       const bookings: Booking[] = [];
+      let hasNewBooking = false;
+
+      snap.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const booking = change.doc.data() as Booking;
+          if (booking.coachId === String(state.user?.id)) {
+            hasNewBooking = true;
+          }
+        }
+      });
+
       snap.forEach(d => bookings.push({ ...d.data(), id: d.id } as Booking));
       setState(prev => ({ ...prev, bookings }));
+
+      if (!isInitialBookingsLoad && hasNewBooking && Notification.permission === 'granted') {
+        new Notification("Nouvelle réservation", {
+          body: "Vous avez une nouvelle session de coaching réservée.",
+          icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
+        });
+      }
+      isInitialBookingsLoad = false;
     });
 
     const unsubPlans = onSnapshot(query(collection(db, "plans"), where("clubId", "==", clubId)), (snap) => {
@@ -419,8 +500,20 @@ export default function App() {
       setState(prev => ({ ...prev, plans }));
     });
 
+    let isInitialNutritionPlansLoad = true;
     const unsubNutritionPlans = onSnapshot(query(collection(db, "nutritionPlans"), where("clubId", "==", clubId)), (snap) => {
       const nutritionPlans: NutritionPlan[] = [];
+      let hasNewNutritionPlan = false;
+
+      snap.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const plan = change.doc.data() as NutritionPlan;
+          if (Number(plan.memberId) === Number(state.user?.id)) {
+            hasNewNutritionPlan = true;
+          }
+        }
+      });
+
       snap.forEach(d => {
         const data = d.data();
         nutritionPlans.push({
@@ -429,6 +522,14 @@ export default function App() {
         } as NutritionPlan);
       });
       setState(prev => ({ ...prev, nutritionPlans }));
+
+      if (!isInitialNutritionPlansLoad && hasNewNutritionPlan && Notification.permission === 'granted') {
+        new Notification("Nouveau plan nutritionnel", {
+          body: "Un nouveau plan nutritionnel vous a été assigné.",
+          icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
+        });
+      }
+      isInitialNutritionPlansLoad = false;
     });
 
     const unsubNutritionLogs = onSnapshot(query(collection(db, "nutritionLogs"), where("clubId", "==", clubId)), (snap) => {
@@ -658,11 +759,64 @@ export default function App() {
     }
   };
 
+  const hasNotifiedTasks = useRef(false);
+
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
   }, []);
+
+  useEffect(() => {
+    if (state.user?.id && messaging) {
+      const requestPushPermission = async () => {
+        try {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            const token = await getToken(messaging, {
+              // REMPLACER PAR LA CLÉ VAPID DEPUIS LA CONSOLE FIREBASE
+              vapidKey: 'BH_DNK6qCrM8TNPAXNLnL_vWKM2S6wjzsdoHwG4lKVvkxkJQJIz5E2vL7CF-N_XZy1a27sgZaOnQVjpHUwVa3Lw' 
+            });
+            if (token) {
+              await updateDoc(doc(db, "users", String(state.user.id)), {
+                fcmToken: token
+              });
+            }
+          }
+        } catch (error) {
+          console.error('Erreur lors de la récupération du token push:', error);
+        }
+      };
+
+      requestPushPermission();
+
+      const unsubscribe = onMessage(messaging, (payload) => {
+        if (Notification.permission === 'granted') {
+          new Notification(payload.notification?.title || "Nouvelle notification", {
+            body: payload.notification?.body,
+            icon: payload.notification?.icon || "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
+          });
+        }
+      });
+
+      return () => unsubscribe();
+    }
+  }, [state.user?.id]);
+
+  useEffect(() => {
+    if (state.user && state.tasks.length > 0 && !hasNotifiedTasks.current && Notification.permission === 'granted') {
+      const today = new Date().toISOString().split('T')[0];
+      const tasksDueToday = state.tasks.filter(t => t.status === 'todo' && t.assignedTo === String(state.user?.id) && t.dueDate === today);
+      
+      if (tasksDueToday.length > 0) {
+        new Notification("Rappel de tâches", {
+          body: `Vous avez ${tasksDueToday.length} tâche(s) à accomplir aujourd'hui.`,
+          icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
+        });
+        hasNotifiedTasks.current = true;
+      }
+    }
+  }, [state.tasks, state.user]);
 
   if (loading) return (
     <div className="min-h-screen bg-white flex items-center justify-center">
