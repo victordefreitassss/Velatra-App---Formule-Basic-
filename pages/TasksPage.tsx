@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AppState, Task } from '../types';
 import { db, doc, updateDoc, setDoc, deleteDoc } from '../firebase';
 import { Plus, Search, Trash2, Calendar, CheckCircle, Circle, Clock, User } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '../components/UI';
 
 interface Props {
   state: AppState;
@@ -13,6 +15,7 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
   const [filterStatus, setFilterStatus] = useState('Tous');
   const [isAdding, setIsAdding] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', description: '', dueDate: '', assignedTo: state.user?.id.toString() || '' });
+  const [confirmDeleteTaskId, setConfirmDeleteTaskId] = useState<string | null>(null);
 
   const filteredTasks = state.tasks.filter(t => {
     if (!t.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
@@ -57,12 +60,17 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Supprimer cette tâche ?")) {
-      try {
-        await deleteDoc(doc(db, "tasks", id));
-      } catch (err) {
-        console.error("Error deleting task", err);
-      }
+    setConfirmDeleteTaskId(id);
+  };
+
+  const confirmDeleteTask = async () => {
+    if (!confirmDeleteTaskId) return;
+    try {
+      await deleteDoc(doc(db, "tasks", confirmDeleteTaskId));
+    } catch (err) {
+      console.error("Error deleting task", err);
+    } finally {
+      setConfirmDeleteTaskId(null);
     }
   };
 
@@ -207,6 +215,24 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
           })
         )}
       </div>
+
+      {confirmDeleteTaskId && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer la tâche ?</h3>
+            <p className="text-zinc-500 mb-6">Voulez-vous vraiment supprimer cette tâche ?</p>
+            <div className="flex gap-3">
+              <Button variant="secondary" fullWidth onClick={() => setConfirmDeleteTaskId(null)}>Non, garder</Button>
+              <Button variant="danger" fullWidth onClick={confirmDeleteTask}>Oui, supprimer</Button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Club, User } from '../types';
@@ -69,8 +70,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
     }
   };
 
+  const [confirmDeleteClubId, setConfirmDeleteClubId] = useState<string | null>(null);
+
   const deleteClubAndData = async (clubId: string) => {
-    if (!confirm("⚠️ ATTENTION ⚠️\n\nÊtes-vous sûr de vouloir supprimer ce club et TOUTES ses données (membres, programmes, messages, etc.) ?\n\nCette action est DÉFINITIVE et IRRÉVERSIBLE.")) return;
+    setConfirmDeleteClubId(clubId);
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteClubId) return;
+    const clubId = confirmDeleteClubId;
     
     setLoading(true);
     try {
@@ -105,6 +113,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
       showToast("Erreur lors de la suppression", "error");
     } finally {
       setLoading(false);
+      setConfirmDeleteClubId(null);
     }
   };
 
@@ -363,6 +372,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
           </motion.div>
         )}
       </motion.div>
+      {confirmDeleteClubId && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">⚠️ ATTENTION ⚠️</h3>
+            <p className="text-zinc-500 mb-6">Êtes-vous sûr de vouloir supprimer ce club et TOUTES ses données (membres, programmes, messages, etc.) ?<br/><br/>Cette action est DÉFINITIVE et IRRÉVERSIBLE.</p>
+            <div className="flex gap-3">
+              <button className="flex-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={() => setConfirmDeleteClubId(null)}>Annuler</button>
+              <button className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-xl font-bold transition-colors" onClick={confirmDelete}>Supprimer</button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
     </motion.div>
   );
 };

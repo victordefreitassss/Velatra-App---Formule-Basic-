@@ -76,7 +76,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [showNutritionLog, setShowNutritionLog] = useState(false);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [newMemberData, setNewMemberData] = useState<Partial<User> & { password?: string }>({
-    name: '', email: '', password: '', phone: '', gender: 'M', age: 30, weight: 70, height: 175, objectifs: [], notes: ''
+    name: '', email: '', password: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: ''
   });
   const [isAddingPayment, setIsAddingPayment] = useState(false);
   const [newPayment, setNewPayment] = useState<Partial<Payment>>({ amount: 0, method: 'cash', status: 'paid', date: new Date().toISOString().split('T')[0] });
@@ -124,7 +124,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       const plan = state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id));
       if (plan) {
         const updatedPlan = updateNutritionPlanForWeight(plan, weightVal);
-        await updateDoc(doc(db, "nutritionPlans", plan.id), updatedPlan);
+        await updateDoc(doc(db, "nutritionPlans", plan.id.toString()), updatedPlan);
       }
       
       showToast("Scan balancé enregistré");
@@ -135,14 +135,22 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
-  const handleDeleteScan = async (scanId: number) => {
-    if (!confirm("Supprimer cette mesure ?")) return;
+  const [confirmDeleteScanId, setConfirmDeleteScanId] = useState<number | null>(null);
+
+  const confirmDeleteScan = async () => {
+    if (!confirmDeleteScanId) return;
     try {
-      await deleteDoc(doc(db, "bodyData", scanId.toString()));
+      await deleteDoc(doc(db, "bodyData", confirmDeleteScanId.toString()));
       showToast("Mesure supprimée");
     } catch (err) {
       showToast("Erreur de suppression", "error");
+    } finally {
+      setConfirmDeleteScanId(null);
     }
+  };
+
+  const handleDeleteScan = async (scanId: number) => {
+    setConfirmDeleteScanId(scanId);
   };
 
   const handleUpdateMemberInfo = async () => {
@@ -160,19 +168,26 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
-  const handleDeleteMember = async () => {
-    if (!selectedProfile || !selectedProfile.firebaseUid) return;
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedProfile.name} ? Cette action est irréversible.`)) return;
-    
+  const [confirmDeleteMemberId, setConfirmDeleteMemberId] = useState<string | null>(null);
+
+  const confirmDeleteMember = async () => {
+    if (!confirmDeleteMemberId) return;
     try {
-      await deleteDoc(doc(db, "users", selectedProfile.firebaseUid));
+      await deleteDoc(doc(db, "users", confirmDeleteMemberId));
       showToast("Membre supprimé avec succès");
       setIsEditingInfo(false);
       closeProfile();
     } catch (err) {
       console.error("Error deleting member:", err);
       showToast("Erreur lors de la suppression", "error");
+    } finally {
+      setConfirmDeleteMemberId(null);
     }
+  };
+
+  const handleDeleteMember = async () => {
+    if (!selectedProfile || !selectedProfile.firebaseUid) return;
+    setConfirmDeleteMemberId(selectedProfile.firebaseUid);
   };
 
   const handleUpdateCredits = async (member: User, amount: number) => {
@@ -381,26 +396,36 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       const bodySorted = memberBody.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       const latestScan = bodySorted[0];
 
+      const weight = latestScan?.weight || selectedProfile.weight || 70;
+      const height = selectedProfile.height || 175;
+      const age = selectedProfile.age || 30;
+      const gender = selectedProfile.gender || 'M';
+      
+      let bmr = (10 * weight) + (6.25 * height) - (5 * age);
+      bmr += gender === 'M' ? 5 : -161;
+      let tdee = bmr * 1.55;
+
       const { generateNutritionPlan } = await import('../services/aiService');
       const plan = await generateNutritionPlan(selectedProfile, latestScan, nutritionTargets);
       
-      const planId = state.nutritionPlans?.find(p => p.memberId === mid)?.id || Date.now().toString();
+      const existingPlan = state.nutritionPlans?.find(p => p.memberId === mid);
+      const planId = existingPlan?.id?.toString() || Date.now().toString();
       
       const newPlan: NutritionPlan = {
         id: planId,
         memberId: mid,
         clubId: selectedProfile.clubId,
-        createdAt: new Date().toISOString(),
+        createdAt: existingPlan?.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        weight: latestScan?.weight || selectedProfile.weight || 70,
-        height: selectedProfile.height || 175,
-        age: selectedProfile.age || 30,
-        gender: selectedProfile.gender || 'M',
+        weight: weight,
+        height: height,
+        age: age,
+        gender: gender,
         activityLevel: "Modérément actif",
         goal: (selectedProfile.objectifs[0] as any) || "Perte de poids",
         durationWeeks: 4,
-        bmr: 0,
-        tdee: 0,
+        bmr: Math.round(bmr),
+        tdee: Math.round(tdee),
         targetCalories: typeof plan.calories_totales === 'number' ? plan.calories_totales : parseInt(plan.calories_totales || "0") || 0,
         protein: typeof plan.macros?.proteines_g === 'number' ? plan.macros.proteines_g : parseInt(plan.macros?.proteines_g || "0") || 0,
         carbs: typeof plan.macros?.glucides_g === 'number' ? plan.macros.glucides_g : parseInt(plan.macros?.glucides_g || "0") || 0,
@@ -408,7 +433,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         meals: plan.repas?.map((r: any, idx: number) => ({
           id: Date.now().toString() + idx,
           name: r.type.replace('_', ' '),
-          description: '',
+          description: r.description || '',
           calories: typeof r.calories === 'number' ? r.calories : parseInt(r.calories || "0") || 0,
           protein: typeof r.proteines === 'number' ? r.proteines : parseInt(r.proteines || "0") || 0,
           carbs: typeof r.glucides === 'number' ? r.glucides : parseInt(r.glucides || "0") || 0,
@@ -418,7 +443,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         aiGenerated: true
       };
 
-      await setDoc(doc(db, "nutritionPlans", planId), newPlan);
+      await setDoc(doc(db, "nutritionPlans", planId.toString()), newPlan);
 
       setNutritionPlan(newPlan);
       showToast("Plan nutritionnel généré et sauvegardé avec succès !", "success");
@@ -555,6 +580,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         avatar: newMemberData.name.substring(0, 2).toUpperCase(),
         gender: newMemberData.gender as Gender || 'M',
         age: newMemberData.age || 30,
+        birthDate: newMemberData.birthDate || '',
         weight: newMemberData.weight || 70,
         height: newMemberData.height || 175,
         objectifs: newMemberData.objectifs || [],
@@ -569,7 +595,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       await setDoc(doc(db, "users", firebaseUid), newUser);
       showToast(`Membre créé avec succès !`);
       setIsAddingMember(false);
-      setNewMemberData({ name: '', email: '', password: '', phone: '', gender: 'M', age: 30, weight: 70, height: 175, objectifs: [], notes: '' });
+      setNewMemberData({ name: '', email: '', password: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: '' });
       // Select the new member automatically
       setSelectedProfile(newUser);
     } catch (err: any) {
@@ -869,6 +895,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         setEditInfoData({
                           name: selectedProfile.name,
                           age: selectedProfile.age,
+                          birthDate: selectedProfile.birthDate || '',
                           gender: selectedProfile.gender,
                           weight: selectedProfile.weight,
                           height: selectedProfile.height,
@@ -939,6 +966,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-1">Âge</div>
                         <div className="text-sm font-bold text-zinc-900">{selectedProfile.age} ans</div>
                       </div>
+                      {selectedProfile.birthDate && (
+                        <div>
+                          <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-1">Date de naissance</div>
+                          <div className="text-sm font-bold text-zinc-900">{new Date(selectedProfile.birthDate).toLocaleDateString()}</div>
+                        </div>
+                      )}
                       <div>
                         <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-1">Sexe</div>
                         <div className="text-sm font-bold text-zinc-900">{selectedProfile.gender === 'M' ? 'Homme' : selectedProfile.gender === 'F' ? 'Femme' : 'Autre'}</div>
@@ -1746,7 +1779,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Âge</label>
                   <Input 
@@ -1755,6 +1788,16 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     onChange={e => setEditInfoData({...editInfoData, age: parseInt(e.target.value) || 0})}
                   />
                 </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Date de naissance</label>
+                  <Input 
+                    type="date"
+                    value={editInfoData.birthDate || ''}
+                    onChange={e => setEditInfoData({...editInfoData, birthDate: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Poids (kg)</label>
                   <Input 
@@ -1958,7 +2001,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Âge</label>
                   <Input 
@@ -1967,6 +2010,17 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     onChange={e => setNewMemberData({...newMemberData, age: parseInt(e.target.value) || 0})}
                   />
                 </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Date de naissance</label>
+                  <Input 
+                    type="date"
+                    value={newMemberData.birthDate || ''}
+                    onChange={e => setNewMemberData({...newMemberData, birthDate: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Poids (kg)</label>
                   <Input 
@@ -2230,6 +2284,42 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </div>
                 </div>
               )}
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
+      {confirmDeleteScanId && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer cette mesure ?</h3>
+            <p className="text-zinc-500 mb-6">Cette action est irréversible.</p>
+            <div className="flex gap-3">
+              <Button variant="secondary" fullWidth onClick={() => setConfirmDeleteScanId(null)}>Annuler</Button>
+              <Button variant="danger" fullWidth onClick={confirmDeleteScan}>Supprimer</Button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
+      {confirmDeleteMemberId && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer ce membre ?</h3>
+            <p className="text-zinc-500 mb-6">Êtes-vous sûr de vouloir supprimer ce membre ? Cette action est irréversible.</p>
+            <div className="flex gap-3">
+              <Button variant="secondary" fullWidth onClick={() => setConfirmDeleteMemberId(null)}>Annuler</Button>
+              <Button variant="danger" fullWidth onClick={confirmDeleteMember}>Supprimer</Button>
             </div>
           </motion.div>
         </div>,

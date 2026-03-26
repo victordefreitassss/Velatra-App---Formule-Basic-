@@ -163,20 +163,12 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
     }
   };
 
-  const handleCancelBooking = async (booking: Booking) => {
-    if (!isCoach) {
-      const now = new Date();
-      const bookingTime = new Date(booking.startTime);
-      const hoursUntilSlot = (bookingTime.getTime() - now.getTime()) / (1000 * 60 * 60);
-      const minCancellation = bookingSettings.minCancellationHours || 0;
+  const [confirmCancelBookingId, setConfirmCancelBookingId] = useState<string | null>(null);
 
-      if (hoursUntilSlot < minCancellation) {
-        showToast(`L'annulation n'est plus possible à moins de ${minCancellation}h de la séance.`, "error");
-        return;
-      }
-    }
-
-    if (!confirm("Voulez-vous vraiment annuler cette réservation ?")) return;
+  const confirmCancelBooking = async () => {
+    if (!confirmCancelBookingId) return;
+    const booking = state.bookings.find(b => b.id === confirmCancelBookingId);
+    if (!booking) return;
 
     try {
       if (booking.id) {
@@ -195,7 +187,25 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
     } catch (error) {
       console.error("Error cancelling booking:", error);
       showToast("Erreur lors de l'annulation", "error");
+    } finally {
+      setConfirmCancelBookingId(null);
     }
+  };
+
+  const handleCancelBooking = async (booking: Booking) => {
+    if (!isCoach) {
+      const now = new Date();
+      const bookingTime = new Date(booking.startTime);
+      const hoursUntilSlot = (bookingTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      const minCancellation = bookingSettings.minCancellationHours || 0;
+
+      if (hoursUntilSlot < minCancellation) {
+        showToast(`L'annulation n'est plus possible à moins de ${minCancellation}h de la séance.`, "error");
+        return;
+      }
+    }
+
+    setConfirmCancelBookingId(booking.id || null);
   };
 
   const formatTime = (date: Date) => {
@@ -451,6 +461,24 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
       )}
       </AnimatePresence>,
       document.body
+      )}
+
+      {confirmCancelBookingId && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Annuler la réservation ?</h3>
+            <p className="text-zinc-500 mb-6">Voulez-vous vraiment annuler cette réservation ?</p>
+            <div className="flex gap-3">
+              <Button variant="secondary" fullWidth onClick={() => setConfirmCancelBookingId(null)}>Non, garder</Button>
+              <Button variant="danger" fullWidth onClick={confirmCancelBooking}>Oui, annuler</Button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
       )}
     </motion.div>
   );

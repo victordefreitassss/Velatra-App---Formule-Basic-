@@ -9,17 +9,7 @@ import { estimateFoodMacros, analyzeMealImage, generateRecipeFromFridge } from '
 import Markdown from 'react-markdown';
 
 const getApiKey = () => {
-  try {
-    if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
-      return process.env.GEMINI_API_KEY;
-    }
-  } catch (e) {}
-  try {
-    if (import.meta && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
-      return import.meta.env.VITE_GEMINI_API_KEY;
-    }
-  } catch (e) {}
-  return '';
+  return process.env.GEMINI_API_KEY || '';
 };
 
 export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: string, type?: 'success' | 'error') => void, memberId?: number, readOnly?: boolean }> = ({ state, showToast, memberId, readOnly }) => {
@@ -359,6 +349,38 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
           </div>
           <div className="prose prose-sm max-w-none prose-headings:font-display prose-a:text-velatra-accent prose-p:leading-relaxed">
             <Markdown>{recipeResult}</Markdown>
+          </div>
+        </Card>
+      )}
+
+      {/* Recommended Plan */}
+      {plan.meals && plan.meals.length > 0 && (
+        <Card className="p-6 bg-white border-zinc-200">
+          <div className="flex items-center gap-2 mb-6">
+            <div className="p-2 bg-velatra-accent/10 text-velatra-accent rounded-xl">
+              <SparklesIcon size={24} />
+            </div>
+            <h2 className="text-lg font-black uppercase">Mon Plan Recommandé</h2>
+          </div>
+          <div className="space-y-4">
+            {plan.meals.map((meal) => (
+              <div key={meal.id} className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="font-bold text-zinc-900">{meal.name}</h3>
+                  <div className="text-xs font-bold bg-white px-2 py-1 rounded-md border border-zinc-200 shadow-sm">
+                    {meal.calories} kcal
+                  </div>
+                </div>
+                {meal.description && (
+                  <p className="text-sm text-zinc-600 mb-3">{meal.description}</p>
+                )}
+                <div className="flex gap-4 text-xs font-bold">
+                  <span className="text-blue-500">{meal.protein}g Protéines</span>
+                  <span className="text-green-500">{meal.carbs}g Glucides</span>
+                  <span className="text-yellow-600">{meal.fat}g Lipides</span>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
       )}

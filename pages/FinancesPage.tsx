@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { AppState, Subscription, Payment, Plan, Expense, Invoice } from '../types';
 import { db, doc, updateDoc, setDoc, deleteDoc } from '../firebase';
 import { Plus, Search, Trash2, DollarSign, TrendingUp, CreditCard, AlertCircle, CheckCircle, Clock, User, Package, FileText, MessageCircle, Link as LinkIcon, Download, TrendingDown, RefreshCw } from 'lucide-react';
@@ -95,14 +96,22 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
     }
   };
 
-  const handleDeletePlan = async (id: string) => {
-    if (confirm("Supprimer cette formule ? Les abonnements existants ne seront pas impactés.")) {
-      try {
-        await deleteDoc(doc(db, "plans", id));
-      } catch (err) {
-        console.error("Error deleting plan", err);
-      }
+  const [confirmDeletePlanId, setConfirmDeletePlanId] = useState<string | null>(null);
+  const [confirmDeleteExpenseId, setConfirmDeleteExpenseId] = useState<string | null>(null);
+
+  const confirmDeletePlan = async () => {
+    if (!confirmDeletePlanId) return;
+    try {
+      await deleteDoc(doc(db, "plans", confirmDeletePlanId));
+    } catch (err) {
+      console.error("Error deleting plan", err);
+    } finally {
+      setConfirmDeletePlanId(null);
     }
+  };
+
+  const handleDeletePlan = async (id: string) => {
+    setConfirmDeletePlanId(id);
   };
 
   const handleAddExpense = async (e: React.FormEvent) => {
@@ -126,9 +135,46 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
     }
   };
 
+  const confirmDeleteExpense = async () => {
+    if (!confirmDeleteExpenseId) return;
+    try {
+      await deleteDoc(doc(db, "expenses", confirmDeleteExpenseId));
+    } catch (err) {
+      console.error("Error deleting expense", err);
+    } finally {
+      setConfirmDeleteExpenseId(null);
+    }
+  };
+
   const handleDeleteExpense = async (id: string) => {
-    if (confirm("Supprimer cette dépense ?")) {
-      await deleteDoc(doc(db, "expenses", id));
+    setConfirmDeleteExpenseId(id);
+  };
+
+  const [confirmRefundPaymentId, setConfirmRefundPaymentId] = useState<string | null>(null);
+
+  const confirmRefundPayment = async () => {
+    if (!confirmRefundPaymentId) return;
+    const payment = state.payments.find(p => p.id === confirmRefundPaymentId);
+    if (!payment || !payment.stripeChargeId) return;
+
+    try {
+      if (showToast) showToast("Remboursement en cours...", "info");
+      const stripeSecretKey = state.currentClub?.settings?.payment?.stripeSecretKey;
+      const res = await fetch('/api/stripe/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stripeSecretKey, chargeId: payment.stripeChargeId })
+      });
+      if (res.ok) {
+        await updateDoc(doc(db, "payments", payment.id), { status: 'failed' });
+        if (showToast) showToast("Remboursement effectué avec succès !");
+      } else {
+        throw new Error("Erreur lors du remboursement");
+      }
+    } catch (e) {
+      if (showToast) showToast("Erreur lors du remboursement", "error");
+    } finally {
+      setConfirmRefundPaymentId(null);
     }
   };
 
@@ -397,27 +443,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                         <td className="px-6 py-4 text-right">
                           {payment.stripeChargeId && payment.status === 'paid' && (
                             <button 
-                              onClick={async () => {
-                                if (confirm("Voulez-vous vraiment rembourser ce paiement ?")) {
-                                  try {
-                                    if (showToast) showToast("Remboursement en cours...", "info");
-                                    const stripeSecretKey = state.currentClub?.settings?.payment?.stripeSecretKey;
-                                    const res = await fetch('/api/stripe/refund', {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({ stripeSecretKey, chargeId: payment.stripeChargeId })
-                                    });
-                                    if (res.ok) {
-                                      await updateDoc(doc(db, "payments", payment.id), { status: 'failed' });
-                                      if (showToast) showToast("Remboursement effectué avec succès !");
-                                    } else {
-                                      throw new Error("Erreur lors du remboursement");
-                                    }
-                                  } catch (e) {
-                                    if (showToast) showToast("Erreur lors du remboursement", "error");
-                                  }
-                                }
-                              }}
+                              onClick={() => setConfirmRefundPaymentId(payment.id)}
                               className="text-red-500 hover:text-red-700 text-xs font-bold uppercase tracking-wider"
                             >
                               Rembourser
@@ -601,6 +627,60 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             )}
           </div>
         </div>
+      )}
+
+      {confirmDeletePlanId && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer cette formule ?</h3>
+            <p className="text-zinc-500 mb-6">Les abonnements existants ne seront pas impactés.</p>
+            <div className="flex gap-3">
+              <button className="flex-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={() => setConfirmDeletePlanId(null)}>Annuler</button>
+              <button className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-xl font-bold transition-colors" onClick={confirmDeletePlan}>Supprimer</button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
+      {confirmDeleteExpenseId && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer cette dépense ?</h3>
+            <p className="text-zinc-500 mb-6">Cette action est irréversible.</p>
+            <div className="flex gap-3">
+              <button className="flex-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={() => setConfirmDeleteExpenseId(null)}>Annuler</button>
+              <button className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-xl font-bold transition-colors" onClick={confirmDeleteExpense}>Supprimer</button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
+      {confirmRefundPaymentId && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Rembourser le paiement ?</h3>
+            <p className="text-zinc-500 mb-6">Voulez-vous vraiment rembourser ce paiement ? Cette action est irréversible.</p>
+            <div className="flex gap-3">
+              <button className="flex-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={() => setConfirmRefundPaymentId(null)}>Annuler</button>
+              <button className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-xl font-bold transition-colors" onClick={confirmRefundPayment}>Rembourser</button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
       )}
     </div>
   );

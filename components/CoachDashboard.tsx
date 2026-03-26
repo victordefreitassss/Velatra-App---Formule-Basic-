@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppState, User, Program, Task } from '../types';
 import { Card, StatBox, Button, Input, Badge } from './UI';
-import { RefreshCwIcon, PlusIcon, SearchIcon, Trash2Icon, PlayIcon, LayersIcon, FlameIcon, MessageCircleIcon, SparklesIcon, BarChartIcon, LockIcon, CalendarIcon, InfoIcon, ClockIcon, CheckCircleIcon, UserIcon, FileTextIcon, TargetIcon } from './Icons';
+import { RefreshCwIcon, PlusIcon, SearchIcon, Trash2Icon, PlayIcon, LayersIcon, FlameIcon, MessageCircleIcon, SparklesIcon, BarChartIcon, LockIcon, CalendarIcon, InfoIcon, ClockIcon, CheckCircleIcon, UserIcon, FileTextIcon, TargetIcon, GiftIcon } from './Icons';
 import { db, doc, deleteDoc, updateDoc, setDoc } from '../firebase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion } from 'framer-motion';
@@ -66,6 +66,33 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   });
   const failedSubs = state.subscriptions?.filter(s => (s.status === 'past_due' || s.status === 'unpaid') && s.clubId === state.user?.clubId) || [];
 
+  // 4. Anniversaires
+  const upcomingBirthdays = members.filter(u => {
+    if (!u.birthDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const birthDate = new Date(u.birthDate);
+    const nextBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+    if (nextBirthday.getTime() < today.getTime()) {
+      nextBirthday.setFullYear(today.getFullYear() + 1);
+    }
+    const diffTime = nextBirthday.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 30; // Upcoming in the next 30 days
+  }).sort((a, b) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const birthDateA = new Date(a.birthDate!);
+    const nextBirthdayA = new Date(today.getFullYear(), birthDateA.getMonth(), birthDateA.getDate());
+    if (nextBirthdayA.getTime() < today.getTime()) nextBirthdayA.setFullYear(today.getFullYear() + 1);
+    
+    const birthDateB = new Date(b.birthDate!);
+    const nextBirthdayB = new Date(today.getFullYear(), birthDateB.getMonth(), birthDateB.getDate());
+    if (nextBirthdayB.getTime() < today.getTime()) nextBirthdayB.setFullYear(today.getFullYear() + 1);
+    
+    return nextBirthdayA.getTime() - nextBirthdayB.getTime();
+  });
+
   // 5. Chiffres Clés
   const activeSubscriptions = state.subscriptions?.filter(s => s.status === 'active' && s.clubId === state.user?.clubId) || [];
   const mrr = activeSubscriptions.reduce((acc, sub) => {
@@ -113,6 +140,49 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
       }
     });
   }, [membersAtRisk.length, state.tasks.length, state.user?.clubId]);
+
+  useEffect(() => {
+    // Generate automated tasks for upcoming birthdays
+    if (!state.user?.clubId) return;
+    
+    upcomingBirthdays.forEach(async (member) => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const birthDate = new Date(member.birthDate!);
+      const nextBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+      if (nextBirthday.getTime() < today.getTime()) {
+        nextBirthday.setFullYear(today.getFullYear() + 1);
+      }
+      const diffTime = nextBirthday.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      // Create task if birthday is in exactly 7 days or less, and no task exists for this year
+      if (diffDays <= 7) {
+        const taskTitle = `Anniversaire : ${member.name}`;
+        const taskId = `bday_${member.id}_${nextBirthday.getFullYear()}`;
+        
+        const taskExists = state.tasks.some(t => t.id === taskId);
+        
+        if (!taskExists) {
+          const newTask: Task = {
+            id: taskId,
+            clubId: state.user.clubId!,
+            title: taskTitle,
+            description: `C'est l'anniversaire de ${member.name} le ${nextBirthday.toLocaleDateString('fr-FR')}. Pensez à lui souhaiter !`,
+            dueDate: nextBirthday.toISOString().split('T')[0],
+            assignedTo: state.user.id.toString(),
+            status: 'todo',
+            relatedMemberId: member.id
+          };
+          try {
+            await setDoc(doc(db, "tasks", taskId), newTask);
+          } catch (e) {
+            console.error("Error creating automated birthday task", e);
+          }
+        }
+      }
+    });
+  }, [upcomingBirthdays.length, state.tasks.length, state.user?.clubId]);
 
   const handleLaunchCoaching = (member: User) => {
     const program = state.programs.find(p => p.memberId === Number(member.id));
@@ -318,6 +388,45 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
               {membersAtRisk.length === 0 && failedSubs.length === 0 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-zinc-500 font-bold uppercase tracking-widest p-6 text-center bg-white/40 backdrop-blur-md rounded-3xl border border-zinc-200/50">
                   Tout est au vert <span className="text-green-500 ml-1">✅</span>
+                </motion.div>
+              )}
+            </div>
+          </motion.section>
+
+          {/* 4. Anniversaires à venir */}
+          <motion.section variants={itemVariants} className="space-y-4">
+            <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 px-1 italic">Anniversaires</h2>
+            <div className="space-y-3">
+              {upcomingBirthdays.map(member => {
+                const birthDate = new Date(member.birthDate!);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                  age--;
+                }
+                const nextAge = age + 1;
+                const isToday = today.getMonth() === birthDate.getMonth() && today.getDate() === birthDate.getDate();
+                
+                return (
+                  <motion.div key={`bday_${member.id}`} whileHover={{ scale: 1.02, x: -4 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
+                    <Card className={`!p-4 border-velatra-accent/30 ${isToday ? 'bg-velatra-accent/20' : 'bg-velatra-accent/5'} backdrop-blur-md flex items-center justify-between shadow-sm hover:shadow-velatra-accent/20 transition-all`}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-velatra-accent/20 flex items-center justify-center text-velatra-accent shadow-inner"><GiftIcon size={20}/></div>
+                        <div>
+                          <div className="text-xs font-black text-zinc-900">{member.name}</div>
+                          <div className="text-[9px] font-bold text-velatra-accent uppercase tracking-widest mt-0.5">
+                            {isToday ? `Aujourd'hui ! (${nextAge} ans)` : `${birthDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })} (${nextAge} ans)`}
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+              {upcomingBirthdays.length === 0 && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-zinc-500 font-bold uppercase tracking-widest p-6 text-center bg-white/40 backdrop-blur-md rounded-3xl border border-zinc-200/50">
+                  Aucun anniversaire ce mois-ci
                 </motion.div>
               )}
             </div>
