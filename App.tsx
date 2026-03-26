@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, AppState, Program, Preset, SessionLog, Performance, BodyData, Message, FeedItem,
   SupplementProduct, SupplementOrder, FixedCost, CommissionPayment, Prospect, Newsletter, Club, Exercise,
-  Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect, Expense, Invoice, Booking
+  Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect, Expense, Invoice, Booking, DriveFile, DriveFolder
 } from './types';
 import { 
   INIT_EXERCISES, CLUB_INFO, COACHES 
@@ -52,7 +52,6 @@ import { LoyaltyPage } from './pages/LoyaltyPage';
 import { MemberSupplementsPage } from './pages/MemberSupplementsPage';
 import { MemberLoyaltyPage } from './pages/MemberLoyaltyPage';
 import { DrivePage } from './pages/DrivePage';
-import { VideoLibraryPage } from './pages/VideoLibraryPage';
 import { CommunityPage } from './pages/CommunityPage';
 
 const INITIAL_STATE: AppState = {
@@ -87,6 +86,8 @@ const INITIAL_STATE: AppState = {
   manualStats: [],
   pendingProspects: [],
   bookings: [],
+  driveFiles: [],
+  driveFolders: [],
   aboutInfo: CLUB_INFO,
   coaches: COACHES,
   page: 'home',
@@ -638,13 +639,25 @@ export default function App() {
       setState(prev => ({ ...prev, pendingProspects }));
     });
 
+    const unsubDriveFiles = onSnapshot(query(collection(db, "driveFiles"), where("clubId", "==", clubId)), (snap) => {
+      const driveFiles: DriveFile[] = [];
+      snap.forEach(d => driveFiles.push(d.data() as DriveFile));
+      setState(prev => ({ ...prev, driveFiles }));
+    });
+
+    const unsubDriveFolders = onSnapshot(query(collection(db, "driveFolders"), where("clubId", "==", clubId)), (snap) => {
+      const driveFolders: DriveFolder[] = [];
+      snap.forEach(d => driveFolders.push(d.data() as DriveFolder));
+      setState(prev => ({ ...prev, driveFolders }));
+    });
+
     return () => {
       unsubClub(); unsubUsers(); unsubProgs(); unsubPresets(); 
       unsubArchives(); unsubPerfs(); unsubProducts(); unsubOrders();
       unsubLogs(); unsubMessages(); unsubFeed(); unsubBody();
       unsubProspects(); unsubNewsletters(); unsubExercises();
       unsubTasks(); unsubBookings(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubNutritionPlans(); unsubNutritionLogs();
-      unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects();
+      unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects(); unsubDriveFiles(); unsubDriveFolders();
     };
   }, [state.user?.clubId]);
 
@@ -733,7 +746,6 @@ export default function App() {
         case 'calendar': return <PlanningPage state={state} setState={setState} showToast={showToast} />;
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;
         case 'drive': return <DrivePage state={state} />;
-        case 'videos': return <VideoLibraryPage state={state} />;
         case 'marketing': return <MarketingPage state={state} setState={setState} />;
         case 'supplements': return <SupplementsPage state={state} setState={setState} showToast={showToast} />;
         case 'loyalty': return <LoyaltyPage state={state} setState={setState} showToast={showToast} />;
@@ -778,9 +790,9 @@ export default function App() {
               vapidKey: 'BH_DNK6qCrM8TNPAXNLnL_vWKM2S6wjzsdoHwG4lKVvkxkJQJIz5E2vL7CF-N_XZy1a27sgZaOnQVjpHUwVa3Lw' 
             });
             if (token) {
-              await updateDoc(doc(db, "users", String(state.user.id)), {
+              await setDoc(doc(db, "users", String(state.user.id)), {
                 fcmToken: token
-              });
+              }, { merge: true });
             }
           }
         } catch (error) {

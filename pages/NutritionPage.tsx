@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { AppState, User, NutritionPlan, ActivityLevel, Goal, Gender, Meal } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { AppleIcon, PlusIcon, SearchIcon, SaveIcon, UserIcon, TargetIcon, FlameIcon, ChevronLeftIcon, Trash2Icon } from '../components/Icons';
@@ -77,6 +77,11 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
     });
   }, [state.users, searchTerm, filterPlan, state.nutritionPlans]);
 
+  const [targetCalories, setTargetCalories] = useState<number>(0);
+  const [protein, setProtein] = useState<number>(0);
+  const [carbs, setCarbs] = useState<number>(0);
+  const [fat, setFat] = useState<number>(0);
+
   const handleSelectMember = (member: User) => {
     setSelectedMember(member);
     
@@ -92,6 +97,10 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       setGoal(existingPlan.goal || member.objectifs?.[0] || 'Sport santé bien-être');
       setDietPreference(existingPlan.dietPreference || 'Standard');
       setDurationWeeks(existingPlan.durationWeeks || 4);
+      setTargetCalories(existingPlan.targetCalories || 0);
+      setProtein(existingPlan.protein || 0);
+      setCarbs(existingPlan.carbs || 0);
+      setFat(existingPlan.fat || 0);
     } else {
       setWeight(member.weight || 70);
       setHeight(member.height || 175);
@@ -100,6 +109,10 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       setGoal(member.objectifs?.[0] || 'Sport santé bien-être');
       setDietPreference('Standard');
       setDurationWeeks(4);
+      setTargetCalories(0);
+      setProtein(0);
+      setCarbs(0);
+      setFat(0);
     }
   };
 
@@ -116,30 +129,37 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
     return Math.round(bmr * (ACTIVITY_MULTIPLIERS[activityLevel] || 1.2));
   }, [bmr, activityLevel]);
 
-  const targetCalories = useMemo(() => {
-    return tdee + (GOAL_ADJUSTMENTS[goal] || 0);
-  }, [tdee, goal]);
+  const handleRecalculate = () => {
+    const newTargetCalories = tdee + (GOAL_ADJUSTMENTS[goal] || 0);
+    setTargetCalories(newTargetCalories);
 
-  const macros = useMemo(() => {
-    // Basic macro split based on goal
-    let proteinMultiplier = 1.6; // g per kg of bodyweight
+    let proteinMultiplier = 1.6;
     if (goal === 'Prise de masse' || goal === 'Renforcement musculaire') proteinMultiplier = 1.8;
-    if (goal === 'Perte de poids') proteinMultiplier = 2.0; // Higher protein to preserve muscle
+    if (goal === 'Perte de poids') proteinMultiplier = 2.0;
     
-    const protein = Math.round(weight * proteinMultiplier);
-    const proteinCals = protein * 4;
+    const newProtein = Math.round(weight * proteinMultiplier);
+    const proteinCals = newProtein * 4;
     
-    let fatPercentage = 0.30; // 30% of total calories
-    if (goal === 'Perte de poids') fatPercentage = 0.35; // Slightly higher fat for satiety
+    let fatPercentage = 0.30;
+    if (goal === 'Perte de poids') fatPercentage = 0.35;
     
-    const fat = Math.round((targetCalories * fatPercentage) / 9);
-    const fatCals = fat * 9;
+    const newFat = Math.round((newTargetCalories * fatPercentage) / 9);
+    const fatCals = newFat * 9;
     
-    const carbsCals = targetCalories - proteinCals - fatCals;
-    const carbs = Math.max(0, Math.round(carbsCals / 4));
-    
-    return { protein, fat, carbs };
-  }, [weight, targetCalories, goal]);
+    const carbsCals = newTargetCalories - proteinCals - fatCals;
+    const newCarbs = Math.max(0, Math.round(carbsCals / 4));
+
+    setProtein(newProtein);
+    setFat(newFat);
+    setCarbs(newCarbs);
+  };
+
+  // Auto-calculate if 0
+  useEffect(() => {
+    if (targetCalories === 0 && tdee > 0) {
+      handleRecalculate();
+    }
+  }, [tdee, targetCalories]);
 
   const handleSavePlan = async () => {
     if (!selectedMember || !state.user?.clubId) return;
@@ -147,8 +167,24 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
     
     try {
       const existingPlan = state.nutritionPlans.find(p => p.memberId === Number(selectedMember.id));
-      const planId = existingPlan?.id || Date.now().toString();
+      const planId = existingPlan?.id?.toString() || Date.now().toString();
       
+      let updatedMeals = existingPlan?.meals || [];
+      if (updatedMeals.length > 0 && existingPlan) {
+        const oldCals = existingPlan.targetCalories || 1;
+        const oldProt = existingPlan.protein || 1;
+        const oldCarbs = existingPlan.carbs || 1;
+        const oldFat = existingPlan.fat || 1;
+
+        updatedMeals = updatedMeals.map(m => ({
+          ...m,
+          calories: Math.round((m.calories / oldCals) * targetCalories),
+          protein: Math.round((m.protein / oldProt) * protein),
+          carbs: Math.round((m.carbs / oldCarbs) * carbs),
+          fat: Math.round((m.fat / oldFat) * fat),
+        }));
+      }
+
       const planData: NutritionPlan = {
         id: planId,
         memberId: Number(selectedMember.id),
@@ -166,15 +202,15 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
         bmr,
         tdee,
         targetCalories,
-        protein: macros.protein,
-        carbs: macros.carbs,
-        fat: macros.fat,
-        meals: existingPlan?.meals || [],
+        protein: protein,
+        carbs: carbs,
+        fat: fat,
+        meals: updatedMeals,
         liste_courses: existingPlan?.liste_courses || [],
         aiGenerated: existingPlan?.aiGenerated || false
       };
       
-      await setDoc(doc(db, "nutritionPlans", planId), planData);
+      await setDoc(doc(db, "nutritionPlans", planId.toString()), planData);
       
       // Update local state is handled by onSnapshot in App.tsx
       showToast("Plan nutritionnel enregistré avec succès !");
@@ -339,7 +375,12 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
               <div className="flex items-end justify-between border-b border-zinc-200/50 pb-4">
                 <div>
                   <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Calories Cibles</div>
-                  <div className="text-4xl font-black text-zinc-900 tabular-nums leading-none">{targetCalories}</div>
+                  <Input 
+                    type="number" 
+                    value={targetCalories || ''} 
+                    onChange={e => setTargetCalories(Number(e.target.value) || 0)} 
+                    className="text-4xl font-black text-zinc-900 tabular-nums leading-none !p-0 !bg-transparent border-none focus:ring-0 w-32"
+                  />
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] uppercase font-bold text-zinc-500 mb-1">Maintien (TDEE)</div>
@@ -349,14 +390,23 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold">
+                  <div className="flex justify-between text-xs font-bold items-center">
                     <span className="text-blue-500">Protéines</span>
-                    <span className="text-zinc-900">{macros.protein}g <span className="text-zinc-900/30 text-[10px]">({targetCalories > 0 ? Math.round((macros.protein * 4 / targetCalories) * 100) : 0}%)</span></span>
+                    <div className="flex items-center gap-1">
+                      <Input 
+                        type="number" 
+                        value={protein || ''} 
+                        onChange={e => setProtein(Number(e.target.value) || 0)} 
+                        className="w-16 !py-1 !px-2 text-right text-zinc-900 bg-white/50"
+                      />
+                      <span className="text-zinc-900">g</span>
+                      <span className="text-zinc-900/30 text-[10px] w-8 text-right">({targetCalories > 0 ? Math.round((protein * 4 / targetCalories) * 100) : 0}%)</span>
+                    </div>
                   </div>
                   <div className="h-2 bg-white/80 rounded-full overflow-hidden border border-zinc-100/50">
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: `${targetCalories > 0 ? (macros.protein * 4 / targetCalories) * 100 : 0}%` }}
+                      animate={{ width: `${targetCalories > 0 ? (protein * 4 / targetCalories) * 100 : 0}%` }}
                       transition={{ duration: 1, delay: 0.2 }}
                       className="h-full bg-blue-500 rounded-full" 
                     />
@@ -364,14 +414,23 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
                 
                 <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold">
+                  <div className="flex justify-between text-xs font-bold items-center">
                     <span className="text-green-500">Glucides</span>
-                    <span className="text-zinc-900">{macros.carbs}g <span className="text-zinc-900/30 text-[10px]">({targetCalories > 0 ? Math.round((macros.carbs * 4 / targetCalories) * 100) : 0}%)</span></span>
+                    <div className="flex items-center gap-1">
+                      <Input 
+                        type="number" 
+                        value={carbs || ''} 
+                        onChange={e => setCarbs(Number(e.target.value) || 0)} 
+                        className="w-16 !py-1 !px-2 text-right text-zinc-900 bg-white/50"
+                      />
+                      <span className="text-zinc-900">g</span>
+                      <span className="text-zinc-900/30 text-[10px] w-8 text-right">({targetCalories > 0 ? Math.round((carbs * 4 / targetCalories) * 100) : 0}%)</span>
+                    </div>
                   </div>
                   <div className="h-2 bg-white/80 rounded-full overflow-hidden border border-zinc-100/50">
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: `${targetCalories > 0 ? (macros.carbs * 4 / targetCalories) * 100 : 0}%` }}
+                      animate={{ width: `${targetCalories > 0 ? (carbs * 4 / targetCalories) * 100 : 0}%` }}
                       transition={{ duration: 1, delay: 0.4 }}
                       className="h-full bg-green-500 rounded-full" 
                     />
@@ -379,19 +438,34 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-bold">
+                  <div className="flex justify-between text-xs font-bold items-center">
                     <span className="text-yellow-500">Lipides</span>
-                    <span className="text-zinc-900">{macros.fat}g <span className="text-zinc-900/30 text-[10px]">({targetCalories > 0 ? Math.round((macros.fat * 9 / targetCalories) * 100) : 0}%)</span></span>
+                    <div className="flex items-center gap-1">
+                      <Input 
+                        type="number" 
+                        value={fat || ''} 
+                        onChange={e => setFat(Number(e.target.value) || 0)} 
+                        className="w-16 !py-1 !px-2 text-right text-zinc-900 bg-white/50"
+                      />
+                      <span className="text-zinc-900">g</span>
+                      <span className="text-zinc-900/30 text-[10px] w-8 text-right">({targetCalories > 0 ? Math.round((fat * 9 / targetCalories) * 100) : 0}%)</span>
+                    </div>
                   </div>
                   <div className="h-2 bg-white/80 rounded-full overflow-hidden border border-zinc-100/50">
                     <motion.div 
                       initial={{ width: 0 }}
-                      animate={{ width: `${targetCalories > 0 ? (macros.fat * 9 / targetCalories) * 100 : 0}%` }}
+                      animate={{ width: `${targetCalories > 0 ? (fat * 9 / targetCalories) * 100 : 0}%` }}
                       transition={{ duration: 1, delay: 0.6 }}
                       className="h-full bg-yellow-500 rounded-full" 
                     />
                   </div>
                 </div>
+              </div>
+              
+              <div className="pt-4 border-t border-zinc-200/50 flex justify-end">
+                <Button variant="secondary" onClick={handleRecalculate} className="!py-2 !text-xs">
+                  RECALCULER LES MACROS
+                </Button>
               </div>
             </Card>
           </div>

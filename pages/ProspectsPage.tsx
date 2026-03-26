@@ -4,11 +4,12 @@ import { AppState, Prospect, User } from '../types';
 import { db, doc, updateDoc, setDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs } from '../firebase';
 import { Plus, Search, Trash2, Mail, Phone, Clock, CheckCircle, XCircle, UserPlus, X } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Card } from '../components/UI';
+import { Card, Button } from '../components/UI';
 
 interface Props {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
+  showToast: (msg: string, type?: 'success' | 'error') => void;
 }
 
 const COLUMNS = [
@@ -19,13 +20,14 @@ const COLUMNS = [
   { id: 'lost', title: 'Perdu', color: 'bg-red-500/20 text-red-400 border-red-500/30' }
 ];
 
-export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
+export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('Tous');
   const [isAdding, setIsAdding] = useState(false);
   const [newProspect, setNewProspect] = useState({ name: '', email: '', phone: '', notes: '' });
   const [convertingProspect, setConvertingProspect] = useState<any>(null);
   const [convertData, setConvertData] = useState({ email: '', password: '' });
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const filteredProspects = state.prospects.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -54,7 +56,7 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
 
   const confirmConversion = async () => {
     if (!convertingProspect || !convertData.email || !convertData.password) {
-      alert("Email et mot de passe requis");
+      showToast("Email et mot de passe requis", "error");
       return;
     }
 
@@ -93,12 +95,12 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
       await updateDoc(doc(db, "prospects", convertingProspect.firebaseUid), { status: 'won' });
       
       setConvertingProspect(null);
-      alert(`Membre créé avec succès !`);
+      showToast(`Membre créé avec succès !`, "success");
       // Redirect to members page and select the new member
       setState(prev => ({ ...prev, page: 'users', selectedMember: newUser }));
     } catch (err: any) {
       console.error("Error converting prospect", err);
-      alert(err.message || "Erreur lors de la conversion");
+      showToast(err.message || "Erreur lors de la conversion", "error");
     }
   };
 
@@ -123,21 +125,30 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
       await setDoc(doc(db, "prospects", id.toString()), prospect);
       setIsAdding(false);
       setNewProspect({ name: '', email: '', phone: '', notes: '' });
+      showToast("Prospect ajouté avec succès", "success");
     } catch (err) {
       console.error("Error adding prospect", err);
+      showToast("Erreur lors de l'ajout", "error");
     }
   };
 
   const handleDelete = async (id: number) => {
-    const prospect = state.prospects.find(p => p.id === id);
+    setConfirmDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteId) return;
+    const prospect = state.prospects.find(p => p.id === confirmDeleteId);
     if (!prospect || !prospect.firebaseUid) return;
 
-    if (confirm("Supprimer ce prospect ?")) {
-      try {
-        await deleteDoc(doc(db, "prospects", prospect.firebaseUid));
-      } catch (err) {
-        console.error("Error deleting prospect", err);
-      }
+    try {
+      await deleteDoc(doc(db, "prospects", prospect.firebaseUid));
+      showToast("Prospect supprimé", "success");
+    } catch (err) {
+      console.error("Error deleting prospect", err);
+      showToast("Erreur lors de la suppression", "error");
+    } finally {
+      setConfirmDeleteId(null);
     }
   };
 
@@ -352,6 +363,23 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState }) => {
           );
         })}
       </div>
+      {confirmDeleteId && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer ce prospect ?</h3>
+            <p className="text-zinc-500 mb-6">Cette action est irréversible.</p>
+            <div className="flex gap-3">
+              <Button variant="secondary" fullWidth onClick={() => setConfirmDeleteId(null)}>Annuler</Button>
+              <Button variant="danger" fullWidth onClick={confirmDelete}>Supprimer</Button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

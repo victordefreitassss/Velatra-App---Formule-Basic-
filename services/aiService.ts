@@ -3,17 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { User, BodyData } from "../types";
 
 const getApiKey = () => {
-  try {
-    if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
-      return process.env.GEMINI_API_KEY;
-    }
-  } catch (e) {}
-  try {
-    if (import.meta && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
-      return import.meta.env.VITE_GEMINI_API_KEY;
-    }
-  } catch (e) {}
-  return '';
+  return process.env.GEMINI_API_KEY || '';
 };
 
 export const generateSportsProgram = async (user: User, availableExercises: any[]) => {
@@ -116,13 +106,16 @@ Format de sortie obligatoire (JSON) :
                       notes: { type: Type.STRING },
                       setType: { type: Type.STRING },
                       setGroup: { type: Type.INTEGER }
-                    }
+                    },
+                    required: ["exId", "sets", "reps", "rest", "tempo", "duration", "notes", "setType", "setGroup"]
                   }
                 }
-              }
+              },
+              required: ["name", "isCoaching", "exercises"]
             }
           }
-        }
+        },
+        required: ["name", "nbDays", "days"]
       }
     }
   });
@@ -198,48 +191,52 @@ Distribue les calories et les macros sur plusieurs repas :
 ÉTAPE 6 — Format de sortie obligatoire
 Retourner uniquement un objet JSON structuré avec :
 {
-"calories_totales": "",
+"calories_totales": 0,
 "macros": {
-"proteines_g": "",
-"glucides_g": "",
-"lipides_g": ""
+"proteines_g": 0,
+"glucides_g": 0,
+"lipides_g": 0
 },
 "repas": [
 {
-"type": "petit_dejeuner",
-"calories": "",
-"proteines": "",
-"glucides": "",
-"lipides": ""
+"type": "Petit-déjeuner",
+"description": "Exemple de repas avec aliments et quantités",
+"calories": 0,
+"proteines": 0,
+"glucides": 0,
+"lipides": 0
 },
 {
-"type": "dejeuner",
-"calories": "",
-"proteines": "",
-"glucides": "",
-"lipides": ""
+"type": "Déjeuner",
+"description": "Exemple de repas avec aliments et quantités",
+"calories": 0,
+"proteines": 0,
+"glucides": 0,
+"lipides": 0
 },
 {
-"type": "collation",
-"calories": "",
-"proteines": "",
-"glucides": "",
-"lipides": ""
+"type": "Collation",
+"description": "Exemple de repas avec aliments et quantités",
+"calories": 0,
+"proteines": 0,
+"glucides": 0,
+"lipides": 0
 },
 {
-"type": "diner",
-"calories": "",
-"proteines": "",
-"glucides": "",
-"lipides": ""
+"type": "Dîner",
+"description": "Exemple de repas avec aliments et quantités",
+"calories": 0,
+"proteines": 0,
+"glucides": 0,
+"lipides": 0
 }
 ],
-"liste_courses": []
+"liste_courses": ["Aliment 1", "Aliment 2"]
 }
 
 ÉTAPE 7 — Contraintes importantes
 * Les macros doivent correspondre aux calories totales.
-* Ne propose aucun aliment spécifique ni aucun texte descriptif. L'adhérent remplira ses repas lui-même. Ne retourne que les macros et calories pour chaque repas.
+* Propose des aliments spécifiques et des idées de repas pour chaque repas dans le champ "description". Le plan doit être concret et facile à suivre.
 
 Voici les données utilisateur :
 âge : ${user.age}
@@ -259,37 +256,42 @@ nombre de repas : 4
     model: "gemini-3-flash-preview",
     contents: prompt,
     config: {
+      systemInstruction: "Tu es un expert en nutrition sportive. Tu dois calculer les macros et calories avec précision et retourner UNIQUEMENT un objet JSON valide. Ne retourne aucun texte explicatif, aucune formule de calcul dans les champs. Les noms des repas doivent être simples (ex: 'Petit-déjeuner', 'Déjeuner', 'Collation', 'Dîner'). Les valeurs de calories et macros doivent être des nombres entiers.",
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          calories_totales: { type: Type.STRING },
+          calories_totales: { type: Type.NUMBER },
           macros: {
             type: Type.OBJECT,
             properties: {
-              proteines_g: { type: Type.STRING },
-              glucides_g: { type: Type.STRING },
-              lipides_g: { type: Type.STRING }
-            }
+              proteines_g: { type: Type.NUMBER },
+              glucides_g: { type: Type.NUMBER },
+              lipides_g: { type: Type.NUMBER }
+            },
+            required: ["proteines_g", "glucides_g", "lipides_g"]
           },
           repas: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
               properties: {
-                type: { type: Type.STRING },
-                calories: { type: Type.STRING },
-                proteines: { type: Type.STRING },
-                glucides: { type: Type.STRING },
-                lipides: { type: Type.STRING }
-              }
+                type: { type: Type.STRING, description: "Nom du repas (ex: Petit-déjeuner)" },
+                description: { type: Type.STRING, description: "Description des aliments et quantités" },
+                calories: { type: Type.NUMBER },
+                proteines: { type: Type.NUMBER },
+                glucides: { type: Type.NUMBER },
+                lipides: { type: Type.NUMBER }
+              },
+              required: ["type", "description", "calories", "proteines", "glucides", "lipides"]
             }
           },
           liste_courses: {
             type: Type.ARRAY,
             items: { type: Type.STRING }
           }
-        }
+        },
+        required: ["calories_totales", "macros", "repas", "liste_courses"]
       }
     }
   });

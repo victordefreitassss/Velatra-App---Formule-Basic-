@@ -79,6 +79,20 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
     }
   };
 
+  const [confirmDeleteExId, setConfirmDeleteExId] = useState<number | null>(null);
+
+  const confirmDelete = async () => {
+    if (!confirmDeleteExId) return;
+    try {
+      await deleteDoc(doc(db, "exercises", confirmDeleteExId.toString()));
+      showToast("Exercice supprimé");
+    } catch (err) {
+      showToast("Erreur lors de la suppression", "error");
+    } finally {
+      setConfirmDeleteExId(null);
+    }
+  };
+
   return (
     <motion.div 
       variants={containerVariants}
@@ -194,16 +208,9 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                       <Edit2Icon size={14} />
                     </button>
                     <button 
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        if(confirm("Supprimer cet exercice de la base ?")) {
-                          try {
-                            await deleteDoc(doc(db, "exercises", ex.id.toString()));
-                            showToast("Exercice supprimé");
-                          } catch (err) {
-                            showToast("Erreur lors de la suppression", "error");
-                          }
-                        }
+                        setConfirmDeleteExId(ex.id);
                       }}
                       className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-600 hover:text-red-500 hover:bg-white shadow-sm transition-all"
                       title="Supprimer l'exercice"
@@ -502,6 +509,24 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
       )}
       </AnimatePresence>,
       document.body
+      )}
+
+      {confirmDeleteExId && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer cet exercice ?</h3>
+            <p className="text-zinc-500 mb-6">Cette action est irréversible.</p>
+            <div className="flex gap-3">
+              <Button variant="secondary" fullWidth onClick={() => setConfirmDeleteExId(null)}>Annuler</Button>
+              <Button variant="danger" fullWidth onClick={confirmDelete}>Supprimer</Button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
       )}
     </motion.div>
   );

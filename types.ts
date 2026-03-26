@@ -60,6 +60,7 @@ export interface User {
   avatar: string;
   gender: Gender;
   age: number;
+  birthDate?: string;
   weight: number;
   height: number;
   objectifs: Goal[];
@@ -387,7 +388,7 @@ export interface Newsletter {
   author: string;
 }
 
-export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "videos" | "community" | "coaching";
+export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "community" | "coaching";
 
 export type ActivityLevel = "Sédentaire" | "Légèrement actif" | "Modérément actif" | "Très actif" | "Extrêmement actif";
 
@@ -511,6 +512,28 @@ export interface Booking {
   type: 'coaching';
 }
 
+export interface DriveFile {
+  id: string;
+  clubId: string;
+  name: string;
+  url: string;
+  path: string;
+  size: number;
+  type: string;
+  folderId: string | null;
+  uploadedBy: number;
+  createdAt: string;
+  sharedWith: number[]; // Array of member IDs it is shared with
+}
+
+export interface DriveFolder {
+  id: string;
+  clubId: string;
+  name: string;
+  parentId: string | null;
+  createdAt: string;
+}
+
 export interface AppState {
   user: User | null;
   currentClub: Club | null;
@@ -543,6 +566,8 @@ export interface AppState {
   manualStats: ManualStats[];
   pendingProspects: PendingProspect[];
   bookings: Booking[];
+  driveFiles: DriveFile[];
+  driveFolders: DriveFolder[];
   aboutInfo: ClubInfo;
   coaches: CoachInfo[];
   page: Page;

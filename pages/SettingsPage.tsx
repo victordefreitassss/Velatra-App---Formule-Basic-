@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AppState, Plan } from '../types';
 import { Card, Button, Input } from '../components/UI';
 import { SettingsIcon, SaveIcon, PlusIcon, Edit2Icon, Trash2Icon, CheckIcon, XIcon, TargetIcon } from '../components/Icons';
@@ -102,21 +104,27 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     showToast("Compte Stripe connecté avec succès !");
   };
 
+  const [confirmDisconnectStripe, setConfirmDisconnectStripe] = useState(false);
+  const [confirmDeletePlanId, setConfirmDeletePlanId] = useState<string | null>(null);
+
   const handleDisconnectStripe = async () => {
-    if (confirm("Voulez-vous vraiment déconnecter votre compte Stripe ? Vos clients ne pourront plus payer en ligne.")) {
-      setStripeConnected(false);
-      setStripeSecretKey('');
-      const newMethods = acceptedMethods.filter(m => !['card', 'sepa'].includes(m));
-      setAcceptedMethods(newMethods);
-      if (state.user?.clubId) {
-        await updateDoc(doc(db, "clubs", state.user.clubId), {
-          "settings.payment.stripeConnected": false,
-          "settings.payment.stripeSecretKey": '',
-          "settings.payment.acceptedMethods": newMethods
-        });
-      }
-      showToast("Compte Stripe déconnecté.");
+    setConfirmDisconnectStripe(true);
+  };
+
+  const confirmDisconnect = async () => {
+    setStripeConnected(false);
+    setStripeSecretKey('');
+    const newMethods = acceptedMethods.filter(m => !['card', 'sepa'].includes(m));
+    setAcceptedMethods(newMethods);
+    if (state.user?.clubId) {
+      await updateDoc(doc(db, "clubs", state.user.clubId), {
+        "settings.payment.stripeConnected": false,
+        "settings.payment.stripeSecretKey": '',
+        "settings.payment.acceptedMethods": newMethods
+      });
     }
+    showToast("Compte Stripe déconnecté.");
+    setConfirmDisconnectStripe(false);
   };
 
   const handleSavePlan = async () => {
@@ -186,12 +194,18 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   };
 
   const handleDeletePlan = async (planId: string) => {
-    if (!confirm("Voulez-vous vraiment supprimer cette formule ?")) return;
+    setConfirmDeletePlanId(planId);
+  };
+
+  const confirmDeletePlan = async () => {
+    if (!confirmDeletePlanId) return;
     try {
-      await deleteDoc(doc(db, "plans", planId));
+      await deleteDoc(doc(db, "plans", confirmDeletePlanId));
       showToast("Formule supprimée");
     } catch (err) {
       showToast("Erreur lors de la suppression", "error");
+    } finally {
+      setConfirmDeletePlanId(null);
     }
   };
 
@@ -768,6 +782,42 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           </div>
         )}
       </Card>
+
+      {confirmDisconnectStripe && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Déconnecter Stripe ?</h3>
+            <p className="text-zinc-500 mb-6">Voulez-vous vraiment déconnecter votre compte Stripe ? Vos clients ne pourront plus payer en ligne.</p>
+            <div className="flex gap-3">
+              <Button variant="secondary" fullWidth onClick={() => setConfirmDisconnectStripe(false)}>Non, garder</Button>
+              <Button variant="danger" fullWidth onClick={confirmDisconnect}>Oui, déconnecter</Button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
+
+      {confirmDeletePlanId && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer la formule ?</h3>
+            <p className="text-zinc-500 mb-6">Voulez-vous vraiment supprimer cette formule ?</p>
+            <div className="flex gap-3">
+              <Button variant="secondary" fullWidth onClick={() => setConfirmDeletePlanId(null)}>Non, garder</Button>
+              <Button variant="danger" fullWidth onClick={confirmDeletePlan}>Oui, supprimer</Button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

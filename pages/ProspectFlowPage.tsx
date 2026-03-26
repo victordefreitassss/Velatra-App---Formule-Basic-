@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { AppState, CRMClient, CRMFormula, ManualStats, PendingProspect } from '../types';
 import { db, doc, setDoc, updateDoc, deleteDoc } from '../firebase';
 import { 
   BarChart2, Users, Clock, Settings, Plus, Search, Trash2, Edit2, 
   Copy, CheckCircle, XCircle, AlertCircle, Calendar, DollarSign, Phone, PhoneCall, PhoneForwarded
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { format, subDays, isBefore, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -115,8 +116,23 @@ export const ProspectFlowPage: React.FC<Props> = ({ state }) => {
     setClientForm({});
   };
 
+  const [confirmDeleteClientId, setConfirmDeleteClientId] = useState<string | null>(null);
+  const [confirmDeleteFormulaId, setConfirmDeleteFormulaId] = useState<string | null>(null);
+  const [confirmDeletePendingId, setConfirmDeletePendingId] = useState<string | null>(null);
+
   const deleteClient = async (id: string) => {
-    if (confirm('Supprimer ce client ?')) await deleteDoc(doc(db, 'crmClients', id));
+    setConfirmDeleteClientId(id);
+  };
+
+  const confirmDeleteClient = async () => {
+    if (!confirmDeleteClientId) return;
+    try {
+      await deleteDoc(doc(db, 'crmClients', confirmDeleteClientId));
+    } catch (err) {
+      console.error("Error deleting client", err);
+    } finally {
+      setConfirmDeleteClientId(null);
+    }
   };
 
   const saveFormula = async (e: React.FormEvent) => {
@@ -135,7 +151,18 @@ export const ProspectFlowPage: React.FC<Props> = ({ state }) => {
   };
 
   const deleteFormula = async (id: string) => {
-    if (confirm('Supprimer cette formule ?')) await deleteDoc(doc(db, 'crmFormulas', id));
+    setConfirmDeleteFormulaId(id);
+  };
+
+  const confirmDeleteFormula = async () => {
+    if (!confirmDeleteFormulaId) return;
+    try {
+      await deleteDoc(doc(db, 'crmFormulas', confirmDeleteFormulaId));
+    } catch (err) {
+      console.error("Error deleting formula", err);
+    } finally {
+      setConfirmDeleteFormulaId(null);
+    }
   };
 
   const saveManualStats = async (e: React.FormEvent) => {
@@ -183,7 +210,18 @@ export const ProspectFlowPage: React.FC<Props> = ({ state }) => {
   };
 
   const deletePending = async (id: string) => {
-    if (confirm('Supprimer ce prospect en attente ?')) await deleteDoc(doc(db, 'pendingProspects', id));
+    setConfirmDeletePendingId(id);
+  };
+
+  const confirmDeletePending = async () => {
+    if (!confirmDeletePendingId) return;
+    try {
+      await deleteDoc(doc(db, 'pendingProspects', confirmDeletePendingId));
+    } catch (err) {
+      console.error("Error deleting pending prospect", err);
+    } finally {
+      setConfirmDeletePendingId(null);
+    }
   };
 
   const generateReport = () => {
@@ -576,6 +614,141 @@ export const ProspectFlowPage: React.FC<Props> = ({ state }) => {
           </div>
 
         </motion.div>
+      )}
+
+      {/* --- MODALS --- */}
+      {createPortal(
+        <AnimatePresence>
+          {confirmDeleteClientId && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                onClick={() => setConfirmDeleteClientId(null)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm overflow-hidden"
+              >
+                <div className="absolute top-0 left-0 w-full h-1 bg-red-500" />
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+                    <Trash2 className="w-5 h-5 text-red-500" />
+                  </div>
+                  <h3 className="text-xl font-bold text-zinc-900">Supprimer le client</h3>
+                </div>
+                <p className="text-zinc-600 mb-6">
+                  Êtes-vous sûr de vouloir supprimer ce client ? Cette action est irréversible.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setConfirmDeleteClientId(null)}
+                    className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={confirmDeleteClient}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/20"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {confirmDeleteFormulaId && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                onClick={() => setConfirmDeleteFormulaId(null)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm overflow-hidden"
+              >
+                <div className="absolute top-0 left-0 w-full h-1 bg-red-500" />
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+                    <Trash2 className="w-5 h-5 text-red-500" />
+                  </div>
+                  <h3 className="text-xl font-bold text-zinc-900">Supprimer la formule</h3>
+                </div>
+                <p className="text-zinc-600 mb-6">
+                  Êtes-vous sûr de vouloir supprimer cette formule ? Cette action est irréversible.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setConfirmDeleteFormulaId(null)}
+                    className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={confirmDeleteFormula}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/20"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {confirmDeletePendingId && (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                onClick={() => setConfirmDeletePendingId(null)}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm overflow-hidden"
+              >
+                <div className="absolute top-0 left-0 w-full h-1 bg-red-500" />
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+                    <Trash2 className="w-5 h-5 text-red-500" />
+                  </div>
+                  <h3 className="text-xl font-bold text-zinc-900">Supprimer le prospect</h3>
+                </div>
+                <p className="text-zinc-600 mb-6">
+                  Êtes-vous sûr de vouloir supprimer ce prospect en attente ? Cette action est irréversible.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setConfirmDeletePendingId(null)}
+                    className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={confirmDeletePending}
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/20"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
       )}
 
     </div>

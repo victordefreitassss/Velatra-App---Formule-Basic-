@@ -31,6 +31,7 @@ export const ProfilePage: React.FC<{
   const [isEditing, setIsEditing] = useState(false);
   const [selectedLog, setSelectedLog] = useState<SessionLog | null>(null);
   const [formData, setFormData] = useState({
+    birthDate: user.birthDate || '',
     height: user.height || 0,
     weight: user.weight || 0,
     experienceLevel: user.experienceLevel || 'Débutant',
@@ -50,6 +51,7 @@ export const ProfilePage: React.FC<{
     try {
       const userRef = doc(db, "users", (user as any).firebaseUid);
       await updateDoc(userRef, {
+        birthDate: formData.birthDate,
         height: Number(formData.height),
         weight: Number(formData.weight),
         experienceLevel: formData.experienceLevel,
@@ -69,13 +71,14 @@ export const ProfilePage: React.FC<{
       const plan = state.nutritionPlans?.find(p => p.memberId === Number(user.id));
       if (plan && Number(formData.weight) !== user.weight) {
         const updatedPlan = updateNutritionPlanForWeight(plan, Number(formData.weight));
-        await updateDoc(doc(db, "nutritionPlans", plan.id), updatedPlan);
+        await updateDoc(doc(db, "nutritionPlans", plan.id.toString()), updatedPlan);
       }
       
       setState(prev => ({
         ...prev,
         user: {
           ...prev.user!,
+          birthDate: formData.birthDate,
           height: Number(formData.height),
           weight: Number(formData.weight),
           experienceLevel: formData.experienceLevel as any,
@@ -232,6 +235,20 @@ export const ProfilePage: React.FC<{
             </div>
             
             <div className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Date de naissance</label>
+                {isEditing ? (
+                  <input 
+                    type="date" 
+                    value={formData.birthDate}
+                    onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
+                    className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                  />
+                ) : (
+                  <div className="text-lg font-medium text-zinc-900">{user.birthDate ? new Date(user.birthDate).toLocaleDateString() : 'Non renseigné'}</div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Taille (cm)</label>
                 {isEditing ? (

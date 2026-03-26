@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AppState, Preset, Program, User } from '../types';
 import { Card, Button, Badge, Input } from '../components/UI';
 import { PlusIcon, LayersIcon, Edit2Icon, Trash2Icon, SearchIcon, CheckIcon, UserIcon, XIcon } from '../components/Icons';
@@ -27,6 +28,21 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
       createdBy: state.user!.id
     };
     setState((s: AppState) => ({ ...s, editingPreset: newP }));
+  };
+
+  const [confirmDeletePresetId, setConfirmDeletePresetId] = useState<number | null>(null);
+
+  const confirmDeletePreset = async () => {
+    if (!confirmDeletePresetId) return;
+    try {
+      await deleteDoc(doc(db, "presets", confirmDeletePresetId.toString()));
+      setState((s:AppState) => ({ ...s, presets: s.presets.filter(pr => pr.id !== confirmDeletePresetId) }));
+      showToast("Modèle supprimé", "success");
+    } catch (err) {
+      showToast("Erreur lors de la suppression", "error");
+    } finally {
+      setConfirmDeletePresetId(null);
+    }
   };
 
   const handleAssign = async (preset: Preset, member: User) => {
@@ -187,17 +203,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                   </button>
                   <button 
-                    onClick={async () => {
-                      if(confirm("Supprimer ce preset ?")) {
-                        try {
-                          await deleteDoc(doc(db, "presets", p.id.toString()));
-                          setState((s:AppState) => ({ ...s, presets: s.presets.filter(pr => pr.id !== p.id) }));
-                          showToast("Modèle supprimé", "success");
-                        } catch (err) {
-                          showToast("Erreur lors de la suppression", "error");
-                        }
-                      }
-                    }}
+                    onClick={() => setConfirmDeletePresetId(p.id)}
                     className="p-3 bg-red-500/5 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
                     title="Supprimer"
                   >
@@ -256,6 +262,24 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
       )}
       </>,
       document.body
+      )}
+
+      {confirmDeletePresetId && createPortal(
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+          >
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer ce modèle ?</h3>
+            <p className="text-zinc-500 mb-6">Cette action est irréversible.</p>
+            <div className="flex gap-3">
+              <Button variant="secondary" fullWidth onClick={() => setConfirmDeletePresetId(null)}>Annuler</Button>
+              <Button variant="danger" fullWidth onClick={confirmDeletePreset}>Supprimer</Button>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -9,17 +9,7 @@ import { MessagesPage } from './MessagesPage';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const getApiKey = () => {
-  try {
-    if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
-      return process.env.GEMINI_API_KEY;
-    }
-  } catch (e) {}
-  try {
-    if (import.meta && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
-      return import.meta.env.VITE_GEMINI_API_KEY;
-    }
-  } catch (e) {}
-  return '';
+  return process.env.GEMINI_API_KEY || '';
 };
 
 export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
