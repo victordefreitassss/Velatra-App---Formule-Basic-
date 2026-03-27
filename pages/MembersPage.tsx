@@ -1749,15 +1749,17 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="w-full max-w-lg"
           >
-            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl border-white/20 relative shadow-2xl">
-              <button onClick={() => setIsEditingInfo(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-100 p-2 rounded-full transition-colors">
+            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl border-white/20 relative shadow-2xl max-h-[90vh] flex flex-col">
+              <button onClick={() => setIsEditingInfo(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-100 p-2 rounded-full transition-colors z-10">
                 <XIcon size={20} />
               </button>
               
-              <h2 className="text-2xl font-black mb-1 uppercase italic">Modifier Profil</h2>
-              <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">Informations de base de l'athlète</p>
+              <div className="shrink-0">
+                <h2 className="text-2xl font-black mb-1 uppercase italic">Modifier Profil</h2>
+                <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-6">Informations de base de l'athlète</p>
+              </div>
 
-            <div className="space-y-5">
+            <div className="space-y-5 overflow-y-auto custom-scrollbar pr-2 flex-1 min-h-0 pb-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Nom Complet</label>
@@ -1850,13 +1852,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 />
               </div>
 
-              <div className="pt-4 flex flex-col sm:flex-row gap-3">
+              <div className="pt-4 shrink-0 flex flex-col sm:flex-row gap-3 border-t border-zinc-100 mt-2">
                 <Button variant="secondary" fullWidth onClick={() => setIsEditingInfo(false)}>ANNULER</Button>
                 <Button variant="success" fullWidth onClick={handleUpdateMemberInfo}>
                   ENREGISTRER <CheckIcon size={18} className="ml-2" />
                 </Button>
               </div>
-              <div className="pt-2">
+              <div className="pt-2 shrink-0">
                 <Button variant="secondary" fullWidth onClick={handleDeleteMember} className="!bg-red-500/10 !text-red-500 hover:!bg-red-500/20">
                   SUPPRIMER LE MEMBRE
                 </Button>
@@ -1962,15 +1964,17 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="w-full max-w-lg"
           >
-            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl border-white/20 relative shadow-2xl">
-              <button onClick={() => setIsAddingMember(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-100 p-2 rounded-full transition-colors">
+            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl border-white/20 relative shadow-2xl max-h-[90vh] flex flex-col">
+              <button onClick={() => setIsAddingMember(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-100 p-2 rounded-full transition-colors z-10">
                 <XIcon size={20} />
               </button>
             
-            <h2 className="text-2xl font-black mb-1 uppercase italic">Nouveau Profil</h2>
-            <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">Créer un membre manuellement</p>
+            <div className="shrink-0">
+              <h2 className="text-2xl font-black mb-1 uppercase italic">Nouveau Profil</h2>
+              <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-6">Créer un membre manuellement</p>
+            </div>
 
-            <div className="space-y-5">
+            <div className="space-y-5 overflow-y-auto custom-scrollbar pr-2 flex-1 min-h-0 pb-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Nom Complet</label>
@@ -2095,7 +2099,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 />
               </div>
 
-              <div className="pt-4 flex flex-col sm:flex-row gap-3">
+              <div className="pt-4 shrink-0 flex flex-col sm:flex-row gap-3 border-t border-zinc-100 mt-2">
                 <Button variant="secondary" fullWidth onClick={() => setIsAddingMember(false)}>ANNULER</Button>
                 <Button variant="success" fullWidth onClick={handleCreateMember}>
                   CRÉER LE MEMBRE <CheckIcon size={18} className="ml-2" />
