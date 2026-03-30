@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { User, Page, Club } from '../types';
 import { 
   HomeIcon, UsersIcon, LayersIcon, BarChartIcon, 
-  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon, FolderIcon, PlayCircleIcon, UserIcon, ActivityIcon
+  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon, FolderIcon, PlayCircleIcon, UserIcon, ActivityIcon, BellIcon
 } from './Icons';
 import { Timer } from './Timer';
 
@@ -16,6 +16,7 @@ interface LayoutProps {
   onLogout: () => void;
   children: React.ReactNode;
   unreadMessagesCount?: number;
+  unreadNotificationsCount?: number;
 }
 
 const AppLogo: React.FC<{ club: Club | null }> = ({ club }) => (
@@ -40,13 +41,16 @@ const AppLogo: React.FC<{ club: Club | null }> = ({ club }) => (
   </div>
 );
 
-export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageChange, onLogout, children, unreadMessagesCount = 0 }) => {
+export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageChange, onLogout, children, unreadMessagesCount = 0, unreadNotificationsCount = 0 }) => {
+  const planningEnabled = club?.settings?.booking?.enabled ?? true;
+
   const coachItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = [
     { id: 'home', icon: HomeIcon, label: 'Accueil', category: 'Principal' },
     { id: 'users', icon: UsersIcon, label: 'Membres', category: 'Principal' },
     { id: 'coaching', icon: ActivityIcon, label: 'Coaching', category: 'Principal' },
     { id: 'chat', icon: MessageCircleIcon, label: 'Discussion', category: 'Principal' },
-    { id: 'calendar', icon: CalendarIcon, label: 'Planning', category: 'Principal' },
+    { id: 'notifications', icon: BellIcon, label: 'Notifications', category: 'Principal' },
+    ...(planningEnabled ? [{ id: 'calendar', icon: CalendarIcon, label: 'Planning', category: 'Principal' }] : []),
     { id: 'presets', icon: LayersIcon, label: 'Modèles', category: 'Bibliothèque' },
     { id: 'exercises', icon: DumbbellIcon, label: 'Exos', category: 'Bibliothèque' },
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Bibliothèque' },
@@ -63,8 +67,9 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
   const memberItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = [
     { id: 'home', icon: HomeIcon, label: 'Espace', category: 'Principal' },
     { id: 'ai_coach', icon: MessageCircleIcon, label: 'Discussions', category: 'Principal' },
+    { id: 'notifications', icon: BellIcon, label: 'Notifications', category: 'Principal' },
     { id: 'calendar', icon: DumbbellIcon, label: 'Séance', category: 'Principal' },
-    { id: 'planning', icon: CalendarIcon, label: 'Planning', category: 'Principal' },
+    ...(planningEnabled ? [{ id: 'planning', icon: CalendarIcon, label: 'Planning', category: 'Principal' }] : []),
     { id: 'performances', icon: BarChartIcon, label: 'Records', category: 'Principal' },
     { id: 'community', icon: UsersIcon, label: 'Communauté', category: 'Principal' },
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Plus' },
@@ -133,6 +138,9 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
                     <item.icon size={18} strokeWidth={activePage === item.id ? 2.5 : 2} className={`${activePage === item.id ? '' : 'group-hover:scale-110 transition-transform duration-300'}`} />
                     <span className="text-[11px] font-bold uppercase tracking-[1.5px]">{item.label}</span>
                     {item.id === 'chat' && unreadMessagesCount > 0 && (
+                      <span className="absolute -top-1 -right-3 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                    )}
+                    {item.id === 'notifications' && unreadNotificationsCount > 0 && (
                       <span className="absolute -top-1 -right-3 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                     )}
                   </div>
@@ -209,6 +217,9 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
                 {item.id === 'chat' && unreadMessagesCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                 )}
+                {item.id === 'notifications' && unreadNotificationsCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                )}
               </div>
             </button>
           ))}
@@ -243,6 +254,9 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
                     <div className={`p-3 rounded-2xl relative ${activePage === item.id ? 'bg-velatra-accent/20' : 'bg-zinc-50'}`}>
                       <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} />
                       {item.id === 'chat' && unreadMessagesCount > 0 && (
+                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                      )}
+                      {item.id === 'notifications' && unreadNotificationsCount > 0 && (
                         <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                       )}
                       {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' && (

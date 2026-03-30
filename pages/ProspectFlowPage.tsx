@@ -4,7 +4,7 @@ import { AppState, CRMClient, CRMFormula, ManualStats, PendingProspect } from '.
 import { db, doc, setDoc, updateDoc, deleteDoc } from '../firebase';
 import { 
   BarChart2, Users, Clock, Settings, Plus, Search, Trash2, Edit2, 
-  Copy, CheckCircle, XCircle, AlertCircle, Calendar, DollarSign, Phone, PhoneCall, PhoneForwarded
+  Copy, CheckCircle, XCircle, AlertCircle, Calendar, DollarSign, Phone, PhoneCall, PhoneForwarded, Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -14,11 +14,12 @@ import { fr } from 'date-fns/locale';
 interface Props {
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
+  showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-export const ProspectFlowPage: React.FC<Props> = ({ state }) => {
+export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'clients' | 'pending' | 'settings'>('dashboard');
   const [period, setPeriod] = useState<'today' | 'yesterday' | '7days' | '30days'>('7days');
   const [isAddingClient, setIsAddingClient] = useState(false);
@@ -97,6 +98,88 @@ export const ProspectFlowPage: React.FC<Props> = ({ state }) => {
   ];
 
   // --- Handlers ---
+  const handleImportClients = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !clubId) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      const lines = text.split('\n');
+      if (lines.length < 2) {
+        showToast("Le fichier CSV est vide ou invalide", "error");
+        return;
+      }
+
+      // Assume header is: Prénom, Nom, Email, Téléphone
+      let successCount = 0;
+      let errorCount = 0;
+
+      showToast("Importation en cours...", "info");
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const parts = line.split(/[,;]/).map(s => s.trim().replace(/^"|"$/g, ''));
+        let firstName = '', lastName = '', email = '', phone = '';
+
+        if (parts.length >= 4 && parts[2].includes('@')) {
+          firstName = parts[0];
+          lastName = parts[1];
+          email = parts[2];
+          phone = parts[3] || '';
+        } else if (parts.length >= 3 && parts[1].includes('@')) {
+          const nameParts = parts[0].split(' ');
+          firstName = nameParts[0];
+          lastName = nameParts.slice(1).join(' ');
+          email = parts[1];
+          phone = parts[2] || '';
+        } else if (parts.length >= 2 && parts[1].includes('@')) {
+          const nameParts = parts[0].split(' ');
+          firstName = nameParts[0];
+          lastName = nameParts.slice(1).join(' ');
+          email = parts[1];
+        } else {
+          // Fallback
+          firstName = parts[0];
+          lastName = parts[1] || '';
+          email = parts[2] || '';
+          phone = parts[3] || '';
+        }
+
+        if (!firstName || !email || !email.includes('@')) continue;
+
+        try {
+          const id = generateId();
+          const client: CRMClient = {
+            id,
+            clubId,
+            firstName,
+            lastName: lastName || '',
+            email,
+            phone: phone || '',
+            createdAt: new Date().toISOString(),
+            isActive: true
+          };
+
+          await setDoc(doc(db, 'crmClients', id), client);
+          successCount++;
+        } catch (err) {
+          console.error(`Error importing client ${email}:`, err);
+          errorCount++;
+        }
+      }
+
+      showToast(`Import terminé : ${successCount} ajoutés, ${errorCount} erreurs`, successCount > 0 ? "success" : "error");
+      // Reset file input
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  };
+
   const saveClient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clubId) return;
@@ -375,6 +458,19 @@ export const ProspectFlowPage: React.FC<Props> = ({ state }) => {
                   className="w-full pl-10 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                 />
               </div>
+              <input 
+                type="file" 
+                accept=".csv" 
+                className="hidden" 
+                id="import-crm-clients-csv" 
+                onChange={handleImportClients} 
+              />
+              <label 
+                htmlFor="import-crm-clients-csv" 
+                className="bg-zinc-100 text-zinc-900 px-4 py-2 rounded-xl flex items-center gap-2 cursor-pointer hover:bg-zinc-200 transition-colors w-full sm:w-auto justify-center text-sm font-medium"
+              >
+                <Upload className="w-4 h-4" /> Import CSV
+              </label>
               <button onClick={() => setIsAddingClient(true)} className="bg-velatra-accent text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-[0_0_15px_rgba(99,102,241,0.4)] hover:bg-velatra-accentDark transition-colors w-full sm:w-auto justify-center">
                 <Plus className="w-4 h-4" /> Ajouter
               </button>

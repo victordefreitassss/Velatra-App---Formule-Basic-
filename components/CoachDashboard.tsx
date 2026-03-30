@@ -303,46 +303,48 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
           </motion.section>
 
           {/* 2. Prochaines Séances */}
-          <motion.section variants={itemVariants} className="space-y-4">
-            <div className="flex justify-between items-center px-1">
-              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Prochaines Séances</h2>
-              <Button variant="secondary" className="!py-1.5 !px-3 !text-[9px]" onClick={() => setState(s => ({ ...s, page: 'planning' }))}>VOIR PLANNING</Button>
-            </div>
-            {upcomingEvents.length === 0 ? (
-              <Card className="!p-8 bg-white/60 backdrop-blur-xl border-dashed border-zinc-200/50 flex flex-col items-center justify-center text-center shadow-sm">
-                <CalendarIcon size={32} className="text-zinc-400 mb-3" />
-                <p className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Aucune séance prévue</p>
-                <p className="text-[10px] text-zinc-500 mt-2">Gérez vos créneaux depuis l'onglet Planning.</p>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {upcomingEvents.map((event, idx) => {
-                  const member = state.users.find(u => Number(u.id) === event.memberId);
-                  const startTime = new Date(event.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-                  const endTime = new Date(event.endTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-                  const isToday = new Date(event.startTime).toDateString() === new Date().toDateString();
-                  const eventDate = new Date(event.startTime).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-                  return (
-                    <Card key={idx} className="!p-4 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-velatra-accent/10 text-velatra-accent flex flex-col items-center justify-center font-black text-xs leading-none">
-                          <span className="text-[9px] mb-0.5 opacity-80">{isToday ? "AUJ" : eventDate.slice(0, 5)}</span>
-                          <span>{startTime}</span>
-                        </div>
-                        <div>
-                          <div className="font-bold text-zinc-900">{member?.name || 'Membre Inconnu'}</div>
-                          <div className="text-xs text-zinc-500">{startTime} - {endTime}</div>
-                        </div>
-                      </div>
-                      <Button variant="secondary" className="!py-2 !px-3 !text-[10px]" onClick={() => setState(s => ({ ...s, page: 'planning' }))}>
-                        DÉTAILS
-                      </Button>
-                    </Card>
-                  );
-                })}
+          {state.currentClub?.settings?.booking?.enabled !== false && (
+            <motion.section variants={itemVariants} className="space-y-4">
+              <div className="flex justify-between items-center px-1">
+                <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Prochaines Séances</h2>
+                <Button variant="secondary" className="!py-1.5 !px-3 !text-[9px]" onClick={() => setState(s => ({ ...s, page: 'calendar' }))}>VOIR PLANNING</Button>
               </div>
-            )}
-          </motion.section>
+              {upcomingEvents.length === 0 ? (
+                <Card className="!p-8 bg-white/60 backdrop-blur-xl border-dashed border-zinc-200/50 flex flex-col items-center justify-center text-center shadow-sm">
+                  <CalendarIcon size={32} className="text-zinc-400 mb-3" />
+                  <p className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Aucune séance prévue</p>
+                  <p className="text-[10px] text-zinc-500 mt-2">Gérez vos créneaux depuis l'onglet Planning.</p>
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {upcomingEvents.map((event, idx) => {
+                    const member = state.users.find(u => Number(u.id) === event.memberId);
+                    const startTime = new Date(event.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                    const endTime = new Date(event.endTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                    const isToday = new Date(event.startTime).toDateString() === new Date().toDateString();
+                    const eventDate = new Date(event.startTime).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+                    return (
+                      <Card key={idx} className="!p-4 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-velatra-accent/10 text-velatra-accent flex flex-col items-center justify-center font-black text-xs leading-none">
+                            <span className="text-[9px] mb-0.5 opacity-80">{isToday ? "AUJ" : eventDate.slice(0, 5)}</span>
+                            <span>{startTime}</span>
+                          </div>
+                          <div>
+                            <div className="font-bold text-zinc-900">{member?.name || 'Membre Inconnu'}</div>
+                            <div className="text-xs text-zinc-500">{startTime} - {endTime}</div>
+                          </div>
+                        </div>
+                        <Button variant="secondary" className="!py-2 !px-3 !text-[10px]" onClick={() => setState(s => ({ ...s, page: 'calendar' }))}>
+                          DÉTAILS
+                        </Button>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </motion.section>
+          )}
         </div>
 
         {/* Right Column */}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Task } from '../types';
-import { db, doc, updateDoc, setDoc, deleteDoc } from '../firebase';
+import { db, doc, updateDoc, setDoc, deleteDoc, addDoc, collection } from '../firebase';
 import { Plus, Search, Trash2, Calendar, CheckCircle, Circle, Clock, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../components/UI';
@@ -52,6 +52,20 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
 
     try {
       await setDoc(doc(db, "tasks", id), task);
+
+      if (task.assignedTo !== state.user.id.toString()) {
+        await addDoc(collection(db, 'notifications'), {
+          clubId: state.currentClub?.id,
+          userId: Number(task.assignedTo),
+          title: 'Nouvelle tâche',
+          message: `Une nouvelle tâche vous a été assignée : "${task.title}".`,
+          type: 'info',
+          read: false,
+          createdAt: new Date().toISOString(),
+          link: 'crm_tasks'
+        });
+      }
+
       setIsAdding(false);
       setNewTask({ title: '', description: '', dueDate: '', assignedTo: state.user.id.toString() });
     } catch (err) {

@@ -20,6 +20,10 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   const [stripeSecretKey, setStripeSecretKey] = useState(state.currentClub?.settings?.payment?.stripeSecretKey || '');
   const [acceptedMethods, setAcceptedMethods] = useState<string[]>(state.currentClub?.settings?.payment?.acceptedMethods || ['card', 'cash']);
 
+  const [planningEnabled, setPlanningEnabled] = useState(state.currentClub?.settings?.booking?.enabled ?? true);
+  const [sessionTypes, setSessionTypes] = useState<{id: string, name: string, duration: number}[]>(state.currentClub?.settings?.booking?.sessionTypes || [
+    { id: 'default', name: 'Séance Standard', duration: 60 }
+  ]);
   const [sessionDuration, setSessionDuration] = useState(state.currentClub?.settings?.booking?.sessionDuration || 60);
   const [minAdvanceBookingHours, setMinAdvanceBookingHours] = useState(state.currentClub?.settings?.booking?.minAdvanceBookingHours || 0);
   const [minCancellationHours, setMinCancellationHours] = useState(state.currentClub?.settings?.booking?.minCancellationHours || 0);
@@ -56,6 +60,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           autoCollection: true
         },
         "settings.booking": {
+          enabled: planningEnabled,
+          sessionTypes,
           sessionDuration,
           minAdvanceBookingHours,
           minCancellationHours,
@@ -144,6 +150,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         paymentMethods: editingPlan.paymentMethods || ['card'],
         stripeProductId: editingPlan.stripeProductId || undefined,
         stripePriceId: editingPlan.stripePriceId || undefined,
+        credits: Number(editingPlan.credits) || 0,
+        sessionCredits: editingPlan.sessionCredits || {},
       };
 
       // Create product/price in Stripe if not already done and if Stripe is connected
@@ -474,26 +482,96 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
 
         <div className="space-y-8">
-          <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Durée d'une séance (minutes)</h3>
-            <Input 
-              type="number" 
-              value={sessionDuration} 
-              onChange={(e) => setSessionDuration(Number(e.target.value))}
-              className="max-w-[200px]"
-            />
+          <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
+            <div>
+              <h3 className="font-bold text-zinc-900">Activer le module de planning</h3>
+              <p className="text-sm text-zinc-500">Permet aux adhérents de réserver des créneaux avec vous.</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" checked={planningEnabled} onChange={(e) => setPlanningEnabled(e.target.checked)} />
+              <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-velatra-accent"></div>
+            </label>
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Délai minimum de réservation (heures)</h3>
-            <p className="text-xs text-zinc-500">Ex: 24 pour interdire la réservation le jour même. Laissez à 0 pour autoriser à la dernière minute.</p>
-            <Input 
-              type="number" 
-              value={minAdvanceBookingHours} 
-              onChange={(e) => setMinAdvanceBookingHours(Number(e.target.value))}
-              className="max-w-[200px]"
-            />
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Types de séances</h3>
+                <p className="text-xs text-zinc-500">Créez différents types de créneaux (ex: 45 min, 1h, 1h30).</p>
+              </div>
+              <Button
+                className="!py-1.5 !px-3 !text-xs"
+                onClick={() => {
+                  setSessionTypes([...sessionTypes, { id: Date.now().toString(), name: 'Nouvelle séance', duration: 60 }]);
+                }}
+              >
+                <PlusIcon size={16} className="mr-2" /> Ajouter un type
+              </Button>
+            </div>
+            
+            <div className="space-y-3">
+              {sessionTypes.map((type, idx) => (
+                <div key={type.id} className="flex gap-3 items-center bg-zinc-50 p-3 rounded-xl border border-zinc-200">
+                  <div className="flex-1">
+                    <Input
+                      value={type.name}
+                      onChange={(e) => {
+                        const newTypes = [...sessionTypes];
+                        newTypes[idx].name = e.target.value;
+                        setSessionTypes(newTypes);
+                      }}
+                      placeholder="Nom (ex: Séance 45 min)"
+                    />
+                  </div>
+                  <div className="w-32">
+                    <Input
+                      type="number"
+                      value={type.duration}
+                      onChange={(e) => {
+                        const newTypes = [...sessionTypes];
+                        newTypes[idx].duration = Number(e.target.value);
+                        setSessionTypes(newTypes);
+                      }}
+                      placeholder="Durée (min)"
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    className="text-red-500 hover:text-red-600 hover:bg-red-50 !p-2"
+                    onClick={() => {
+                      setSessionTypes(sessionTypes.filter((_, i) => i !== idx));
+                    }}
+                  >
+                    <Trash2Icon size={16} />
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
+
+          {planningEnabled && (
+            <>
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Durée par défaut (minutes)</h3>
+                <p className="text-xs text-zinc-500">Durée utilisée pour les créneaux sans type spécifique.</p>
+                <Input 
+                  type="number" 
+                  value={sessionDuration} 
+                  onChange={(e) => setSessionDuration(Number(e.target.value))}
+                  className="max-w-[200px]"
+                />
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Délai minimum de réservation (heures)</h3>
+                <p className="text-xs text-zinc-500">Ex: 24 pour interdire la réservation le jour même. Laissez à 0 pour autoriser à la dernière minute.</p>
+                <Input 
+                  type="number" 
+                  value={minAdvanceBookingHours} 
+                  onChange={(e) => setMinAdvanceBookingHours(Number(e.target.value))}
+                  className="max-w-[200px]"
+                />
+              </div>
 
           <div className="space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Délai minimum d'annulation (heures)</h3>
@@ -555,6 +633,23 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                             }}
                             className="!py-1 !px-2 w-32"
                           />
+                          <select
+                            value={slot.sessionTypeId || ''}
+                            onChange={(e) => {
+                              const newSchedule = [...schedule];
+                              const dayIdx = newSchedule.findIndex(s => s.day === index);
+                              if (dayIdx >= 0) {
+                                newSchedule[dayIdx].slots[slotIndex].sessionTypeId = e.target.value || undefined;
+                                setSchedule(newSchedule);
+                              }
+                            }}
+                            className="w-full px-4 py-3 rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:ring-2 focus:ring-velatra-accent focus:border-transparent outline-none transition-all !py-1 !px-2 w-48"
+                          >
+                            <option value="">Séance Standard</option>
+                            {sessionTypes.map(t => (
+                              <option key={t.id} value={t.id}>{t.name}</option>
+                            ))}
+                          </select>
                           <Button 
                             variant="secondary" 
                             className="!p-1 !h-8 !w-8 flex items-center justify-center text-red-500 border-red-200 hover:bg-red-50"
@@ -593,6 +688,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               })}
             </div>
           </div>
+          </>
+          )}
 
           <Button onClick={handleSave} disabled={isSaving} className="w-full !py-4 mt-6">
             <SaveIcon size={18} className="mr-2" />
@@ -672,6 +769,31 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                 </div>
               </div>
               <div className="space-y-1 md:col-span-2">
+                <label className="text-[10px] uppercase font-bold text-zinc-500">Crédits de séance</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 bg-white border border-zinc-200 p-2 rounded-xl">
+                    <span className="text-xs font-bold text-zinc-700 flex-1">Séance Standard</span>
+                    <Input type="number" placeholder="Ex: 4" value={editingPlan?.credits || ''} onChange={e => setEditingPlan({ ...editingPlan, credits: Number(e.target.value) })} className="w-20 !py-1" />
+                  </div>
+                  {sessionTypes.map(type => (
+                    <div key={type.id} className="flex items-center gap-2 bg-white border border-zinc-200 p-2 rounded-xl">
+                      <span className="text-xs font-bold text-zinc-700 flex-1">{type.name}</span>
+                      <Input 
+                        type="number" 
+                        placeholder="Ex: 2" 
+                        value={editingPlan?.sessionCredits?.[type.id] || ''} 
+                        onChange={e => {
+                          const newSessionCredits = { ...(editingPlan?.sessionCredits || {}) };
+                          newSessionCredits[type.id] = Number(e.target.value);
+                          setEditingPlan({ ...editingPlan, sessionCredits: newSessionCredits });
+                        }} 
+                        className="w-20 !py-1" 
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1 md:col-span-2">
                 <label className="text-[10px] uppercase font-bold text-zinc-500">Moyens de paiement acceptés</label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {[
@@ -729,6 +851,22 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                         <div className={`w-1.5 h-1.5 rounded-full ${plan.hasCommitment ? 'bg-orange-500' : 'bg-green-500'}`} />
                         {plan.hasCommitment ? `Engagement ${plan.commitmentMonths} mois` : 'Sans engagement'}
                       </div>
+                      {plan.credits && plan.credits > 0 && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                          {plan.credits} crédit{plan.credits > 1 ? 's' : ''} Standard / {plan.billingCycle === 'monthly' ? 'mois' : plan.billingCycle === 'yearly' ? 'an' : 'cycle'}
+                        </div>
+                      )}
+                      {plan.sessionCredits && Object.entries(plan.sessionCredits).map(([typeId, amount]) => {
+                        if (!amount) return null;
+                        const typeName = sessionTypes.find(t => t.id === typeId)?.name || 'Séance';
+                        return (
+                          <div key={typeId} className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                            {amount} crédit{amount > 1 ? 's' : ''} {typeName} / {plan.billingCycle === 'monthly' ? 'mois' : plan.billingCycle === 'yearly' ? 'an' : 'cycle'}
+                          </div>
+                        );
+                      })}
                       {plan.paymentMethods && plan.paymentMethods.length > 0 && (
                         <div className="flex items-center gap-2">
                           <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />

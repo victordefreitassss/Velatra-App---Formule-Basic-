@@ -22,6 +22,14 @@ export interface Club {
   coaches?: CoachInfo[];
   settings?: {
     defaultProgramDuration?: number;
+    finances?: {
+      monthlyGoal?: number;
+      yearlyGoal?: number;
+      vatRates?: {
+        standard: number; // e.g. 20
+        reduced: number; // e.g. 5.5
+      };
+    };
     loyalty?: {
       pointsPerWorkout: number;
       tiers: { id: string; points: number; reward: string }[];
@@ -34,16 +42,30 @@ export interface Club {
       autoCollection: boolean;
     };
     booking?: {
-      sessionDuration: number; // in minutes
+      enabled?: boolean;
+      sessionTypes?: { id: string; name: string; duration: number }[];
+      sessionDuration: number; // in minutes (legacy/default)
       minAdvanceBookingHours?: number; // e.g., 24 for no same-day booking
       minCancellationHours?: number; // e.g., 24 for no last-minute cancellation
       maxBookingsPerWeek?: number; // e.g., 3
       schedule: {
         day: number; // 0 = Sunday, 1 = Monday, etc.
-        slots: { start: string; end: string }[]; // e.g., { start: "09:00", end: "12:00" }
+        slots: { start: string; end: string; sessionTypeId?: string }[]; // e.g., { start: "09:00", end: "12:00" }
       }[];
     };
   };
+}
+
+export interface Notification {
+  id: string;
+  clubId: string;
+  userId: number; // The user who receives the notification
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  read: boolean;
+  createdAt: string;
+  link?: string; // Optional link to navigate to
 }
 
 export interface User {
@@ -56,6 +78,7 @@ export interface User {
   phone?: string;
   stripeCustomerId?: string;
   credits?: number;
+  sessionCredits?: Record<string, number>;
   role: Role;
   avatar: string;
   gender: Gender;
@@ -329,6 +352,8 @@ export interface Plan {
   paymentMethods?: string[];
   stripeProductId?: string;
   stripePriceId?: string;
+  credits?: number; // Number of credits given per billing cycle
+  sessionCredits?: Record<string, number>; // Credits per session type
 }
 
 export interface Subscription {
@@ -355,6 +380,8 @@ export interface Payment {
   date: string;
   status: 'paid' | 'pending' | 'failed';
   method: 'card' | 'sepa' | 'cash' | 'transfer';
+  category?: 'subscription' | 'coaching' | 'boutique' | 'other';
+  vatRate?: number; // e.g. 20 or 5.5
   invoiceId?: string; // Added for CRM
   stripeChargeId?: string;
 }
@@ -364,6 +391,7 @@ export interface Expense {
   clubId: string;
   amount: number;
   category: 'rent' | 'salary' | 'equipment' | 'marketing' | 'software' | 'other';
+  vatRate?: number; // e.g. 20
   date: string;
   description: string;
 }
@@ -388,7 +416,7 @@ export interface Newsletter {
   author: string;
 }
 
-export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "community" | "coaching";
+export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "community" | "coaching" | "notifications";
 
 export type ActivityLevel = "Sédentaire" | "Légèrement actif" | "Modérément actif" | "Très actif" | "Extrêmement actif";
 
@@ -510,6 +538,7 @@ export interface Booking {
   endTime: string; // ISO string
   status: 'confirmed' | 'cancelled';
   type: 'coaching';
+  sessionTypeId?: string;
 }
 
 export interface DriveFile {
@@ -534,6 +563,17 @@ export interface DriveFolder {
   createdAt: string;
 }
 
+export interface Product {
+  id: string;
+  clubId: string;
+  name: string;
+  description?: string;
+  price: number;
+  stock: number;
+  category: 'supplement' | 'clothing' | 'equipment' | 'other';
+  imageUrl?: string;
+}
+
 export interface AppState {
   user: User | null;
   currentClub: Club | null;
@@ -552,6 +592,7 @@ export interface AppState {
   fixedCosts: FixedCost[];
   expenses: Expense[];
   invoices: Invoice[];
+  products: Product[];
   commissionPayments: CommissionPayment[];
   prospects: Prospect[];
   tasks: Task[];
@@ -568,6 +609,7 @@ export interface AppState {
   bookings: Booking[];
   driveFiles: DriveFile[];
   driveFolders: DriveFolder[];
+  notifications: Notification[];
   aboutInfo: ClubInfo;
   coaches: CoachInfo[];
   page: Page;
