@@ -25,7 +25,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<{ start: Date, end: Date } | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{ start: Date, end: Date, sessionTypeId?: string } | null>(null);
 
   const isCoach = state.user?.role === 'coach' || state.user?.role === 'owner' || state.user?.role === 'superadmin';
 
@@ -56,13 +56,15 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   const getAvailableSlots = (date: Date) => {
     const dayOfWeek = date.getDay();
     const daySchedule = bookingSettings.schedule.find(s => s.day === dayOfWeek);
-    const slots: { start: Date, end: Date }[] = [];
-    const durationMs = bookingSettings.sessionDuration * 60000;
+    const slots: { start: Date, end: Date, sessionTypeId?: string }[] = [];
 
     if (daySchedule) {
       daySchedule.slots.forEach(timeSlot => {
         const [startHour, startMin] = timeSlot.start.split(':').map(Number);
         const [endHour, endMin] = timeSlot.end.split(':').map(Number);
+        
+        const sessionType = bookingSettings.sessionTypes?.find(t => t.id === timeSlot.sessionTypeId);
+        const durationMs = (sessionType ? sessionType.duration : (bookingSettings.sessionDuration || 60)) * 60000;
         
         let currentStart = new Date(date);
         currentStart.setHours(startHour, startMin, 0, 0);
@@ -72,7 +74,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
 
         while (currentStart.getTime() + durationMs <= periodEnd.getTime()) {
           const currentEnd = new Date(currentStart.getTime() + durationMs);
-          slots.push({ start: new Date(currentStart), end: new Date(currentEnd) });
+          slots.push({ start: new Date(currentStart), end: new Date(currentEnd), sessionTypeId: timeSlot.sessionTypeId });
           currentStart = new Date(currentStart.getTime() + durationMs);
         }
       });
@@ -96,9 +98,17 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   const handleBookSlot = async () => {
     if (!selectedSlot || !state.user || !state.user.clubId) return;
 
+    let creditType = 'standard';
+    let availableCredits = state.user.credits || 0;
+
+    if (selectedSlot.sessionTypeId) {
+      creditType = selectedSlot.sessionTypeId;
+      availableCredits = state.user.sessionCredits?.[creditType] || 0;
+    }
+
     if (!isCoach) {
-      if ((state.user.credits || 0) <= 0) {
-        showToast("Vous n'avez pas assez de crédits pour réserver.", "error");
+      if (availableCredits <= 0) {
+        showToast("Vous n'avez pas assez de crédits pour réserver ce type de séance.", "error");
         return;
       }
 
@@ -143,15 +153,38 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
         startTime: selectedSlot.start.toISOString(),
         endTime: selectedSlot.end.toISOString(),
         status: 'confirmed',
-        type: 'coaching'
+        type: 'coaching',
+        sessionTypeId: creditType !== 'standard' ? creditType : undefined
       };
 
       await addDoc(collection(db, "bookings"), newBooking);
 
+      // Create notification for the coach
+      if (!isCoach) {
+        if (state.currentClub?.ownerId) {
+          await addDoc(collection(db, 'notifications'), {
+            clubId: state.currentClub?.id,
+            userId: state.currentClub.ownerId,
+            title: 'Nouvelle réservation',
+            message: `${state.user?.name} a réservé une séance le ${new Date(newBooking.startTime).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}.`,
+            type: 'info',
+            read: false,
+            createdAt: new Date().toISOString(),
+            link: 'calendar'
+          });
+        }
+      }
+
       if (!isCoach && state.user.firebaseUid) {
-        await updateDoc(doc(db, "users", state.user.firebaseUid), {
-          credits: (state.user.credits || 0) - 1
-        });
+        if (creditType === 'standard') {
+          await updateDoc(doc(db, "users", state.user.firebaseUid), {
+            credits: availableCredits - 1
+          });
+        } else {
+          await updateDoc(doc(db, "users", state.user.firebaseUid), {
+            [`sessionCredits.${creditType}`]: availableCredits - 1
+          });
+        }
       }
 
       showToast("Réservation confirmée !");
@@ -177,9 +210,15 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
         // Refund credit
         const member = state.users.find(u => Number(u.id) === booking.memberId);
         if (member && member.firebaseUid) {
-          await updateDoc(doc(db, "users", member.firebaseUid), {
-            credits: (member.credits || 0) + 1
-          });
+          if (booking.sessionTypeId) {
+            await updateDoc(doc(db, "users", member.firebaseUid), {
+              [`sessionCredits.${booking.sessionTypeId}`]: (member.sessionCredits?.[booking.sessionTypeId] || 0) + 1
+            });
+          } else {
+            await updateDoc(doc(db, "users", member.firebaseUid), {
+              credits: (member.credits || 0) + 1
+            });
+          }
         }
 
         showToast("Réservation annulée et crédit remboursé.");
@@ -316,6 +355,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
             return slots.map((slot, sIdx) => {
               const bookingForSlot = dayBookings.find(b => new Date(b.startTime).getTime() === slot.start.getTime());
               const isPast = slot.start.getTime() < new Date().getTime();
+              const sessionType = bookingSettings.sessionTypes?.find(t => t.id === slot.sessionTypeId);
 
               if (bookingForSlot) {
                 const isMyBooking = bookingForSlot.memberId === Number(state.user?.id);
@@ -326,7 +366,10 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                 return (
                   <motion.div key={sIdx} variants={itemVariants} className={`${bgColor} p-4 rounded-2xl flex flex-col justify-between min-h-[100px] transition-all ${isPast ? 'opacity-50' : 'hover:scale-[1.02]'}`}>
                     <div className="flex justify-between items-start mb-2">
-                      <div className="font-black text-lg">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
+                      <div>
+                        <div className="font-black text-lg">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
+                        {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider">{sessionType.name}</div>}
+                      </div>
                       {isMyBooking && !isCoach && (
                         <Badge variant="dark" className="!bg-white/20 !text-white !border-none shadow-sm">Ma séance</Badge>
                       )}
@@ -355,6 +398,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                 return (
                   <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-2xl border border-dashed border-zinc-200/50 text-zinc-400 bg-white/30 backdrop-blur-sm flex flex-col justify-center min-h-[100px]">
                     <div className="font-black text-lg mb-1">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
+                    {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider mb-1">{sessionType.name}</div>}
                     <div className="text-[10px] uppercase tracking-widest font-bold">Créneau passé</div>
                   </motion.div>
                 );
@@ -364,6 +408,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                 return (
                   <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-2xl border border-dashed border-zinc-200/50 text-zinc-500 bg-white/60 backdrop-blur-xl flex flex-col justify-center min-h-[100px] shadow-sm">
                     <div className="font-black text-lg mb-1">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
+                    {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider mb-1">{sessionType.name}</div>}
                     <div className="text-[10px] uppercase tracking-widest font-bold">Créneau libre</div>
                   </motion.div>
                 );
@@ -382,6 +427,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                   className="p-4 rounded-2xl border border-zinc-200/50 hover:border-velatra-accent hover:bg-white/80 transition-all text-zinc-900 bg-white/60 backdrop-blur-xl flex flex-col justify-center items-center group min-h-[100px] shadow-sm hover:shadow-md"
                 >
                   <div className="font-black text-xl mb-1 group-hover:text-velatra-accent transition-colors">{formatTime(slot.start)}</div>
+                  {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider mb-1 group-hover:text-velatra-accent/70">{sessionType.name}</div>}
                   <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 group-hover:text-velatra-accent/70">Réserver</div>
                 </motion.button>
               );
@@ -429,12 +475,12 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                 <div className="bg-white/60 backdrop-blur-xl p-4 rounded-2xl border border-zinc-200/50 flex items-center justify-between shadow-sm">
                   <div>
                     <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Coût</div>
-                    <div className="font-bold text-zinc-900">1 Crédit Coaching</div>
+                    <div className="font-bold text-zinc-900">1 Crédit {selectedSlot.sessionTypeId ? (bookingSettings.sessionTypes?.find(t => t.id === selectedSlot.sessionTypeId)?.name || 'Coaching') : 'Standard'}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Solde actuel</div>
-                    <div className={`font-bold ${((state.user?.credits || 0) > 0) ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {state.user?.credits || 0} Crédits
+                    <div className={`font-bold ${(selectedSlot.sessionTypeId ? (state.user?.sessionCredits?.[selectedSlot.sessionTypeId] || 0) : (state.user?.credits || 0)) > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {selectedSlot.sessionTypeId ? (state.user?.sessionCredits?.[selectedSlot.sessionTypeId] || 0) : (state.user?.credits || 0)} Crédits
                     </div>
                   </div>
                 </div>
@@ -443,13 +489,13 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                   variant="primary" 
                   className="w-full !py-4 shadow-lg shadow-velatra-accent/20" 
                   onClick={handleBookSlot}
-                  disabled={(state.user?.credits || 0) <= 0}
+                  disabled={!isCoach && (selectedSlot.sessionTypeId ? (state.user?.sessionCredits?.[selectedSlot.sessionTypeId] || 0) <= 0 : (state.user?.credits || 0) <= 0)}
                 >
                   <CheckIcon size={18} className="mr-2" />
                   CONFIRMER LA RÉSERVATION
                 </Button>
                 
-                {(state.user?.credits || 0) <= 0 && (
+                {!isCoach && (selectedSlot.sessionTypeId ? (state.user?.sessionCredits?.[selectedSlot.sessionTypeId] || 0) <= 0 : (state.user?.credits || 0) <= 0) && (
                   <p className="text-xs text-center text-red-500 font-bold bg-red-500/10 p-3 rounded-xl border border-red-500/20">
                     Vous n'avez pas assez de crédits pour réserver cette séance.
                   </p>

@@ -3,8 +3,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, AppState, Program, Preset, SessionLog, Performance, BodyData, Message, FeedItem,
   SupplementProduct, SupplementOrder, FixedCost, CommissionPayment, Prospect, Newsletter, Club, Exercise,
-  Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect, Expense, Invoice, Booking, DriveFile, DriveFolder
+  Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect, Expense, Invoice, Booking, DriveFile, DriveFolder, Product
 } from './types';
+import type { Notification } from './types';
 import { 
   INIT_EXERCISES, CLUB_INFO, COACHES 
 } from './constants';
@@ -53,6 +54,7 @@ import { MemberSupplementsPage } from './pages/MemberSupplementsPage';
 import { MemberLoyaltyPage } from './pages/MemberLoyaltyPage';
 import { DrivePage } from './pages/DrivePage';
 import { CommunityPage } from './pages/CommunityPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 
 const INITIAL_STATE: AppState = {
   user: null,
@@ -72,6 +74,7 @@ const INITIAL_STATE: AppState = {
   fixedCosts: [],
   expenses: [],
   invoices: [],
+  products: [],
   commissionPayments: [],
   prospects: [],
   tasks: [],
@@ -88,6 +91,7 @@ const INITIAL_STATE: AppState = {
   bookings: [],
   driveFiles: [],
   driveFolders: [],
+  notifications: [],
   aboutInfo: CLUB_INFO,
   coaches: COACHES,
   page: 'home',
@@ -328,6 +332,12 @@ export default function App() {
       const products: SupplementProduct[] = [];
       snap.forEach(d => products.push(d.data() as SupplementProduct));
       setState(prev => ({ ...prev, supplementProducts: products }));
+    });
+
+    const unsubBoutiqueProducts = onSnapshot(query(collection(db, "products"), where("clubId", "==", clubId)), (snap) => {
+      const products: Product[] = [];
+      snap.forEach(d => products.push(d.data() as Product));
+      setState(prev => ({ ...prev, products }));
     });
 
     const unsubOrders = onSnapshot(query(collection(db, "supplementOrders"), where("clubId", "==", clubId)), (snap) => {
@@ -597,6 +607,12 @@ export default function App() {
       setState(prev => ({ ...prev, invoices }));
     });
 
+    const unsubFixedCosts = onSnapshot(query(collection(db, "fixedCosts"), where("clubId", "==", clubId)), (snap) => {
+      const fixedCosts: any[] = [];
+      snap.forEach(d => fixedCosts.push(d.data()));
+      setState(prev => ({ ...prev, fixedCosts }));
+    });
+
     const clubIds = Array.from(new Set(["global", clubId]));
     const unsubExercises = onSnapshot(query(collection(db, "exercises"), where("clubId", "in", clubIds)), (snap) => {
       const fetchedExercises: Exercise[] = [];
@@ -651,13 +667,19 @@ export default function App() {
       setState(prev => ({ ...prev, driveFolders }));
     });
 
+    const unsubNotifications = onSnapshot(query(collection(db, "notifications"), where("clubId", "==", clubId)), (snap) => {
+      const notifications: Notification[] = [];
+      snap.forEach(d => notifications.push(d.data() as Notification));
+      setState(prev => ({ ...prev, notifications }));
+    });
+
     return () => {
       unsubClub(); unsubUsers(); unsubProgs(); unsubPresets(); 
       unsubArchives(); unsubPerfs(); unsubProducts(); unsubOrders();
       unsubLogs(); unsubMessages(); unsubFeed(); unsubBody();
       unsubProspects(); unsubNewsletters(); unsubExercises();
-      unsubTasks(); unsubBookings(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubNutritionPlans(); unsubNutritionLogs();
-      unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects(); unsubDriveFiles(); unsubDriveFolders();
+      unsubTasks(); unsubBookings(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubFixedCosts(); unsubNutritionPlans(); unsubNutritionLogs();
+      unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects(); unsubDriveFiles(); unsubDriveFolders(); unsubNotifications();
     };
   }, [state.user?.clubId]);
 
@@ -740,12 +762,13 @@ export default function App() {
         case 'about': return <AboutPage state={state} setState={setState} />;
         case 'settings': return <SettingsPage state={state} setState={setState} showToast={showToast} />;
         case 'chat': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
-        case 'crm_pipeline': return <ProspectFlowPage state={state} setState={setState} />;
+        case 'crm_pipeline': return <ProspectFlowPage state={state} setState={setState} showToast={showToast} />;
         case 'crm_tasks': return <TasksPage state={state} />;
         case 'crm_finances': return <FinancesPage state={state} setState={setState} showToast={showToast} />;
         case 'calendar': return <PlanningPage state={state} setState={setState} showToast={showToast} />;
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;
         case 'drive': return <DrivePage state={state} />;
+        case 'notifications': return <NotificationsPage state={state} setState={setState} />;
         case 'marketing': return <MarketingPage state={state} setState={setState} />;
         case 'supplements': return <SupplementsPage state={state} setState={setState} showToast={showToast} />;
         case 'loyalty': return <LoyaltyPage state={state} setState={setState} showToast={showToast} />;
@@ -765,6 +788,7 @@ export default function App() {
       case 'about': return <AboutPage state={state} setState={setState} />;
       case 'profile': return <ProfilePage state={state} setState={setState} showToast={showToast} />;
       case 'messages': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
+      case 'notifications': return <NotificationsPage state={state} setState={setState} />;
       case 'supplements': return <MemberSupplementsPage state={state} showToast={showToast} />;
       case 'loyalty': return <MemberLoyaltyPage state={state} />;
       default: return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
@@ -841,10 +865,11 @@ export default function App() {
   if (!state.user) return <Login />;
 
   const unreadMessagesCount = state.messages.filter(m => !m.read && m.to === state.user?.id).length;
+  const unreadNotificationsCount = state.notifications.filter(n => !n.read && n.userId === state.user?.id).length;
 
   return (
     <>
-      <Layout user={state.user} club={state.currentClub} activePage={state.page} onPageChange={(p) => setState(s => ({ ...s, page: p }))} onLogout={handleLogout} unreadMessagesCount={unreadMessagesCount}>
+      <Layout user={state.user} club={state.currentClub} activePage={state.page} onPageChange={(p) => setState(s => ({ ...s, page: p }))} onLogout={handleLogout} unreadMessagesCount={unreadMessagesCount} unreadNotificationsCount={unreadNotificationsCount}>
         {renderActivePageContent(state.user)}
       </Layout>
       

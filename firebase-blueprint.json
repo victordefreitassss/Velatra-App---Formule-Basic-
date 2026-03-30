@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application (coach or member)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number", "description": "Unique identifier" },
+        "clubId": { "type": "string", "description": "The club this user belongs to" },
+        "code": { "type": "string" },
+        "pwd": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["superadmin", "owner", "coach", "member"] },
+        "avatar": { "type": "string" },
+        "gender": { "type": "string", "enum": ["M", "F"] },
+        "age": { "type": "number" },
+        "weight": { "type": "number" },
+        "height": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "firebaseUid": { "type": "string" }
+      },
+      "required": ["id", "clubId", "name", "role", "createdAt"]
+    },
+    "Club": {
+      "title": "Club",
+      "description": "A fitness club",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "ownerId", "createdAt"]
+    },
+    "DriveFile": {
+      "title": "DriveFile",
+      "description": "A file uploaded to the drive",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clubId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "size": { "type": "number" },
+        "url": { "type": "string" },
+        "path": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "createdBy": { "type": "number" },
+        "folderId": { "type": "string" },
+        "sharedWith": { "type": "array", "items": { "type": "number" } }
+      },
+      "required": ["id", "clubId", "name", "type", "size", "url", "path", "createdAt", "createdBy"]
+    },
+    "DriveFolder": {
+      "title": "DriveFolder",
+      "description": "A folder in the drive",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clubId": { "type": "string" },
+        "name": { "type": "string" },
+        "parentId": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "createdBy": { "type": "number" }
+      },
+      "required": ["id", "clubId", "name", "createdAt", "createdBy"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Users collection"
+    },
+    "/clubs/{clubId}": {
+      "schema": { "$ref": "#/entities/Club" },
+      "description": "Clubs collection"
+    },
+    "/driveFiles/{fileId}": {
+      "schema": { "$ref": "#/entities/DriveFile" },
+      "description": "Drive files collection"
+    },
+    "/driveFolders/{folderId}": {
+      "schema": { "$ref": "#/entities/DriveFolder" },
+      "description": "Drive folders collection"
+    }
+  }
+}

@@ -1,0 +1,71 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isSameClub(docClubId) {
+      return isAuthenticated() && getUserData().clubId == docClubId;
+    }
+
+    function isAdmin() {
+      let user = getUserData();
+      return isAuthenticated() && (user.role == 'superadmin' || user.role == 'owner' || user.role == 'coach');
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isSameClub(resource.data.clubId);
+      allow create: if isAuthenticated();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /clubs/{clubId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /driveFiles/{fileId} {
+      allow read: if isAuthenticated() && (isSameClub(resource.data.clubId) || resource.data.sharedWith.hasAny([getUserData().id]));
+      allow create: if isAuthenticated() && isSameClub(request.resource.data.clubId);
+      allow update: if isAuthenticated() && isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin());
+      allow delete: if isAuthenticated() && isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin());
+    }
+
+    match /driveFolders/{folderId} {
+      allow read: if isAuthenticated() && isSameClub(resource.data.clubId);
+      allow create: if isAuthenticated() && isSameClub(request.resource.data.clubId);
+      allow update: if isAuthenticated() && isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin());
+      allow delete: if isAuthenticated() && isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin());
+    }
+
+    // Default rule for all other collections
+    match /{document=**} {
+      allow read: if isAuthenticated() && (
+        resource == null || !('clubId' in resource.data) || isSameClub(resource.data.clubId)
+      );
+      allow write: if isAuthenticated() && (
+        request.resource == null || !('clubId' in request.resource.data) || isSameClub(request.resource.data.clubId)
+      );
+    }
+  }
+}

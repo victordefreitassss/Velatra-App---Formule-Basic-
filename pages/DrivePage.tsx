@@ -5,7 +5,7 @@ import { AppState, DriveFile, DriveFolder } from '../types';
 import { FolderIcon, DownloadIcon, PlusIcon, FileIcon, Trash2Icon, ShareIcon, EyeIcon, ArrowLeftIcon, UploadIcon, XIcon } from '../components/Icons';
 import { Button, Input } from '../components/UI';
 import { db, storage } from '../firebase';
-import { collection, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
@@ -202,10 +202,25 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
     if (!shareModalFile) return;
 
     try {
-      await setDoc(doc(db, 'driveFiles', shareModalFile.id), {
-        ...shareModalFile,
+      await updateDoc(doc(db, 'driveFiles', shareModalFile.id), {
         sharedWith: selectedClients
       });
+
+      // Create notifications for newly shared clients
+      const newClients = selectedClients.filter(c => !shareModalFile.sharedWith.includes(c));
+      for (const clientId of newClients) {
+        await addDoc(collection(db, 'notifications'), {
+          clubId: state.currentClub?.id,
+          userId: clientId,
+          title: 'Nouveau fichier partagé',
+          message: `Le fichier "${shareModalFile.name}" a été partagé avec vous.`,
+          type: 'info',
+          read: false,
+          createdAt: new Date().toISOString(),
+          link: 'drive'
+        });
+      }
+
       setShareModalFile(null);
       setSelectedClients([]);
     } catch (error) {

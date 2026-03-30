@@ -2,9 +2,12 @@ import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Subscription, Payment, Plan, Expense, Invoice } from '../types';
 import { db, doc, updateDoc, setDoc, deleteDoc } from '../firebase';
-import { Plus, Search, Trash2, DollarSign, TrendingUp, CreditCard, AlertCircle, CheckCircle, Clock, User, Package, FileText, MessageCircle, Link as LinkIcon, Download, TrendingDown, RefreshCw } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+import { Plus, Search, Trash2, DollarSign, TrendingUp, CreditCard, AlertCircle, CheckCircle, Clock, User, Package, FileText, MessageCircle, Link as LinkIcon, Download, TrendingDown } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell } from 'recharts';
 import { motion } from 'framer-motion';
+import { SupplementsPage } from './SupplementsPage';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Props {
   state: AppState;
@@ -13,12 +16,16 @@ interface Props {
 }
 
 export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'subscriptions' | 'payments' | 'invoices' | 'expenses' | 'plans'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'subscriptions' | 'payments' | 'invoices' | 'expenses' | 'plans' | 'boutique'>('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddingPlan, setIsAddingPlan] = useState(false);
   const [newPlan, setNewPlan] = useState<Partial<Plan>>({ name: '', price: 0, billingCycle: 'monthly', description: '' });
   const [isAddingExpense, setIsAddingExpense] = useState(false);
-  const [newExpense, setNewExpense] = useState<Partial<Expense>>({ amount: 0, category: 'other', date: new Date().toISOString().split('T')[0], description: '' });
+  const [newExpense, setNewExpense] = useState<Partial<Expense>>({ amount: 0, category: 'other', date: new Date().toISOString().split('T')[0], description: '', vatRate: 20 });
+  const [isAddingFixedCost, setIsAddingFixedCost] = useState(false);
+  const [newFixedCost, setNewFixedCost] = useState({ name: '', amount: 0 });
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const [newGoal, setNewGoal] = useState(state.currentClub?.settings?.finances?.monthlyGoal || 5000);
   const [isAnnual, setIsAnnual] = useState(false);
 
   // Derived Data
@@ -35,6 +42,29 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
   const pendingPayments = state.payments.filter(p => p.status === 'pending').reduce((acc, p) => acc + p.amount, 0);
   const totalExpenses = state.expenses.reduce((acc, e) => acc + e.amount, 0);
   const netProfit = totalRevenue - totalExpenses;
+
+  // TVA Calculations
+  const tvaCollected = state.payments.reduce((acc, payment) => {
+    if (payment.status !== 'paid') return acc;
+    const rate = payment.vatRate || 20;
+    const ht = payment.amount / (1 + rate / 100);
+    return acc + (payment.amount - ht);
+  }, 0);
+
+  const tvaDeductible = state.expenses.reduce((acc, expense) => {
+    const rate = expense.vatRate || 20;
+    const ht = expense.amount / (1 + rate / 100);
+    return acc + (expense.amount - ht);
+  }, 0);
+
+  const tvaNet = tvaCollected - tvaDeductible;
+
+  // Financial Goals
+  const monthlyGoal = state.currentClub?.settings?.finances?.monthlyGoal || 5000;
+  const goalProgress = Math.min((mrr / monthlyGoal) * 100, 100);
+
+  // Cash Flow Projection (Next Month)
+  const projectedRevenue = mrr + (state.payments.filter(p => p.category === 'coaching' || p.category === 'boutique').reduce((acc, p) => acc + p.amount, 0) / 3); // Rough estimate: MRR + average monthly one-off sales
 
   const filteredExpenses = state.expenses.filter(e => {
     if (!e.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
@@ -65,13 +95,248 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
       if (target) target.exp += e.amount;
     });
 
+    const totalMonthlyFixedCosts = (state.fixedCosts || []).reduce((acc, cost) => acc + cost.amount, 0);
+    monthlyData.forEach(md => {
+      md.exp += totalMonthlyFixedCosts;
+    });
+
     return monthlyData.map(md => ({
       name: md.name,
       Revenus: md.rev,
       Dépenses: md.exp,
       Bénéfice: md.rev - md.exp
     }));
-  }, [state.payments, state.expenses]);
+  }, [state.payments, state.expenses, state.fixedCosts]);
+
+  const pieChartData = useMemo(() => {
+    const categories = {
+      subscription: { name: 'Abonnements', value: 0, color: '#F27D26' },
+      coaching: { name: 'Coaching', value: 0, color: '#141414' },
+      boutique: { name: 'Boutique', value: 0, color: '#E4E3E0' },
+      other: { name: 'Autre', value: 0, color: '#A1A1AA' }
+    };
+
+    state.payments.filter(p => p.status === 'paid').forEach(p => {
+      const cat = p.category || 'other';
+      if (categories[cat]) {
+        categories[cat].value += p.amount;
+      } else {
+        categories.other.value += p.amount;
+      }
+    });
+
+    return Object.values(categories).filter(c => c.value > 0);
+  }, [state.payments]);
+
+  const handleExportCSV = () => {
+    const csvRows = [];
+    const headers = [
+      'Date', 
+      'Type', 
+      'Catégorie', 
+      'Description / Client', 
+      'Montant HT (€)', 
+      'Taux TVA (%)', 
+      'Montant TVA (€)', 
+      'Montant TTC (€)', 
+      'Statut'
+    ];
+    csvRows.push(headers.join(';')); // Use semicolon for Excel in Europe
+
+    const formatNum = (num: number) => num.toFixed(2).replace('.', ',');
+
+    const allTransactions = [
+      ...state.payments.map(p => ({ ...p, type: 'Revenu', dateObj: new Date(p.date) })),
+      ...state.expenses.map(e => ({ ...e, type: 'Dépense', dateObj: new Date(e.date) }))
+    ].sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
+
+    allTransactions.forEach(t => {
+      if (t.type === 'Revenu') {
+        const payment = t as any;
+        const member = state.users.find(m => m.id === payment.memberId);
+        const memberName = member ? member.name : 'Client Inconnu';
+        const rate = payment.vatRate || 20;
+        const ht = payment.amount / (1 + rate / 100);
+        const tva = payment.amount - ht;
+
+        csvRows.push([
+          payment.dateObj.toLocaleDateString('fr-FR'),
+          'Revenu',
+          payment.category || 'Autre',
+          `"${memberName}"`,
+          formatNum(ht),
+          formatNum(rate),
+          formatNum(tva),
+          formatNum(payment.amount),
+          payment.status === 'paid' ? 'Payé' : payment.status === 'pending' ? 'En attente' : 'Échoué'
+        ].join(';'));
+      } else {
+        const expense = t as any;
+        const rate = expense.vatRate || 20;
+        const ht = expense.amount / (1 + rate / 100);
+        const tva = expense.amount - ht;
+
+        csvRows.push([
+          expense.dateObj.toLocaleDateString('fr-FR'),
+          'Dépense',
+          expense.category,
+          `"${expense.description}"`,
+          formatNum(-ht),
+          formatNum(rate),
+          formatNum(-tva),
+          formatNum(-expense.amount),
+          'Payé'
+        ].join(';'));
+      }
+    });
+
+    (state.fixedCosts || []).forEach(cost => {
+      const rate = 20;
+      const ht = cost.amount / (1 + rate / 100);
+      const tva = cost.amount - ht;
+
+      csvRows.push([
+        new Date().toLocaleDateString('fr-FR'),
+        'Charge Fixe',
+        'Mensuelle',
+        `"${cost.name}"`,
+        formatNum(-ht),
+        formatNum(rate),
+        formatNum(-tva),
+        formatNum(-cost.amount),
+        'Projeté'
+      ].join(';'));
+    });
+
+    const csvContent = "\uFEFF" + csvRows.join("\n"); // Add BOM for Excel UTF-8
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `export_comptable_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const clubName = state.currentClub?.name || 'Mon Club';
+    
+    doc.setFontSize(22);
+    doc.text('Bilan Comptable', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.text(`Club: ${clubName}`, 14, 30);
+    doc.text(`Date d'export: ${new Date().toLocaleDateString('fr-FR')}`, 14, 36);
+
+    // Summary Box
+    doc.setFillColor(245, 245, 245);
+    doc.rect(14, 42, 182, 35, 'F');
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RÉSUMÉ FINANCIER', 20, 50);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Total Revenus TTC: ${totalRevenue.toFixed(2)} €`, 20, 58);
+    doc.text(`Total Dépenses TTC: ${totalExpenses.toFixed(2)} €`, 20, 65);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Bénéfice Net TTC: ${netProfit.toFixed(2)} €`, 20, 72);
+
+    doc.setFont('helvetica', 'normal');
+    doc.text(`TVA Collectée: ${tvaCollected.toFixed(2)} €`, 110, 58);
+    doc.text(`TVA Déductible: ${tvaDeductible.toFixed(2)} €`, 110, 65);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TVA Nette: ${tvaNet.toFixed(2)} €`, 110, 72);
+
+    const tableData: any[] = [];
+    
+    const allTransactions = [
+      ...state.payments.filter(p => p.status === 'paid').map(p => ({ ...p, type: 'Revenu', dateObj: new Date(p.date) })),
+      ...state.expenses.map(e => ({ ...e, type: 'Dépense', dateObj: new Date(e.date) }))
+    ].sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
+
+    allTransactions.forEach(t => {
+      if (t.type === 'Revenu') {
+        const payment = t as any;
+        const member = state.users.find(m => m.id === payment.memberId);
+        const memberName = member ? member.name : 'Client Inconnu';
+        const rate = payment.vatRate || 20;
+        const ht = payment.amount / (1 + rate / 100);
+        const tva = payment.amount - ht;
+
+        tableData.push([
+          payment.dateObj.toLocaleDateString('fr-FR'),
+          'Revenu',
+          payment.category || 'Autre',
+          memberName,
+          `${ht.toFixed(2)} €`,
+          `${tva.toFixed(2)} €`,
+          `${payment.amount.toFixed(2)} €`
+        ]);
+      } else {
+        const expense = t as any;
+        const rate = expense.vatRate || 20;
+        const ht = expense.amount / (1 + rate / 100);
+        const tva = expense.amount - ht;
+
+        tableData.push([
+          expense.dateObj.toLocaleDateString('fr-FR'),
+          'Dépense',
+          expense.category,
+          expense.description,
+          `-${ht.toFixed(2)} €`,
+          `-${tva.toFixed(2)} €`,
+          `-${expense.amount.toFixed(2)} €`
+        ]);
+      }
+    });
+
+    autoTable(doc, {
+      startY: 85,
+      head: [['Date', 'Type', 'Catégorie', 'Description', 'HT', 'TVA', 'TTC']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [20, 20, 20] },
+      styles: { fontSize: 8 }
+    });
+
+    doc.save(`bilan_comptable_${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const handleDownloadInvoice = (payment: Payment) => {
+    const doc = new jsPDF();
+    const member = state.users.find(m => m.id === payment.memberId);
+    const memberName = member ? member.name : 'Client Inconnu';
+    const clubName = state.currentClub?.name || 'Mon Club';
+
+    doc.setFontSize(20);
+    doc.text('FACTURE', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.text(`Club: ${clubName}`, 20, 40);
+    doc.text(`Date: ${new Date(payment.date).toLocaleDateString('fr-FR')}`, 20, 50);
+    doc.text(`Facture N°: ${payment.id.substring(0, 8).toUpperCase()}`, 20, 60);
+    
+    doc.text(`Client: ${memberName}`, 120, 40);
+    
+    autoTable(doc, {
+      startY: 80,
+      head: [['Description', 'Montant HT', 'TVA', 'Montant TTC']],
+      body: [
+        [
+          `Paiement - ${payment.category || 'Service'}`, 
+          `${(payment.amount / 1.2).toFixed(2)} €`, 
+          '20%', 
+          `${payment.amount.toFixed(2)} €`
+        ],
+      ],
+    });
+
+    doc.save(`facture_${payment.id.substring(0, 8)}.pdf`);
+  };
 
   const handleAddPlan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,14 +389,56 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
       amount: Number(newExpense.amount),
       category: newExpense.category as any,
       date: newExpense.date || new Date().toISOString(),
-      description: newExpense.description || ''
+      description: newExpense.description || '',
+      vatRate: Number(newExpense.vatRate) || 20
     };
     try {
       await setDoc(doc(db, "expenses", id), expense);
       setIsAddingExpense(false);
-      setNewExpense({ amount: 0, category: 'other', date: new Date().toISOString().split('T')[0], description: '' });
+      setNewExpense({ amount: 0, category: 'other', date: new Date().toISOString().split('T')[0], description: '', vatRate: 20 });
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleAddFixedCost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!state.user?.clubId) return;
+    
+    const id = Date.now().toString();
+    const cost = {
+      id,
+      clubId: state.user.clubId,
+      name: newFixedCost.name,
+      amount: Number(newFixedCost.amount)
+    };
+
+    try {
+      await setDoc(doc(db, "fixedCosts", id), cost);
+      setIsAddingFixedCost(false);
+      setNewFixedCost({ name: '', amount: 0 });
+    } catch (err) {
+      console.error("Error adding fixed cost", err);
+    }
+  };
+
+  const handleDeleteFixedCost = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, "fixedCosts", id));
+    } catch (err) {
+      console.error("Error deleting fixed cost", err);
+    }
+  };
+
+  const handleUpdateGoal = async () => {
+    if (!state.currentClub?.id) return;
+    try {
+      await updateDoc(doc(db, "clubs", state.currentClub.id), {
+        'settings.finances.monthlyGoal': Number(newGoal)
+      });
+      setIsEditingGoal(false);
+    } catch (err) {
+      console.error("Error updating goal", err);
     }
   };
 
@@ -155,22 +462,12 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
   const confirmRefundPayment = async () => {
     if (!confirmRefundPaymentId) return;
     const payment = state.payments.find(p => p.id === confirmRefundPaymentId);
-    if (!payment || !payment.stripeChargeId) return;
+    if (!payment) return;
 
     try {
       if (showToast) showToast("Remboursement en cours...", "info");
-      const stripeSecretKey = state.currentClub?.settings?.payment?.stripeSecretKey;
-      const res = await fetch('/api/stripe/refund', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stripeSecretKey, chargeId: payment.stripeChargeId })
-      });
-      if (res.ok) {
-        await updateDoc(doc(db, "payments", payment.id), { status: 'failed' });
-        if (showToast) showToast("Remboursement effectué avec succès !");
-      } else {
-        throw new Error("Erreur lors du remboursement");
-      }
+      await updateDoc(doc(db, "payments", payment.id), { status: 'failed' });
+      if (showToast) showToast("Paiement marqué comme remboursé avec succès !");
     } catch (e) {
       if (showToast) showToast("Erreur lors du remboursement", "error");
     } finally {
@@ -178,117 +475,13 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
     }
   };
 
-  const handleSyncStripe = async () => {
-    if (!state.user?.clubId) {
-      if (showToast) showToast("Erreur : club non trouvé.", "error");
-      return;
-    }
-    
-    const stripeSecretKey = state.currentClub?.settings?.payment?.stripeSecretKey;
-    if (!stripeSecretKey || !stripeSecretKey.startsWith('sk_')) {
-      if (showToast) showToast("Veuillez connecter votre compte Stripe dans les paramètres.", "error");
-      return;
-    }
-
+  const handleUpdatePaymentCategory = async (paymentId: string, category: 'subscription' | 'coaching' | 'boutique' | 'other') => {
     try {
-      if (showToast) showToast("Synchronisation Stripe en cours...", "info");
-      
-      const res = await fetch('/api/stripe/payments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stripeSecretKey })
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Erreur lors de la synchronisation");
-      }
-      
-      const data = await res.json();
-      const stripePayments = data.payments;
-      const stripeSubscriptions = data.subscriptions;
-      
-      let addedCount = 0;
-      for (const sp of stripePayments) {
-        // Check if payment already exists
-        const exists = state.payments.some(p => p.stripeChargeId === sp.id);
-        if (!exists) {
-          // Try to match member by email
-          const member = state.users.find(u => u.email?.toLowerCase() === sp.customerEmail?.toLowerCase());
-          
-          const newPayment: Payment = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-            clubId: state.user.clubId,
-            memberId: member ? Number(member.id) : 0, // 0 if unknown member
-            amount: sp.amount,
-            date: sp.date,
-            status: sp.status === 'succeeded' ? 'paid' : sp.status === 'pending' ? 'pending' : 'failed',
-            method: sp.method,
-            stripeChargeId: sp.id
-          };
-          
-          await setDoc(doc(db, "payments", newPayment.id), newPayment);
-          addedCount++;
-        }
-      }
-
-      let subsAddedCount = 0;
-      let subsUpdatedCount = 0;
-      for (const sub of stripeSubscriptions) {
-        // Check if subscription already exists
-        const existingSub = state.subscriptions.find(s => s.stripeSubscriptionId === sub.id);
-        if (!existingSub) {
-          // Try to match member by stripeCustomerId or email
-          const member = state.users.find(u => 
-            u.stripeCustomerId === sub.customerId || 
-            (u.email && sub.customerEmail && u.email.toLowerCase() === sub.customerEmail.toLowerCase())
-          );
-          
-          // Try to match plan by stripePriceId
-          const plan = state.plans?.find(p => p.stripePriceId === sub.priceId);
-
-          if (member && plan) {
-            // If we matched by email but don't have the customer ID saved, save it
-            if (!member.stripeCustomerId && (member as any).firebaseUid) {
-              await updateDoc(doc(db, "users", (member as any).firebaseUid), {
-                stripeCustomerId: sub.customerId
-              });
-            }
-
-            const newSubscription: Subscription = {
-              id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-              clubId: state.user.clubId,
-              memberId: Number(member.id),
-              planId: plan.id,
-              planName: plan.name,
-              status: sub.status === 'active' || sub.status === 'trialing' ? 'active' : 'cancelled',
-              startDate: sub.currentPeriodStart,
-              endDate: sub.currentPeriodEnd,
-              price: sub.amount,
-              billingCycle: sub.interval === 'year' ? 'yearly' : 'monthly',
-              stripeSubscriptionId: sub.id
-            };
-            
-            await setDoc(doc(db, "subscriptions", newSubscription.id), newSubscription);
-            subsAddedCount++;
-          }
-        } else {
-          // Update existing subscription if status or dates changed
-          const newStatus = sub.status === 'active' || sub.status === 'trialing' ? 'active' : 'cancelled';
-          if (existingSub.status !== newStatus || existingSub.endDate !== sub.currentPeriodEnd) {
-            await updateDoc(doc(db, "subscriptions", existingSub.id), {
-              status: newStatus,
-              endDate: sub.currentPeriodEnd
-            });
-            subsUpdatedCount++;
-          }
-        }
-      }
-      
-      if (showToast) showToast(`${addedCount} paiement(s), ${subsAddedCount} abonnement(s) ajoutés, ${subsUpdatedCount} mis à jour !`, "success");
+      await updateDoc(doc(db, "payments", paymentId), { category });
+      showToast("Catégorie mise à jour", "success");
     } catch (err) {
-      console.error(err);
-      if (showToast) showToast(err instanceof Error ? err.message : "Erreur de synchronisation", "error");
+      console.error("Error updating payment category:", err);
+      showToast("Erreur lors de la mise à jour", "error");
     }
   };
 
@@ -301,14 +494,26 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
         </div>
         
         <div className="flex items-center gap-4">
-          <button onClick={handleSyncStripe} className="px-4 py-2 bg-velatra-accent text-white rounded-lg text-sm font-bold uppercase tracking-widest shadow-lg hover:bg-velatra-accent/90 transition-colors flex items-center gap-2">
-            <RefreshCw className="w-4 h-4" /> Sync Stripe
+          <button
+            onClick={handleExportPDF}
+            className="flex items-center gap-2 bg-velatra-accent text-zinc-900 px-4 py-2 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(242,125,38,0.4)] hover:bg-velatra-accent/90 transition-colors whitespace-nowrap"
+          >
+            <FileText className="w-4 h-4" />
+            Bilan PDF
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="flex items-center gap-2 bg-velatra-bgCard border border-velatra-border text-zinc-900 px-4 py-2 rounded-xl text-sm font-medium hover:bg-velatra-border transition-colors whitespace-nowrap"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
           </button>
           <div className="flex bg-velatra-bgCard p-1 rounded-xl border border-velatra-border overflow-x-auto">
             <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'overview' ? 'bg-velatra-bg text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Vue d'ensemble</button>
             <button onClick={() => setActiveTab('payments')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'payments' ? 'bg-velatra-bg text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Paiements</button>
             <button onClick={() => setActiveTab('expenses')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'expenses' ? 'bg-velatra-bg text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Dépenses</button>
             <button onClick={() => setActiveTab('plans')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'plans' ? 'bg-velatra-bg text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Formules</button>
+            <button onClick={() => setActiveTab('boutique')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'boutique' ? 'bg-velatra-bg text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Boutique</button>
           </div>
         </div>
       </div>
@@ -381,23 +586,135 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             </div>
           </div>
 
-          <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6">
-            <h3 className="text-lg font-semibold text-zinc-900 mb-6">Revenus vs Dépenses (6 derniers mois)</h3>
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                  <XAxis dataKey="name" stroke="#525252" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#525252" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}€`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#141414', borderColor: '#222', borderRadius: '8px', color: '#fff' }}
-                    itemStyle={{ color: '#fff' }}
-                  />
-                  <Legend />
-                  <Bar dataKey="Revenus" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Dépenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 relative overflow-hidden group">
+              <div className="flex justify-between items-start relative z-10">
+                <div className="w-full">
+                  <p className="text-zinc-500 font-medium mb-2 flex items-center justify-between">
+                    Objectif Mensuel
+                    <span className="text-velatra-accent font-bold">{goalProgress.toFixed(0)}%</span>
+                  </p>
+                  
+                  {isEditingGoal ? (
+                    <div className="flex items-center gap-2 mb-4">
+                      <input 
+                        type="number" 
+                        value={newGoal} 
+                        onChange={e => setNewGoal(Number(e.target.value))}
+                        className="w-24 bg-velatra-bg border border-velatra-border rounded-lg p-1 text-zinc-900 text-lg font-bold"
+                      />
+                      <button onClick={handleUpdateGoal} className="bg-velatra-accent text-zinc-900 px-3 py-1 rounded-lg text-sm font-bold">OK</button>
+                      <button onClick={() => setIsEditingGoal(false)} className="text-zinc-500 hover:text-zinc-900 text-sm">Annuler</button>
+                    </div>
+                  ) : (
+                    <h3 
+                      className="text-2xl font-display font-bold text-zinc-900 mb-4 cursor-pointer hover:text-velatra-accent transition-colors"
+                      onClick={() => setIsEditingGoal(true)}
+                      title="Modifier l'objectif"
+                    >
+                      {mrr.toFixed(0)} € / {monthlyGoal} €
+                    </h3>
+                  )}
+
+                  <div className="w-full bg-zinc-100 rounded-full h-3 overflow-hidden">
+                    <div 
+                      className="bg-velatra-accent h-3 rounded-full transition-all duration-1000 ease-out"
+                      style={{ width: `${goalProgress}%` }}
+                    ></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 relative overflow-hidden group">
+              <div className="flex justify-between items-start relative z-10">
+                <div>
+                  <p className="text-zinc-500 font-medium mb-1">Prévision Trésorerie (M+1)</p>
+                  <h3 className="text-2xl font-display font-bold text-zinc-900">{projectedRevenue.toFixed(2)} €</h3>
+                  <p className="text-sm text-zinc-500 mt-2">Basé sur le MRR et la moyenne des ventes</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-500">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 relative overflow-hidden group">
+              <div className="flex justify-between items-start relative z-10">
+                <div className="w-full">
+                  <p className="text-zinc-500 font-medium mb-2">Bilan TVA</p>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm text-zinc-500">Collectée</span>
+                    <span className="font-medium text-zinc-900">{tvaCollected.toFixed(2)} €</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-zinc-500">Déductible</span>
+                    <span className="font-medium text-zinc-900">-{tvaDeductible.toFixed(2)} €</span>
+                  </div>
+                  <div className="w-full h-px bg-velatra-border my-2"></div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-bold text-zinc-900">TVA Nette</span>
+                    <span className={`font-bold ${tvaNet > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                      {tvaNet > 0 ? 'À payer: ' : 'Crédit: '}
+                      {Math.abs(tvaNet).toFixed(2)} €
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6">
+              <h3 className="text-lg font-semibold text-zinc-900 mb-6">Revenus vs Dépenses (6 derniers mois)</h3>
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                    <XAxis dataKey="name" stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}€`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', borderRadius: '8px', color: '#18181b', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      itemStyle={{ color: '#18181b' }}
+                    />
+                    <Legend />
+                    <Bar dataKey="Revenus" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Dépenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6">
+              <h3 className="text-lg font-semibold text-zinc-900 mb-6">Répartition des Revenus</h3>
+              <div className="h-72 w-full flex items-center justify-center">
+                {pieChartData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieChartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {pieChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        formatter={(value: number) => `${value.toFixed(2)} €`}
+                        contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', borderRadius: '8px', color: '#18181b', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                      />
+                      <Legend verticalAlign="bottom" height={36}/>
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-zinc-400 text-sm">Aucune donnée disponible</div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -416,6 +733,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                   <tr>
                     <th className="px-6 py-4 font-medium">Date</th>
                     <th className="px-6 py-4 font-medium">Membre</th>
+                    <th className="px-6 py-4 font-medium">Catégorie</th>
                     <th className="px-6 py-4 font-medium">Méthode</th>
                     <th className="px-6 py-4 font-medium">Statut</th>
                     <th className="px-6 py-4 font-medium">Montant</th>
@@ -429,6 +747,18 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                       <tr key={payment.id} className="hover:bg-zinc-50 transition-colors">
                         <td className="px-6 py-4 text-zinc-900">{new Date(payment.date).toLocaleDateString('fr-FR')}</td>
                         <td className="px-6 py-4 text-zinc-900 font-medium">{member ? member.name : 'Client inconnu'}</td>
+                        <td className="px-6 py-4 text-zinc-500">
+                          <select 
+                            className="bg-transparent border-none text-sm focus:ring-0 cursor-pointer hover:bg-zinc-100 rounded px-2 py-1 -ml-2"
+                            value={payment.category || 'other'}
+                            onChange={(e) => handleUpdatePaymentCategory(payment.id, e.target.value as any)}
+                          >
+                            <option value="subscription">Abonnement</option>
+                            <option value="coaching">Coaching</option>
+                            <option value="boutique">Boutique</option>
+                            <option value="other">Autre</option>
+                          </select>
+                        </td>
                         <td className="px-6 py-4 text-zinc-500 capitalize">{payment.method === 'card' ? 'Carte Bancaire' : payment.method}</td>
                         <td className="px-6 py-4">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -440,14 +770,23 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                           </span>
                         </td>
                         <td className="px-6 py-4 font-bold text-zinc-900">{payment.amount.toFixed(2)} €</td>
-                        <td className="px-6 py-4 text-right">
-                          {payment.stripeChargeId && payment.status === 'paid' && (
-                            <button 
-                              onClick={() => setConfirmRefundPaymentId(payment.id)}
-                              className="text-red-500 hover:text-red-700 text-xs font-bold uppercase tracking-wider"
-                            >
-                              Rembourser
-                            </button>
+                        <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
+                          {payment.status === 'paid' && (
+                            <>
+                              <button 
+                                onClick={() => handleDownloadInvoice(payment)}
+                                className="text-velatra-accent hover:text-velatra-accent/80 text-xs font-bold uppercase tracking-wider flex items-center gap-1"
+                              >
+                                <FileText className="w-3 h-3" />
+                                Facture
+                              </button>
+                              <button 
+                                onClick={() => setConfirmRefundPaymentId(payment.id)}
+                                className="text-red-500 hover:text-red-700 text-xs font-bold uppercase tracking-wider"
+                              >
+                                Rembourser
+                              </button>
+                            </>
                           )}
                         </td>
                       </tr>
@@ -502,6 +841,16 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                   </select>
                 </div>
                 <div>
+                  <label className="block text-sm text-zinc-500 mb-1">Taux de TVA (%)</label>
+                  <select value={newExpense.vatRate || 20} onChange={e => setNewExpense({...newExpense, vatRate: Number(e.target.value)})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900">
+                    <option value={20}>20% (Standard)</option>
+                    <option value={10}>10% (Intermédiaire)</option>
+                    <option value={5.5}>5.5% (Réduit)</option>
+                    <option value={2.1}>2.1% (Particulier)</option>
+                    <option value={0}>0% (Exonéré)</option>
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm text-zinc-500 mb-1">Date</label>
                   <input required type="date" value={newExpense.date} onChange={e => setNewExpense({...newExpense, date: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" />
                 </div>
@@ -546,6 +895,63 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 mt-8">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-lg font-semibold text-zinc-900">Charges Fixes Mensuelles</h3>
+                <p className="text-sm text-zinc-500">Ces charges sont automatiquement prises en compte dans vos prévisions.</p>
+              </div>
+              <button 
+                onClick={() => setIsAddingFixedCost(true)}
+                className="bg-zinc-100 hover:bg-zinc-200 text-zinc-900 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Ajouter une charge</span>
+              </button>
+            </div>
+
+            {isAddingFixedCost && (
+              <div className="bg-velatra-bg border border-velatra-border rounded-xl p-6 mb-6">
+                <form onSubmit={handleAddFixedCost} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-zinc-500 mb-1">Nom de la charge</label>
+                    <input required type="text" value={newFixedCost.name} onChange={e => setNewFixedCost({...newFixedCost, name: e.target.value})} className="w-full bg-white border border-velatra-border rounded-lg p-2 text-zinc-900" placeholder="Ex: Loyer, Électricité..." />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-zinc-500 mb-1">Montant Mensuel (€)</label>
+                    <input required type="number" step="0.01" value={newFixedCost.amount || ''} onChange={e => setNewFixedCost({...newFixedCost, amount: Number(e.target.value) || 0})} className="w-full bg-white border border-velatra-border rounded-lg p-2 text-zinc-900" />
+                  </div>
+                  <div className="md:col-span-2 flex justify-end gap-2 mt-2">
+                    <button type="button" onClick={() => setIsAddingFixedCost(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 font-medium">Annuler</button>
+                    <button type="submit" className="bg-velatra-accent hover:bg-velatra-accentDark text-zinc-900 px-6 py-2 rounded-xl font-bold transition-colors">Enregistrer</button>
+                  </div>
+                </form>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {state.fixedCosts?.map(cost => (
+                <div key={cost.id} className="bg-velatra-bg border border-velatra-border rounded-xl p-4 flex justify-between items-center group">
+                  <div>
+                    <p className="font-medium text-zinc-900">{cost.name}</p>
+                    <p className="text-sm text-zinc-500">{cost.amount.toFixed(2)} € / mois</p>
+                  </div>
+                  <button 
+                    onClick={() => handleDeleteFixedCost(cost.id)}
+                    className="p-2 text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              {(!state.fixedCosts || state.fixedCosts.length === 0) && (
+                <div className="col-span-full text-center py-8 text-zinc-500 border border-dashed border-velatra-border rounded-xl">
+                  Aucune charge fixe enregistrée.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -626,6 +1032,12 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'boutique' && (
+        <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl overflow-hidden p-6">
+          <SupplementsPage state={state} setState={setState} showToast={showToast} isEmbedded={true} />
         </div>
       )}
 

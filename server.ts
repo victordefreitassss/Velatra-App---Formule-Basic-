@@ -34,7 +34,8 @@ app.use(express.json());
         customerEmail: charge.billing_details?.email || null,
         customerName: charge.billing_details?.name || null,
         method: charge.payment_method_details?.type || 'card',
-        receiptUrl: charge.receipt_url
+        receiptUrl: charge.receipt_url,
+        description: charge.description || null
       }));
 
       // Fetch active subscriptions

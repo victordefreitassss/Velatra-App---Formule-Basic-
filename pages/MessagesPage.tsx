@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppState, Message } from '../types';
 import { Card, Button, Input } from '../components/UI';
 import { MessageCircleIcon, PlusIcon, ChevronLeftIcon, FileIcon, DownloadIcon } from '../components/Icons';
-import { db, doc, setDoc } from '../firebase';
+import { db, doc, setDoc, addDoc, collection } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast: any, embedded?: boolean }> = ({ state, setState, showToast, embedded }) => {
@@ -46,6 +46,19 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
     
     try {
       await setDoc(doc(db, "messages", messageId), newMessage);
+      
+      // Create notification for the recipient
+      await addDoc(collection(db, 'notifications'), {
+        clubId: user.clubId,
+        userId: selectedDest,
+        title: 'Nouveau message',
+        message: `Vous avez reçu un nouveau message de ${user.name}.`,
+        type: 'info',
+        read: false,
+        createdAt: new Date().toISOString(),
+        link: 'messages'
+      });
+
       setText("");
       setFileData(null);
       setFileName(null);

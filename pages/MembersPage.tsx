@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { AppState, User, Performance, BodyData, Program, Gender, Goal, Subscription, Plan, NutritionPlan, Payment, Invoice, SessionLog } from '../types';
+import { AppState, User, Performance, BodyData, Program, Gender, Goal, Subscription, Plan, NutritionPlan, Payment, Invoice, SessionLog, DriveFile } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { 
   SearchIcon, InfoIcon, 
-  XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon
+  XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon
 } from '../components/Icons';
-import { db, doc, setDoc, updateDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage } from '../firebase';
+import { db, doc, setDoc, updateDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage, addDoc } from '../firebase';
+import { uploadBytesResumable, deleteObject } from 'firebase/storage';
 import { GOALS } from '../constants';
 import { calculateNutritionPlan, updateNutritionPlanForWeight } from '../utils';
 import { 
@@ -80,6 +81,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   });
   const [isAddingPayment, setIsAddingPayment] = useState(false);
   const [newPayment, setNewPayment] = useState<Partial<Payment>>({ amount: 0, method: 'cash', status: 'paid', date: new Date().toISOString().split('T')[0] });
+  const [isUploadingDriveFile, setIsUploadingDriveFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [confirmDeleteFileId, setConfirmDeleteFileId] = useState<string | null>(null);
 
   const members = state.users.filter(u => {
     if (u.role !== 'member') return false;
@@ -207,6 +211,26 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
+  const handleUpdateSessionCredits = async (member: User, typeId: string, amount: number) => {
+    if (!member.firebaseUid) return;
+    const currentCredits = member.sessionCredits?.[typeId] || 0;
+    const newCredits = Math.max(0, currentCredits + amount);
+    
+    try {
+      await updateDoc(doc(db, "users", member.firebaseUid), {
+        [`sessionCredits.${typeId}`]: newCredits
+      });
+      setSelectedProfile({ 
+        ...member, 
+        sessionCredits: { ...(member.sessionCredits || {}), [typeId]: newCredits } 
+      });
+      showToast(`Crédits mis à jour (${newCredits})`);
+    } catch (err) {
+      console.error("Error updating session credits:", err);
+      showToast("Erreur lors de la mise à jour des crédits", "error");
+    }
+  };
+
   const handleEditProgram = (member: User) => {
     const mid = Number(member.id);
     const existingProg = state.programs.find(p => Number(p.memberId) === mid);
@@ -241,15 +265,113 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         date: newPayment.date || new Date().toISOString().split('T')[0],
         method: newPayment.method as any,
         status: newPayment.status as any,
+        category: newPayment.category || 'other',
         reference: `PAY-${Date.now()}`
       } as Payment;
       await setDoc(doc(db, "payments", paymentData.id), paymentData);
       showToast("Paiement ajouté avec succès");
       setIsAddingPayment(false);
-      setNewPayment({ amount: 0, method: 'cash', status: 'paid', date: new Date().toISOString().split('T')[0] });
+      setNewPayment({ amount: 0, method: 'cash', status: 'paid', date: new Date().toISOString().split('T')[0], category: 'other' });
     } catch (err) {
       console.error("Error adding payment:", err);
       showToast("Erreur lors de l'ajout du paiement", "error");
+    }
+  };
+
+  const handleDriveFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !state.currentClub?.id || !state.user || !selectedProfile) return;
+
+    setIsUploadingDriveFile(true);
+    setUploadProgress(0);
+
+    const totalFiles = files.length;
+    let completedFiles = 0;
+
+    const uploadPromises = Array.from(files).map((file) => {
+      return new Promise<void>((resolve, reject) => {
+        const fileId = doc(collection(db, 'driveFiles')).id;
+        const storageRef = ref(storage, `drive/${state.currentClub!.id}/${fileId}_${file.name}`);
+        
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed', 
+          (snapshot) => {
+            // progress tracking could be added here
+          }, 
+          (error) => {
+            console.error("Error uploading file:", error);
+            reject(error);
+          }, 
+          async () => {
+            try {
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+              
+              const newFile: DriveFile = {
+                id: fileId,
+                clubId: state.currentClub!.id,
+                name: file.name,
+                type: file.type || 'application/octet-stream',
+                size: file.size,
+                url: downloadURL,
+                path: storageRef.fullPath,
+                createdAt: new Date().toISOString(),
+                uploadedBy: state.user!.id,
+                folderId: null,
+                sharedWith: [Number(selectedProfile.id)]
+              };
+
+              await setDoc(doc(db, 'driveFiles', fileId), newFile);
+
+              // Create notification for the member
+              await addDoc(collection(db, 'notifications'), {
+                clubId: state.currentClub!.id,
+                userId: Number(selectedProfile.id),
+                title: 'Nouveau document',
+                message: `Un nouveau document "${file.name}" a été ajouté à votre dossier.`,
+                type: 'info',
+                read: false,
+                createdAt: new Date().toISOString(),
+                link: 'home'
+              });
+
+              completedFiles++;
+              setUploadProgress((completedFiles / totalFiles) * 100);
+              resolve();
+            } catch (err) {
+              reject(err);
+            }
+          }
+        );
+      });
+    });
+
+    try {
+      await Promise.all(uploadPromises);
+      showToast("Fichier(s) importé(s) avec succès");
+    } catch (error) {
+      console.error("Error in batch upload:", error);
+      showToast("Erreur lors de l'import des fichiers", "error");
+    } finally {
+      setIsUploadingDriveFile(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const confirmDeleteFile = async () => {
+    if (!confirmDeleteFileId) return;
+    const file = state.driveFiles.find(f => f.id === confirmDeleteFileId);
+    if (!file) return;
+
+    try {
+      const storageRef = ref(storage, file.path);
+      await deleteObject(storageRef);
+      await deleteDoc(doc(db, 'driveFiles', file.id));
+      showToast("Fichier supprimé");
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      showToast("Erreur lors de la suppression du fichier", "error");
+    } finally {
+      setConfirmDeleteFileId(null);
     }
   };
 
@@ -510,6 +632,35 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
     try {
       await setDoc(doc(db, "subscriptions", subId), subscription);
+      
+      // Create notification for the member
+      await addDoc(collection(db, 'notifications'), {
+        clubId: state.user.clubId,
+        userId: Number(selectedProfile.id),
+        title: 'Nouvel abonnement',
+        message: `L'abonnement "${plan.name}" vous a été assigné.`,
+        type: 'success',
+        read: false,
+        createdAt: new Date().toISOString(),
+        link: 'profile'
+      });
+
+      // Add credits to user
+      if (selectedProfile.firebaseUid && (plan.credits || plan.sessionCredits)) {
+        const updates: any = {};
+        if (plan.credits) {
+          updates.credits = (selectedProfile.credits || 0) + plan.credits;
+        }
+        if (plan.sessionCredits) {
+          Object.entries(plan.sessionCredits).forEach(([typeId, amount]) => {
+            if (amount) {
+              updates[`sessionCredits.${typeId}`] = (selectedProfile.sessionCredits?.[typeId] || 0) + amount;
+            }
+          });
+        }
+        await updateDoc(doc(db, "users", selectedProfile.firebaseUid), updates);
+      }
+
       showToast("Abonnement assigné avec succès");
       setIsAssigningPlan(false);
       setSelectedPlanId('');
@@ -554,6 +705,100 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       console.error("Error uploading file", err);
       showToast("Erreur lors de l'import du contrat", "error");
     }
+  };
+
+  const handleImportClients = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      const lines = text.split('\n');
+      if (lines.length < 2) {
+        showToast("Le fichier CSV est vide ou invalide", "error");
+        return;
+      }
+
+      // Assume header is: Nom, Email, Telephone
+      let successCount = 0;
+      let errorCount = 0;
+
+      showToast("Importation en cours...", "info");
+
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const parts = line.split(/[,;]/).map(s => s.trim().replace(/^"|"$/g, ''));
+        let name = '', email = '', phone = '';
+
+        if (parts.length >= 4 && parts[2].includes('@')) {
+          name = `${parts[0]} ${parts[1]}`.trim();
+          email = parts[2];
+          phone = parts[3] || '';
+        } else if (parts.length >= 3 && parts[1].includes('@')) {
+          name = parts[0];
+          email = parts[1];
+          phone = parts[2] || '';
+        } else if (parts.length >= 2 && parts[1].includes('@')) {
+          name = parts[0];
+          email = parts[1];
+        } else {
+          // Fallback if email is not found where expected, just try to use the first 3 columns
+          name = parts[0];
+          email = parts[1];
+          phone = parts[2] || '';
+        }
+
+        if (!name || !email || !email.includes('@')) continue;
+
+        try {
+          // Create Firebase Auth user with a default password
+          const defaultPassword = "VelatraUser2026!";
+          const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, defaultPassword);
+          const firebaseUid = userCredential.user.uid;
+
+          const newUserId = Date.now() + i; // Ensure unique ID
+          const newUser: User = {
+            id: newUserId,
+            clubId: state.user?.clubId || '',
+            code: "",
+            pwd: "", // Handled by Firebase Auth
+            name: name,
+            email: email,
+            phone: phone || '',
+            role: 'member',
+            avatar: '',
+            gender: 'M',
+            age: 30,
+            weight: 70,
+            height: 175,
+            objectifs: ['Perte de poids'],
+            experienceLevel: 'Débutant',
+            trainingDays: 3,
+            createdAt: new Date().toISOString(),
+            notes: '',
+            xp: 0,
+            streak: 0,
+            pointsFidelite: 0
+          };
+
+          await setDoc(doc(db, "users", firebaseUid), newUser);
+          successCount++;
+        } catch (err) {
+          console.error(`Error importing user ${email}:`, err);
+          errorCount++;
+        }
+      }
+
+      showToast(`Import terminé : ${successCount} ajoutés, ${errorCount} erreurs`, successCount > 0 ? "success" : "error");
+      // Reset file input
+      e.target.value = '';
+    };
+    reader.readAsText(file);
   };
 
   const handleCreateMember = async () => {
@@ -719,9 +964,25 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900">Fiches Athlètes</h1>
           <p className="text-[10px] text-velatra-accent font-bold uppercase tracking-[3px]">{members.length} Profils Actifs</p>
         </div>
-        <Button variant="primary" onClick={() => setIsAddingMember(true)} className="!py-3 !px-6 !rounded-2xl shadow-xl shadow-velatra-accent/20 font-black text-xs italic">
-          + NOUVEAU PROFIL
-        </Button>
+        <div className="flex items-center gap-3">
+          <input 
+            type="file" 
+            accept=".csv" 
+            className="hidden" 
+            id="import-clients-csv" 
+            onChange={handleImportClients} 
+          />
+          <label 
+            htmlFor="import-clients-csv" 
+            className="bg-zinc-100 text-zinc-900 px-6 py-3 rounded-2xl font-black text-xs italic cursor-pointer hover:bg-zinc-200 transition-colors flex items-center gap-2"
+          >
+            <UploadIcon size={16} />
+            IMPORT CSV
+          </label>
+          <Button variant="primary" onClick={() => setIsAddingMember(true)} className="!py-3 !px-6 !rounded-2xl shadow-xl shadow-velatra-accent/20 font-black text-xs italic">
+            + NOUVEAU PROFIL
+          </Button>
+        </div>
       </div>
 
       {expiringSubscriptions.length > 0 && (
@@ -916,14 +1177,32 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4">
                     <div className="flex items-center justify-between">
                       <h3 className="text-[10px] font-black uppercase tracking-[4px] text-velatra-accent">Crédits Coaching</h3>
-                      <div className="flex gap-2">
-                        <Button variant="secondary" className="!p-1 !h-6 !w-6 flex items-center justify-center" onClick={() => handleUpdateCredits(selectedProfile, -1)}>-</Button>
-                        <Button variant="secondary" className="!p-1 !h-6 !w-6 flex items-center justify-center" onClick={() => handleUpdateCredits(selectedProfile, 1)}>+</Button>
-                      </div>
                     </div>
-                    <div className="text-center py-2">
-                      <div className="text-3xl font-black text-zinc-900">{selectedProfile.credits || 0}</div>
-                      <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mt-1">Crédits restants</div>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-zinc-200">
+                        <div>
+                          <div className="text-xl font-black text-zinc-900">{selectedProfile.credits || 0}</div>
+                          <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Standard</div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateCredits(selectedProfile, -1)}>-</Button>
+                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateCredits(selectedProfile, 1)}>+</Button>
+                        </div>
+                      </div>
+
+                      {state.currentClub?.settings?.booking?.sessionTypes?.map(type => (
+                        <div key={type.id} className="flex items-center justify-between bg-white p-3 rounded-2xl border border-zinc-200">
+                          <div>
+                            <div className="text-xl font-black text-zinc-900">{selectedProfile.sessionCredits?.[type.id] || 0}</div>
+                            <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">{type.name}</div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, -1)}>-</Button>
+                            <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, 1)}>+</Button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -1269,12 +1548,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           <p className="text-[10px] text-zinc-500 mb-4 leading-relaxed">Générez un programme d'entraînement complet et sur-mesure basé sur les objectifs et le niveau du membre.</p>
                           <div className="bg-velatra-accent/10 border border-velatra-accent/20 rounded-xl p-3 mb-6">
                             <p className="text-[10px] font-bold text-velatra-accent uppercase tracking-widest text-center">
-                              Disponible sur la version supérieure
+                              Bientôt disponible
                             </p>
                           </div>
                         </div>
-                        <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl relative z-10 border-velatra-accent/30 hover:border-velatra-accent !bg-velatra-accent/10 !text-velatra-accent" onClick={() => window.open('https://wa.me/33676760075?text=Bonjour,%20je%20souhaite%20passer%20à%20la%20version%20supérieure%20pour%20débloquer%20la%20génération%20de%20programmes%20IA.', '_blank')}>
-                          ME CONTACTER SUR WHATSAPP
+                        <Button variant="secondary" fullWidth disabled className="!py-3 !text-[10px] !rounded-xl relative z-10 border-velatra-accent/30 !bg-velatra-accent/10 !text-velatra-accent opacity-70 cursor-not-allowed">
+                          LA GÉNÉRATION DE PROGRAMME SERA BIENTÔT DISPONIBLE
                         </Button>
                       </div>
 
@@ -1381,6 +1660,73 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     </div>
                   </section>
 
+                  {/* DOCUMENTS PARTAGÉS (DRIVE) */}
+                  <section className="space-y-8">
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500"><FolderIcon size={24} /></div>
+                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Documents Partagés</h3>
+                    </div>
+                    
+                    <div className="bg-white border border-zinc-200 rounded-[40px] p-8 shadow-inner">
+                      <div className="flex justify-between items-center mb-6">
+                        <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Fichiers du client</h4>
+                        <label className="cursor-pointer">
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            multiple 
+                            onChange={(e) => handleDriveFileUpload(e.target.files)}
+                            disabled={isUploadingDriveFile}
+                          />
+                          <Button variant="secondary" className="!py-2 !px-4 !text-[10px] !rounded-xl pointer-events-none" disabled={isUploadingDriveFile}>
+                            {isUploadingDriveFile ? (
+                              <span>{Math.round(uploadProgress)}%</span>
+                            ) : (
+                              <>
+                                <UploadIcon size={14} className="mr-2 inline" />
+                                IMPORTER
+                              </>
+                            )}
+                          </Button>
+                        </label>
+                      </div>
+
+                      <div className="space-y-3">
+                        {state.driveFiles?.filter(f => f.sharedWith?.includes(Number(selectedProfile.id))).length > 0 ? (
+                          state.driveFiles.filter(f => f.sharedWith?.includes(Number(selectedProfile.id)))
+                            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                            .map(file => (
+                              <div key={file.id} className="flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:border-blue-500/30 transition-colors">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-500 shadow-sm border border-zinc-100">
+                                    <FileIcon size={20} />
+                                  </div>
+                                  <div>
+                                    <div className="text-sm font-bold text-zinc-900">{file.name}</div>
+                                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
+                                      {(file.size / 1024 / 1024).toFixed(2)} MB • {new Date(file.createdAt).toLocaleDateString('fr-FR')}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <a href={file.url} target="_blank" rel="noopener noreferrer" className="p-2 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-colors">
+                                    <EyeIcon size={18} />
+                                  </a>
+                                  <button onClick={() => setConfirmDeleteFileId(file.id)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                                    <Trash2Icon size={18} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                        ) : (
+                          <div className="text-center py-8 text-zinc-500 text-sm">
+                            Aucun document partagé avec ce client.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+
                   {/* FINANCES & FACTURATION */}
                   <section className="space-y-8">
                     <div className="flex items-center gap-4">
@@ -1434,6 +1780,19 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                 <option value="cash">Espèces</option>
                                 <option value="transfer">Virement</option>
                                 <option value="sepa">Prélèvement SEPA</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Catégorie</label>
+                              <select 
+                                className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent"
+                                value={newPayment.category || 'other'} 
+                                onChange={(e) => setNewPayment({...newPayment, category: e.target.value as any})}
+                              >
+                                <option value="subscription">Abonnement</option>
+                                <option value="coaching">Coaching</option>
+                                <option value="boutique">Boutique</option>
+                                <option value="other">Autre</option>
                               </select>
                             </div>
                             <div>
@@ -1950,6 +2309,45 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
       {createPortal(
       <AnimatePresence>
+      {confirmDeleteFileId && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
+        >
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden border border-zinc-200"
+          >
+            <div className="p-8">
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Trash2Icon size={32} />
+              </div>
+              <h2 className="text-2xl font-black text-zinc-900 text-center mb-4">Supprimer le fichier ?</h2>
+              <p className="text-zinc-500 text-center mb-8">
+                Êtes-vous sûr de vouloir supprimer ce fichier ? Cette action est irréversible.
+              </p>
+              <div className="flex gap-4">
+                <Button variant="secondary" fullWidth onClick={() => setConfirmDeleteFileId(null)}>
+                  ANNULER
+                </Button>
+                <Button variant="primary" fullWidth onClick={confirmDeleteFile} className="!bg-red-500 hover:!bg-red-600">
+                  SUPPRIMER
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+      </AnimatePresence>,
+      document.body
+      )}
+
+      {createPortal(
+      <AnimatePresence>
       {isAddingMember && (
         <motion.div 
           initial={{ opacity: 0 }}
@@ -2098,17 +2496,17 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   placeholder="Ex: Douleur épaule droite..."
                 />
               </div>
+            </div>
 
-              <div className="pt-4 shrink-0 flex flex-col sm:flex-row gap-3 border-t border-zinc-100 mt-2">
-                <Button variant="secondary" fullWidth onClick={() => setIsAddingMember(false)}>ANNULER</Button>
-                <Button variant="success" fullWidth onClick={handleCreateMember}>
-                  CRÉER LE MEMBRE <CheckIcon size={18} className="ml-2" />
-                </Button>
-              </div>
+            <div className="pt-4 shrink-0 flex flex-col sm:flex-row gap-3 border-t border-zinc-100 mt-4">
+              <Button variant="secondary" fullWidth onClick={() => setIsAddingMember(false)}>ANNULER</Button>
+              <Button variant="success" fullWidth onClick={handleCreateMember}>
+                CRÉER LE MEMBRE <CheckIcon size={18} className="ml-2" />
+              </Button>
             </div>
           </Card>
-          </motion.div>
         </motion.div>
+      </motion.div>
       )}
       </AnimatePresence>,
       document.body

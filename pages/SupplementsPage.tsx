@@ -20,7 +20,7 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 }
 };
 
-export const SupplementsPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
+export const SupplementsPage: React.FC<{ state: AppState, setState: any, showToast: any, isEmbedded?: boolean }> = ({ state, setState, showToast, isEmbedded }) => {
   const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products');
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -74,6 +74,26 @@ export const SupplementsPage: React.FC<{ state: AppState, setState: any, showToa
   const handleUpdateOrderStatus = async (orderId: string, status: 'completed' | 'cancelled') => {
     try {
       await updateDoc(doc(db, "supplementOrders", orderId), { status });
+      
+      if (status === 'completed') {
+        const order = state.supplementOrders.find(o => o.id === orderId);
+        if (order) {
+          const paymentId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+          const paymentData = {
+            id: paymentId,
+            clubId: order.clubId,
+            memberId: order.adherentId,
+            amount: order.total,
+            date: new Date().toISOString().split('T')[0],
+            status: 'paid',
+            method: 'card', // Assume card or cash, maybe default to card
+            category: 'boutique',
+            reference: `ORDER-${order.id}`
+          };
+          await setDoc(doc(db, "payments", paymentId), paymentData);
+        }
+      }
+      
       showToast("Statut mis à jour", "success");
     } catch (err) {
       showToast("Erreur lors de la mise à jour", "error");
@@ -82,17 +102,19 @@ export const SupplementsPage: React.FC<{ state: AppState, setState: any, showToa
 
   return (
     <motion.div 
-      className="p-6 max-w-7xl mx-auto space-y-8 pb-24"
+      className={isEmbedded ? "space-y-8" : "p-6 max-w-7xl mx-auto space-y-8 pb-24"}
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-        <div>
-          <h1 className="text-4xl font-black italic text-zinc-900 tracking-tight uppercase">Boutique</h1>
-          <p className="text-zinc-500 text-sm font-medium mt-1">Gérez vos produits et commandes</p>
-        </div>
-        <div className="flex gap-2 bg-white/60 backdrop-blur-xl p-1 rounded-xl border border-zinc-200/50 shadow-sm">
+        {!isEmbedded && (
+          <div>
+            <h1 className="text-4xl font-black italic text-zinc-900 tracking-tight uppercase">Boutique</h1>
+            <p className="text-zinc-500 text-sm font-medium mt-1">Gérez vos produits et commandes</p>
+          </div>
+        )}
+        <div className={`flex gap-2 bg-white/60 backdrop-blur-xl p-1 rounded-xl border border-zinc-200/50 shadow-sm ${isEmbedded ? 'w-full sm:w-auto' : ''}`}>
           <button 
             onClick={() => setActiveTab('products')}
             className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all duration-300 ${activeTab === 'products' ? 'bg-velatra-accent text-white shadow-md shadow-velatra-accent/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white/50'}`}
