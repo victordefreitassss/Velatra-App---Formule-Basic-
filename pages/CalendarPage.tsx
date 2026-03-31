@@ -65,7 +65,7 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
         </div>
       </motion.div>
 
-      <motion.div variants={itemVariants} className="bg-white/60 backdrop-blur-xl p-6 rounded-3xl border border-zinc-200/50 shadow-sm">
+      <motion.div variants={itemVariants} className="bg-white/60 backdrop-blur-xl p-6 rounded-3xl border  shadow-sm">
         <div className="flex justify-between items-end mb-4">
           <div>
             <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Progression Globale</div>
@@ -76,7 +76,7 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
             <div className="text-sm font-black italic text-velatra-accent">{currentWeek} / {totalWeeks}</div>
           </div>
         </div>
-        <div className="w-full bg-zinc-100/50 rounded-full h-3 overflow-hidden shadow-inner">
+        <div className="w-full bg-zinc-50/50 rounded-full h-3 overflow-hidden shadow-inner">
           <motion.div 
             initial={{ width: 0 }}
             animate={{ width: `${progressPercent}%` }}
@@ -94,9 +94,9 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
 
           return (
             <motion.div variants={itemVariants} key={idx}>
-              <Card className={`flex items-center justify-between group !p-4 md:!p-6 border-zinc-200/50 transition-all shadow-sm ${isCompleted ? 'bg-white/40 backdrop-blur-md opacity-60' : 'bg-white/60 backdrop-blur-xl hover:border-velatra-accent/30 hover:shadow-md'}`}>
+              <Card className={`flex items-center justify-between group !p-4 md:!p-6  transition-all shadow-sm ${isCompleted ? 'bg-white/40 backdrop-blur-md opacity-60' : 'bg-white/60 backdrop-blur-xl hover:border-velatra-accent/30 hover:shadow-md'}`}>
                 <div className="flex items-center gap-4 md:gap-6">
-                  <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl border flex items-center justify-center font-bold text-lg md:text-xl transition-all shadow-inner shrink-0 ${isCompleted ? 'bg-velatra-accent text-zinc-900 border-velatra-accent' : isCurrent ? 'bg-velatra-accent/10 text-velatra-accent border-velatra-accent/50' : 'bg-white/50 border-zinc-200/50 text-zinc-900 group-hover:text-velatra-accent group-hover:border-velatra-accent/50 group-hover:bg-velatra-accent/10'}`}>
+                  <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl border flex items-center justify-center font-bold text-lg md:text-xl transition-all shadow-inner shrink-0 ${isCompleted ? 'bg-velatra-accent text-zinc-900 border-velatra-accent' : isCurrent ? 'bg-velatra-accent/10 text-velatra-accent border-velatra-accent/50' : 'bg-white/50  text-zinc-900 group-hover:text-velatra-accent group-hover:border-velatra-accent/50 group-hover:bg-velatra-accent/10'}`}>
                     {isCompleted ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> : idx + 1}
                   </div>
                   <div>

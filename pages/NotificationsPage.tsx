@@ -72,9 +72,9 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ state, set
         )}
       </div>
 
-      <div className="bg-white rounded-[40px] shadow-sm border border-zinc-200 overflow-hidden">
+      <div className="bg-white rounded-[40px] shadow-sm border  overflow-hidden">
         {userNotifications.length > 0 ? (
-          <div className="divide-y divide-zinc-100">
+          <div className="divide-y divide-transparent">
             {userNotifications.map(notification => (
               <motion.div 
                 key={notification.id}
@@ -113,7 +113,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ state, set
           </div>
         ) : (
           <div className="p-12 text-center">
-            <div className="w-20 h-20 bg-zinc-50 text-zinc-300 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-zinc-50 text-zinc-700 rounded-full flex items-center justify-center mx-auto mb-6">
               <BellIcon size={40} />
             </div>
             <h3 className="text-xl font-black text-zinc-900 mb-2">Aucune notification</h3>

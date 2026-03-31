@@ -17,7 +17,7 @@ const AppLogo = () => (
       </div>
       <div className="font-display font-bold text-5xl tracking-tight leading-none text-zinc-900">VELA<span className="text-velatra-accent">TRA</span></div>
     </div>
-    <div className="text-[10px] tracking-[6px] text-zinc-900 font-bold uppercase mt-3 opacity-80 pl-2">PERFORMANCE SaaS</div>
+    <div className="text-[10px] tracking-[6px] text-zinc-400 font-bold uppercase mt-3 opacity-80 pl-2">PERFORMANCE SaaS</div>
   </div>
 );
 
@@ -73,23 +73,23 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
           </p>
         </div>
 
-        <Card className={`!p-8 space-y-6 border-zinc-200 ring-1 transition-all duration-500 shadow-2xl bg-zinc-50 backdrop-blur-3xl ${isCoachMode ? 'ring-velatra-accent/40 bg-velatra-accent/5' : 'ring-zinc-200'}`}>
+        <Card className={`!p-8 space-y-6  ring-1 transition-all duration-500 shadow-2xl bg-velatra-bgCard/60 backdrop-blur-3xl ${isCoachMode ? 'ring-velatra-accent/40 bg-velatra-accent/5' : ''}`}>
           <form onSubmit={handleEmailLogin} className="space-y-4">
             {!isCoachMode ? (
               <div className="space-y-1.5">
-                <label className="text-[9px] uppercase tracking-widest font-bold text-zinc-900 ml-1">Email</label>
-                <Input type="email" placeholder="votre@email.com" value={email} onChange={e => setEmail(e.target.value)} required className="!bg-zinc-50 !border-zinc-200" />
+                <label className="text-[9px] uppercase tracking-widest font-bold text-zinc-400 ml-1">Email</label>
+                <Input type="email" placeholder="votre@email.com" value={email} onChange={e => setEmail(e.target.value)} required className="!bg-velatra-bgLight !" />
               </div>
             ) : (
               <div className="space-y-1.5">
                 <label className="text-[9px] uppercase tracking-widest font-bold text-velatra-accent ml-1">Email Coach</label>
-                <Input type="email" placeholder="coach@votreclub.com" value={email} onChange={e => setEmail(e.target.value)} required className="!bg-zinc-50 !border-zinc-200 focus:!ring-velatra-accent/20" />
+                <Input type="email" placeholder="coach@votreclub.com" value={email} onChange={e => setEmail(e.target.value)} required className="!bg-velatra-bgLight ! focus:!ring-velatra-accent/20" />
               </div>
             )}
 
             <div className="space-y-1.5">
-              <label className="text-[9px] uppercase tracking-widest font-bold text-zinc-900 ml-1">Mot de passe</label>
-              <Input type="password" placeholder="••••••••" value={pwd} onChange={e => setPwd(e.target.value)} required className="!bg-zinc-50 !border-zinc-200" />
+              <label className="text-[9px] uppercase tracking-widest font-bold text-zinc-400 ml-1">Mot de passe</label>
+              <Input type="password" placeholder="••••••••" value={pwd} onChange={e => setPwd(e.target.value)} required className="!bg-velatra-bgLight !" />
             </div>
             
             {error && <p className="text-[10px] text-red-400 font-bold text-center bg-red-400/10 py-2.5 rounded-xl border border-red-400/20 leading-snug">{error}</p>}
@@ -105,12 +105,12 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
                 <button onClick={() => setMode('register')} className="text-[10px] font-bold text-zinc-500 hover:text-zinc-900 transition-colors tracking-widest uppercase">
                   Pas encore membre ? <span className="text-zinc-900 underline ml-1">S'inscrire</span>
                 </button>
-                <button onClick={() => setMode('club_register')} className="text-[10px] font-bold text-velatra-accent hover:text-zinc-900 transition-colors tracking-widest uppercase mt-2">
-                  Vous êtes un coach ou gérant ? <span className="text-zinc-900 underline ml-1">Créer un club</span>
+                <button onClick={() => setMode('club_register')} className="text-[10px] font-bold text-velatra-accent hover:text-velatra-accentDark transition-colors tracking-widest uppercase mt-2">
+                  Vous êtes un coach ou gérant ? <span className="text-velatra-accentDark underline ml-1">Créer un club</span>
                 </button>
               </>
             )}
-            <button onClick={() => setIsCoachMode(!isCoachMode)} className="text-[10px] font-bold tracking-[4px] py-3 px-6 rounded-full border border-zinc-200 text-zinc-900 hover:text-velatra-accent hover:border-velatra-accent/30 transition-all uppercase mx-auto">
+            <button onClick={() => setIsCoachMode(!isCoachMode)} className="text-[10px] font-bold tracking-[4px] py-3 px-6 rounded-full border  text-zinc-400 hover:text-velatra-accent hover:border-velatra-accent/30 transition-all uppercase mx-auto">
               {isCoachMode ? "Retour Membre" : "Accès Coach"}
             </button>
           </div>

@@ -244,7 +244,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
         ) : (
           <div></div>
         )}
-        <div className="flex items-center gap-2 bg-zinc-50 rounded-xl p-1 border border-zinc-200">
+        <div className="flex items-center gap-2 bg-zinc-50 rounded-xl p-1 border ">
           <button onClick={() => changeDate(-1)} className="p-2 hover:bg-zinc-200 rounded-lg transition-colors"><ChevronLeftIcon size={16} /></button>
           <span className="text-sm font-bold px-2">{new Date(currentDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</span>
           <button onClick={() => changeDate(1)} className="p-2 hover:bg-zinc-200 rounded-lg transition-colors"><ChevronRightIcon size={16} /></button>
@@ -278,7 +278,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
       {/* AI Assistants */}
       {!readOnly && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card className="p-4 bg-white border-zinc-200 flex flex-col items-center text-center gap-3">
+          <Card className="p-4 bg-white  flex flex-col items-center text-center gap-3">
             <div className="w-12 h-12 bg-velatra-accent/10 text-velatra-accent rounded-full flex items-center justify-center">
               <CameraIcon size={24} />
             </div>
@@ -305,7 +305,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
             </Button>
           </Card>
 
-          <Card className="p-4 bg-white border-zinc-200 flex flex-col items-center text-center gap-3">
+          <Card className="p-4 bg-white  flex flex-col items-center text-center gap-3">
             <div className="w-12 h-12 bg-velatra-accent/10 text-velatra-accent rounded-full flex items-center justify-center">
               <ChefHatIcon size={24} />
             </div>
@@ -353,40 +353,10 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
         </Card>
       )}
 
-      {/* Recommended Plan */}
-      {plan.meals && plan.meals.length > 0 && (
-        <Card className="p-6 bg-white border-zinc-200">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="p-2 bg-velatra-accent/10 text-velatra-accent rounded-xl">
-              <SparklesIcon size={24} />
-            </div>
-            <h2 className="text-lg font-black uppercase">Mon Plan Recommandé</h2>
-          </div>
-          <div className="space-y-4">
-            {plan.meals.map((meal) => (
-              <div key={meal.id} className="p-4 bg-zinc-50 rounded-xl border border-zinc-100">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-zinc-900">{meal.name}</h3>
-                  <div className="text-xs font-bold bg-white px-2 py-1 rounded-md border border-zinc-200 shadow-sm">
-                    {meal.calories} kcal
-                  </div>
-                </div>
-                {meal.description && (
-                  <p className="text-sm text-zinc-600 mb-3">{meal.description}</p>
-                )}
-                <div className="flex gap-4 text-xs font-bold">
-                  <span className="text-blue-500">{meal.protein}g Protéines</span>
-                  <span className="text-green-500">{meal.carbs}g Glucides</span>
-                  <span className="text-yellow-600">{meal.fat}g Lipides</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
+
 
       {/* Food List */}
-      <Card className="p-6 bg-white border-zinc-200">
+      <Card className="p-6 bg-white ">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <h2 className="text-lg font-black uppercase">Repas du jour</h2>
         </div>
@@ -412,7 +382,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                     <Button 
                       variant="secondary" 
                       onClick={() => setAddingMealType(mealType.id as any)} 
-                      className="!py-1 !px-2 !text-[10px] flex items-center gap-1 bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                      className="!py-1 !px-2 !text-[10px] flex items-center gap-1 bg-white  text-zinc-600 hover:bg-zinc-50"
                     >
                       <PlusIcon size={12} /> AJOUTER
                     </Button>
@@ -420,7 +390,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                 </div>
 
                 {addingMealType === mealType.id && (
-                  <div className="bg-zinc-50 p-4 rounded-2xl mb-4 space-y-4 border border-zinc-200">
+                  <div className="bg-zinc-50 p-4 rounded-2xl mb-4 space-y-4 border ">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-xs font-black uppercase tracking-widest text-zinc-900">Ajouter à {mealType.label.toLowerCase()}</h4>
                       <button onClick={() => setAddingMealType(null)} className="text-zinc-400 hover:text-zinc-600">
@@ -447,7 +417,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                           variant="secondary" 
                           onClick={handleAutoCalculate}
                           disabled={isEstimating || !newFood.name}
-                          className="!px-3 !py-0 h-[42px] flex items-center justify-center bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200"
+                          className="!px-3 !py-0 h-[42px] flex items-center justify-center bg-zinc-100  text-zinc-600 hover:bg-zinc-200"
                           title="Calculer les macros automatiquement"
                         >
                           {isEstimating ? <RefreshCwIcon size={18} className="animate-spin" /> : <Wand2Icon size={18} />}
@@ -464,7 +434,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                           variant="secondary" 
                           onClick={() => mealInputRef.current?.click()}
                           disabled={isScanningMeal}
-                          className="!px-3 !py-0 h-[42px] flex items-center justify-center bg-zinc-100 border-zinc-200 text-zinc-600 hover:bg-zinc-200"
+                          className="!px-3 !py-0 h-[42px] flex items-center justify-center bg-zinc-100  text-zinc-600 hover:bg-zinc-200"
                           title="Prendre en photo"
                         >
                           {isScanningMeal ? <RefreshCwIcon size={18} className="animate-spin" /> : <CameraIcon size={18} />}
@@ -487,7 +457,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                         <select 
                           value={newFood.unit} 
                           onChange={e => setNewFood({...newFood, unit: e.target.value})}
-                          className="w-full h-[42px] px-3 rounded-xl border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-velatra-accent/50"
+                          className="w-full h-[42px] px-3 rounded-xl border  bg-white text-sm focus:outline-none focus:ring-2 focus:ring-velatra-accent/50"
                         >
                           <option value="g">g</option>
                           <option value="ml">ml</option>
@@ -537,7 +507,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
 
                 <div className="space-y-2">
                   {mealFoods.map(food => (
-                    <div key={food.id} className="flex items-center justify-between p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+                    <div key={food.id} className="flex items-center justify-between p-4 bg-zinc-50 rounded-xl border ">
                       <div>
                         <div className="font-bold text-zinc-900">
                           {food.name}
@@ -559,7 +529,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                   ))}
                   
                   {mealFoods.length === 0 && addingMealType !== mealType.id && (
-                    <div className="text-center py-4 border border-dashed border-zinc-200 rounded-xl bg-zinc-50/50">
+                    <div className="text-center py-4 border border-dashed  rounded-xl bg-zinc-50/50">
                       <p className="text-zinc-400 text-xs italic">Aucun aliment</p>
                     </div>
                   )}

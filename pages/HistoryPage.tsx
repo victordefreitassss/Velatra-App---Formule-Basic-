@@ -56,7 +56,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
           </div>
           <Input 
             placeholder="Rechercher..." 
-            className="pl-12 !bg-white/50 !border-zinc-200/50 !rounded-2xl font-bold text-sm shadow-sm" 
+            className="pl-12 !bg-white/50 ! !rounded-2xl font-bold text-sm shadow-sm" 
             value={searchTerm} 
             onChange={e => setSearchTerm(e.target.value)} 
           />
@@ -66,7 +66,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
       <motion.div variants={containerVariants} className="space-y-4">
         {archives.length === 0 ? (
           <motion.div variants={itemVariants}>
-            <Card className="py-20 text-center opacity-50 italic font-medium bg-white/60 backdrop-blur-xl border-dashed border-zinc-200/50 shadow-sm">
+            <Card className="py-20 text-center opacity-50 italic font-medium bg-white/60 backdrop-blur-xl border-dashed  shadow-sm">
               Aucun programme archivé. Terminez un cycle de 7 semaines pour le voir ici.
             </Card>
           </motion.div>
@@ -75,7 +75,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
             const member = state.users.find(u => Number(u.id) === prog.memberId);
             return (
               <motion.div variants={itemVariants} key={prog.id}>
-                <Card className="flex flex-col md:flex-row md:items-center justify-between gap-6 border border-zinc-200/50 bg-white/60 backdrop-blur-xl hover:border-velatra-accent/30 !p-8 group transition-all shadow-sm hover:shadow-md">
+                <Card className="flex flex-col md:flex-row md:items-center justify-between gap-6 border  bg-white/60 backdrop-blur-xl hover:border-velatra-accent/30 !p-8 group transition-all shadow-sm hover:shadow-md">
                   <div className="flex items-center gap-6">
                     <div className="w-16 h-16 rounded-3xl bg-white/50 flex items-center justify-center text-zinc-900 group-hover:text-velatra-accent transition-colors shadow-sm">
                       <HistoryIcon size={32} />

@@ -303,11 +303,11 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
   const AVAILABLE_TAGS = ["Technique parfaite", "Fatigue", "Douleur", "Léger", "Lourd", "Échec"];
 
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-zinc-950 text-white flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-white text-zinc-900 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-900/50 backdrop-blur-md z-10">
+      <div className="flex items-center justify-between p-4 border-b  bg-zinc-900/50 backdrop-blur-md z-10">
         <div className="flex items-center gap-3">
-          <button onClick={onClose} className="p-2 text-zinc-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="p-2 text-zinc-500 hover:text-zinc-900 transition-colors">
             <XIcon size={24} />
           </button>
           <div>
@@ -339,7 +339,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
               <div key={idx} className="snap-center shrink-0 w-64 relative group">
                 <button 
                   onClick={() => setCurrentExIndex(idx)}
-                  className={`w-full p-4 rounded-2xl border text-left transition-all ${currentExIndex === idx ? 'bg-zinc-800 border-velatra-accent' : 'bg-zinc-900 border-zinc-800 opacity-50'}`}
+                  className={`w-full p-4 rounded-2xl border text-left transition-all ${currentExIndex === idx ? 'bg-zinc-800 border-velatra-accent' : 'bg-zinc-900  opacity-50'}`}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Ex {idx + 1}/{sessionExercises.length}</span>
@@ -366,7 +366,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
           
           <button 
             onClick={() => setShowAddExerciseModal(true)}
-            className="snap-center shrink-0 w-64 p-4 rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 hover:bg-zinc-800 hover:border-velatra-accent transition-all flex flex-col items-center justify-center text-zinc-500 hover:text-velatra-accent"
+            className="snap-center shrink-0 w-64 p-4 rounded-2xl border border-dashed  bg-zinc-900/50 hover:bg-zinc-800 hover:border-velatra-accent transition-all flex flex-col items-center justify-center text-zinc-500 hover:text-velatra-accent"
           >
             <PlusIcon size={24} className="mb-2" />
             <span className="text-xs font-bold uppercase tracking-widest">Ajouter un exercice</span>
@@ -382,7 +382,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
           >
             {/* Exercise Header */}
             <div className="flex gap-4 items-start">
-              <div className="w-24 h-24 rounded-2xl bg-zinc-800 overflow-hidden shrink-0 border border-zinc-700">
+              <div className="w-24 h-24 rounded-2xl bg-zinc-800 overflow-hidden shrink-0 border ">
                 {baseEx.photo ? (
                   <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
                 ) : (
@@ -402,11 +402,11 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                 <div className="mt-3 flex gap-2">
                   <button 
                     onClick={() => setShowVideoModal(true)}
-                    className="flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white bg-zinc-800 px-3 py-1.5 rounded-lg transition-colors"
+                    className="flex items-center gap-1 text-xs font-bold text-zinc-500 hover:text-zinc-900 bg-zinc-100 px-3 py-1.5 rounded-lg transition-colors"
                   >
                     <VideoIcon size={14} /> Filmer
                   </button>
-                  <button className="flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-white bg-zinc-800 px-3 py-1.5 rounded-lg transition-colors">
+                  <button className="flex items-center gap-1 text-xs font-bold text-zinc-500 hover:text-zinc-900 bg-zinc-100 px-3 py-1.5 rounded-lg transition-colors">
                     <InfoIcon size={14} /> Consignes
                   </button>
                 </div>
@@ -414,7 +414,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
             </div>
 
             {/* Sets Tracker */}
-            <div className="bg-zinc-900 rounded-3xl p-4 border border-zinc-800">
+            <div className="bg-zinc-900 rounded-3xl p-4 border ">
               <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-4 mb-4 px-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">
                 <div>Série</div>
                 {baseEx?.cat === 'Cardio' ? (
@@ -444,7 +444,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                             placeholder="ex: 15 min / 5 km"
                             value={sessionData[`${currentExIndex}-${setIdx}-duration`] || ""}
                             onChange={e => handleInputChange(currentExIndex, setIdx, 'duration', e.target.value)}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent"
+                            className="w-full bg-zinc-950 border  rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent"
                             disabled={isDone}
                           />
                         </div>
@@ -457,7 +457,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                               placeholder={(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "Lest" : "Charge"}
                               value={sessionData[`${currentExIndex}-${setIdx}-weight`] || ""}
                               onChange={e => handleInputChange(currentExIndex, setIdx, 'weight', e.target.value)}
-                              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent placeholder:text-zinc-600"
+                              className="w-full bg-zinc-950 border  rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent placeholder:text-zinc-600"
                               disabled={isDone}
                             />
                           </div>
@@ -469,7 +469,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                               placeholder={getTargetRepsForSet(activeEx?.reps, setIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || String(activeEx?.reps).toLowerCase().includes('s')) ? "Sec" : "Reps")}
                               value={sessionData[`${currentExIndex}-${setIdx}-reps`] || ""}
                               onChange={e => handleInputChange(currentExIndex, setIdx, 'reps', e.target.value)}
-                              className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent placeholder:text-zinc-600"
+                              className="w-full bg-zinc-950 border  rounded-xl p-3 text-center font-bold text-lg focus:outline-none focus:border-velatra-accent placeholder:text-zinc-600"
                               disabled={isDone}
                             />
                           </div>
@@ -478,7 +478,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                       
                       <button 
                         onClick={() => toggleSetComplete(currentExIndex, setIdx)}
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${isDone ? 'bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-zinc-700 text-zinc-400 hover:bg-velatra-accent hover:text-white'}`}
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${isDone ? 'bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-zinc-100 text-zinc-500 hover:bg-velatra-accent hover:text-zinc-900'}`}
                       >
                         <CheckIcon size={20} />
                       </button>
@@ -489,7 +489,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
             </div>
 
             {/* Coach Notes & Tags */}
-            <div className="bg-zinc-900 rounded-3xl p-4 border border-zinc-800">
+            <div className="bg-zinc-900 rounded-3xl p-4 border ">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">Notes du Coach (Exercice)</h3>
               <div className="flex flex-wrap gap-2 mb-4">
                 {AVAILABLE_TAGS.map(tag => {
@@ -498,7 +498,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                     <button
                       key={tag}
                       onClick={() => toggleTag(currentExIndex, tag)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${isActive ? 'bg-velatra-accent text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors ${isActive ? 'bg-velatra-accent text-zinc-900' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'}`}
                     >
                       {tag}
                     </button>
@@ -509,7 +509,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                 placeholder="Observations techniques, ajustements..."
                 value={exerciseNotes[currentExIndex] || ""}
                 onChange={e => setExerciseNotes(prev => ({ ...prev, [currentExIndex]: e.target.value }))}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm focus:outline-none focus:border-velatra-accent min-h-[80px] resize-none"
+                className="w-full bg-zinc-950 border  rounded-xl p-3 text-sm focus:outline-none focus:border-velatra-accent min-h-[80px] resize-none"
               />
             </div>
             
@@ -517,7 +517,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
               <Button 
                 variant="secondary" 
-                className="flex-1 !bg-zinc-800 !text-white !border-zinc-700 hover:!bg-zinc-700"
+                className="flex-1 !bg-zinc-100 !text-zinc-900 ! hover:!bg-zinc-200"
                 onClick={() => setCurrentExIndex(i => Math.max(0, i - 1))}
                 disabled={currentExIndex === 0}
               >
@@ -537,7 +537,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
       </div>
 
       {/* Bottom Bar - Global Session Info & Finish */}
-      <div className="absolute bottom-0 left-0 right-0 bg-zinc-900 border-t border-zinc-800 p-4 z-20">
+      <div className="absolute bottom-0 left-0 right-0 bg-zinc-900 border-t  p-4 z-20">
         <div className="max-w-md mx-auto space-y-4">
           <div className="flex items-center gap-4">
             <div className="flex-1">
@@ -574,29 +574,29 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
-              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md shadow-2xl"
+              className="bg-zinc-900 border  rounded-3xl p-6 w-full max-w-md shadow-2xl"
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-black">Bilan de Séance</h2>
-                <button onClick={() => setShowSummaryModal(false)} className="text-zinc-500 hover:text-white">
+                <button onClick={() => setShowSummaryModal(false)} className="text-zinc-500 hover:text-zinc-900">
                   <XIcon size={24} />
                 </button>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-center">
+                <div className="bg-zinc-950 border  rounded-2xl p-4 text-center">
                   <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Volume Total</div>
                   <div className="text-2xl font-black text-emerald-400">{calculateVolume()} kg</div>
                 </div>
-                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-center">
+                <div className="bg-zinc-950 border  rounded-2xl p-4 text-center">
                   <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Score Séance</div>
                   <div className="text-2xl font-black text-velatra-accent">{calculateScore()}/100</div>
                 </div>
-                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-center">
+                <div className="bg-zinc-950 border  rounded-2xl p-4 text-center">
                   <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Durée</div>
                   <div className="text-2xl font-black">{formatTime(sessionTime)}</div>
                 </div>
-                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-4 text-center">
+                <div className="bg-zinc-950 border  rounded-2xl p-4 text-center">
                   <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">RPE</div>
                   <div className="text-2xl font-black text-amber-400">{rpe}/10</div>
                 </div>
@@ -608,7 +608,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                   placeholder="Bilan général, état de forme, points à revoir..."
                   value={sessionNote}
                   onChange={e => setSessionNote(e.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm focus:outline-none focus:border-velatra-accent min-h-[100px] resize-none"
+                  className="w-full bg-zinc-950 border  rounded-xl p-3 text-sm focus:outline-none focus:border-velatra-accent min-h-[100px] resize-none"
                 />
               </div>
 
@@ -633,11 +633,11 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
             className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-sm flex flex-col items-center justify-center p-4"
           >
             <div className="w-full max-w-md flex justify-end mb-4">
-              <button onClick={() => setShowVideoModal(false)} className="text-white hover:text-zinc-400 bg-zinc-800 rounded-full p-2">
+              <button onClick={() => setShowVideoModal(false)} className="text-zinc-900 hover:text-zinc-500 bg-zinc-100 rounded-full p-2">
                 <XIcon size={24} />
               </button>
             </div>
-            <div className="w-full max-w-md aspect-[9/16] bg-zinc-900 border border-zinc-800 rounded-3xl flex flex-col items-center justify-center relative overflow-hidden">
+            <div className="w-full max-w-md aspect-[9/16] bg-zinc-900 border  rounded-3xl flex flex-col items-center justify-center relative overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center opacity-10">
                 <VideoIcon size={120} />
               </div>
@@ -668,11 +668,11 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
               initial={{ scale: 0.95, y: 20 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
-              className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 w-full max-w-md max-h-[80vh] flex flex-col"
+              className="bg-zinc-900 border  rounded-3xl p-6 w-full max-w-md max-h-[80vh] flex flex-col"
             >
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-black uppercase tracking-tight">Ajouter un exercice</h2>
-                <button onClick={() => setShowAddExerciseModal(false)} className="text-zinc-500 hover:text-white transition-colors bg-zinc-800 rounded-full p-2">
+                <button onClick={() => setShowAddExerciseModal(false)} className="text-zinc-500 hover:text-zinc-900 transition-colors bg-zinc-100 rounded-full p-2">
                   <XIcon size={20} />
                 </button>
               </div>
@@ -682,7 +682,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                   placeholder="Rechercher un exercice..." 
                   value={exerciseSearchTerm}
                   onChange={e => setExerciseSearchTerm(e.target.value)}
-                  className="!bg-zinc-950 !border-zinc-800 !text-white"
+                  className="!bg-white ! !text-zinc-900"
                 />
               </div>
 
@@ -712,7 +712,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                         setCurrentExIndex(exIndex);
                         setExerciseSearchTerm('');
                       }}
-                      className="w-full text-left p-4 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-velatra-accent transition-colors flex items-center justify-between"
+                      className="w-full text-left p-4 rounded-xl bg-zinc-950 border  hover:border-velatra-accent transition-colors flex items-center justify-between"
                     >
                       <span className="font-bold">{ex.name}</span>
                       <PlusIcon size={16} className="text-velatra-accent" />

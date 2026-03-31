@@ -123,7 +123,7 @@ RÈGLES DE REDIRECTION IMPORTANTES :
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-4 pb-24 h-[calc(100vh-100px)] flex flex-col"
+      className="space-y-4 flex-1 h-full flex flex-col min-h-0"
     >
       <motion.div variants={itemVariants} className="flex items-center justify-between px-1 shrink-0">
         <div>
@@ -135,15 +135,15 @@ RÈGLES DE REDIRECTION IMPORTANTES :
         </div>
       </motion.div>
 
-      <motion.div variants={itemVariants} className="flex bg-white/50 backdrop-blur-md rounded-xl p-1 shrink-0 border border-zinc-200/50 shadow-sm">
+      <motion.div variants={itemVariants} className="flex bg-white/50 backdrop-blur-md rounded-xl p-1 shrink-0 border  shadow-sm">
         <button 
-          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'human' ? 'bg-velatra-accent text-white shadow-lg shadow-velatra-accent/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white/40'}`} 
+          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'human' ? 'bg-velatra-accent text-zinc-900 shadow-lg shadow-velatra-accent/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white/40'}`} 
           onClick={() => setActiveTab('human')}
         >
           <MessageCircleIcon size={16} /> {coachName}
         </button>
         <button 
-          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'ai' ? 'bg-velatra-accent text-white shadow-lg shadow-velatra-accent/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white/40'}`} 
+          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'ai' ? 'bg-velatra-accent text-zinc-900 shadow-lg shadow-velatra-accent/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white/40'}`} 
           onClick={() => setActiveTab('ai')}
         >
           <BotIcon size={16} /> Coach IA
@@ -158,25 +158,25 @@ RÈGLES DE REDIRECTION IMPORTANTES :
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 flex flex-col overflow-hidden bg-white/60 backdrop-blur-xl rounded-3xl border border-zinc-200/50 shadow-sm"
+            className="flex-1 flex flex-col overflow-hidden bg-white/60 backdrop-blur-xl rounded-3xl border  shadow-sm"
           >
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-4 rounded-2xl ${msg.role === 'user' ? 'bg-velatra-accent text-white rounded-br-sm shadow-md shadow-velatra-accent/20' : 'bg-white text-zinc-800 rounded-bl-sm border border-zinc-200/50 shadow-sm'}`}>
+                  <div className={`max-w-[90%] md:max-w-[85%] p-2.5 md:p-4 rounded-xl md:rounded-2xl ${msg.role === 'user' ? 'bg-velatra-accent text-zinc-900 rounded-br-sm shadow-md shadow-velatra-accent/20' : 'bg-white text-zinc-800 rounded-bl-sm border  shadow-sm'}`}>
                     {msg.role === 'model' ? (
-                      <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-display prose-a:text-velatra-accent">
+                      <div className="prose prose-sm md:prose-base max-w-none prose-p:leading-relaxed prose-headings:font-display prose-a:text-velatra-accent text-xs md:text-sm">
                         <Markdown>{msg.text}</Markdown>
                       </div>
                     ) : (
-                      <p className="text-[15px] leading-relaxed">{msg.text}</p>
+                      <p className="text-xs md:text-[15px] leading-relaxed">{msg.text}</p>
                     )}
                   </div>
                 </div>
               ))}
               {loading && (
                 <div className="flex justify-start">
-                  <div className="bg-white p-4 rounded-2xl rounded-bl-sm border border-zinc-200/50 shadow-sm flex items-center gap-2">
+                  <div className="bg-white p-4 rounded-2xl rounded-bl-sm border  shadow-sm flex items-center gap-2">
                     <div className="w-2 h-2 bg-velatra-accent rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                     <div className="w-2 h-2 bg-velatra-accent rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                     <div className="w-2 h-2 bg-velatra-accent rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -185,22 +185,22 @@ RÈGLES DE REDIRECTION IMPORTANTES :
               )}
               <div ref={messagesEndRef} />
             </div>
-            <div className="p-4 bg-white/80 backdrop-blur-md border-t border-zinc-200/50">
-              <div className="flex gap-2">
+            <div className="p-1.5 md:p-4 bg-white/80 backdrop-blur-md border-t ">
+              <div className="flex gap-1.5 md:gap-2">
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend()}
                   placeholder="Pose ta question au coach IA..."
-                  className="flex-1 bg-white border-zinc-200/50 focus:border-velatra-accent focus:ring-velatra-accent/20 shadow-sm rounded-xl"
+                  className="flex-1 bg-white  focus:border-velatra-accent focus:ring-velatra-accent/20 shadow-sm rounded-lg md:rounded-xl !py-1.5 md:!py-3 text-xs md:text-sm"
                   disabled={loading}
                 />
                 <button
                   onClick={handleSend}
                   disabled={loading || !input.trim()}
-                  className="bg-velatra-accent text-white p-4 rounded-xl hover:bg-velatra-accent/90 disabled:opacity-50 transition-all shadow-md shadow-velatra-accent/20 flex items-center justify-center"
+                  className="bg-velatra-accent text-zinc-900 p-2 md:p-4 rounded-lg md:rounded-xl hover:bg-velatra-accent/90 disabled:opacity-50 transition-all shadow-md shadow-velatra-accent/20 flex items-center justify-center"
                 >
-                  <SendIcon size={20} />
+                  <SendIcon size={16} className="md:w-5 md:h-5" />
                 </button>
               </div>
             </div>
@@ -212,7 +212,7 @@ RÈGLES DE REDIRECTION IMPORTANTES :
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 overflow-hidden bg-white/60 backdrop-blur-xl rounded-3xl border border-zinc-200/50 p-4 shadow-sm"
+            className="flex-1 overflow-hidden bg-white/60 backdrop-blur-xl rounded-3xl border  p-4 shadow-sm"
           >
             <MessagesPage state={state} setState={setState} showToast={showToast} embedded={true} />
           </motion.div>

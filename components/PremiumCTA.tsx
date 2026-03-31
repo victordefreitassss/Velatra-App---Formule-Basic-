@@ -23,7 +23,7 @@ export const PremiumCTA: React.FC<PremiumCTAProps> = ({ title, description, feat
         {description}
       </p>
 
-      <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-8 max-w-md w-full backdrop-blur-xl text-left mb-10">
+      <div className="bg-zinc-50 border  rounded-3xl p-8 max-w-md w-full backdrop-blur-xl text-left mb-10">
         <h3 className="text-xl font-bold text-zinc-900 mb-6 flex items-center gap-2">
           <span className="w-2 h-6 bg-velatra-accent rounded-full"></span>
           Inclus dans l'abonnement Supérieur

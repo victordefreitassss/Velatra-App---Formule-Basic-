@@ -90,7 +90,7 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
         <p className="text-zinc-500">Gérez vos séances de coaching, suivez la progression et lancez des entraînements.</p>
       </div>
 
-      <div className="bg-white rounded-3xl border border-zinc-200 p-6 mb-8 shadow-sm">
+      <div className="bg-white rounded-3xl border  p-6 mb-8 shadow-sm">
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
             <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
@@ -111,7 +111,7 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
         <div className="grid grid-cols-1 gap-4">
           {filteredMembers.map(member => {
             return (
-              <div key={member.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-5 bg-zinc-50 rounded-2xl border border-zinc-200 hover:border-velatra-accent transition-colors gap-4">
+              <div key={member.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-5 bg-zinc-50 rounded-2xl border  hover:border-velatra-accent transition-colors gap-4">
                 
                 <div className="flex items-center gap-4 flex-1">
                   <div className="w-14 h-14 rounded-full bg-gradient-to-br from-zinc-100 to-zinc-50 border border-white flex items-center justify-center font-black text-xl text-zinc-700 shadow-inner shrink-0 relative">
@@ -201,7 +201,7 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
           })}
           
           {filteredMembers.length === 0 && (
-            <div className="col-span-full text-center py-12 text-zinc-500 italic bg-zinc-50 rounded-2xl border border-dashed border-zinc-200">
+            <div className="col-span-full text-center py-12 text-zinc-500 italic bg-zinc-50 rounded-2xl border border-dashed ">
               Aucun membre ne correspond à vos critères
             </div>
           )}

@@ -22,7 +22,7 @@ export const Toast: React.FC<ToastProps> = ({ message, type }) => {
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[2000] px-6 py-3 rounded-xl flex items-center gap-3 font-bold animate-in fade-in slide-in-from-top-4 duration-300">
-      <div className={`${styles[type]} flex items-center gap-3 px-5 py-3 rounded-full border border-zinc-200`}>
+      <div className={`${styles[type]} flex items-center gap-3 px-5 py-3 rounded-full border `}>
         {icons[type]}
         <span className="text-sm">{message}</span>
       </div>

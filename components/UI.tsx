@@ -15,15 +15,15 @@ export const Card: React.FC<{ children: React.ReactNode, className?: string, onC
 export const StatBox: React.FC<{ label: string, value: string | number, className?: string, icon?: React.ReactNode, onClick?: () => void, locked?: boolean }> = ({ label, value, className = "", icon, onClick, locked }) => (
   <div 
     onClick={onClick}
-    className={`bg-zinc-50 border border-zinc-200 rounded-3xl p-5 flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${onClick ? 'cursor-pointer hover:bg-zinc-50 hover:border-velatra-accent/40 hover:-translate-y-1' : ''} ${className}`}
+    className={`bg-velatra-bgCard/60 border  rounded-3xl p-5 flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${onClick ? 'cursor-pointer hover:bg-velatra-bgLight hover:border-velatra-accent/40 hover:-translate-y-1' : ''} ${className}`}
   >
     {locked && (
-      <div className="absolute inset-0 bg-zinc-50 backdrop-blur-[2px] z-10 flex items-center justify-center">
+      <div className="absolute inset-0 bg-velatra-bgCard/80 backdrop-blur-[2px] z-10 flex items-center justify-center">
         <LockIcon size={20} className="text-velatra-accent opacity-80" />
       </div>
     )}
     {icon && <div className="text-velatra-accent mb-3 opacity-90">{icon}</div>}
-    <span className="text-[10px] uppercase tracking-[3px] font-bold text-zinc-900 mb-1">{label}</span>
+    <span className="text-[10px] uppercase tracking-[3px] font-bold text-zinc-400 mb-1">{label}</span>
     <span className={`text-3xl font-display font-bold text-zinc-900 tracking-tight ${locked ? 'opacity-20 blur-[2px]' : ''}`}>{value}</span>
   </div>
 );
@@ -34,12 +34,12 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
 }> = ({ children, variant = 'primary', className = "", fullWidth, ...props }) => {
   const variants = {
     primary: 'bg-gradient-to-r from-velatra-accent to-velatra-accentDark text-white shadow-md hover:shadow-lg border border-transparent',
-    secondary: 'bg-zinc-50 text-zinc-900 border border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300',
+    secondary: 'bg-white/60 text-zinc-900 border  hover:bg-white hover: shadow-sm',
     danger: 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40',
     success: 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/40',
     blue: 'bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/40',
-    glass: 'glass text-zinc-900 border-zinc-200 hover:bg-zinc-100',
-    ghost: 'bg-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
+    glass: 'glass text-zinc-900  hover:bg-white/60',
+    ghost: 'bg-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
   };
 
   return (
@@ -61,9 +61,9 @@ export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (pro
   <input 
     {...props}
     className={`
-      w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl 
-      text-zinc-900 text-[15px] placeholder:text-zinc-900/30
-      focus:outline-none focus:border-velatra-accent/50 focus:bg-zinc-50 focus:ring-4 focus:ring-velatra-accent/10 transition-all duration-300
+      w-full p-4 bg-white/60 border  rounded-2xl shadow-sm
+      text-zinc-900 text-[15px] placeholder:text-zinc-400
+      focus:outline-none focus:border-velatra-accent/50 focus:bg-white focus:ring-4 focus:ring-velatra-accent/10 transition-all duration-300
       ${props.className || ''}
     `}
   />
@@ -75,7 +75,7 @@ export const Badge: React.FC<{ children: React.ReactNode, variant?: 'accent' | '
     blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
     orange: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
     success: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    dark: 'bg-zinc-50 text-zinc-500 border-zinc-200'
+    dark: 'bg-velatra-bgLight text-zinc-400 '
   };
   return (
     <span className={`inline-block px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[2px] border backdrop-blur-md ${colors[variant]} ${className}`}>
