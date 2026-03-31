@@ -256,7 +256,7 @@ nombre de repas : 4
     model: "gemini-3-flash-preview",
     contents: prompt,
     config: {
-      systemInstruction: "Tu es un expert en nutrition sportive. Tu dois calculer les macros et calories avec précision et retourner UNIQUEMENT un objet JSON valide. Ne retourne aucun texte explicatif, aucune formule de calcul dans les champs. Les noms des repas doivent être simples (ex: 'Petit-déjeuner', 'Déjeuner', 'Collation', 'Dîner'). Les valeurs de calories et macros doivent être des nombres entiers.",
+      systemInstruction: "Tu es un expert en nutrition sportive. Tu dois calculer les macros et calories avec précision et retourner UNIQUEMENT un objet JSON valide. Ne retourne aucun texte explicatif, aucune formule de calcul dans les champs. Les noms des repas doivent être simples (ex: 'Petit-déjeuner', 'Déjeuner', 'Collation', 'Dîner'). Les valeurs de calories et macros doivent être des nombres entiers. La description doit être courte et concise.",
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -276,7 +276,11 @@ nombre de repas : 4
             items: {
               type: Type.OBJECT,
               properties: {
-                type: { type: Type.STRING, description: "Nom du repas (ex: Petit-déjeuner)" },
+                type: { 
+                  type: Type.STRING, 
+                  description: "Nom du repas (ex: Petit-déjeuner)",
+                  enum: ["Petit-déjeuner", "Déjeuner", "Collation", "Dîner"]
+                },
                 description: { type: Type.STRING, description: "Description des aliments et quantités" },
                 calories: { type: Type.NUMBER },
                 proteines: { type: Type.NUMBER },

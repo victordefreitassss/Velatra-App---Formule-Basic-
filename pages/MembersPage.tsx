@@ -974,7 +974,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           />
           <label 
             htmlFor="import-clients-csv" 
-            className="bg-zinc-100 text-zinc-900 px-6 py-3 rounded-2xl font-black text-xs italic cursor-pointer hover:bg-zinc-200 transition-colors flex items-center gap-2"
+            className="bg-white/60 backdrop-blur-xl text-zinc-900 px-6 py-3 rounded-2xl font-black text-xs italic cursor-pointer hover:bg-white transition-colors flex items-center gap-2 border  shadow-sm"
           >
             <UploadIcon size={16} />
             IMPORT CSV
@@ -1015,8 +1015,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
       <div className="space-y-4">
         <div className="relative">
-          <SearchIcon size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-900" />
-          <Input placeholder="Rechercher par nom..." className="pl-14 !bg-zinc-50 !border-zinc-200 !rounded-2xl font-bold" value={search} onChange={e => setSearch(e.target.value)} />
+          <SearchIcon size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <Input placeholder="Rechercher par nom..." className="pl-14 !bg-white/60 ! !rounded-2xl font-bold text-zinc-900 placeholder-zinc-500 shadow-sm" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         
         <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
@@ -1024,7 +1024,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filter === f ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filter === f ? 'bg-velatra-accent text-zinc-900' : 'bg-white/60 backdrop-blur-xl text-zinc-500 hover:text-zinc-900 hover:bg-white border  shadow-sm'}`}
             >
               {f}
             </button>
@@ -1043,15 +1043,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           const hasFeedback = stats.program?.memberRemarks;
           return (
             <motion.div key={u.id} variants={itemVariants} whileHover={{ scale: 1.02, y: -4 }} whileTap={{ scale: 0.98 }}>
-              <Card className={`flex flex-col gap-4 border-none ring-1 transition-all !p-6 bg-white/60 backdrop-blur-xl ${u.planRequested || hasFeedback ? 'ring-orange-500/30' : 'ring-zinc-200/50 hover:ring-velatra-accent/30'} shadow-sm hover:shadow-md h-full`}>
+              <Card className={`flex flex-col gap-4 border-none ring-1 transition-all !p-6 bg-white/60 backdrop-blur-xl ${u.planRequested || hasFeedback ? 'ring-orange-500/30' : ' hover:ring-velatra-accent/30'} shadow-sm hover:shadow-md h-full`}>
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-50 border border-white flex items-center justify-center font-black text-2xl text-zinc-700 shadow-inner">
+                  <div className="w-16 h-16 rounded-2xl bg-zinc-100 border  flex items-center justify-center font-black text-2xl text-zinc-900 shadow-inner">
                     {u.avatar}
                   </div>
                   <div className="flex-1">
                     <div className="font-black text-lg text-zinc-900 leading-none mb-2 uppercase tracking-tight">{u.name}</div>
                     <div className="flex flex-wrap gap-2">
-                      <Badge variant="dark" className="!bg-zinc-100 !text-zinc-500 !border-zinc-200 !p-1 !text-[8px]">{stats.perfs.length} PR</Badge>
+                      <Badge variant="dark" className="!bg-white/60 !backdrop-blur-xl !text-zinc-500 ! !p-1 !text-[8px]">{stats.perfs.length} PR</Badge>
                       {hasFeedback && <Badge variant="orange" className="!bg-orange-500/10 !text-orange-500 !border-orange-500/20 !p-1 !text-[8px] animate-pulse">FEEDBACK</Badge>}
                       {u.planRequested && <Badge variant="orange" className="!bg-orange-500/10 !text-orange-500 !border-orange-500/20 !p-1 !text-[8px] animate-pulse">DEMANDE PLAN</Badge>}
                     </div>
@@ -1086,7 +1086,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         const CustomTooltip = ({ active, payload, label }: any) => {
           if (active && payload && payload.length) {
             return (
-              <div className="bg-white/90 border border-zinc-200 p-4 rounded-2xl backdrop-blur-xl shadow-2xl">
+              <div className="bg-white/60 border  p-4 rounded-2xl backdrop-blur-xl shadow-sm">
                 <p className="text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2">{label}</p>
                 {payload.map((entry: any, index: number) => (
                   <div key={index} className="flex items-center justify-between gap-4">
@@ -1105,20 +1105,20 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[500] flex items-start justify-center p-0 md:p-8 overflow-y-auto"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[500] flex items-start justify-center p-0 md:p-8 overflow-y-auto"
             >
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="w-full max-w-6xl bg-white/90 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border border-white/20 shadow-2xl relative overflow-hidden my-0 md:my-8"
+                className="w-full max-w-6xl bg-white/90 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border  shadow-2xl relative overflow-hidden my-0 md:my-8"
               >
                 <ErrorBoundary>
-                <button onClick={closeProfile} className="fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-white/90 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border border-zinc-200 hover:bg-red-500 hover:border-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
+                <button onClick={closeProfile} className="fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-white/90 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border  hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
 
                 {selectedProfile.planRequested && (
-                  <div className="bg-orange-500 text-white p-4 flex items-center justify-between z-[500] relative">
+                  <div className="bg-orange-500 text-zinc-900 p-4 flex items-center justify-between z-[500] relative">
                     <div className="flex items-center gap-3">
                       <FileTextIcon size={20} />
                       <div>
@@ -1127,7 +1127,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-2">
-                      <Button variant="secondary" className="!py-1.5 !px-3 !text-[10px] !bg-white/20 !text-white !border-white/30 hover:!bg-white/30" onClick={async () => {
+                      <Button variant="secondary" className="!py-1.5 !px-3 !text-[10px] !bg-white/20 !text-zinc-900 !border-white/30 hover:!bg-white/30" onClick={async () => {
                         if (selectedProfile.firebaseUid) {
                           try {
                             await updateDoc(doc(db, "users", selectedProfile.firebaseUid), { planRequested: false });
@@ -1148,7 +1148,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
                 <div className="grid grid-cols-1 lg:grid-cols-12">
                   {/* SIDEBAR */}
-                  <div className="lg:col-span-4 bg-white/50 border-r border-white/20 p-6 md:p-10 space-y-8 md:space-y-10 pt-20 md:pt-10">
+                  <div className="lg:col-span-4 bg-white/50 backdrop-blur-xl border-r  p-6 md:p-10 space-y-8 md:space-y-10 pt-20 md:pt-10">
                   <div className="text-center relative">
                     <div className="w-24 h-24 rounded-[32px] bg-gradient-to-br from-velatra-accent to-velatra-accentDark flex items-center justify-center text-4xl font-black mx-auto mb-6 shadow-2xl">{selectedProfile.avatar}</div>
                     <button 
@@ -1165,7 +1165,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         });
                         setIsEditingInfo(true);
                       }}
-                      className="absolute top-0 right-1/4 p-2 bg-zinc-100 rounded-full text-zinc-500 hover:text-zinc-900 hover:bg-velatra-accent transition-all"
+                      className="absolute top-0 right-1/4 p-2 bg-white/60 backdrop-blur-xl rounded-full text-zinc-400 hover:text-zinc-900 hover:bg-white transition-all border  shadow-sm"
                       title="Modifier les infos"
                     >
                       <Edit2Icon size={16} />
@@ -1174,28 +1174,28 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     <Badge variant="accent" className="mt-3 !px-4 !py-1.5">ÉVOLUTION</Badge>
                   </div>
 
-                  <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4">
+                  <div className="bg-white/60 border  p-6 rounded-3xl space-y-4 shadow-sm">
                     <div className="flex items-center justify-between">
                       <h3 className="text-[10px] font-black uppercase tracking-[4px] text-velatra-accent">Crédits Coaching</h3>
                     </div>
                     
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-zinc-200">
+                      <div className="flex items-center justify-between bg-white/60 backdrop-blur-xl p-3 rounded-2xl border  shadow-sm">
                         <div>
                           <div className="text-xl font-black text-zinc-900">{selectedProfile.credits || 0}</div>
-                          <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Standard</div>
+                          <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">Standard</div>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateCredits(selectedProfile, -1)}>-</Button>
-                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateCredits(selectedProfile, 1)}>+</Button>
+                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center !bg-white/60 ! !text-zinc-900 hover:!bg-white shadow-sm" onClick={() => handleUpdateCredits(selectedProfile, -1)}>-</Button>
+                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center !bg-white/60 ! !text-zinc-900 hover:!bg-white shadow-sm" onClick={() => handleUpdateCredits(selectedProfile, 1)}>+</Button>
                         </div>
                       </div>
 
                       {state.currentClub?.settings?.booking?.sessionTypes?.map(type => (
-                        <div key={type.id} className="flex items-center justify-between bg-white p-3 rounded-2xl border border-zinc-200">
+                        <div key={type.id} className="flex items-center justify-between bg-white/60 backdrop-blur-xl p-3 rounded-2xl border  shadow-sm">
                           <div>
                             <div className="text-xl font-black text-zinc-900">{selectedProfile.sessionCredits?.[type.id] || 0}</div>
-                            <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">{type.name}</div>
+                            <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest">{type.name}</div>
                           </div>
                           <div className="flex gap-2">
                             <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, -1)}>-</Button>
@@ -1206,34 +1206,34 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     </div>
                   </div>
 
-                  <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4">
+                  <div className="bg-white/60 border  p-6 rounded-3xl space-y-4 shadow-sm">
                     <h3 className="text-[10px] font-black uppercase tracking-[4px] text-velatra-accent">Fidélité & Achats</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center">
-                        <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-1">Points</div>
+                        <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Points</div>
                         <div className="text-xl font-black text-zinc-900">{selectedProfile.pointsFidelite || 0}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-1">Total Achats</div>
+                        <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Total Achats</div>
                         <div className="text-xl font-black text-emerald-500">{stats.totalSpent}€</div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4">
+                  <div className="bg-white/60 border  p-6 rounded-3xl space-y-4 shadow-sm">
                     <h3 className="text-[10px] font-black uppercase tracking-[4px] text-velatra-accent">Profil & Objectifs</h3>
                     
                     {(selectedProfile.email || selectedProfile.phone) && (
-                      <div className="space-y-3 mb-6 pb-4 border-b border-zinc-200">
+                      <div className="space-y-3 mb-6 pb-4 border-b ">
                         {selectedProfile.email && (
                           <div>
-                            <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-1">Email</div>
+                            <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Email</div>
                             <div className="text-sm font-bold text-zinc-900">{selectedProfile.email}</div>
                           </div>
                         )}
                         {selectedProfile.phone && (
                           <div>
-                            <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-1">Téléphone</div>
+                            <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Téléphone</div>
                             <div className="text-sm font-bold text-zinc-900">{selectedProfile.phone}</div>
                           </div>
                         )}
@@ -1242,34 +1242,34 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
-                        <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-1">Âge</div>
+                        <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Âge</div>
                         <div className="text-sm font-bold text-zinc-900">{selectedProfile.age} ans</div>
                       </div>
                       {selectedProfile.birthDate && (
                         <div>
-                          <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-1">Date de naissance</div>
+                          <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Date de naissance</div>
                           <div className="text-sm font-bold text-zinc-900">{new Date(selectedProfile.birthDate).toLocaleDateString()}</div>
                         </div>
                       )}
                       <div>
-                        <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-1">Sexe</div>
+                        <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Sexe</div>
                         <div className="text-sm font-bold text-zinc-900">{selectedProfile.gender === 'M' ? 'Homme' : selectedProfile.gender === 'F' ? 'Femme' : 'Autre'}</div>
                       </div>
                       <div>
-                        <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-1">Taille</div>
+                        <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Taille</div>
                         <div className="text-sm font-bold text-zinc-900">{selectedProfile.height} cm</div>
                       </div>
                       <div>
-                        <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-1">Poids Initial</div>
+                        <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-1">Poids Initial</div>
                         <div className="text-sm font-bold text-zinc-900">{selectedProfile.weight} kg</div>
                       </div>
                     </div>
                     {selectedProfile.objectifs && selectedProfile.objectifs.length > 0 && (
                       <div>
-                        <div className="text-[8px] font-black text-zinc-900 uppercase tracking-widest mb-2">Objectifs</div>
+                        <div className="text-[8px] font-black text-zinc-400 uppercase tracking-widest mb-2">Objectifs</div>
                         <div className="flex flex-wrap gap-2">
                           {selectedProfile.objectifs.map((obj, idx) => (
-                            <span key={idx} className="px-2 py-1 bg-zinc-100 rounded-full text-[9px] font-bold text-zinc-900 uppercase tracking-wider">
+                            <span key={idx} className="px-2 py-1 bg-white/60 backdrop-blur-xl border  rounded-full text-[9px] font-bold text-zinc-900 uppercase tracking-wider shadow-sm">
                               {obj}
                             </span>
                           ))}
@@ -1279,9 +1279,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </div>
 
                   {selectedProfile.notes && (
-                    <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-2">
+                    <div className="bg-white/60 border  p-6 rounded-3xl space-y-2 shadow-sm">
                       <h3 className="text-[10px] font-black uppercase tracking-[4px] text-velatra-accent">Notes d'Inscription</h3>
-                      <p className="text-xs text-zinc-500 leading-relaxed italic">"{selectedProfile.notes}"</p>
+                      <p className="text-xs text-zinc-400 leading-relaxed italic">"{selectedProfile.notes}"</p>
                     </div>
                   )}
 
@@ -1294,7 +1294,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                        </div>
                        <p className="text-sm font-bold text-zinc-900 italic leading-relaxed">"{stats.program.memberRemarks}"</p>
                        <div className="flex flex-col sm:flex-row gap-2">
-                         <Button variant="secondary" className="flex-1 !py-2 !text-[9px] !rounded-xl" onClick={async () => {
+                         <Button variant="secondary" className="flex-1 !py-2 !text-[9px] !rounded-xl !bg-white/60 !backdrop-blur-xl ! !text-zinc-900 hover:!bg-white shadow-sm" onClick={async () => {
                            if (stats.program) {
                              try {
                                await updateDoc(doc(db, "programs", stats.program.id.toString()), { memberRemarks: "" });
@@ -1319,23 +1319,23 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                        <h3 className="text-[10px] font-black uppercase tracking-[4px] text-velatra-accent">Abonnement</h3>
                     </div>
                     {stats.subscription ? (
-                      <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-inner space-y-4">
+                      <div className="bg-white/60 backdrop-blur-xl border  rounded-3xl p-6 shadow-sm space-y-4">
                         <div className="flex justify-between items-start">
                           <span className="font-black text-zinc-900 text-lg uppercase italic">{stats.subscription.planName}</span>
-                          <span className="text-[10px] px-2 py-1 bg-green-500/20 text-green-400 rounded-full font-black uppercase tracking-widest">Actif</span>
+                          <span className="text-[10px] px-2 py-1 bg-green-500/20 text-green-600 rounded-full font-black uppercase tracking-widest">Actif</span>
                         </div>
                         <div className="text-[10px] font-bold text-zinc-900 uppercase tracking-widest">
                           {stats.subscription.price}€ / {stats.subscription.billingCycle === 'monthly' ? 'mois' : stats.subscription.billingCycle === 'yearly' ? 'an' : 'fois'}
                         </div>
                         
-                        <div className="pt-4 border-t border-zinc-200 space-y-2">
+                        <div className="pt-4 border-t  space-y-2">
                           <div className="flex justify-between text-xs">
-                            <span className="text-zinc-500">Début :</span>
-                            <span className="font-bold">{new Date(stats.subscription.startDate).toLocaleDateString()}</span>
+                            <span className="text-zinc-400">Début :</span>
+                            <span className="font-bold text-zinc-900">{new Date(stats.subscription.startDate).toLocaleDateString()}</span>
                           </div>
                           {stats.subscription.commitmentEndDate && (
                             <div className="flex justify-between text-xs">
-                              <span className="text-zinc-500">Fin d'engagement :</span>
+                              <span className="text-zinc-400">Fin d'engagement :</span>
                               <span className={`font-bold ${new Date(stats.subscription.commitmentEndDate) < new Date() ? 'text-red-500' : 'text-zinc-900'}`}>
                                 {new Date(stats.subscription.commitmentEndDate).toLocaleDateString()}
                               </span>
@@ -1351,31 +1351,31 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         </div>
 
                         {isEditingSub ? (
-                          <div className="space-y-3 pt-4 border-t border-zinc-200">
+                          <div className="space-y-3 pt-4 border-t ">
                             <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Date de début</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Date de début</label>
                               <Input type="date" value={subStartDate} onChange={e => setSubStartDate(e.target.value)} />
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Fin d'engagement (optionnel)</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Fin d'engagement (optionnel)</label>
                               <Input type="date" value={subCommitmentDate} onChange={e => setSubCommitmentDate(e.target.value)} />
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Importer un contrat (PDF, Image)</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Importer un contrat (PDF, Image)</label>
                               <input 
                                 type="file" 
                                 accept=".pdf,image/*" 
                                 onChange={handleFileUpload}
-                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-velatra-accent/10 file:text-velatra-accent hover:file:bg-velatra-accent/20 transition-colors"
+                                className="w-full text-xs text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-velatra-accent/10 file:text-velatra-accent hover:file:bg-velatra-accent/20 transition-colors"
                               />
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Ou lien du contrat (optionnel)</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Ou lien du contrat (optionnel)</label>
                               <Input type="url" placeholder="https://..." value={subContractUrl} onChange={e => setSubContractUrl(e.target.value)} />
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                              <button onClick={() => setIsEditingSub(false)} className="flex-1 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
-                              <button onClick={handleUpdateSubscription} className="flex-1 bg-velatra-accent text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">Enregistrer</button>
+                              <button onClick={() => setIsEditingSub(false)} className="flex-1 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors">Annuler</button>
+                              <button onClick={handleUpdateSubscription} className="flex-1 bg-velatra-accent text-zinc-900 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">Enregistrer</button>
                             </div>
                           </div>
                         ) : (
@@ -1384,16 +1384,16 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             setSubCommitmentDate(stats.subscription!.commitmentEndDate ? stats.subscription!.commitmentEndDate.split('T')[0] : '');
                             setSubContractUrl(stats.subscription!.contractUrl || '');
                             setIsEditingSub(true);
-                          }} className="w-full mt-4 border border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-300 rounded-xl py-2 text-[10px] font-black uppercase tracking-widest transition-colors">
+                          }} className="w-full mt-4 border  text-zinc-400 hover:text-zinc-900 hover: rounded-xl py-2 text-[10px] font-black uppercase tracking-widest transition-colors">
                             Modifier l'abonnement
                           </button>
                         )}
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <p className="text-xs text-zinc-500 font-medium px-1">Aucun abonnement actif.</p>
+                        <p className="text-xs text-zinc-400 font-medium px-1">Aucun abonnement actif.</p>
                         {isAssigningPlan ? (
-                          <div className="space-y-3 bg-zinc-50 p-4 rounded-3xl border border-zinc-200">
+                          <div className="space-y-3 bg-white/60 p-4 rounded-3xl border  shadow-sm">
                             <select 
                               value={selectedPlanId} 
                               onChange={e => {
@@ -1410,14 +1410,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                   setSubCommitmentDate('');
                                 }
                               }}
-                              className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 text-xs font-medium focus:outline-none focus:border-velatra-accent"
+                              className="w-full bg-white/60 backdrop-blur-xl border  rounded-xl p-3 text-zinc-900 text-xs font-medium focus:outline-none focus:border-velatra-accent shadow-sm"
                             >
                               <option value="">Sélectionner une formule</option>
                               {state.plans.map(p => <option key={p.id} value={p.id}>{p.name} - {p.price}€</option>)}
                             </select>
                             
                             <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Date de début</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Date de début</label>
                               <Input type="date" value={subStartDate} onChange={e => {
                                 const newDate = e.target.value;
                                 setSubStartDate(newDate);
@@ -1432,30 +1432,30 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                               }} />
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Fin d'engagement (optionnel)</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Fin d'engagement (optionnel)</label>
                               <Input type="date" value={subCommitmentDate} onChange={e => setSubCommitmentDate(e.target.value)} />
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Importer un contrat (PDF, Image)</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Importer un contrat (PDF, Image)</label>
                               <input 
                                 type="file" 
                                 accept=".pdf,image/*" 
                                 onChange={handleFileUpload}
-                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-velatra-accent/10 file:text-velatra-accent hover:file:bg-velatra-accent/20 transition-colors"
+                                className="w-full text-xs text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-velatra-accent/10 file:text-velatra-accent hover:file:bg-velatra-accent/20 transition-colors"
                               />
                             </div>
                             <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Ou lien du contrat (optionnel)</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">Ou lien du contrat (optionnel)</label>
                               <Input type="url" placeholder="https://..." value={subContractUrl} onChange={e => setSubContractUrl(e.target.value)} />
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                              <button onClick={() => setIsAssigningPlan(false)} className="flex-1 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
-                              <button onClick={handleAssignSubscription} disabled={!selectedPlanId} className="flex-1 bg-velatra-accent text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50">Confirmer</button>
+                              <button onClick={() => setIsAssigningPlan(false)} className="flex-1 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-900 transition-colors">Annuler</button>
+                              <button onClick={handleAssignSubscription} disabled={!selectedPlanId} className="flex-1 bg-velatra-accent text-zinc-900 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50">Confirmer</button>
                             </div>
                           </div>
                         ) : (
-                          <button onClick={() => setIsAssigningPlan(true)} className="w-full border border-dashed border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-200 rounded-3xl py-4 text-[10px] font-black uppercase tracking-widest transition-colors">
+                          <button onClick={() => setIsAssigningPlan(true)} className="w-full border border-dashed  text-zinc-400 hover:text-zinc-900 hover: rounded-3xl py-4 text-[10px] font-black uppercase tracking-widest transition-colors">
                             + Assigner une formule
                           </button>
                         )}
@@ -1466,30 +1466,30 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between px-1">
                        <h3 className="text-[10px] font-black uppercase tracking-[4px] text-velatra-accent">Plan Actif</h3>
-                       <button onClick={() => handleEditProgram(selectedProfile)} className="text-zinc-900/40 hover:text-zinc-900 transition-colors">
+                       <button onClick={() => handleEditProgram(selectedProfile)} className="text-zinc-400 hover:text-zinc-900 transition-colors">
                           <LayersIcon size={14} />
                        </button>
                     </div>
                     {stats.program ? (
-                      <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-inner relative overflow-hidden">
+                      <div className="bg-white/60 backdrop-blur-xl border  rounded-3xl p-6 shadow-sm relative overflow-hidden">
                         <div className="font-black text-zinc-900 text-lg mb-1 uppercase italic">{stats.program.name}</div>
-                        <div className="flex justify-between text-[10px] font-bold text-zinc-900 uppercase mb-4 tracking-widest">
+                        <div className="flex justify-between text-[10px] font-bold text-zinc-400 uppercase mb-4 tracking-widest">
                            <span>Cycle complété</span>
                            <span className="text-zinc-900">{progCompletion}%</span>
                         </div>
-                        <div className="h-2 bg-zinc-50 rounded-full overflow-hidden mb-4">
-                          <div className="h-full bg-velatra-accent shadow-[0_0_10px_rgba(196,30,58,0.5)] transition-all duration-1000" style={{ width: `${progCompletion}%` }} />
+                        <div className="h-2 bg-white/60 backdrop-blur-xl rounded-full overflow-hidden mb-4 border ">
+                          <div className="h-full bg-velatra-accent shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-1000" style={{ width: `${progCompletion}%` }} />
                         </div>
                         
                         {/* Feature 2: Auto Progression Toggle */}
-                        <div className="mt-4 pt-4 border-t border-zinc-200 flex items-center justify-between">
+                        <div className="mt-4 pt-4 border-t  flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-4 bg-velatra-accent rounded-full relative cursor-pointer" onClick={() => showToast("Progression automatique activée", "success")}>
                               <div className="absolute right-1 top-0.5 w-3 h-3 bg-white rounded-full shadow-sm"></div>
                             </div>
                             <span className="text-[9px] font-black text-zinc-900 uppercase tracking-widest">Surcharge Progressive IA</span>
                           </div>
-                          <span className="text-[8px] text-zinc-900 uppercase tracking-widest">+2.5kg auto</span>
+                          <span className="text-[8px] text-zinc-400 uppercase tracking-widest">+2.5kg auto</span>
                         </div>
 
                         <Button 
@@ -1503,7 +1503,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         </Button>
                       </div>
                     ) : (
-                      <div className="bg-zinc-50 rounded-3xl p-8 border border-dashed border-zinc-200 text-center">
+                      <div className="bg-zinc-50 rounded-3xl p-8 border border-dashed  text-center">
                          <p className="text-xs italic text-zinc-900 mb-4">Aucun cycle en cours</p>
                          <Button variant="primary" fullWidth onClick={() => handleEditProgram(selectedProfile)} className="!py-3 !text-[10px]">
                             CRÉER UN PROGRAMME
@@ -1512,7 +1512,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     )}
                   </div>
 
-                  <div className="space-y-6 bg-zinc-50 p-8 rounded-3xl border border-zinc-200">
+                  <div className="space-y-6 bg-zinc-50 p-8 rounded-3xl border ">
                     <h3 className="text-[10px] font-black uppercase tracking-[4px] text-velatra-accent">Nouveau Scan</h3>
                     <div className="space-y-4">
                       <Input placeholder="Poids (kg)" type="number" className="!bg-zinc-50" value={newScan.weight || ''} onChange={e => setNewScan({...newScan, weight: e.target.value})} />
@@ -1539,7 +1539,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* Feature 1: Auto Program */}
-                      <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl hover:border-velatra-accent/50 transition-all group relative overflow-hidden flex flex-col justify-between">
+                      <div className="bg-zinc-50 border  p-6 rounded-3xl hover:border-velatra-accent/50 transition-all group relative overflow-hidden flex flex-col justify-between">
                         <div>
                           <div className="absolute top-0 right-0 w-32 h-32 bg-velatra-accent/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-velatra-accent/20"></div>
                           <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -1558,7 +1558,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
 
                       {/* Feature 2: Nutrition Plan */}
-                      <div className={`bg-zinc-50 border border-zinc-200 p-6 rounded-3xl transition-all group relative overflow-hidden flex flex-col justify-between ${isGeneratingNutrition ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-emerald-500/50'}`}>
+                      <div className={`bg-zinc-50 border  p-6 rounded-3xl transition-all group relative overflow-hidden flex flex-col justify-between ${isGeneratingNutrition ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-emerald-500/50'}`}>
                         <div>
                           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-emerald-500/20"></div>
                           <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -1582,7 +1582,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
 
                       {/* Feature 3: Auto Report */}
-                      <div className={`bg-zinc-50 border border-zinc-200 p-6 rounded-3xl transition-all group relative overflow-hidden ${isGeneratingReport ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-blue-500/50'}`}>
+                      <div className={`bg-zinc-50 border  p-6 rounded-3xl transition-all group relative overflow-hidden ${isGeneratingReport ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-blue-500/50'}`}>
                         <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-blue-500/20"></div>
                         <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
                           <BarChartIcon size={16} className="text-blue-400" /> Rapport Automatique
@@ -1591,14 +1591,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         
                         {generatedReport ? (
                           <div className="space-y-4 relative z-10">
-                            <div className="bg-white border border-zinc-200 rounded-xl p-4 max-h-40 overflow-y-auto text-xs text-zinc-700 whitespace-pre-wrap">
+                            <div className="bg-white border  rounded-xl p-4 max-h-40 overflow-y-auto text-xs text-zinc-700 whitespace-pre-wrap">
                               {generatedReport}
                             </div>
                             <div className="flex flex-col gap-2">
                               <Button 
                                 variant="primary" 
                                 fullWidth 
-                                className="!py-3 !text-[10px] !rounded-xl !bg-[#25D366] hover:!bg-[#128C7E] border-none text-white flex items-center justify-center gap-2"
+                                className="!py-3 !text-[10px] !rounded-xl !bg-[#25D366] hover:!bg-[#128C7E] border-none text-zinc-900 flex items-center justify-center gap-2"
                                 onClick={() => {
                                   const phone = selectedProfile.phone?.replace(/\D/g, '');
                                   const url = phone 
@@ -1625,19 +1625,19 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
 
                       {/* Feature 4: Stagnation Detection */}
-                      <div className={`bg-zinc-50 border border-zinc-200 p-6 rounded-3xl transition-all group relative overflow-hidden ${isDetectingStagnation ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-orange-500/50'}`}>
+                      <div className={`bg-white/60 backdrop-blur-xl border  p-6 rounded-3xl transition-all group relative overflow-hidden shadow-sm ${isDetectingStagnation ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-orange-500/50'}`}>
                         <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-orange-500/20"></div>
                         <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
                           <TargetIcon size={16} className="text-orange-400" /> Détection Stagnation
                         </h4>
-                        <p className="text-[10px] text-zinc-500 mb-4 leading-relaxed">L'IA analyse les dernières séances pour détecter les plateaux de progression sur les exercices majeurs.</p>
+                        <p className="text-[10px] text-zinc-400 mb-4 leading-relaxed">L'IA analyse les dernières séances pour détecter les plateaux de progression sur les exercices majeurs.</p>
                         
                         {stagnationResult ? (
                           <div className={`border rounded-xl p-3 flex flex-col gap-2 ${stagnationResult.hasStagnation ? 'bg-red-500/10 border-red-500/20' : 'bg-green-500/10 border-green-500/20'}`}>
                             <span className={`text-[10px] font-bold uppercase tracking-widest ${stagnationResult.hasStagnation ? 'text-red-500' : 'text-green-500'}`}>
                               {stagnationResult.hasStagnation ? 'Stagnation détectée' : 'Progression OK'}
                             </span>
-                            <p className="text-[10px] text-zinc-600">{stagnationResult.advice}</p>
+                            <p className="text-[10px] text-zinc-300">{stagnationResult.advice}</p>
                           </div>
                         ) : (
                           <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl relative z-10 border-orange-500/30 hover:border-orange-500" onClick={handleDetectStagnation} disabled={isDetectingStagnation}>
@@ -1647,12 +1647,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
 
                       {/* Feature 5: Morphological Analysis */}
-                      <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl transition-all group relative overflow-hidden opacity-50 grayscale">
+                      <div className="bg-white/60 backdrop-blur-xl border  p-6 rounded-3xl transition-all group relative overflow-hidden opacity-50 grayscale shadow-sm">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-emerald-500/20"></div>
                         <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
                           <InfoIcon size={16} className="text-emerald-400" /> Analyse Morphologique
                         </h4>
-                        <p className="text-[10px] text-zinc-500 mb-6 leading-relaxed">Importez des photos (face, profil, dos) pour obtenir une analyse posturale et morphologique détaillée par l'IA.</p>
+                        <p className="text-[10px] text-zinc-400 mb-6 leading-relaxed">Importez des photos (face, profil, dos) pour obtenir une analyse posturale et morphologique détaillée par l'IA.</p>
                         <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl relative z-10 border-emerald-500/30 hover:border-emerald-500" onClick={() => showToast("Fonctionnalité IA en cours d'activation pour votre club", "info")}>
                           ANALYSER DES PHOTOS
                         </Button>
@@ -1667,7 +1667,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                        <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Documents Partagés</h3>
                     </div>
                     
-                    <div className="bg-white border border-zinc-200 rounded-[40px] p-8 shadow-inner">
+                    <div className="bg-white/60 backdrop-blur-xl border  rounded-[40px] p-8 shadow-sm">
                       <div className="flex justify-between items-center mb-6">
                         <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Fichiers du client</h4>
                         <label className="cursor-pointer">
@@ -1696,30 +1696,30 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           state.driveFiles.filter(f => f.sharedWith?.includes(Number(selectedProfile.id)))
                             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                             .map(file => (
-                              <div key={file.id} className="flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl hover:border-blue-500/30 transition-colors">
+                              <div key={file.id} className="flex items-center justify-between p-4 bg-white/60 backdrop-blur-xl border  rounded-2xl hover:border-blue-500/30 transition-colors shadow-sm">
                                 <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-blue-500 shadow-sm border border-zinc-100">
+                                  <div className="w-10 h-10 bg-white/60 rounded-xl flex items-center justify-center text-blue-500 shadow-sm border ">
                                     <FileIcon size={20} />
                                   </div>
                                   <div>
                                     <div className="text-sm font-bold text-zinc-900">{file.name}</div>
-                                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
+                                    <div className="text-[10px] text-zinc-400 uppercase tracking-widest mt-1">
                                       {(file.size / 1024 / 1024).toFixed(2)} MB • {new Date(file.createdAt).toLocaleDateString('fr-FR')}
                                     </div>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <a href={file.url} target="_blank" rel="noopener noreferrer" className="p-2 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-colors">
+                                  <a href={file.url} target="_blank" rel="noopener noreferrer" className="p-2 text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 rounded-xl transition-colors">
                                     <EyeIcon size={18} />
                                   </a>
-                                  <button onClick={() => setConfirmDeleteFileId(file.id)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                                  <button onClick={() => setConfirmDeleteFileId(file.id)} className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-colors">
                                     <Trash2Icon size={18} />
                                   </button>
                                 </div>
                               </div>
                             ))
                         ) : (
-                          <div className="text-center py-8 text-zinc-500 text-sm">
+                          <div className="text-center py-8 text-zinc-400 text-sm">
                             Aucun document partagé avec ce client.
                           </div>
                         )}
@@ -1735,21 +1735,21 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                      <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm">
-                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Solde Total Payé</div>
+                      <div className="bg-white/60 border  rounded-3xl p-6 shadow-sm">
+                        <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Solde Total Payé</div>
                         <div className="text-4xl font-black text-emerald-500">
                           {state.payments?.filter(p => p.memberId === Number(selectedProfile.id) && p.status === 'paid').reduce((sum, p) => sum + p.amount, 0) || 0}€
                         </div>
                       </div>
-                      <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm flex flex-col justify-center">
+                      <div className="bg-white/60 border  rounded-3xl p-6 shadow-sm flex flex-col justify-center">
                         <Button variant="primary" fullWidth onClick={handleCopyPaymentLink} className="!py-4 mb-3">
                           <LinkIcon size={16} className="mr-2" /> COPIER LIEN DE PAIEMENT
                         </Button>
-                        <p className="text-[10px] text-zinc-500 text-center">Envoyez ce lien à votre client pour un paiement en ligne sécurisé via Stripe.</p>
+                        <p className="text-[10px] text-zinc-400 text-center">Envoyez ce lien à votre client pour un paiement en ligne sécurisé via Stripe.</p>
                       </div>
                     </div>
 
-                    <div className="bg-white border border-zinc-200 rounded-[40px] p-8 shadow-inner">
+                    <div className="bg-white/60 backdrop-blur-xl border  rounded-[40px] p-8 shadow-sm">
                       <div className="flex justify-between items-center mb-6">
                         <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Historique des prélèvements & paiements</h4>
                         <Button variant="secondary" className="!py-2 !px-4 !text-[10px] !rounded-xl" onClick={() => setIsAddingPayment(!isAddingPayment)}>
@@ -1758,21 +1758,21 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
 
                       {isAddingPayment && (
-                        <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 mb-6">
+                        <div className="bg-white/60 backdrop-blur-xl border  rounded-2xl p-6 mb-6 shadow-sm">
                           <h5 className="text-xs font-black text-zinc-900 uppercase tracking-widest mb-4">Nouveau Paiement</h5>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                             <div>
-                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Montant (€)</label>
+                              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Montant (€)</label>
                               <Input type="number" value={newPayment.amount || ''} onChange={(e) => setNewPayment({...newPayment, amount: Number(e.target.value)})} placeholder="Ex: 50" />
                             </div>
                             <div>
-                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Date</label>
+                              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Date</label>
                               <Input type="date" value={newPayment.date || ''} onChange={(e) => setNewPayment({...newPayment, date: e.target.value})} />
                             </div>
                             <div>
-                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Méthode</label>
+                              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Méthode</label>
                               <select 
-                                className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent"
+                                className="w-full bg-white/60 backdrop-blur-xl border  rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent shadow-sm"
                                 value={newPayment.method} 
                                 onChange={(e) => setNewPayment({...newPayment, method: e.target.value as any})}
                               >
@@ -1783,9 +1783,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                               </select>
                             </div>
                             <div>
-                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Catégorie</label>
+                              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Catégorie</label>
                               <select 
-                                className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent"
+                                className="w-full bg-white/60 backdrop-blur-xl border  rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent shadow-sm"
                                 value={newPayment.category || 'other'} 
                                 onChange={(e) => setNewPayment({...newPayment, category: e.target.value as any})}
                               >
@@ -1796,9 +1796,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                               </select>
                             </div>
                             <div>
-                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Statut</label>
+                              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Statut</label>
                               <select 
-                                className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent"
+                                className="w-full bg-white/60 backdrop-blur-xl border  rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent shadow-sm"
                                 value={newPayment.status} 
                                 onChange={(e) => setNewPayment({...newPayment, status: e.target.value as any})}
                               >
@@ -1821,7 +1821,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             .map(payment => {
                               const invoice = state.invoices?.find(inv => inv.paymentId === payment.id);
                               return (
-                                <div key={payment.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-2xl gap-4">
+                                <div key={payment.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/60 backdrop-blur-xl border  rounded-2xl gap-4 shadow-sm">
                                   <div>
                                     <div className="flex items-center gap-3 mb-1">
                                       <span className="text-lg font-black text-zinc-900">{payment.amount}€</span>
@@ -1829,14 +1829,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                         {payment.status === 'paid' ? 'Payé' : payment.status === 'pending' ? 'En attente' : 'Échoué'}
                                       </Badge>
                                     </div>
-                                    <div className="text-xs text-zinc-500">
+                                    <div className="text-xs text-zinc-400">
                                       {new Date(payment.date).toLocaleDateString('fr-FR')} • {payment.method === 'card' ? 'Carte Bancaire' : payment.method === 'sepa' ? 'Prélèvement SEPA' : payment.method === 'cash' ? 'Espèces' : 'Virement'}
                                     </div>
                                   </div>
                                   
                                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0">
                                     {payment.status !== 'paid' && (
-                                      <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl text-orange-500 border-orange-200 hover:bg-orange-50" onClick={() => handleRemind(payment)}>
+                                      <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl text-orange-500 border-orange-500/30 hover:bg-orange-500/10" onClick={() => handleRemind(payment)}>
                                         <BellIcon size={14} className="mr-1" /> RELANCER
                                       </Button>
                                     )}
@@ -1856,7 +1856,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           })}
                         </div>
                       ) : (
-                        <div className="text-center py-8 text-zinc-500 text-sm italic">
+                        <div className="text-center py-8 text-zinc-400 text-sm italic">
                           Aucun paiement enregistré pour ce membre.
                         </div>
                       )}
@@ -1870,17 +1870,17 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                        <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Historique Coaching</h3>
                     </div>
                     
-                      <div className="bg-white border border-zinc-200 rounded-[40px] p-8 shadow-inner">
+                      <div className="bg-white/60 border  rounded-[40px] p-8 shadow-sm">
                         {(state.logs || []).filter(log => log.memberId === Number(selectedProfile.id) && log.isCoaching).length > 0 ? (
                           <div className="space-y-4">
                             {(state.logs || []).filter(log => log.memberId === Number(selectedProfile.id) && log.isCoaching)
                               .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                               .map(log => (
-                              <div key={log.id} className="flex flex-col gap-3 p-4 bg-zinc-50 border border-zinc-200 rounded-2xl">
+                              <div key={log.id} className="flex flex-col gap-3 p-4 bg-white/60 backdrop-blur-xl border  rounded-2xl shadow-sm">
                                 <div className="flex items-center justify-between">
                                   <div>
                                     <div className="text-sm font-bold text-zinc-900">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">{log.dayName} • Semaine {log.week}</div>
+                                    <div className="text-[10px] text-zinc-400 uppercase tracking-widest mt-1">{log.dayName} • Semaine {log.week}</div>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <span className="px-3 py-1 bg-velatra-accent/20 text-velatra-accent rounded-full text-[10px] font-black uppercase tracking-widest">
@@ -1895,7 +1895,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                   <div className="mt-2 p-3 bg-velatra-accent/5 rounded-lg border border-velatra-accent/10">
                                     <div className="flex items-start gap-2">
                                       <MessageCircleIcon size={14} className="text-velatra-accent mt-0.5 shrink-0" />
-                                      <p className="text-xs text-zinc-700 leading-relaxed italic line-clamp-2">"{log.notes}"</p>
+                                      <p className="text-xs text-zinc-300 leading-relaxed italic line-clamp-2">"{log.notes}"</p>
                                     </div>
                                   </div>
                                 )}
@@ -1903,7 +1903,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             ))}
                           </div>
                         ) : (
-                          <div className="text-center py-8 text-zinc-500 text-sm italic">
+                          <div className="text-center py-8 text-zinc-400 text-sm italic">
                             Aucune séance de coaching enregistrée pour ce membre.
                           </div>
                         )}
@@ -1933,7 +1933,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
                     </div>
                     
-                    <div className="bg-white border border-zinc-200 rounded-[40px] p-6 h-80 relative overflow-hidden shadow-inner">
+                    <div className="bg-white/60 border  rounded-[40px] p-6 h-80 relative overflow-hidden shadow-sm">
                       {weightHistory.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={chartData}>
@@ -1951,7 +1951,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                 <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                               </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
                             <XAxis 
                               dataKey="date" 
                               stroke="#a1a1aa" 
@@ -2029,7 +2029,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       {stats.perfs.length > 0 ? stats.perfs.map(p => {
                         const ex = (state.exercises || []).find(e => e.perfId === p.exId);
                         return (
-                          <div key={p.id} className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl flex justify-between items-center group hover:bg-zinc-50 transition-all">
+                          <div key={p.id} className="bg-white/60 backdrop-blur-xl border  p-6 rounded-3xl flex justify-between items-center group hover:bg-white transition-all shadow-sm">
                              <div>
                                <div className="text-[9px] uppercase font-black text-velatra-accent tracking-widest mb-1">{ex?.cat || 'FORCE'}</div>
                                <div className="font-black text-zinc-900 text-lg italic tracking-tight">{ex?.name || p.exId}</div>
@@ -2041,7 +2041,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           </div>
                         );
                       }) : (
-                        <div className="col-span-full py-12 text-center bg-zinc-50 border border-dashed border-zinc-200 rounded-[32px] text-[10px] uppercase font-black text-zinc-900 tracking-[4px] italic">Aucun PR enregistré</div>
+                        <div className="col-span-full py-12 text-center bg-white/60 backdrop-blur-xl border border-dashed  rounded-[32px] text-[10px] uppercase font-black text-zinc-400 tracking-[4px] italic shadow-sm">Aucun PR enregistré</div>
                       )}
                     </div>
                   </section>
@@ -2053,7 +2053,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     </div>
                     <div className="space-y-4">
                        {stats.body.length > 0 ? stats.body.map(b => (
-                         <div key={b.id} className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl flex justify-between items-center group hover:border-zinc-300 transition-all">
+                         <div key={b.id} className="bg-white/60 backdrop-blur-xl border  p-6 rounded-3xl flex justify-between items-center group hover:border-velatra-accent/50 transition-all shadow-sm">
                             <div className="flex flex-col">
                               <span className="text-zinc-900 font-black text-sm uppercase tracking-widest italic">{new Date(b.date).toLocaleDateString('fr-FR', {month:'long', day:'numeric', year:'numeric'})}</span>
                               <div className="flex items-center gap-2 mt-1">
@@ -2077,7 +2077,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             </div>
                          </div>
                        )) : (
-                         <div className="py-12 text-center bg-zinc-50 border border-dashed border-zinc-200 rounded-[32px] text-[10px] uppercase font-black text-zinc-900 tracking-[4px] italic">Aucun historique biométrique</div>
+                         <div className="py-12 text-center bg-white/60 backdrop-blur-xl border border-dashed  rounded-[32px] text-[10px] uppercase font-black text-zinc-400 tracking-[4px] italic shadow-sm">Aucun historique biométrique</div>
                        )}
                     </div>
                   </section>
@@ -2099,7 +2099,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
         >
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -2108,29 +2108,29 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="w-full max-w-lg"
           >
-            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl border-white/20 relative shadow-2xl max-h-[90vh] flex flex-col">
-              <button onClick={() => setIsEditingInfo(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-100 p-2 rounded-full transition-colors z-10">
+            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl  relative shadow-2xl max-h-[90vh] flex flex-col">
+              <button onClick={() => setIsEditingInfo(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-white/60 backdrop-blur-xl border  p-2 rounded-full transition-colors z-10 shadow-sm">
                 <XIcon size={20} />
               </button>
               
               <div className="shrink-0">
-                <h2 className="text-2xl font-black mb-1 uppercase italic">Modifier Profil</h2>
+                <h2 className="text-2xl font-black mb-1 text-zinc-900 uppercase italic">Modifier Profil</h2>
                 <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-6">Informations de base de l'athlète</p>
               </div>
 
             <div className="space-y-5 overflow-y-auto custom-scrollbar pr-2 flex-1 min-h-0 pb-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Nom Complet</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Nom Complet</label>
                   <Input 
                     value={editInfoData.name}
                     onChange={e => setEditInfoData({...editInfoData, name: e.target.value})}
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Genre</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Genre</label>
                   <select 
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-velatra-accent outline-none appearance-none"
+                    className="w-full bg-white/60 backdrop-blur-xl border  rounded-xl p-4 text-sm text-zinc-900 focus:border-velatra-accent outline-none appearance-none shadow-sm"
                     value={editInfoData.gender}
                     onChange={e => setEditInfoData({...editInfoData, gender: e.target.value as Gender})}
                   >
@@ -2142,7 +2142,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Âge</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Âge</label>
                   <Input 
                     type="number"
                     value={editInfoData.age || ''}
@@ -2150,7 +2150,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Date de naissance</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Date de naissance</label>
                   <Input 
                     type="date"
                     value={editInfoData.birthDate || ''}
@@ -2160,7 +2160,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Poids (kg)</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Poids (kg)</label>
                   <Input 
                     type="number"
                     value={editInfoData.weight || ''}
@@ -2168,7 +2168,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Taille (cm)</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Taille (cm)</label>
                   <Input 
                     type="number"
                     value={editInfoData.height || ''}
@@ -2178,8 +2178,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Objectifs</label>
-                <div className="flex flex-wrap gap-2 p-3 bg-zinc-50 rounded-xl border border-zinc-200 max-h-32 overflow-y-auto no-scrollbar">
+                <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Objectifs</label>
+                <div className="flex flex-wrap gap-2 p-3 bg-white/60 backdrop-blur-xl rounded-xl border  max-h-32 overflow-y-auto no-scrollbar shadow-sm">
                   {GOALS.map(g => {
                     const isSelected = editInfoData.objectifs?.includes(g);
                     return (
@@ -2192,7 +2192,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             : [...current, g];
                           setEditInfoData({...editInfoData, objectifs: next});
                         }}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all border ${isSelected ? 'bg-velatra-accent border-velatra-accent text-zinc-900' : 'bg-zinc-50 border-zinc-200 text-zinc-900'}`}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all border ${isSelected ? 'bg-velatra-accent border-velatra-accent text-zinc-900' : 'bg-white/60 backdrop-blur-xl  text-zinc-900 hover:border-velatra-accent/50 shadow-sm'}`}
                       >
                         {g}
                       </button>
@@ -2202,16 +2202,16 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Notes d'Inscription</label>
+                <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Notes d'Inscription</label>
                 <textarea 
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-velatra-accent outline-none h-24 resize-none"
+                  className="w-full bg-white/60 backdrop-blur-xl border  rounded-xl p-4 text-sm text-zinc-900 focus:border-velatra-accent outline-none h-24 resize-none shadow-sm"
                   value={editInfoData.notes || ""}
                   onChange={e => setEditInfoData({...editInfoData, notes: e.target.value})}
                   placeholder="Notes renseignées lors de l'inscription..."
                 />
               </div>
 
-              <div className="pt-4 shrink-0 flex flex-col sm:flex-row gap-3 border-t border-zinc-100 mt-2">
+              <div className="pt-4 shrink-0 flex flex-col sm:flex-row gap-3 border-t  mt-2">
                 <Button variant="secondary" fullWidth onClick={() => setIsEditingInfo(false)}>ANNULER</Button>
                 <Button variant="success" fullWidth onClick={handleUpdateMemberInfo}>
                   ENREGISTRER <CheckIcon size={18} className="ml-2" />
@@ -2238,7 +2238,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
         >
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -2247,17 +2247,17 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="w-full max-w-md"
           >
-            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl border-white/20 relative shadow-2xl">
-              <button onClick={() => setIsAdjustingTargets(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-100 p-2 rounded-full transition-colors">
+            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl  relative shadow-2xl">
+              <button onClick={() => setIsAdjustingTargets(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-white/60 backdrop-blur-xl border  p-2 rounded-full transition-colors shadow-sm">
                 <XIcon size={20} />
               </button>
               
-              <h2 className="text-2xl font-black mb-1 uppercase italic">Cibles Nutritionnelles</h2>
+              <h2 className="text-2xl font-black mb-1 text-zinc-900 uppercase italic">Cibles Nutritionnelles</h2>
               <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">Ajuster avant génération</p>
 
             <div className="space-y-5">
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Calories Totales (kcal)</label>
+                <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Calories Totales (kcal)</label>
                 <Input 
                   type="number"
                   value={nutritionTargets.calories || ''}
@@ -2267,7 +2267,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Protéines (g)</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Protéines (g)</label>
                   <Input 
                     type="number"
                     value={nutritionTargets.protein || ''}
@@ -2275,7 +2275,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Glucides (g)</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Glucides (g)</label>
                   <Input 
                     type="number"
                     value={nutritionTargets.carbs || ''}
@@ -2283,7 +2283,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Lipides (g)</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Lipides (g)</label>
                   <Input 
                     type="number"
                     value={nutritionTargets.fat || ''}
@@ -2314,27 +2314,27 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
         >
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="bg-white rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden border border-zinc-200"
+            className="bg-white/90 rounded-[40px] shadow-2xl w-full max-w-md overflow-hidden border "
           >
             <div className="p-8">
-              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Trash2Icon size={32} />
               </div>
               <h2 className="text-2xl font-black text-zinc-900 text-center mb-4">Supprimer le fichier ?</h2>
-              <p className="text-zinc-500 text-center mb-8">
+              <p className="text-zinc-400 text-center mb-8">
                 Êtes-vous sûr de vouloir supprimer ce fichier ? Cette action est irréversible.
               </p>
               <div className="flex gap-4">
                 <Button variant="secondary" fullWidth onClick={() => setConfirmDeleteFileId(null)}>
                   ANNULER
                 </Button>
-                <Button variant="primary" fullWidth onClick={confirmDeleteFile} className="!bg-red-500 hover:!bg-red-600">
+                <Button variant="primary" fullWidth onClick={confirmDeleteFile} className="!bg-red-500 hover:!bg-red-600 !text-zinc-900">
                   SUPPRIMER
                 </Button>
               </div>
@@ -2353,7 +2353,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
         >
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -2362,20 +2362,20 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="w-full max-w-lg"
           >
-            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl border-white/20 relative shadow-2xl max-h-[90vh] flex flex-col">
-              <button onClick={() => setIsAddingMember(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-100 p-2 rounded-full transition-colors z-10">
+            <Card className="w-full !p-8 bg-white/90 backdrop-blur-xl  relative shadow-2xl max-h-[90vh] flex flex-col">
+              <button onClick={() => setIsAddingMember(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-white/60 backdrop-blur-xl border  p-2 rounded-full transition-colors z-10 shadow-sm">
                 <XIcon size={20} />
               </button>
             
             <div className="shrink-0">
-              <h2 className="text-2xl font-black mb-1 uppercase italic">Nouveau Profil</h2>
+              <h2 className="text-2xl font-black mb-1 text-zinc-900 uppercase italic">Nouveau Profil</h2>
               <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-6">Créer un membre manuellement</p>
             </div>
 
             <div className="space-y-5 overflow-y-auto custom-scrollbar pr-2 flex-1 min-h-0 pb-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Nom Complet</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Nom Complet</label>
                   <Input 
                     value={newMemberData.name}
                     onChange={e => setNewMemberData({...newMemberData, name: e.target.value})}
@@ -2383,7 +2383,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Email</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Email</label>
                   <Input 
                     type="email"
                     value={newMemberData.email}
@@ -2394,7 +2394,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Mot de passe provisoire</label>
+                <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Mot de passe provisoire</label>
                 <Input 
                   type="text"
                   value={newMemberData.password}
@@ -2405,7 +2405,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Âge</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Âge</label>
                   <Input 
                     type="number"
                     value={newMemberData.age || ''}
@@ -2413,7 +2413,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Date de naissance</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Date de naissance</label>
                   <Input 
                     type="date"
                     value={newMemberData.birthDate || ''}
@@ -2424,7 +2424,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Poids (kg)</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Poids (kg)</label>
                   <Input 
                     type="number"
                     value={newMemberData.weight || ''}
@@ -2432,7 +2432,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Taille (cm)</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Taille (cm)</label>
                   <Input 
                     type="number"
                     value={newMemberData.height || ''}
@@ -2443,35 +2443,35 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Expérience</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Expérience</label>
                   <select 
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent"
+                    className="w-full bg-white/60 backdrop-blur-xl border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent shadow-sm"
                     value={newMemberData.experienceLevel || 'Débutant'}
                     onChange={e => setNewMemberData({...newMemberData, experienceLevel: e.target.value as any})}
                   >
-                    <option value="Débutant" className="bg-velatra-bgCard">Débutant</option>
-                    <option value="Intermédiaire" className="bg-velatra-bgCard">Intermédiaire</option>
-                    <option value="Avancé" className="bg-velatra-bgCard">Avancé</option>
+                    <option value="Débutant" className="bg-white">Débutant</option>
+                    <option value="Intermédiaire" className="bg-white">Intermédiaire</option>
+                    <option value="Avancé" className="bg-white">Avancé</option>
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Équipement</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Équipement</label>
                   <select 
-                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent"
+                    className="w-full bg-white/60 backdrop-blur-xl border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent shadow-sm"
                     value={newMemberData.equipment || 'Salle complète'}
                     onChange={e => setNewMemberData({...newMemberData, equipment: e.target.value as any})}
                   >
-                    <option value="Salle complète" className="bg-velatra-bgCard">Salle complète</option>
-                    <option value="Haltères/Kettlebells" className="bg-velatra-bgCard">Haltères/Kettlebells</option>
-                    <option value="Poids du corps" className="bg-velatra-bgCard">Poids du corps</option>
-                    <option value="Élastiques" className="bg-velatra-bgCard">Élastiques</option>
+                    <option value="Salle complète" className="bg-white">Salle complète</option>
+                    <option value="Haltères/Kettlebells" className="bg-white">Haltères/Kettlebells</option>
+                    <option value="Poids du corps" className="bg-white">Poids du corps</option>
+                    <option value="Élastiques" className="bg-white">Élastiques</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Jours / Semaine</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Jours / Semaine</label>
                   <Input 
                     type="number" min="1" max="7"
                     value={newMemberData.trainingDays || ''}
@@ -2479,7 +2479,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Durée (min)</label>
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Durée (min)</label>
                   <Input 
                     type="number" step="15"
                     value={newMemberData.sessionDuration || ''}
@@ -2489,7 +2489,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Blessures / Douleurs</label>
+                <label className="text-[10px] font-black uppercase text-zinc-400 tracking-widest ml-1">Blessures / Douleurs</label>
                 <Input 
                   value={newMemberData.injuries || ''}
                   onChange={e => setNewMemberData({...newMemberData, injuries: e.target.value})}
@@ -2498,7 +2498,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
             </div>
 
-            <div className="pt-4 shrink-0 flex flex-col sm:flex-row gap-3 border-t border-zinc-100 mt-4">
+            <div className="pt-4 shrink-0 flex flex-col sm:flex-row gap-3 border-t  mt-4">
               <Button variant="secondary" fullWidth onClick={() => setIsAddingMember(false)}>ANNULER</Button>
               <Button variant="success" fullWidth onClick={handleCreateMember}>
                 CRÉER LE MEMBRE <CheckIcon size={18} className="ml-2" />
@@ -2519,7 +2519,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[700] flex items-start justify-center p-0 md:p-8 overflow-y-auto"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[700] flex items-start justify-center p-0 md:p-8 overflow-y-auto"
         >
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -2528,7 +2528,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="w-full max-w-4xl bg-white/90 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border border-emerald-500/20 shadow-[0_0_100px_rgba(16,185,129,0.1)] relative overflow-hidden my-0 md:my-8 p-8 md:p-12"
           >
-            <button onClick={() => setNutritionPlan(null)} className="fixed top-4 right-4 md:top-10 md:right-10 p-4 bg-white/90 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[800] border border-zinc-200 hover:bg-red-500 hover:border-red-500 transition-all shadow-xl"><XIcon size={24} /></button>
+            <button onClick={() => setNutritionPlan(null)} className="fixed top-4 right-4 md:top-10 md:right-10 p-4 bg-white/90 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[800] border  hover:bg-red-50 hover:border-red-200 transition-all shadow-xl"><XIcon size={24} /></button>
             
             <div className="flex items-center gap-4 mb-8">
                <div className="p-3 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl text-zinc-900 shadow-[0_0_20px_rgba(16,185,129,0.4)]"><CheckIcon size={24} /></div>
@@ -2539,21 +2539,21 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
-              <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 text-center">
-                <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2">Calories</div>
+              <div className="bg-white/60 backdrop-blur-xl border  rounded-3xl p-6 text-center shadow-sm">
+                <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Calories</div>
                 <div className="text-2xl font-black text-zinc-900">{nutritionPlan.targetCalories}</div>
               </div>
-              <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 text-center">
-                <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2">Protéines</div>
-                <div className="text-2xl font-black text-emerald-400">{nutritionPlan.protein}g</div>
+              <div className="bg-white/60 backdrop-blur-xl border  rounded-3xl p-6 text-center shadow-sm">
+                <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Protéines</div>
+                <div className="text-2xl font-black text-emerald-500">{nutritionPlan.protein}g</div>
               </div>
-              <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 text-center">
-                <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2">Glucides</div>
-                <div className="text-2xl font-black text-blue-400">{nutritionPlan.carbs}g</div>
+              <div className="bg-white/60 backdrop-blur-xl border  rounded-3xl p-6 text-center shadow-sm">
+                <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Glucides</div>
+                <div className="text-2xl font-black text-blue-500">{nutritionPlan.carbs}g</div>
               </div>
-              <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 text-center">
-                <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2">Lipides</div>
-                <div className="text-2xl font-black text-orange-400">{nutritionPlan.fat}g</div>
+              <div className="bg-white/60 backdrop-blur-xl border  rounded-3xl p-6 text-center shadow-sm">
+                <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">Lipides</div>
+                <div className="text-2xl font-black text-orange-500">{nutritionPlan.fat}g</div>
               </div>
             </div>
 
@@ -2562,7 +2562,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               {nutritionPlan.meals?.map((repas: any, idx: number) => {
                 if (!repas) return null;
                 return (
-                <div key={idx} className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6">
+                <div key={idx} className="bg-white/60 backdrop-blur-xl border  rounded-3xl p-6 shadow-sm">
                   <div className="flex justify-between items-center">
                     <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">{repas.name || `Repas ${idx + 1}`}</h4>
                     <div className="flex items-center gap-3">
@@ -2577,11 +2577,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             </div>
 
             <h3 className="text-xl font-black text-zinc-900 uppercase italic mb-6">Liste de Courses</h3>
-            <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6">
+            <div className="bg-white/60 backdrop-blur-xl border  rounded-3xl p-6 shadow-sm">
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {nutritionPlan.liste_courses?.map((item: string, idx: number) => (
-                  <li key={idx} className="text-sm text-zinc-900 flex items-center gap-3">
-                    <div className="w-4 h-4 rounded border border-zinc-300 flex items-center justify-center bg-zinc-50"></div>
+                  <li key={idx} className="text-sm text-zinc-300 flex items-center gap-3">
+                    <div className="w-4 h-4 rounded border  flex items-center justify-center bg-white/60"></div>
                     {item}
                   </li>
                 ))}
@@ -2595,19 +2595,19 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       )}
 
       {showNutritionLog && selectedProfile && createPortal(
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm" onClick={() => setShowNutritionLog(false)}>
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowNutritionLog(false)}>
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-4xl w-full shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-white/90 rounded-3xl p-6 max-w-4xl w-full shadow-2xl max-h-[90vh] overflow-y-auto border "
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Suivi Journalier Nutrition</h3>
-                <p className="text-sm text-zinc-500">{selectedProfile.name}</p>
+                <p className="text-sm text-zinc-400">{selectedProfile.name}</p>
               </div>
-              <button onClick={() => setShowNutritionLog(false)} className="p-2 bg-zinc-100 rounded-full hover:bg-zinc-200 transition-colors">
+              <button onClick={() => setShowNutritionLog(false)} className="p-2 bg-white/60 backdrop-blur-xl border  rounded-full hover:bg-velatra-accent/10 hover:text-velatra-accent transition-colors text-zinc-500 shadow-sm">
                 <XIcon size={20} />
               </button>
             </div>
@@ -2619,41 +2619,41 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       )}
 
       {selectedLog && createPortal(
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl"
+            className="bg-white/90 rounded-3xl p-6 max-w-lg w-full shadow-2xl border "
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Récapitulatif</h3>
-                <p className="text-sm text-zinc-500">{new Date(selectedLog.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <p className="text-sm text-zinc-400">{new Date(selectedLog.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
-              <button onClick={() => setSelectedLog(null)} className="p-2 bg-zinc-100 rounded-full hover:bg-zinc-200 transition-colors">
+              <button onClick={() => setSelectedLog(null)} className="p-2 bg-white/60 backdrop-blur-xl border  rounded-full hover:bg-velatra-accent/10 hover:text-velatra-accent transition-colors text-zinc-500 shadow-sm">
                 <XIcon size={20} />
               </button>
             </div>
             
             <div className="space-y-6">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Séance</div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Séance</div>
                 <div className="font-bold text-zinc-900">{selectedLog.dayName}</div>
-                <div className="text-sm text-zinc-500">Semaine {selectedLog.week}</div>
+                <div className="text-sm text-zinc-400">Semaine {selectedLog.week}</div>
               </div>
 
               {selectedLog.exercises && selectedLog.exercises.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Exercices réalisés</div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Exercices réalisés</div>
                   <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
                     {selectedLog.exercises.map((ex, i) => (
-                      <div key={i} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3">
+                      <div key={i} className="bg-white/60 backdrop-blur-xl border  rounded-xl p-3 shadow-sm">
                         <div className="font-bold text-sm text-zinc-900 mb-2">{ex.name}</div>
                         <div className="grid grid-cols-1 gap-1">
                           {ex.sets.map((set, j) => (
                             <div key={j} className="flex items-center justify-between text-xs">
-                              <span className="text-zinc-500 font-medium">Série {j + 1}</span>
+                              <span className="text-zinc-400 font-medium">Série {j + 1}</span>
                               <div className="flex gap-3">
                                 {set.weight && <span className="font-bold text-zinc-900">{set.weight} kg</span>}
                                 {set.reps && <span className="font-bold text-zinc-900">{set.reps} reps</span>}
@@ -2670,19 +2670,19 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               {selectedLog.notes && (
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Notes du Coach</div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Notes du Coach</div>
                   <div className="p-4 bg-velatra-accent/5 rounded-2xl border border-velatra-accent/10">
-                    <p className="text-sm text-zinc-700 leading-relaxed italic">"{selectedLog.notes}"</p>
+                    <p className="text-sm text-zinc-300 leading-relaxed italic">"{selectedLog.notes}"</p>
                   </div>
                 </div>
               )}
 
               {selectedLog.rpe && (
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Difficulté ressentie (RPE)</div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2">Difficulté ressentie (RPE)</div>
                   <div className="flex items-center gap-2">
                     <div className="text-2xl font-black text-velatra-accent">{selectedLog.rpe}</div>
-                    <div className="text-sm text-zinc-500">/ 10</div>
+                    <div className="text-sm text-zinc-400">/ 10</div>
                   </div>
                 </div>
               )}
@@ -2693,14 +2693,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       )}
 
       {confirmDeleteScanId && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+            className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 max-w-md w-full shadow-sm border "
           >
             <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer cette mesure ?</h3>
-            <p className="text-zinc-500 mb-6">Cette action est irréversible.</p>
+            <p className="text-zinc-400 mb-6">Cette action est irréversible.</p>
             <div className="flex gap-3">
               <Button variant="secondary" fullWidth onClick={() => setConfirmDeleteScanId(null)}>Annuler</Button>
               <Button variant="danger" fullWidth onClick={confirmDeleteScan}>Supprimer</Button>
@@ -2711,14 +2711,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       )}
 
       {confirmDeleteMemberId && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+            className="bg-white/60 backdrop-blur-xl rounded-3xl p-6 max-w-md w-full shadow-sm border "
           >
             <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer ce membre ?</h3>
-            <p className="text-zinc-500 mb-6">Êtes-vous sûr de vouloir supprimer ce membre ? Cette action est irréversible.</p>
+            <p className="text-zinc-400 mb-6">Êtes-vous sûr de vouloir supprimer ce membre ? Cette action est irréversible.</p>
             <div className="flex gap-3">
               <Button variant="secondary" fullWidth onClick={() => setConfirmDeleteMemberId(null)}>Annuler</Button>
               <Button variant="danger" fullWidth onClick={confirmDeleteMember}>Supprimer</Button>

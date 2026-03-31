@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { AppState, SupplementProduct, SupplementOrder } from '../types';
+import React, { useState, useMemo } from 'react';
+import { AppState, SupplementProduct, User } from '../types';
 import { Card, Button, Badge } from '../components/UI';
-import { ShoppingCartIcon, PlusIcon, MinusIcon } from '../components/Icons';
-import { db, doc, setDoc } from '../firebase';
+import { ShoppingCartIcon, SparklesIcon, InfoIcon } from '../components/Icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const containerVariants: import('framer-motion').Variants = {
@@ -20,10 +19,61 @@ const itemVariants: import('framer-motion').Variants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
+interface Recommendation {
+  title: string;
+  description: string;
+  advice: string;
+  keywords: string[];
+}
+
+const getRecommendations = (user: User | null): Recommendation[] => {
+  if (!user) return [];
+  const recs: Recommendation[] = [];
+  
+  if (user.objectifs.includes('Prise de masse')) {
+    recs.push({
+      title: "Objectif Prise de Masse",
+      description: `Pour accompagner vos ${user.weight}kg vers une prise de masse musculaire optimale, l'apport calorique et protéique est crucial.`,
+      advice: "Privilégiez une Whey ou un Gainer après l'entraînement pour la construction musculaire, et de la Créatine pour améliorer votre force et vos performances.",
+      keywords: ['whey', 'gainer', 'créatine', 'creatine', 'protéine', 'masse']
+    });
+  }
+  
+  if (user.objectifs.includes('Perte de poids')) {
+    recs.push({
+      title: "Objectif Sèche & Définition",
+      description: "L'enjeu est d'optimiser votre perte de graisse tout en conservant votre masse musculaire durement acquise.",
+      advice: "Une Whey Isolate (très faible en sucres et graisses) pour la récupération, couplée à un brûleur de graisse ou de la L-Carnitine pour mobiliser les graisses pendant l'effort.",
+      keywords: ['isolate', 'brûleur', 'carnitine', 'minceur', 'perte', 'sèche', 'fat burner']
+    });
+  }
+
+  if (user.objectifs.includes('Performance sportive') || user.objectifs.includes('Prépa physique')) {
+    recs.push({
+      title: "Objectif Performance",
+      description: "Pour soutenir des entraînements intenses, repousser vos limites et garantir une récupération rapide.",
+      advice: "Un Pre-workout avant la séance pour l'énergie, des BCAA/EAA pendant l'effort pour l'endurance musculaire, et de la Whey pour la réparation tissulaire.",
+      keywords: ['pre-workout', 'bcaa', 'eaa', 'énergie', 'récupération', 'whey', 'booster']
+    });
+  }
+
+  if (user.objectifs.includes('Sport santé bien-être') || user.objectifs.includes('Remise en forme') || recs.length === 0) {
+    recs.push({
+      title: "Santé & Vitalité au quotidien",
+      description: "Les fondations pour maintenir un corps en pleine santé, éviter les carences et soutenir votre système immunitaire.",
+      advice: "Des Oméga 3 pour le système cardiovasculaire, un complexe Multivitamines pour la vitalité, et du Magnésium pour la récupération nerveuse et musculaire.",
+      keywords: ['vitamine', 'oméga', 'magnésium', 'santé', 'articulation', 'collagène', 'zinc']
+    });
+  }
+
+  return recs;
+};
+
 export const MemberSupplementsPage: React.FC<{ state: AppState, showToast: any }> = ({ state, showToast }) => {
-  const [cart, setCart] = useState<{product: SupplementProduct, quantity: number}[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('Toutes');
+
+  const recommendations = useMemo(() => getRecommendations(state.user), [state.user]);
 
   const filteredProducts = state.supplementProducts.filter(p => {
     if (!p.nom.toLowerCase().includes(searchTerm.toLowerCase())) return false;
@@ -31,199 +81,169 @@ export const MemberSupplementsPage: React.FC<{ state: AppState, showToast: any }
     return true;
   });
 
-  const addToCart = (product: SupplementProduct) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.product.id === product.id);
-      if (existing) {
-        return prev.map(item => item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      }
-      return [...prev, { product, quantity: 1 }];
-    });
-  };
-
-  const removeFromCart = (productId: string) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.product.id === productId);
-      if (existing && existing.quantity > 1) {
-        return prev.map(item => item.product.id === productId ? { ...item, quantity: item.quantity - 1 } : item);
-      }
-      return prev.filter(item => item.product.id !== productId);
-    });
-  };
-
-  const cartTotal = cart.reduce((sum, item) => sum + (item.product.prixVente * item.quantity), 0);
-  const potentialPoints = Math.floor(cartTotal / 10); // 1 point par 10€
-
-  const handleCheckout = async () => {
-    if (cart.length === 0) return;
-    
-    const orderId = Date.now().toString();
-    const order: SupplementOrder = {
-      id: orderId,
-      clubId: state.user?.clubId || '',
-      adherentId: state.user?.id || 0,
-      coachName: state.currentClub?.name || 'Club',
-      date: new Date().toISOString(),
-      mois: new Date().toISOString().substring(0, 7),
-      produits: cart.map(item => ({
-        nom: item.product.nom,
-        quantite: item.quantity,
-        prixUnitaire: item.product.prixVente
-      })),
-      total: cartTotal,
-      pointsGagnes: potentialPoints,
-      status: 'requested'
-    };
-
-    try {
-      await setDoc(doc(db, "supplementOrders", orderId), order);
-      setCart([]);
-      showToast("Commande envoyée à votre coach !", "success");
-    } catch (err) {
-      showToast("Erreur lors de la commande", "error");
-    }
+  const getMatchingProducts = (keywords: string[]) => {
+    return state.supplementProducts.filter(p => 
+      keywords.some(kw => 
+        p.nom.toLowerCase().includes(kw.toLowerCase()) || 
+        p.cat.toLowerCase().includes(kw.toLowerCase())
+      )
+    ).slice(0, 3); // Show max 3 matching products per recommendation
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8 page-transition pb-24">
+    <div className="p-6 max-w-7xl mx-auto space-y-12 page-transition pb-24">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-4xl font-black italic text-zinc-900 tracking-tight uppercase">Boutique</h1>
-          <p className="text-zinc-500 text-sm font-medium mt-1">Commandez vos compléments directement au club</p>
+          <h1 className="text-4xl font-black italic text-zinc-900 tracking-tight uppercase">Boutique & Conseils</h1>
+          <p className="text-zinc-500 text-sm font-medium mt-1">Découvrez notre sélection de compléments partenaires</p>
         </div>
-        
-        <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-          <div className="relative w-full sm:w-64">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-900">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            </div>
-            <input 
-              type="text"
-              placeholder="Rechercher un produit..." 
-              className="w-full pl-12 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-2xl font-bold text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors" 
-              value={searchTerm} 
-              onChange={e => setSearchTerm(e.target.value)} 
-            />
+      </div>
+
+      {/* Recommendations Section */}
+      {recommendations.length > 0 && !searchTerm && filterCategory === 'Toutes' && (
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="space-y-6"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <SparklesIcon size={24} className="text-velatra-accent" />
+            <h2 className="text-2xl font-bold text-zinc-900">Recommandé pour vous</h2>
           </div>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
-        {["Toutes", "Protéines", "Vitamines", "Équipement", "Autre"].map(f => (
-          <button
-            key={f}
-            onClick={() => setFilterCategory(f)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterCategory === f ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
-          >
-            {f}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <motion.div 
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
-          >
-            <AnimatePresence>
-            {filteredProducts.map(product => {
-              const inCart = cart.find(item => item.product.id === product.id)?.quantity || 0;
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {recommendations.map((rec, idx) => {
+              const matchingProducts = getMatchingProducts(rec.keywords);
               return (
-                <motion.div key={product.id} variants={itemVariants} layout exit={{ opacity: 0, scale: 0.95 }}>
-                  <Card className="bg-white/60 backdrop-blur-xl border-zinc-200/50 flex flex-col justify-between h-full hover:shadow-lg transition-all duration-300">
-                    <div>
-                      <div className="flex justify-between items-start mb-2">
-                        <Badge variant="blue">{product.cat}</Badge>
-                        {product.stock <= 0 && <Badge variant="orange">Rupture</Badge>}
+                <motion.div key={idx} variants={itemVariants}>
+                  <Card className="bg-white/60 backdrop-blur-xl  flex flex-col h-full hover:shadow-lg transition-all duration-300">
+                    <div className="mb-4">
+                      <h3 className="text-xl font-black mb-2 text-zinc-900">{rec.title}</h3>
+                      <p className="text-zinc-700 text-sm mb-3">{rec.description}</p>
+                      <div className="bg-white/60 rounded-xl p-3 text-sm text-zinc-800 flex items-start gap-3">
+                        <InfoIcon size={18} className="shrink-0 mt-0.5 opacity-70" />
+                        <p><strong>Le conseil du coach :</strong> {rec.advice}</p>
                       </div>
-                      <h3 className="text-lg font-bold text-zinc-900 mb-1">{product.nom}</h3>
-                      <div className="text-2xl font-black text-velatra-accent mb-4">{product.prixVente} €</div>
                     </div>
-                    <div className="flex items-center justify-between border-t border-zinc-200/50 pt-4 mt-2">
-                      {inCart > 0 ? (
-                        <div className="flex items-center gap-3 bg-zinc-50 rounded-xl p-1">
-                          <button onClick={() => removeFromCart(product.id)} className="w-8 h-8 flex items-center justify-center text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors">
-                            <MinusIcon size={16} />
-                          </button>
-                          <span className="font-bold text-zinc-900 w-4 text-center">{inCart}</span>
-                          <button onClick={() => addToCart(product)} disabled={product.stock <= inCart} className="w-8 h-8 flex items-center justify-center text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors disabled:opacity-50">
-                            <PlusIcon size={16} />
-                          </button>
+                    
+                    {matchingProducts.length > 0 && (
+                      <div className="mt-auto pt-4 border-t border-black/5">
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">Produits suggérés</h4>
+                        <div className="space-y-3">
+                          {matchingProducts.map(product => (
+                            <div key={product.id} className="flex items-center justify-between bg-white/80 p-3 rounded-xl shadow-sm">
+                              <div>
+                                <div className="font-bold text-sm text-zinc-900">{product.nom}</div>
+                                <div className="text-xs text-zinc-500">{product.prixVente} €</div>
+                              </div>
+                              {product.lienPartenaire ? (
+                                <Button 
+                                  variant="primary" 
+                                  onClick={() => window.open(product.lienPartenaire, '_blank')}
+                                  className="!py-1.5 !px-3 text-xs bg-zinc-900 hover:bg-zinc-800 text-white"
+                                >
+                                  Voir le produit
+                                </Button>
+                              ) : (
+                                <Badge variant="dark" className="text-[10px]">Bientôt dispo</Badge>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                      ) : (
-                        <Button 
-                          variant="primary" 
-                          onClick={() => addToCart(product)} 
-                          disabled={product.stock <= 0}
-                          className="w-full"
-                        >
-                          <ShoppingCartIcon size={16} className="mr-2" /> Ajouter
-                        </Button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </Card>
                 </motion.div>
               );
             })}
-            </AnimatePresence>
-            {state.supplementProducts.length === 0 && (
-              <motion.div variants={itemVariants} className="col-span-full text-center py-12 text-zinc-500 italic">
-                Aucun produit disponible pour le moment.
-              </motion.div>
-            )}
-          </motion.div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Full Catalog Section */}
+      <div className="space-y-6 pt-8 border-t ">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h2 className="text-2xl font-bold text-zinc-900">Tout le catalogue</h2>
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-900">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              </div>
+              <input 
+                type="text"
+                placeholder="Rechercher un produit..." 
+                className="w-full pl-12 pr-4 py-2 bg-zinc-50 border  rounded-2xl font-bold text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors" 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+              />
+            </div>
+          </div>
         </div>
 
-        <div>
-          <Card className="bg-velatra-bgCard border-zinc-200 sticky top-6">
-            <h2 className="text-xl font-bold text-zinc-900 mb-6 flex items-center gap-2">
-              <ShoppingCartIcon size={20} className="text-velatra-accent" /> Mon Panier
-            </h2>
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
+          {["Toutes", "Protéines", "Vitamines", "Équipement", "Autre"].map(f => (
+            <button
+              key={f}
+              onClick={() => setFilterCategory(f)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterCategory === f ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
 
-            {cart.length > 0 ? (
-              <div className="space-y-6">
-                <div className="space-y-3">
-                  {cart.map(item => (
-                    <div key={item.product.id} className="flex justify-between items-center text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="text-zinc-500">{item.quantity}x</span>
-                        <span className="text-zinc-900 font-medium">{item.product.nom}</span>
-                      </div>
-                      <span className="text-zinc-900 font-mono">{item.product.prixVente * item.quantity} €</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="border-t border-zinc-200 pt-4 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-zinc-500 uppercase tracking-widest text-xs font-bold">Total</span>
-                    <span className="text-2xl font-black text-velatra-accent">{cartTotal} €</span>
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+        >
+          <AnimatePresence>
+          {filteredProducts.map(product => (
+            <motion.div key={product.id} variants={itemVariants} layout exit={{ opacity: 0, scale: 0.95 }}>
+              <Card className="bg-white/60 backdrop-blur-xl  flex flex-col justify-between h-full hover:shadow-lg transition-all duration-300">
+                <div>
+                  <div className="flex justify-between items-start mb-2">
+                    <Badge variant="blue">{product.cat}</Badge>
+                    {product.lienPartenaire && <Badge variant="dark" className="bg-zinc-900 text-white border-none">Partenaire</Badge>}
                   </div>
-                  {potentialPoints > 0 && (
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-zinc-500">Points de fidélité gagnés</span>
-                      <span className="text-velatra-warning font-bold">+{potentialPoints} pts</span>
-                    </div>
+                  <h3 className="text-lg font-bold text-zinc-900 mb-1">{product.nom}</h3>
+                  <div className="text-2xl font-black text-velatra-accent mb-4">{product.prixVente} €</div>
+                </div>
+                <div className="flex items-center justify-between border-t  pt-4 mt-2">
+                  {product.lienPartenaire ? (
+                    <Button 
+                      variant="primary" 
+                      onClick={() => window.open(product.lienPartenaire, '_blank')}
+                      className="w-full bg-zinc-900 hover:bg-zinc-800 text-white flex items-center justify-center gap-2"
+                    >
+                      <ShoppingCartIcon size={16} /> Acheter sur le site
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="secondary" 
+                      disabled
+                      className="w-full flex items-center justify-center gap-2 opacity-50 cursor-not-allowed"
+                    >
+                      Bientôt disponible
+                    </Button>
                   )}
                 </div>
-
-                <Button variant="primary" fullWidth onClick={handleCheckout} className="!py-4 font-black italic shadow-xl shadow-velatra-accent/20">
-                  COMMANDER
-                </Button>
-                <p className="text-[10px] text-center text-zinc-500">
-                  Le paiement s'effectuera directement au club lors de la récupération de votre commande.
-                </p>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-zinc-500 italic text-sm">
-                Votre panier est vide.
-              </div>
-            )}
-          </Card>
-        </div>
+              </Card>
+            </motion.div>
+          ))}
+          </AnimatePresence>
+          {filteredProducts.length === 0 && (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              className="col-span-full text-center py-12 text-zinc-500 italic bg-white/40 backdrop-blur-md rounded-3xl border "
+            >
+              Aucun produit trouvé.
+            </motion.div>
+          )}
+        </motion.div>
       </div>
     </div>
   );

@@ -88,7 +88,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Section Club Principale */}
-        <Card className="space-y-6 !p-8 border-none ring-1 ring-zinc-200 bg-gradient-to-br from-white/[0.03] to-transparent">
+        <Card className="space-y-6 !p-8 border-none ring-1  bg-gradient-to-br from-white/[0.03] to-transparent">
           <div className="flex items-center gap-4 text-velatra-accent">
             <div className="p-3 bg-velatra-accent/10 rounded-2xl">
               <HomeIcon size={24} />
@@ -101,7 +101,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
               <div className="space-y-1">
                 <label className="text-[9px] font-black uppercase text-velatra-accent tracking-widest ml-1">Description du club</label>
                 <textarea 
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent h-32 resize-none"
+                  className="w-full bg-zinc-50 border  rounded-xl p-4 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent h-32 resize-none"
                   value={tempInfo.description}
                   onChange={e => setTempInfo({...tempInfo, description: e.target.value})}
                 />
@@ -120,7 +120,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                </div>
                {isEditing ? (
                  <textarea 
-                   className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-xs text-zinc-900 focus:outline-none focus:border-velatra-accent h-24 resize-none"
+                   className="w-full bg-zinc-50 border  rounded-xl p-3 text-xs text-zinc-900 focus:outline-none focus:border-velatra-accent h-24 resize-none"
                    value={tempInfo.horaires}
                    onChange={e => setTempInfo({...tempInfo, horaires: e.target.value})}
                  />
@@ -132,7 +132,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
             </div>
           </div>
 
-          <div className="pt-6 border-t border-zinc-200 space-y-4">
+          <div className="pt-6 border-t  space-y-4">
              {isEditing ? (
                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1">
@@ -195,7 +195,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
             {isEditing && (
               <button 
                 onClick={handleAddCoach}
-                className="p-2 bg-velatra-accent text-white rounded-full hover:scale-110 transition-transform"
+                className="p-2 bg-velatra-accent text-zinc-900 rounded-full hover:scale-110 transition-transform"
               >
                 <PlusIcon size={20} />
               </button>
@@ -205,7 +205,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
           <div className="grid grid-cols-1 gap-4">
             {(isEditing ? tempCoaches : coaches).map(coach => (
               <Card key={coach.id} className="flex items-center gap-5 !p-5 group hover:ring-velatra-accent/30 transition-all relative">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-zinc-100 border border-zinc-200 flex items-center justify-center font-black text-2xl text-velatra-accent shrink-0 shadow-lg overflow-hidden">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-zinc-100 border  flex items-center justify-center font-black text-2xl text-velatra-accent shrink-0 shadow-lg overflow-hidden">
                   {coach.photo ? (
                     <img src={coach.photo} alt="" className="w-full h-full object-cover" />
                   ) : (
@@ -234,7 +234,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                         placeholder="Numéro WhatsApp"
                       />
                       {coach.photo?.startsWith('data:image') ? (
-                        <div className="flex items-center gap-2 p-1.5 bg-white/60 border border-zinc-200/50 rounded-lg">
+                        <div className="flex items-center gap-2 p-1.5 bg-white/60 border  rounded-lg">
                           <img src={coach.photo} alt="Preview" className="w-6 h-6 object-cover rounded" />
                           <span className="text-[9px] font-bold text-emerald-500 flex-1">Image chargée</span>
                           <button onClick={() => updateCoach(coach.id, 'photo', '')} className="p-1 text-zinc-400 hover:text-red-500">
@@ -274,7 +274,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                       <div className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mt-1 mb-3">{coach.role}</div>
                       <button 
                         onClick={() => window.open(`https://wa.me/${coach.whatsapp}`, '_blank')}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-[#25D366]/10 text-[#25D366] rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-[#25D366] hover:text-white transition-all w-fit"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-[#25D366]/10 text-[#25D366] rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-[#25D366] hover:text-zinc-900 transition-all w-fit"
                       >
                         <MessageCircleIcon size={14} />
                         WhatsApp Direct
@@ -295,7 +295,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
           </div>
 
           {!isEditing && (
-            <Card className="bg-zinc-50 border-dashed border-zinc-200 text-center !p-8">
+            <Card className="bg-zinc-50 border-dashed  text-center !p-8">
                <p className="text-[9px] uppercase tracking-[4px] font-black text-zinc-900 mb-3">Besoin d'aide technique ?</p>
                <div className="text-sm font-bold text-zinc-900 opacity-80">{aboutInfo.email}</div>
             </Card>

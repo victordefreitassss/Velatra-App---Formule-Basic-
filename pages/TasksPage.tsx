@@ -120,7 +120,7 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
               placeholder="Rechercher une tâche..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl py-3 pl-14 pr-4 text-zinc-900 font-bold focus:outline-none focus:border-velatra-accent transition-colors"
+              className="w-full bg-zinc-50 border  rounded-2xl py-3 pl-14 pr-4 text-zinc-900 font-bold focus:outline-none focus:border-velatra-accent transition-colors"
             />
           </div>
 
@@ -129,7 +129,7 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
               <button
                 key={f}
                 onClick={() => setFilterStatus(f)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterStatus === f ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterStatus === f ? 'bg-velatra-accent text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
               >
                 {f}
               </button>
@@ -142,31 +142,31 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-velatra-bgCard border border-velatra-border rounded-xl p-6"
+          className="bg-velatra-bgCard border  rounded-xl p-6"
         >
           <h2 className="text-xl font-semibold text-zinc-900 mb-4">Ajouter une Tâche</h2>
           <form onSubmit={handleAddTask} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm text-zinc-500 mb-1">Titre</label>
-              <input required type="text" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" placeholder="Ex: Appeler Thomas pour renouvellement" />
+              <input required type="text" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900" placeholder="Ex: Appeler Thomas pour renouvellement" />
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm text-zinc-500 mb-1">Description</label>
-              <textarea value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900 h-20" placeholder="Notes supplémentaires..." />
+              <textarea value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900 h-20" placeholder="Notes supplémentaires..." />
             </div>
             <div>
               <label className="block text-sm text-zinc-500 mb-1">Date d'échéance</label>
-              <input type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" />
+              <input type="date" value={newTask.dueDate} onChange={e => setNewTask({...newTask, dueDate: e.target.value})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900" />
             </div>
             <div>
               <label className="block text-sm text-zinc-500 mb-1">Assigné à</label>
-              <select value={newTask.assignedTo} onChange={e => setNewTask({...newTask, assignedTo: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900">
+              <select value={newTask.assignedTo} onChange={e => setNewTask({...newTask, assignedTo: e.target.value})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900">
                 {state.coaches.map(c => <option key={c.id} value={c.id.toString()}>{c.name}</option>)}
               </select>
             </div>
             <div className="md:col-span-2 flex justify-end gap-2 mt-2">
               <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
-              <button type="submit" className="bg-velatra-accent text-white px-6 py-2 rounded-lg font-medium hover:bg-velatra-accentDark transition-colors">Enregistrer</button>
+              <button type="submit" className="bg-velatra-accent text-zinc-900 px-6 py-2 rounded-lg font-medium hover:bg-velatra-accentDark transition-colors">Enregistrer</button>
             </div>
           </form>
         </motion.div>
@@ -174,7 +174,7 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
 
       <div className="space-y-4">
         {filteredTasks.length === 0 ? (
-          <div className="text-center py-12 bg-velatra-bgCard border border-velatra-border rounded-xl">
+          <div className="text-center py-12 bg-velatra-bgCard border  rounded-xl">
             <CheckCircle className="w-12 h-12 text-zinc-900 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-zinc-900">Toutes les tâches sont terminées !</h3>
             <p className="text-zinc-500 mt-2">Profitez de votre temps libre ou ajoutez de nouvelles actions.</p>
@@ -191,7 +191,7 @@ export const TasksPage: React.FC<Props> = ({ state }) => {
                 layout
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className={`bg-velatra-bgCard border rounded-xl p-4 flex items-start gap-4 group transition-colors ${isDone ? 'border-velatra-border opacity-60' : overdue ? 'border-red-500/30 bg-red-500/5' : 'border-velatra-border hover:border-velatra-textMuted'}`}
+                className={`bg-velatra-bgCard border rounded-xl p-4 flex items-start gap-4 group transition-colors ${isDone ? ' opacity-60' : overdue ? 'border-red-500/30 bg-red-500/5' : ' hover:border-velatra-textMuted'}`}
               >
                 <button 
                   onClick={() => handleStatusChange(task.id, isDone ? 'todo' : 'done')}

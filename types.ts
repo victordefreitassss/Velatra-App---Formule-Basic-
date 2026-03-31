@@ -121,6 +121,7 @@ export interface SupplementProduct {
   prixAchat: number;
   stock: number;
   cat: string;
+  lienPartenaire?: string;
 }
 
 export interface SupplementOrder {

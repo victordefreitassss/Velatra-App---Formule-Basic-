@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AppState, BodyData } from '../types';
 import { Card, Badge, Input } from '../components/UI';
 import { TargetIcon, BarChartIcon, TrophyIcon, DatabaseIcon, SearchIcon } from '../components/Icons';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { motion } from 'framer-motion';
 
@@ -37,6 +37,23 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
     fat: b.fat,
     muscle: b.muscle
   }));
+
+  const categoryDistribution = useMemo(() => {
+    const counts: Record<string, number> = {};
+    myPerfs.forEach(p => {
+      const ex = state.exercises.find(e => e.perfId === p.exId);
+      if (ex) {
+        counts[ex.cat] = (counts[ex.cat] || 0) + 1;
+      }
+    });
+    
+    const colors = ['#6366f1', '#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'];
+    return Object.entries(counts).map(([name, value], index) => ({
+      name,
+      value,
+      color: colors[index % colors.length]
+    }));
+  }, [myPerfs, state.exercises]);
 
   const parseDuration = (dur: string | undefined): number => {
     if (!dur) return 0;
@@ -79,7 +96,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white/90 border border-zinc-200 p-4 rounded-2xl backdrop-blur-xl shadow-2xl">
+        <div className="bg-white/90 border  p-4 rounded-2xl backdrop-blur-xl shadow-2xl">
           <p className="text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex items-center justify-between gap-4">
@@ -109,7 +126,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
 
       {/* Weight Chart */}
       <motion.div variants={itemVariants}>
-        <Card className="bg-white/60 backdrop-blur-xl border-zinc-200/50 !p-8 space-y-8 relative overflow-hidden shadow-xl">
+        <Card className="bg-white/60 backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-xl">
           <div className="absolute top-0 right-0 w-64 h-64 bg-velatra-accent/5 rounded-full -mr-32 -mt-32 blur-3xl" />
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
@@ -139,7 +156,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
             </div>
           </div>
 
-          <div className="h-80 w-full relative bg-white/50 rounded-[32px] p-6 border border-zinc-200/50 shadow-sm">
+          <div className="h-80 w-full relative bg-white/50 rounded-[32px] p-6 border  shadow-sm">
             {myBody.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
@@ -211,14 +228,62 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
           </div>
         </Card>
       </motion.div>
+
+      {/* Category Distribution Chart */}
+      <motion.div variants={itemVariants}>
+        <Card className="bg-white/60 backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full -ml-32 -mt-32 blur-3xl" />
+          
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="w-12 h-12 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-500 shadow-inner">
+              <TargetIcon size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-zinc-900 uppercase italic leading-none">Répartition par Catégorie</h2>
+              <p className="text-[10px] text-zinc-900 font-black uppercase tracking-widest mt-1">Vos exercices les plus pratiqués</p>
+            </div>
+          </div>
+
+          <div className="h-80 w-full relative bg-white/50 rounded-[32px] p-6 border  shadow-sm flex items-center justify-center">
+            {categoryDistribution.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryDistribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={80}
+                    outerRadius={120}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {categoryDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', borderRadius: '8px', color: '#18181b', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36}/>
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center gap-4 opacity-30">
+                <DatabaseIcon size={48} />
+                <div className="text-[10px] text-zinc-900 uppercase font-black tracking-[6px] italic">Aucune donnée</div>
+              </div>
+            )}
+          </div>
+        </Card>
+      </motion.div>
       
       <motion.div variants={itemVariants}>
-        <Card className="bg-white/60 backdrop-blur-xl border-zinc-200/50 !p-8 relative overflow-hidden shadow-lg">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-100 rounded-full -mr-32 -mt-32 blur-3xl" />
+        <Card className="bg-white/60 backdrop-blur-xl  !p-8 relative overflow-hidden shadow-lg">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-50 rounded-full -mr-32 -mt-32 blur-3xl" />
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center text-zinc-900 shadow-inner">
+              <div className="w-12 h-12 bg-zinc-50 rounded-2xl flex items-center justify-center text-zinc-900 shadow-inner">
                 <TrophyIcon size={24} />
               </div>
               <div>
@@ -230,7 +295,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
               <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
               <Input 
                 placeholder="Rechercher un exercice..." 
-                className="pl-10 !bg-white/50 !border-zinc-200/50"
+                className="pl-10 !bg-white/50 !"
                 value={searchPR}
                 onChange={(e) => setSearchPR(e.target.value)}
               />
@@ -242,7 +307,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
       <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {bestsArray.length === 0 ? (
           <motion.div variants={itemVariants} className="col-span-full">
-            <Card className="py-20 text-center bg-white/60 backdrop-blur-xl border border-dashed border-zinc-200/50 rounded-[40px] shadow-sm">
+            <Card className="py-20 text-center bg-white/60 backdrop-blur-xl border border-dashed  rounded-[40px] shadow-sm">
               <TrophyIcon size={48} className="mx-auto mb-4 text-zinc-900/10" />
               <p className="text-zinc-900 italic font-black uppercase tracking-widest text-xs">Aucune performance trouvée.</p>
             </Card>
@@ -251,7 +316,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
           const ex = state.exercises.find(e => e.perfId === p.exId);
           return (
             <motion.div variants={itemVariants} key={p.exId}>
-              <Card className="group border-none ring-1 ring-zinc-200/50 hover:ring-velatra-accent/30 transition-all !p-8 bg-white/60 backdrop-blur-xl shadow-lg h-full">
+              <Card className="group border-none ring-1  hover:ring-velatra-accent/30 transition-all !p-8 bg-white/60 backdrop-blur-xl shadow-lg h-full">
                 <div className="flex justify-between items-start mb-6">
                   <div>
                     <div className="text-[10px] text-velatra-accent font-black uppercase tracking-[3px] mb-1 italic">Record Personnel</div>
@@ -265,22 +330,22 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
                 <div className="grid grid-cols-2 gap-2 md:gap-4">
                    {ex?.cat === 'Cardio' ? (
                      <>
-                       <div className="bg-white/50 border border-zinc-200/50 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-200 transition-all shadow-sm">
+                       <div className="bg-white/50 border  p-3 md:p-4 rounded-2xl text-center group-hover: transition-all shadow-sm">
                           <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Durée</div>
                           <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.duration || 'N/A'}</div>
                        </div>
-                       <div className="bg-white/50 border border-zinc-200/50 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-200 transition-all shadow-sm">
+                       <div className="bg-white/50 border  p-3 md:p-4 rounded-2xl text-center group-hover: transition-all shadow-sm">
                           <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Calories (Est.)</div>
                           <div className="font-black text-lg md:text-xl text-zinc-900 italic">{parseDuration(p.duration) * 10}<span className="text-[10px] ml-0.5 opacity-50">kcal</span></div>
                        </div>
                      </>
                    ) : (
                      <>
-                       <div className="bg-white/50 border border-zinc-200/50 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-200 transition-all shadow-sm">
+                       <div className="bg-white/50 border  p-3 md:p-4 rounded-2xl text-center group-hover: transition-all shadow-sm">
                           <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Charge</div>
                           <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.weight}<span className="text-[10px] ml-0.5 opacity-50">kg</span></div>
                        </div>
-                       <div className="bg-white/50 border border-zinc-200/50 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-200 transition-all shadow-sm">
+                       <div className="bg-white/50 border  p-3 md:p-4 rounded-2xl text-center group-hover: transition-all shadow-sm">
                           <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Reps</div>
                           <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.reps}</div>
                        </div>
@@ -288,7 +353,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
                    )}
                 </div>
                 
-                <div className="mt-6 pt-6 border-t border-zinc-200/50 flex justify-between items-center">
+                <div className="mt-6 pt-6 border-t  flex justify-between items-center">
                   <div className="text-[9px] text-zinc-900 font-black uppercase tracking-widest flex items-center gap-2">
                      <TargetIcon size={12} /> {new Date(p.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
                   </div>

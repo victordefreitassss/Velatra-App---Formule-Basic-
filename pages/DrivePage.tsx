@@ -13,7 +13,7 @@ const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; chi
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b border-zinc-100">
+        <div className="flex items-center justify-between p-6 border-b ">
           <h3 className="text-xl font-bold text-zinc-900">{title}</h3>
           <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-full transition-colors">
             <XIcon size={20} />
@@ -266,10 +266,14 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
               </button>
             )}
             <h1 className="text-3xl font-black tracking-tight text-zinc-900">
-              {currentFolder ? currentFolder.name : 'Drive Intégré'}
+              {currentFolder ? currentFolder.name : (isCoach ? 'Drive Intégré' : 'Mes Documents')}
             </h1>
           </div>
-          <p className="text-zinc-500 mt-1">Stockez et partagez vos documents (PDF, guides, etc).</p>
+          <p className="text-zinc-500 mt-1">
+            {isCoach 
+              ? "Stockez et partagez vos documents (PDF, guides, etc)."
+              : "Retrouvez ici tous les documents partagés par votre coach."}
+          </p>
         </div>
         <div className="flex gap-3">
           {isCoach && (
@@ -304,20 +308,22 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
       </div>
 
       {folders.length === 0 && files.length === 0 && !isUploading ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-zinc-100 shadow-sm">
+        <div className="bg-white rounded-3xl p-12 text-center border  shadow-sm">
           <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
             <FolderIcon size={40} />
           </div>
           <h2 className="text-2xl font-bold text-zinc-900 mb-4">Ce dossier est vide</h2>
           <p className="text-zinc-500 max-w-md mx-auto mb-8">
-            Importez vos PDF, guides nutritionnels, et autres documents pour les partager facilement avec vos clients.
+            {isCoach 
+              ? "Importez vos PDF, guides nutritionnels, et autres documents pour les partager facilement avec vos clients."
+              : "Aucun document n'a encore été partagé avec vous par votre coach."}
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border border-zinc-100 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-3xl border  shadow-sm overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-zinc-100 text-sm text-zinc-500">
+              <tr className="border-b  text-sm text-zinc-500">
                 <th className="p-4 font-medium">Nom</th>
                 <th className="p-4 font-medium">Taille</th>
                 <th className="p-4 font-medium">Date</th>
@@ -326,7 +332,7 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
             </thead>
             <tbody>
               {folders.map(folder => (
-                <tr key={folder.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-colors group cursor-pointer" onClick={() => setCurrentFolderId(folder.id)}>
+                <tr key={folder.id} className="border-b  hover:bg-zinc-50 transition-colors group cursor-pointer" onClick={() => setCurrentFolderId(folder.id)}>
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center shrink-0">
@@ -350,7 +356,7 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
                 </tr>
               ))}
               {files.map(file => (
-                <tr key={file.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-colors group">
+                <tr key={file.id} className="border-b  hover:bg-zinc-50 transition-colors group">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
@@ -437,14 +443,14 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
             Sélectionnez les clients avec qui vous souhaitez partager <strong>{shareModalFile?.name}</strong>.
           </p>
           
-          <div className="max-h-60 overflow-y-auto border border-zinc-200 rounded-xl divide-y divide-zinc-100">
+          <div className="max-h-60 overflow-y-auto border  rounded-xl divide-y divide-transparent">
             {clients.map(client => (
               <label key={client.id} className="flex items-center gap-3 p-3 hover:bg-zinc-50 cursor-pointer">
                 <input 
                   type="checkbox" 
                   checked={selectedClients.includes(client.id)}
                   onChange={() => toggleClientSelection(client.id)}
-                  className="w-4 h-4 text-emerald-500 rounded border-zinc-300 focus:ring-emerald-500"
+                  className="w-4 h-4 text-emerald-500 rounded  focus:ring-emerald-500"
                 />
                 <div className="flex items-center gap-3">
                   {client.avatar ? (

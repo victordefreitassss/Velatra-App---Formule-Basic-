@@ -10,17 +10,7 @@ import Markdown from 'react-markdown';
 import { motion } from 'framer-motion';
 
 const getApiKey = () => {
-  try {
-    if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
-      return process.env.GEMINI_API_KEY;
-    }
-  } catch (e) {}
-  try {
-    if (import.meta && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
-      return import.meta.env.VITE_GEMINI_API_KEY;
-    }
-  } catch (e) {}
-  return '';
+  return process.env.GEMINI_API_KEY || '';
 };
 
 interface MemberDashboardProps {

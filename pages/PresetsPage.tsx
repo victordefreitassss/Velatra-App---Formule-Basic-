@@ -86,7 +86,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
           <SearchIcon size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-900" />
           <Input 
             placeholder="Rechercher un modèle..." 
-            className="pl-14 !bg-zinc-50 !border-zinc-200 !rounded-2xl font-bold" 
+            className="pl-14 !bg-zinc-50 ! !rounded-2xl font-bold" 
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
@@ -95,14 +95,14 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
           <button 
             onClick={() => { setFilterGoal(""); setFilterDays(null); }} 
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterGoal === "" && filterDays === null ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterGoal === "" && filterDays === null ? 'bg-velatra-accent text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
           >
             Tous
           </button>
           
           <div className="relative">
             <select 
-              className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterGoal !== "" ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+              className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterGoal !== "" ? 'bg-velatra-accent text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
               value={filterGoal}
               onChange={e => setFilterGoal(e.target.value)}
             >
@@ -120,7 +120,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
 
           <div className="relative">
             <select 
-              className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterDays !== null ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
+              className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterDays !== null ? 'bg-velatra-accent text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
               value={filterDays || ""}
               onChange={e => setFilterDays(e.target.value ? parseInt(e.target.value) : null)}
             >
@@ -152,14 +152,14 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
 
           if (filteredPresets.length === 0) {
             return (
-              <div className="col-span-full py-20 text-center text-zinc-900 italic bg-zinc-50 border border-dashed border-zinc-200 rounded-[40px]">
+              <div className="col-span-full py-20 text-center text-zinc-900 italic bg-zinc-50 border border-dashed  rounded-[40px]">
                 Aucun modèle ne correspond à vos critères.
               </div>
             );
           }
 
           return filteredPresets.map(p => (
-            <Card key={p.id} className="group border-none ring-1 ring-zinc-200 hover:ring-velatra-accent/30 transition-all !p-8 bg-white flex flex-col justify-between">
+            <Card key={p.id} className="group border-none ring-1  hover:ring-velatra-accent/30 transition-all !p-8 bg-white flex flex-col justify-between">
               <div className="space-y-6">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
@@ -220,7 +220,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
       <>
       {assigningTo && (
         <div className="fixed inset-0 bg-white/95 backdrop-blur-xl z-[600] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <Card className="w-full max-w-md !p-10 border-zinc-200 relative shadow-[0_0_100px_rgba(0,0,0,1)]">
+          <Card className="w-full max-w-md !p-10  relative shadow-[0_0_100px_rgba(0,0,0,1)]">
             <button onClick={() => setAssigningTo(null)} className="absolute top-8 right-8 text-zinc-900/40 hover:text-zinc-900">
               <XIcon size={24} />
             </button>
@@ -246,7 +246,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
                     <button 
                       key={member.id}
                       onClick={() => handleAssign(assigningTo, member)}
-                      className="w-full p-4 rounded-2xl bg-zinc-50 border border-zinc-200 hover:border-velatra-accent/50 hover:bg-velatra-accent/5 transition-all flex items-center justify-between group"
+                      className="w-full p-4 rounded-2xl bg-zinc-50 border  hover:border-velatra-accent/50 hover:bg-velatra-accent/5 transition-all flex items-center justify-between group"
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center font-black text-velatra-accent group-hover:bg-velatra-accent group-hover:text-zinc-900 transition-all">{member.avatar}</div>

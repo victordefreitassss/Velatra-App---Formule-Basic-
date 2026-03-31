@@ -48,7 +48,7 @@ export const MemberLoyaltyPage: React.FC<{ state: AppState }> = ({ state }) => {
         <p className="text-zinc-900 text-[10px] uppercase font-bold tracking-[3px]">Gagnez de l'XP à chaque séance</p>
       </div>
 
-      <Card className="bg-velatra-bgCard border-zinc-200 text-center py-8">
+      <Card className="bg-velatra-bgCard  text-center py-8">
         <div className="text-sm text-zinc-500 uppercase tracking-widest font-bold mb-2">Votre Expérience</div>
         <div className="text-6xl font-black text-velatra-warning italic">{xp}</div>
         <div className="text-xs text-zinc-500 mt-2">XP cumulés</div>
@@ -65,8 +65,8 @@ export const MemberLoyaltyPage: React.FC<{ state: AppState }> = ({ state }) => {
           const unlocked = xp >= r.cost;
           return (
             <motion.div key={i} variants={itemVariants}>
-              <Card className={`flex items-center gap-4 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:shadow-lg transition-all duration-300 ${!unlocked ? 'opacity-50 grayscale' : 'border-velatra-warning/50'}`}>
-                <div className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center font-bold ${unlocked ? 'bg-velatra-warning text-velatra-bg' : 'bg-zinc-100 border border-zinc-200 text-zinc-900'}`}>
+              <Card className={`flex items-center gap-4 bg-white/60 backdrop-blur-xl  hover:shadow-lg transition-all duration-300 ${!unlocked ? 'opacity-50 grayscale' : 'border-velatra-warning/50'}`}>
+                <div className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center font-bold ${unlocked ? 'bg-velatra-warning text-velatra-bg' : 'bg-zinc-50 border  text-zinc-900'}`}>
                   {unlocked ? <CheckIcon size={24} /> : <span className="text-lg">{r.cost}</span>}
                   {!unlocked && <span className="text-[8px] uppercase">XP</span>}
                 </div>

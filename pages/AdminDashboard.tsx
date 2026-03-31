@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -6,6 +6,7 @@ import { Club, User } from '../types';
 import { Card } from '../components/UI';
 import { Shield, CheckCircle, XCircle, Search, Activity, Crown, Power, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface AdminDashboardProps {
   showToast: (msg: string, type: 'success' | 'error') => void;
@@ -45,6 +46,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
       setLoading(false);
     }
   };
+
+  const planDistribution = useMemo(() => {
+    return [
+      { name: 'Basic', value: clubs.filter(c => !c.plan || c.plan === 'basic').length, color: '#a1a1aa' },
+      { name: 'Classic', value: clubs.filter(c => c.plan === 'classic').length, color: '#caff00' },
+      { name: 'Premium', value: clubs.filter(c => c.plan === 'premium').length, color: '#f59e0b' },
+    ].filter(d => d.value > 0);
+  }, [clubs]);
+
+  const creationData = useMemo(() => {
+    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+    const currentMonth = new Date().getMonth();
+    
+    const monthlyData = Array(6).fill(0).map((_, i) => {
+      const monthIndex = (currentMonth - i + 12) % 12;
+      return { name: months[monthIndex], count: 0, monthIndex };
+    }).reverse();
+
+    clubs.forEach(c => {
+      if (!c.createdAt) return;
+      const d = new Date(c.createdAt);
+      const m = d.getMonth();
+      const target = monthlyData.find(md => md.monthIndex === m);
+      if (target) target.count += 1;
+    });
+
+    return monthlyData;
+  }, [clubs]);
 
   const updatePlan = async (clubId: string, newPlan: 'basic' | 'classic' | 'premium') => {
     try {
@@ -200,7 +229,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-xl px-4 py-2 flex items-center gap-2 shadow-sm">
+          <div className="bg-white/60 backdrop-blur-xl border  rounded-xl px-4 py-2 flex items-center gap-2 shadow-sm">
             <span className="text-zinc-500 text-sm">Total Clubs:</span>
             <span className="text-zinc-900 font-bold">{clubs.length}</span>
           </div>
@@ -209,6 +238,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
             <span className="text-velatra-accent font-bold">{clubs.filter(c => c.plan === 'premium').length}</span>
           </div>
         </div>
+      </motion.div>
+
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
+        <Card className="bg-white/60 backdrop-blur-xl  p-6 shadow-sm">
+          <h3 className="text-lg font-bold text-zinc-900 mb-6">Répartition des Formules</h3>
+          <div className="h-64 w-full flex items-center justify-center">
+            {planDistribution.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={planDistribution}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                  >
+                    {planDistribution.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip 
+                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', borderRadius: '8px', color: '#18181b', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36}/>
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-zinc-400 text-sm">Aucune donnée</div>
+            )}
+          </div>
+        </Card>
+
+        <Card className="bg-white/60 backdrop-blur-xl  p-6 shadow-sm">
+          <h3 className="text-lg font-bold text-zinc-900 mb-6">Créations de Clubs (6 derniers mois)</h3>
+          <div className="h-64 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={creationData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#71717a' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#71717a' }} allowDecimals={false} />
+                <RechartsTooltip 
+                  cursor={{ fill: '#f4f4f5' }}
+                  contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', borderRadius: '8px', color: '#18181b', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                />
+                <Bar dataKey="count" name="Nouveaux Clubs" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
       </motion.div>
 
       <motion.div variants={itemVariants} className="flex flex-col gap-4">
@@ -220,14 +300,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
               placeholder="Rechercher un club, un coach ou un email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-2xl py-4 pl-12 pr-4 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-velatra-accent/50 transition-all shadow-sm focus:bg-white"
+              className="w-full bg-white/60 backdrop-blur-xl border  rounded-2xl py-4 pl-12 pr-4 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-velatra-accent/50 transition-all shadow-sm focus:bg-white"
             />
           </div>
           <motion.button 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={initializeOldClubs}
-            className="bg-white/60 backdrop-blur-xl hover:bg-white border border-zinc-200/50 text-zinc-900 px-6 py-4 rounded-2xl font-medium transition-all shadow-sm"
+            className="bg-white/60 backdrop-blur-xl hover:bg-white border  text-zinc-900 px-6 py-4 rounded-2xl font-medium transition-all shadow-sm"
           >
             Initialiser les anciens clubs
           </motion.button>
@@ -240,7 +320,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setFilterStatus(f)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${filterStatus === f ? 'bg-velatra-accent text-white shadow-velatra-accent/20' : 'bg-white/60 backdrop-blur-xl border border-zinc-200/50 text-zinc-500 hover:text-zinc-900 hover:bg-white'}`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${filterStatus === f ? 'bg-velatra-accent text-zinc-900 shadow-velatra-accent/20' : 'bg-white/60 backdrop-blur-xl border  text-zinc-500 hover:text-zinc-900 hover:bg-white'}`}
             >
               {f}
             </motion.button>
@@ -264,9 +344,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
               >
-                <Card className="bg-white/60 backdrop-blur-xl border-zinc-200/50 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm hover:shadow-md transition-all">
+                <Card className="bg-white/60 backdrop-blur-xl  p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm hover:shadow-md transition-all">
                   <div className="flex items-center gap-6 flex-1">
-                    <div className="w-16 h-16 rounded-2xl bg-white/80 border border-zinc-200/50 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                    <div className="w-16 h-16 rounded-2xl bg-white/80 border  flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
                       {club.logo ? (
                         <img src={club.logo} alt={club.name} className="w-full h-full object-cover" />
                       ) : (
@@ -293,7 +373,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                           </span>
                         )}
                         {(!club.plan || club.plan === 'basic') && (
-                          <span className="px-2 py-0.5 rounded-full bg-zinc-100/50 text-zinc-600 text-xs font-medium border border-zinc-200/50 flex items-center gap-1 backdrop-blur-md">
+                          <span className="px-2 py-0.5 rounded-full bg-zinc-50/50 text-zinc-600 text-xs font-medium border  flex items-center gap-1 backdrop-blur-md">
                             Basic
                           </span>
                         )}
@@ -307,7 +387,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                   </div>
 
                   <div className="flex items-center gap-3 w-full md:w-auto flex-wrap justify-end">
-                    <div className="flex items-center gap-2 bg-white/40 backdrop-blur-md border border-zinc-200/50 p-1 rounded-xl shadow-inner">
+                    <div className="flex items-center gap-2 bg-white/40 backdrop-blur-md border  p-1 rounded-xl shadow-inner">
                       <button
                         onClick={() => updatePlan(club.id, 'basic')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -319,7 +399,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                       <button
                         onClick={() => updatePlan(club.id, 'classic')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                          club.plan === 'classic' ? 'bg-velatra-accent text-white shadow-sm shadow-velatra-accent/20' : 'text-zinc-500 hover:text-zinc-900'
+                          club.plan === 'classic' ? 'bg-velatra-accent text-zinc-900 shadow-sm shadow-velatra-accent/20' : 'text-zinc-500 hover:text-zinc-900'
                         }`}
                       >
                         Classic
@@ -327,7 +407,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                       <button
                         onClick={() => updatePlan(club.id, 'premium')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                          club.plan === 'premium' ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-sm shadow-yellow-500/20' : 'text-zinc-500 hover:text-zinc-900'
+                          club.plan === 'premium' ? 'bg-gradient-to-r from-amber-400 to-yellow-500 text-zinc-900 shadow-sm shadow-yellow-500/20' : 'text-zinc-500 hover:text-zinc-900'
                         }`}
                       >
                         <Crown size={14} />
@@ -367,7 +447,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
         </AnimatePresence>
 
         {filteredClubs.length === 0 && (
-          <motion.div variants={itemVariants} className="text-center py-12 text-zinc-500 bg-white/40 backdrop-blur-md rounded-3xl border border-zinc-200/50">
+          <motion.div variants={itemVariants} className="text-center py-12 text-zinc-500 bg-white/40 backdrop-blur-md rounded-3xl border ">
             Aucun club trouvé pour cette recherche.
           </motion.div>
         )}
@@ -382,8 +462,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
             <h3 className="text-xl font-black text-zinc-900 mb-2">⚠️ ATTENTION ⚠️</h3>
             <p className="text-zinc-500 mb-6">Êtes-vous sûr de vouloir supprimer ce club et TOUTES ses données (membres, programmes, messages, etc.) ?<br/><br/>Cette action est DÉFINITIVE et IRRÉVERSIBLE.</p>
             <div className="flex gap-3">
-              <button className="flex-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={() => setConfirmDeleteClubId(null)}>Annuler</button>
-              <button className="flex-1 bg-red-500 hover:bg-red-600 text-white px-4 py-3 rounded-xl font-bold transition-colors" onClick={confirmDelete}>Supprimer</button>
+              <button className="flex-1 bg-zinc-50 hover:bg-zinc-200 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={() => setConfirmDeleteClubId(null)}>Annuler</button>
+              <button className="flex-1 bg-red-500 hover:bg-red-600 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={confirmDelete}>Supprimer</button>
             </div>
           </motion.div>
         </div>,

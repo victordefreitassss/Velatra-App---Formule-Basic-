@@ -162,7 +162,7 @@ export const ProfilePage: React.FC<{
       </motion.div>
 
       <motion.div variants={itemVariants}>
-        <Card className="!p-8 bg-white/60 backdrop-blur-xl border-zinc-200/50 relative overflow-hidden shadow-xl">
+        <Card className="!p-8 bg-white/60 backdrop-blur-xl  relative overflow-hidden shadow-xl">
           <div className="absolute top-0 right-0 w-64 h-64 bg-velatra-accent/5 rounded-full -mr-32 -mt-32 blur-3xl" />
           
           <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8">
@@ -181,7 +181,7 @@ export const ProfilePage: React.FC<{
                         type="email" 
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                        className="w-full bg-white/50 border  rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                       />
                     </div>
                     <div>
@@ -190,7 +190,7 @@ export const ProfilePage: React.FC<{
                         type="tel" 
                         value={formData.phone}
                         onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                        className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                        className="w-full bg-white/50 border  rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                       />
                     </div>
                   </div>
@@ -211,7 +211,7 @@ export const ProfilePage: React.FC<{
               <div className="flex flex-wrap gap-2">
                 <Badge variant="blue" className="uppercase tracking-widest text-[10px]">{user.role}</Badge>
                 {user.gender && (
-                  <Badge variant="dark" className="uppercase tracking-widest text-[10px] bg-zinc-200 text-zinc-900 border-zinc-300">
+                  <Badge variant="dark" className="uppercase tracking-widest text-[10px] bg-zinc-200 text-zinc-900 ">
                     {user.gender === 'M' ? 'Homme' : 'Femme'}
                   </Badge>
                 )}
@@ -226,7 +226,7 @@ export const ProfilePage: React.FC<{
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <motion.div variants={itemVariants}>
-          <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg h-full">
+          <Card className="!p-6 bg-white/60 backdrop-blur-xl  shadow-lg h-full">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
                 <ActivityIcon size={20} />
@@ -242,7 +242,7 @@ export const ProfilePage: React.FC<{
                     type="date" 
                     value={formData.birthDate}
                     onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
-                    className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                    className="w-full bg-white/50 border  rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                   />
                 ) : (
                   <div className="text-lg font-medium text-zinc-900">{user.birthDate ? new Date(user.birthDate).toLocaleDateString() : 'Non renseigné'}</div>
@@ -256,7 +256,7 @@ export const ProfilePage: React.FC<{
                     type="number" 
                     value={formData.height}
                     onChange={(e) => setFormData({...formData, height: Number(e.target.value)})}
-                    className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                    className="w-full bg-white/50 border  rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                   />
                 ) : (
                   <div className="text-lg font-medium text-zinc-900">{user.height ? `${user.height} cm` : 'Non renseigné'}</div>
@@ -270,7 +270,7 @@ export const ProfilePage: React.FC<{
                     type="number" 
                     value={formData.weight}
                     onChange={(e) => setFormData({...formData, weight: Number(e.target.value)})}
-                    className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                    className="w-full bg-white/50 border  rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                   />
                 ) : (
                   <div className="text-lg font-medium text-zinc-900">{user.weight ? `${user.weight} kg` : 'Non renseigné'}</div>
@@ -281,7 +281,7 @@ export const ProfilePage: React.FC<{
         </motion.div>
 
         <motion.div variants={itemVariants}>
-          <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg h-full">
+          <Card className="!p-6 bg-white/60 backdrop-blur-xl  shadow-lg h-full">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
                 <DumbbellIcon size={20} />
@@ -296,7 +296,7 @@ export const ProfilePage: React.FC<{
                   <select 
                     value={formData.experienceLevel}
                     onChange={(e) => setFormData({...formData, experienceLevel: e.target.value as any})}
-                    className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                    className="w-full bg-white/50 border  rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                   >
                     <option value="Débutant">Débutant</option>
                     <option value="Intermédiaire">Intermédiaire</option>
@@ -313,7 +313,7 @@ export const ProfilePage: React.FC<{
                   <select 
                     value={formData.equipment}
                     onChange={(e) => setFormData({...formData, equipment: e.target.value as any})}
-                    className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                    className="w-full bg-white/50 border  rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                   >
                     <option value="Salle de sport">Salle de sport</option>
                     <option value="Maison avec matériel">Maison avec matériel</option>
@@ -329,7 +329,7 @@ export const ProfilePage: React.FC<{
       </div>
 
       <motion.div variants={itemVariants}>
-        <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg">
+        <Card className="!p-6 bg-white/60 backdrop-blur-xl  shadow-lg">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
               <TargetIcon size={20} />
@@ -340,7 +340,7 @@ export const ProfilePage: React.FC<{
           <div className="flex flex-wrap gap-3">
             {user.objectifs && user.objectifs.length > 0 ? (
               user.objectifs.map((obj, idx) => (
-                <div key={idx} className="px-4 py-2 bg-white/50 border border-zinc-200/50 rounded-xl text-sm font-medium text-zinc-900 shadow-sm">
+                <div key={idx} className="px-4 py-2 bg-white/50 border  rounded-xl text-sm font-medium text-zinc-900 shadow-sm">
                   {obj}
                 </div>
               ))
@@ -353,7 +353,7 @@ export const ProfilePage: React.FC<{
 
       {/* Measurements Section */}
       <motion.div variants={itemVariants}>
-        <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg">
+        <Card className="!p-6 bg-white/60 backdrop-blur-xl  shadow-lg">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
               <ActivityIcon size={20} />
@@ -376,7 +376,7 @@ export const ProfilePage: React.FC<{
                     type="number" 
                     value={(formData as any)[measurement.key]}
                     onChange={(e) => setFormData({...formData, [measurement.key]: Number(e.target.value)})}
-                    className="w-full bg-white/50 border border-zinc-200/50 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                    className="w-full bg-white/50 border  rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                   />
                 ) : (
                   <div className="text-lg font-medium text-zinc-900">{(user.measurements as any)?.[measurement.key] ? `${(user.measurements as any)[measurement.key]} cm` : '-'}</div>
@@ -389,7 +389,7 @@ export const ProfilePage: React.FC<{
 
       {user.role === 'member' && (
         <motion.div variants={itemVariants}>
-          <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg">
+          <Card className="!p-6 bg-white/60 backdrop-blur-xl  shadow-lg">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
                 <CalendarIcon size={20} />
@@ -403,7 +403,7 @@ export const ProfilePage: React.FC<{
                   {(state.logs || []).filter(log => log.memberId === Number(user.id) && log.isCoaching)
                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                     .map(log => (
-                    <div key={log.id} className="bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex flex-col gap-3 shadow-sm">
+                    <div key={log.id} className="bg-white/50 border  rounded-xl p-4 flex flex-col gap-3 shadow-sm">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-sm font-bold text-zinc-900">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
@@ -428,7 +428,7 @@ export const ProfilePage: React.FC<{
                   ))}
                 </div>
               ) : (
-                <div className="bg-white/50 border border-zinc-200/50 rounded-xl p-6 text-center shadow-sm">
+                <div className="bg-white/50 border  rounded-xl p-6 text-center shadow-sm">
                   <p className="text-sm font-medium text-zinc-900">Aucune séance de coaching</p>
                   <p className="text-xs text-zinc-500 mt-1">Vos récaps de séances apparaîtront ici.</p>
                 </div>
@@ -440,7 +440,7 @@ export const ProfilePage: React.FC<{
 
       {user.role === 'member' && (
         <motion.div variants={itemVariants}>
-          <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-lg">
+          <Card className="!p-6 bg-white/60 backdrop-blur-xl  shadow-lg">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
@@ -460,7 +460,7 @@ export const ProfilePage: React.FC<{
                 const subscription = state.subscriptions.find(s => s.memberId === Number(user.id) && s.status === 'active');
                 if (subscription) {
                   return (
-                    <div className="bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex flex-col gap-4 shadow-sm">
+                    <div className="bg-white/50 border  rounded-xl p-4 flex flex-col gap-4 shadow-sm">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-zinc-900">{subscription.planName}</p>
@@ -471,7 +471,7 @@ export const ProfilePage: React.FC<{
                         <Badge variant="success" className="uppercase tracking-widest text-[10px]">Actif</Badge>
                       </div>
                       {subscription.contractUrl && (
-                        <div className="pt-4 border-t border-zinc-200/50">
+                        <div className="pt-4 border-t ">
                           <a href={subscription.contractUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-velatra-accent flex items-center gap-2 hover:underline">
                             <ExternalLinkIcon size={16} /> Voir mon contrat
                           </a>
@@ -481,7 +481,7 @@ export const ProfilePage: React.FC<{
                   );
                 }
                 return (
-                  <div className="bg-white/50 border border-zinc-200/50 rounded-xl p-4 flex items-center justify-between shadow-sm">
+                  <div className="bg-white/50 border  rounded-xl p-4 flex items-center justify-between shadow-sm">
                     <div>
                       <p className="text-sm font-medium text-zinc-900">Aucun abonnement actif</p>
                       <p className="text-xs text-zinc-500 mt-1">Vous n'avez pas d'abonnement en cours.</p>
@@ -495,7 +495,7 @@ export const ProfilePage: React.FC<{
       )}
 
       {selectedLog && createPortal(
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-zinc-900/50 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-white/50 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -507,7 +507,7 @@ export const ProfilePage: React.FC<{
                 <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Récapitulatif</h3>
                 <p className="text-sm text-zinc-500">{new Date(selectedLog.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
-              <button onClick={() => setSelectedLog(null)} className="p-2 bg-zinc-100 rounded-full hover:bg-zinc-200 transition-colors">
+              <button onClick={() => setSelectedLog(null)} className="p-2 bg-zinc-50 rounded-full hover:bg-zinc-200 transition-colors">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
@@ -524,7 +524,7 @@ export const ProfilePage: React.FC<{
                   <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Exercices réalisés</div>
                   <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
                     {selectedLog.exercises.map((ex, i) => (
-                      <div key={i} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3">
+                      <div key={i} className="bg-zinc-50 border  rounded-xl p-3">
                         <div className="font-bold text-sm text-zinc-900 mb-2">{ex.name}</div>
                         <div className="grid grid-cols-1 gap-1">
                           {ex.sets.map((set, j) => (

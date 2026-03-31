@@ -16,7 +16,7 @@ export const MarketingPage: React.FC<{ state: AppState, setState: any }> = ({ st
         </Button>
       </div>
 
-      <Card className="p-8 text-center bg-zinc-50 border-dashed border-zinc-200">
+      <Card className="p-8 text-center bg-zinc-50 border-dashed ">
         <MegaphoneIcon size={48} className="mx-auto text-zinc-500 mb-4" />
         <h3 className="text-xl font-bold text-zinc-900 mb-2">Marketing en construction</h3>
         <p className="text-sm text-zinc-500 max-w-md mx-auto">

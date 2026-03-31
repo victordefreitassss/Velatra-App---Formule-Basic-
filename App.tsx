@@ -53,8 +53,6 @@ import { LoyaltyPage } from './pages/LoyaltyPage';
 import { MemberSupplementsPage } from './pages/MemberSupplementsPage';
 import { MemberLoyaltyPage } from './pages/MemberLoyaltyPage';
 import { DrivePage } from './pages/DrivePage';
-import { CommunityPage } from './pages/CommunityPage';
-import { NotificationsPage } from './pages/NotificationsPage';
 
 const INITIAL_STATE: AppState = {
   user: null,
@@ -768,7 +766,6 @@ export default function App() {
         case 'calendar': return <PlanningPage state={state} setState={setState} showToast={showToast} />;
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;
         case 'drive': return <DrivePage state={state} />;
-        case 'notifications': return <NotificationsPage state={state} setState={setState} />;
         case 'marketing': return <MarketingPage state={state} setState={setState} />;
         case 'supplements': return <SupplementsPage state={state} setState={setState} showToast={showToast} />;
         case 'loyalty': return <LoyaltyPage state={state} setState={setState} showToast={showToast} />;
@@ -781,16 +778,15 @@ export default function App() {
       case 'calendar': return <CalendarPage state={state} setState={setState} />;
       case 'planning': return <PlanningPage state={state} setState={setState} showToast={showToast} />;
       case 'performances': return <StatsPage state={state} setState={setState} />;
-      case 'community': return <CommunityPage state={state} />;
       case 'nutrition': return <MemberNutritionPage state={state} showToast={showToast} />;
       case 'ai_coach': return <AICoachPage state={state} setState={setState} showToast={showToast} />;
       case 'history': return <HistoryPage state={state} setState={setState} />;
       case 'about': return <AboutPage state={state} setState={setState} />;
       case 'profile': return <ProfilePage state={state} setState={setState} showToast={showToast} />;
       case 'messages': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
-      case 'notifications': return <NotificationsPage state={state} setState={setState} />;
       case 'supplements': return <MemberSupplementsPage state={state} showToast={showToast} />;
       case 'loyalty': return <MemberLoyaltyPage state={state} />;
+      case 'drive': return <DrivePage state={state} />;
       default: return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
     }
   };

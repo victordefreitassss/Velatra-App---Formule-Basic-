@@ -295,7 +295,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
       exit={{ opacity: 0, y: 50 }}
       className="fixed inset-0 bg-zinc-50 z-[100] flex flex-col page-transition"
     >
-      <header className="glass border-b border-zinc-200 px-4 py-4 md:px-8 md:py-6 flex flex-col sticky top-0 z-20">
+      <header className="glass border-b  px-4 py-4 md:px-8 md:py-6 flex flex-col sticky top-0 z-20">
         <div className="flex items-center justify-between w-full">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
@@ -334,7 +334,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
         animate="visible"
         className="flex-1 overflow-y-auto px-4 py-6 md:px-16 space-y-8 no-scrollbar"
       >
-        <motion.div variants={itemVariants} className="flex justify-between items-center bg-zinc-50 p-6 rounded-[32px] border border-zinc-200">
+        <motion.div variants={itemVariants} className="flex justify-between items-center bg-zinc-50 p-6 rounded-[32px] border ">
            <div className="space-y-1">
               <span className="text-[10px] font-black uppercase tracking-[4px] text-zinc-900">Progression Cycle</span>
               <div className="text-sm font-black text-zinc-900 italic">
@@ -398,12 +398,12 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                 return (
                   <div key={exIndex} className="relative">
                     <div id={`exercise-${exIndex}`} className={`transition-all duration-500 ${isValidated ? 'opacity-30 grayscale scale-[0.98] pointer-events-none' : ''}`}>
-                      <Card className={`!p-6 md:!p-8 bg-white shadow-xl relative border-none ring-1 ring-zinc-200 ${group.isGroup ? 'hover:ring-velatra-accent/50 transition-all' : ''}`}>
+                      <Card className={`!p-6 md:!p-8 bg-white shadow-xl relative border-none ring-1  ${group.isGroup ? 'hover:ring-velatra-accent/50 transition-all' : ''}`}>
                         {group.isGroup && (
                           <div className="absolute -left-6 md:-left-10 top-1/2 -translate-y-1/2 w-6 md:w-10 h-1 bg-velatra-accent/30" />
                         )}
                         <div className="flex gap-4 md:gap-8 items-center mb-6 md:mb-10">
-                          <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-white border border-zinc-200 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
+                          <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-white border  flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
                             {baseEx?.photo ? (
                               <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
                             ) : (
@@ -442,13 +442,13 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                         <div className="grid grid-cols-1 gap-4 md:gap-6 mb-8 md:mb-10">
                           {Array.from({ length: (typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1) }).map((_, sIdx) => (
                             <div key={sIdx} className="flex items-center gap-3 md:gap-6 group animate-in slide-in-from-left">
-                               <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center text-xs font-black text-zinc-900 group-focus-within:border-velatra-accent transition-all shrink-0">{sIdx+1}</div>
+                               <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-zinc-50 border  flex items-center justify-center text-xs font-black text-zinc-900 group-focus-within:border-velatra-accent transition-all shrink-0">{sIdx+1}</div>
                                <div className="flex-1 grid grid-cols-2 gap-2 md:gap-4">
                                   {baseEx?.cat === 'Cardio' ? (
                                     <div className="relative flex items-center col-span-2">
                                       <Input 
                                         placeholder={exEntry.duration || "DURÉE (ex: 15 min)"} 
-                                        className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-4" 
+                                        className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-4" 
                                         value={sessionData[`${exIndex}-${sIdx}-duration`] || ""} 
                                         onChange={e => handleInputChange(exIndex, sIdx, 'duration', e.target.value)} 
                                       />
@@ -461,7 +461,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                                            onClick={() => handleInputChange(exIndex, sIdx, 'weight', String(Math.max(0, (parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") - 1))))}
                                            className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                          >-</button>
-                                         <Input type="number" inputMode="decimal" placeholder={(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "LEST" : "KG"} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
+                                         <Input type="number" inputMode="decimal" placeholder={(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "LEST" : "KG"} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
                                          <button 
                                            onClick={() => handleInputChange(exIndex, sIdx, 'weight', String((parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") + 1)))}
                                            className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
@@ -473,7 +473,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                                            onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") - 1))))}
                                            className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
                                          >-</button>
-                                         <Input type="text" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || String(exEntry.reps).toLowerCase().includes('s')) ? "SEC" : "REPS")} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic border-zinc-200 px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
+                                         <Input type="text" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || String(exEntry.reps).toLowerCase().includes('s')) ? "SEC" : "REPS")} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
                                          <button 
                                            onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") + 1)))}
                                            className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
@@ -490,7 +490,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                           <Button 
                             variant={isValidated ? "success" : "primary"} 
                             fullWidth 
-                            className={`!py-5 !rounded-[24px] font-black italic tracking-widest text-base shadow-xl transition-colors duration-300 ${isValidated ? 'shadow-emerald-500/20 bg-emerald-500 text-white' : 'shadow-velatra-accent/20'}`} 
+                            className={`!py-5 !rounded-[24px] font-black italic tracking-widest text-base shadow-xl transition-colors duration-300 ${isValidated ? 'shadow-emerald-500/20 bg-emerald-500 text-white' : 'shadow-velatra-accent/20 text-zinc-900'}`} 
                             onClick={() => toggleExerciseValidation(exIndex)}
                           >
                              <AnimatePresence mode="wait">
@@ -543,7 +543,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
       </motion.div>
       <motion.footer 
         variants={itemVariants}
-        className="glass border-t border-zinc-200 p-8 backdrop-blur-3xl flex flex-col gap-4"
+        className="glass border-t  p-8 backdrop-blur-3xl flex flex-col gap-4"
       >
         <div className="flex justify-between items-center px-4">
            <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">Récompense de séance</div>

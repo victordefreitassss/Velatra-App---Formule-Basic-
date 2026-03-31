@@ -344,7 +344,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
           <p className="text-zinc-500 mt-1">Gérez vos prospects, analysez vos appels et convertissez plus.</p>
         </div>
         
-        <div className="flex bg-zinc-50 p-1 rounded-xl border border-zinc-200 overflow-x-auto max-w-full shadow-lg backdrop-blur-sm">
+        <div className="flex bg-zinc-50 p-1 rounded-xl border  overflow-x-auto max-w-full shadow-lg backdrop-blur-sm">
           {[
             { id: 'dashboard', icon: BarChart2, label: 'Tableau de bord' },
             { id: 'clients', icon: Users, label: 'Base Clients' },
@@ -354,7 +354,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.id ? 'bg-velatra-accent text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === tab.id ? 'bg-velatra-accent text-zinc-900 shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
             >
               <tab.icon className="w-4 h-4" />
               {tab.label}
@@ -370,39 +370,39 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
             <select 
               value={period} 
               onChange={(e) => setPeriod(e.target.value as any)}
-              className="bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2 text-zinc-900 focus:outline-none focus:border-velatra-accent shadow-lg backdrop-blur-sm"
+              className="bg-zinc-50 border  rounded-xl px-4 py-2 text-zinc-900 focus:outline-none focus:border-velatra-accent shadow-lg backdrop-blur-sm"
             >
               <option value="today" className="bg-velatra-bgCard">Aujourd'hui</option>
               <option value="yesterday" className="bg-velatra-bgCard">Hier</option>
               <option value="7days" className="bg-velatra-bgCard">7 derniers jours</option>
               <option value="30days" className="bg-velatra-bgCard">30 derniers jours</option>
             </select>
-            <button onClick={generateReport} className="bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 text-zinc-900 px-4 py-2 rounded-xl flex items-center gap-2 transition-colors shadow-lg font-medium backdrop-blur-sm">
+            <button onClick={generateReport} className="bg-zinc-50 border  hover:bg-zinc-50 text-zinc-900 px-4 py-2 rounded-xl flex items-center gap-2 transition-colors shadow-lg font-medium backdrop-blur-sm">
               <Copy className="w-4 h-4" /> Reporting
             </button>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-velatra-bgCard border border-zinc-200 rounded-2xl p-5 shadow-2xl">
+            <div className="bg-velatra-bgCard border  rounded-2xl p-5 shadow-2xl">
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1">Appels</p>
               <p className="text-3xl font-black text-zinc-900">{aggregatedStats.totalCalls}</p>
             </div>
-            <div className="bg-velatra-bgCard border border-zinc-200 rounded-2xl p-5 shadow-2xl">
+            <div className="bg-velatra-bgCard border  rounded-2xl p-5 shadow-2xl">
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1">Taux Décroché</p>
               <p className="text-3xl font-black text-zinc-900">{pickupRate}%</p>
             </div>
-            <div className="bg-velatra-bgCard border border-zinc-200 rounded-2xl p-5 shadow-2xl">
+            <div className="bg-velatra-bgCard border  rounded-2xl p-5 shadow-2xl">
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1">RDV Pris</p>
               <p className="text-3xl font-black text-zinc-900">{aggregatedStats.appointmentsTaken}</p>
             </div>
-            <div className="bg-velatra-bgCard border border-zinc-200 rounded-2xl p-5 shadow-2xl">
+            <div className="bg-velatra-bgCard border  rounded-2xl p-5 shadow-2xl">
               <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1">Taux Closing</p>
               <p className="text-3xl font-black text-zinc-900">{closingRate}%</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-velatra-bgCard border border-zinc-200 rounded-2xl p-6 h-80 shadow-2xl">
+            <div className="bg-velatra-bgCard border  rounded-2xl p-6 h-80 shadow-2xl">
               <h3 className="text-lg font-bold text-zinc-900 mb-4 text-center">Présence aux RDV</h3>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -414,7 +414,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="bg-velatra-bgCard border border-zinc-200 rounded-2xl p-6 h-80 shadow-2xl">
+            <div className="bg-velatra-bgCard border  rounded-2xl p-6 h-80 shadow-2xl">
               <h3 className="text-lg font-bold text-zinc-900 mb-4 text-center">Signatures</h3>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -426,7 +426,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="bg-velatra-bgCard border border-zinc-200 rounded-2xl p-6 h-80 shadow-2xl">
+            <div className="bg-velatra-bgCard border  rounded-2xl p-6 h-80 shadow-2xl">
               <h3 className="text-lg font-bold text-zinc-900 mb-4 text-center">Sources des RDV</h3>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -455,7 +455,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                   placeholder="Rechercher un client..."
                   value={searchClient}
                   onChange={(e) => setSearchClient(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                  className="w-full pl-10 pr-4 py-2 bg-zinc-50 border  rounded-xl text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                 />
               </div>
               <input 
@@ -467,25 +467,25 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
               />
               <label 
                 htmlFor="import-crm-clients-csv" 
-                className="bg-zinc-100 text-zinc-900 px-4 py-2 rounded-xl flex items-center gap-2 cursor-pointer hover:bg-zinc-200 transition-colors w-full sm:w-auto justify-center text-sm font-medium"
+                className="bg-zinc-50 text-zinc-900 px-4 py-2 rounded-xl flex items-center gap-2 cursor-pointer hover:bg-zinc-200 transition-colors w-full sm:w-auto justify-center text-sm font-medium"
               >
                 <Upload className="w-4 h-4" /> Import CSV
               </label>
-              <button onClick={() => setIsAddingClient(true)} className="bg-velatra-accent text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-[0_0_15px_rgba(99,102,241,0.4)] hover:bg-velatra-accentDark transition-colors w-full sm:w-auto justify-center">
+              <button onClick={() => setIsAddingClient(true)} className="bg-velatra-accent text-zinc-900 px-4 py-2 rounded-xl flex items-center gap-2 shadow-[0_0_15px_rgba(99,102,241,0.4)] hover:bg-velatra-accentDark transition-colors w-full sm:w-auto justify-center">
                 <Plus className="w-4 h-4" /> Ajouter
               </button>
             </div>
           </div>
 
           {isAddingClient && (
-            <div className="bg-velatra-bgCard border border-zinc-200 rounded-2xl p-6 shadow-2xl">
+            <div className="bg-velatra-bgCard border  rounded-2xl p-6 shadow-2xl">
               <h3 className="text-lg font-bold text-zinc-900 mb-4">{clientForm.id ? 'Modifier' : 'Ajouter'} un client</h3>
               <form onSubmit={saveClient} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input required placeholder="Prénom" value={clientForm.firstName || ''} onChange={e => setClientForm({...clientForm, firstName: e.target.value})} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors" />
-                <input placeholder="Nom" value={clientForm.lastName || ''} onChange={e => setClientForm({...clientForm, lastName: e.target.value})} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors" />
-                <input type="email" placeholder="Email" value={clientForm.email || ''} onChange={e => setClientForm({...clientForm, email: e.target.value})} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors" />
-                <input type="tel" placeholder="Téléphone" value={clientForm.phone || ''} onChange={e => setClientForm({...clientForm, phone: e.target.value})} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors" />
-                <select value={clientForm.formulaId || ''} onChange={e => setClientForm({...clientForm, formulaId: e.target.value})} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors">
+                <input required placeholder="Prénom" value={clientForm.firstName || ''} onChange={e => setClientForm({...clientForm, firstName: e.target.value})} className="bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors" />
+                <input placeholder="Nom" value={clientForm.lastName || ''} onChange={e => setClientForm({...clientForm, lastName: e.target.value})} className="bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors" />
+                <input type="email" placeholder="Email" value={clientForm.email || ''} onChange={e => setClientForm({...clientForm, email: e.target.value})} className="bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors" />
+                <input type="tel" placeholder="Téléphone" value={clientForm.phone || ''} onChange={e => setClientForm({...clientForm, phone: e.target.value})} className="bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors" />
+                <select value={clientForm.formulaId || ''} onChange={e => setClientForm({...clientForm, formulaId: e.target.value})} className="bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors">
                   <option value="" className="bg-velatra-bgCard">Sélectionner une formule</option>
                   {state.crmFormulas.map(f => <option key={f.id} value={f.id} className="bg-velatra-bgCard">{f.name} ({f.price}€)</option>)}
                 </select>
@@ -495,15 +495,15 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                 </div>
                 <div className="md:col-span-2 flex justify-end gap-2 mt-2">
                   <button type="button" onClick={() => setIsAddingClient(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 font-medium">Annuler</button>
-                  <button type="submit" className="bg-velatra-accent text-white px-6 py-2 rounded-xl font-medium hover:bg-velatra-accentDark transition-colors shadow-[0_0_15px_rgba(99,102,241,0.4)]">Enregistrer</button>
+                  <button type="submit" className="bg-velatra-accent text-zinc-900 px-6 py-2 rounded-xl font-medium hover:bg-velatra-accentDark transition-colors shadow-[0_0_15px_rgba(99,102,241,0.4)]">Enregistrer</button>
                 </div>
               </form>
             </div>
           )}
 
-          <div className="bg-velatra-bgCard border border-zinc-200 rounded-2xl overflow-hidden shadow-2xl">
+          <div className="bg-velatra-bgCard border  rounded-2xl overflow-hidden shadow-2xl">
             <table className="w-full text-left text-sm text-zinc-900">
-              <thead className="bg-zinc-50 text-zinc-500 uppercase text-xs border-b border-zinc-200">
+              <thead className="bg-zinc-50 text-zinc-500 uppercase text-xs border-b ">
                 <tr>
                   <th className="px-6 py-4">Nom</th>
                   <th className="px-6 py-4">Contact</th>
@@ -560,23 +560,23 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                   placeholder="Rechercher un prospect..."
                   value={searchPending}
                   onChange={(e) => setSearchPending(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                  className="w-full pl-10 pr-4 py-2 bg-zinc-50 border  rounded-xl text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
                 />
               </div>
-              <button onClick={() => setIsAddingPending(true)} className="bg-velatra-accent text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-[0_0_15px_rgba(99,102,241,0.4)] hover:bg-velatra-accentDark transition-colors w-full sm:w-auto justify-center">
+              <button onClick={() => setIsAddingPending(true)} className="bg-velatra-accent text-zinc-900 px-4 py-2 rounded-xl flex items-center gap-2 shadow-[0_0_15px_rgba(99,102,241,0.4)] hover:bg-velatra-accentDark transition-colors w-full sm:w-auto justify-center">
                 <Plus className="w-4 h-4" /> Ajouter
               </button>
             </div>
           </div>
 
           {isAddingPending && (
-            <div className="bg-velatra-bgCard border border-zinc-200 rounded-2xl p-6 shadow-2xl">
+            <div className="bg-velatra-bgCard border  rounded-2xl p-6 shadow-2xl">
               <form onSubmit={savePending} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input required type="email" placeholder="Email du prospect" value={pendingForm.email || ''} onChange={e => setPendingForm({...pendingForm, email: e.target.value})} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors" />
-                <input required type="date" value={pendingForm.reminderDate ? format(new Date(pendingForm.reminderDate), 'yyyy-MM-dd') : ''} onChange={e => setPendingForm({...pendingForm, reminderDate: new Date(e.target.value).toISOString()})} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors" />
+                <input required type="email" placeholder="Email du prospect" value={pendingForm.email || ''} onChange={e => setPendingForm({...pendingForm, email: e.target.value})} className="bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors" />
+                <input required type="date" value={pendingForm.reminderDate ? format(new Date(pendingForm.reminderDate), 'yyyy-MM-dd') : ''} onChange={e => setPendingForm({...pendingForm, reminderDate: new Date(e.target.value).toISOString()})} className="bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors" />
                 <div className="md:col-span-2 flex justify-end gap-2 mt-2">
                   <button type="button" onClick={() => setIsAddingPending(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 font-medium">Annuler</button>
-                  <button type="submit" className="bg-velatra-accent text-white px-6 py-2 rounded-xl font-medium hover:bg-velatra-accentDark transition-colors shadow-[0_0_15px_rgba(99,102,241,0.4)]">Enregistrer</button>
+                  <button type="submit" className="bg-velatra-accent text-zinc-900 px-6 py-2 rounded-xl font-medium hover:bg-velatra-accentDark transition-colors shadow-[0_0_15px_rgba(99,102,241,0.4)]">Enregistrer</button>
                 </div>
               </form>
             </div>
@@ -588,7 +588,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
               .map(prospect => {
               const isOverdue = isBefore(new Date(prospect.reminderDate), new Date()) && prospect.status === 'PENDING';
               return (
-                <div key={prospect.id} className={`bg-velatra-bgCard border rounded-2xl p-5 shadow-2xl ${isOverdue ? 'border-red-500/30 bg-red-500/5' : 'border-zinc-200'}`}>
+                <div key={prospect.id} className={`bg-velatra-bgCard border rounded-2xl p-5 shadow-2xl ${isOverdue ? 'border-red-500/30 bg-red-500/5' : ''}`}>
                   <div className="flex justify-between items-start mb-3">
                     <h3 className="font-bold text-zinc-900 truncate pr-4">{prospect.email}</h3>
                     {isOverdue && <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />}
@@ -626,24 +626,24 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
           <div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold text-zinc-900">Formules</h2>
-              <button onClick={() => setIsAddingFormula(true)} className="bg-zinc-50 border border-zinc-200 text-zinc-900 px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-zinc-100 transition-colors shadow-lg font-medium backdrop-blur-sm">
+              <button onClick={() => setIsAddingFormula(true)} className="bg-zinc-50 border  text-zinc-900 px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-zinc-50 transition-colors shadow-lg font-medium backdrop-blur-sm">
                 <Plus className="w-4 h-4" /> Nouvelle Formule
               </button>
             </div>
             
             {isAddingFormula && (
-              <div className="bg-velatra-bgCard border border-zinc-200 rounded-2xl p-6 mb-4 shadow-2xl">
+              <div className="bg-velatra-bgCard border  rounded-2xl p-6 mb-4 shadow-2xl">
                 <form onSubmit={saveFormula} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <input required placeholder="Nom de la formule" value={formulaForm.name || ''} onChange={e => setFormulaForm({...formulaForm, name: e.target.value})} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors" />
-                  <input required type="number" placeholder="Prix (€)" value={formulaForm.price || ''} onChange={e => setFormulaForm({...formulaForm, price: Number(e.target.value) || 0})} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors" />
-                  <select value={formulaForm.period || 'month'} onChange={e => setFormulaForm({...formulaForm, period: e.target.value as any})} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors">
+                  <input required placeholder="Nom de la formule" value={formulaForm.name || ''} onChange={e => setFormulaForm({...formulaForm, name: e.target.value})} className="bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors" />
+                  <input required type="number" placeholder="Prix (€)" value={formulaForm.price || ''} onChange={e => setFormulaForm({...formulaForm, price: Number(e.target.value) || 0})} className="bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors" />
+                  <select value={formulaForm.period || 'month'} onChange={e => setFormulaForm({...formulaForm, period: e.target.value as any})} className="bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors">
                     <option value="week" className="bg-velatra-bgCard">Semaine</option>
                     <option value="month" className="bg-velatra-bgCard">Mois</option>
                     <option value="year" className="bg-velatra-bgCard">Année</option>
                   </select>
                   <div className="md:col-span-3 flex justify-end gap-2 mt-2">
                     <button type="button" onClick={() => setIsAddingFormula(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 font-medium">Annuler</button>
-                    <button type="submit" className="bg-velatra-accent text-white px-6 py-2 rounded-xl font-medium hover:bg-velatra-accentDark transition-colors shadow-[0_0_15px_rgba(99,102,241,0.4)]">Enregistrer</button>
+                    <button type="submit" className="bg-velatra-accent text-zinc-900 px-6 py-2 rounded-xl font-medium hover:bg-velatra-accentDark transition-colors shadow-[0_0_15px_rgba(99,102,241,0.4)]">Enregistrer</button>
                   </div>
                 </form>
               </div>
@@ -651,7 +651,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {state.crmFormulas.map(formula => (
-                <div key={formula.id} className="bg-velatra-bgCard border border-zinc-200 rounded-2xl p-5 flex justify-between items-center shadow-2xl">
+                <div key={formula.id} className="bg-velatra-bgCard border  rounded-2xl p-5 flex justify-between items-center shadow-2xl">
                   <div>
                     <h4 className="font-bold text-zinc-900">{formula.name}</h4>
                     <p className="text-zinc-500 text-sm">{formula.price}€ / {formula.period}</p>
@@ -662,20 +662,20 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
             </div>
           </div>
 
-          <hr className="border-zinc-200" />
+          <hr className="" />
 
           {/* Manual Stats Form */}
           <div>
             <h2 className="text-2xl font-bold text-zinc-900 mb-4">Saisie Manuelle des Statistiques</h2>
-            <form onSubmit={saveManualStats} className="bg-velatra-bgCard border border-zinc-200 rounded-2xl p-6 space-y-6 shadow-2xl">
+            <form onSubmit={saveManualStats} className="bg-velatra-bgCard border  rounded-2xl p-6 space-y-6 shadow-2xl">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold uppercase text-zinc-500 mb-2">Date</label>
-                  <input required type="date" value={statsForm.period_start} onChange={e => setStatsForm({...statsForm, period_start: e.target.value})} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors" />
+                  <input required type="date" value={statsForm.period_start} onChange={e => setStatsForm({...statsForm, period_start: e.target.value})} className="w-full bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase text-zinc-500 mb-2">Type de période</label>
-                  <select value={statsForm.period_type} onChange={e => setStatsForm({...statsForm, period_type: e.target.value as any})} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors">
+                  <select value={statsForm.period_type} onChange={e => setStatsForm({...statsForm, period_type: e.target.value as any})} className="w-full bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors">
                     <option value="day" className="bg-velatra-bgCard">Jour</option>
                     <option value="week" className="bg-velatra-bgCard">Semaine</option>
                     <option value="month" className="bg-velatra-bgCard">Mois</option>
@@ -696,13 +696,13 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                 ].map(field => (
                   <div key={field.key}>
                     <label className="block text-xs font-bold uppercase text-zinc-500 mb-2">{field.label}</label>
-                    <input type="number" min="0" value={(statsForm as any)[field.key] || ''} onChange={e => setStatsForm({...statsForm, [field.key]: Number(e.target.value) || 0})} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-100 transition-colors" />
+                    <input type="number" min="0" value={(statsForm as any)[field.key] || ''} onChange={e => setStatsForm({...statsForm, [field.key]: Number(e.target.value) || 0})} className="w-full bg-zinc-50 border  rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-velatra-accent focus:bg-zinc-50 transition-colors" />
                   </div>
                 ))}
               </div>
               
               <div className="flex justify-end">
-                <button type="submit" className="bg-velatra-accent text-white px-8 py-3 rounded-xl font-medium shadow-[0_0_15px_rgba(99,102,241,0.4)] hover:bg-velatra-accentDark transition-colors">
+                <button type="submit" className="bg-velatra-accent text-zinc-900 px-8 py-3 rounded-xl font-medium shadow-[0_0_15px_rgba(99,102,241,0.4)] hover:bg-velatra-accentDark transition-colors">
                   Enregistrer les statistiques
                 </button>
               </div>
@@ -743,13 +743,13 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                 <div className="flex justify-end gap-3">
                   <button
                     onClick={() => setConfirmDeleteClientId(null)}
-                    className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded-xl transition-colors"
                   >
                     Annuler
                   </button>
                   <button
                     onClick={confirmDeleteClient}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/20"
+                    className="px-4 py-2 text-sm font-medium text-zinc-900 bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/20"
                   >
                     Supprimer
                   </button>
@@ -786,13 +786,13 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                 <div className="flex justify-end gap-3">
                   <button
                     onClick={() => setConfirmDeleteFormulaId(null)}
-                    className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded-xl transition-colors"
                   >
                     Annuler
                   </button>
                   <button
                     onClick={confirmDeleteFormula}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/20"
+                    className="px-4 py-2 text-sm font-medium text-zinc-900 bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/20"
                   >
                     Supprimer
                   </button>
@@ -829,13 +829,13 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                 <div className="flex justify-end gap-3">
                   <button
                     onClick={() => setConfirmDeletePendingId(null)}
-                    className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-colors"
+                    className="px-4 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded-xl transition-colors"
                   >
                     Annuler
                   </button>
                   <button
                     onClick={confirmDeletePending}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/20"
+                    className="px-4 py-2 text-sm font-medium text-zinc-900 bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-lg shadow-red-500/20"
                   >
                     Supprimer
                   </button>

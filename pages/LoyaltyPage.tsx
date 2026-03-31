@@ -77,7 +77,7 @@ export const LoyaltyPage: React.FC<{ state: AppState, setState: any, showToast: 
                 value={searchTerm} 
                 onChange={e => setSearchTerm(e.target.value)} 
                 placeholder="Rechercher un membre..." 
-                className="pl-12 !py-4 bg-white/60 backdrop-blur-xl border-zinc-200/50 focus:bg-white transition-all"
+                className="pl-12 !py-4 bg-white/60 backdrop-blur-xl  focus:bg-white transition-all"
               />
             </div>
             <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-2 sm:pb-0">
@@ -85,7 +85,7 @@ export const LoyaltyPage: React.FC<{ state: AppState, setState: any, showToast: 
                 <button
                   key={f}
                   onClick={() => setFilterStatus(f)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-300 ${filterStatus === f ? 'bg-velatra-accent text-white shadow-md shadow-velatra-accent/20' : 'bg-white/60 backdrop-blur-xl border border-zinc-200/50 text-zinc-500 hover:text-zinc-900 hover:bg-white'}`}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-300 ${filterStatus === f ? 'bg-velatra-accent text-zinc-900 shadow-md shadow-velatra-accent/20' : 'bg-white/60 backdrop-blur-xl border  text-zinc-500 hover:text-zinc-900 hover:bg-white'}`}
                 >
                   {f}
                 </button>
@@ -104,7 +104,7 @@ export const LoyaltyPage: React.FC<{ state: AppState, setState: any, showToast: 
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Card className="bg-white/60 backdrop-blur-xl border-zinc-200/50 flex items-center justify-between p-4 hover:shadow-lg hover:shadow-zinc-200/20 transition-all duration-300 group">
+                  <Card className="bg-white/60 backdrop-blur-xl  flex items-center justify-between p-4 hover:shadow-lg hover:shadow-zinc-200/20 transition-all duration-300 group">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-velatra-accent/10 text-velatra-accent flex items-center justify-center font-black text-lg group-hover:scale-110 transition-transform duration-300">
                         {index + 1}
@@ -119,7 +119,7 @@ export const LoyaltyPage: React.FC<{ state: AppState, setState: any, showToast: 
                         <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Points</div>
                         <div className="text-xl font-black text-velatra-warning">{member.pointsFidelite || 0}</div>
                       </div>
-                      <Button variant="ghost" className="!p-2 hover:bg-zinc-100/50" onClick={() => setSelectedMember(member)}>
+                      <Button variant="ghost" className="!p-2 hover:bg-zinc-50/50" onClick={() => setSelectedMember(member)}>
                         Gérer
                       </Button>
                     </div>
@@ -131,7 +131,7 @@ export const LoyaltyPage: React.FC<{ state: AppState, setState: any, showToast: 
               <motion.div 
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }} 
-                className="text-center py-12 text-zinc-500 italic bg-white/40 backdrop-blur-md rounded-3xl border border-zinc-200/50"
+                className="text-center py-12 text-zinc-500 italic bg-white/40 backdrop-blur-md rounded-3xl border "
               >
                 Aucun membre trouvé.
               </motion.div>
@@ -140,7 +140,7 @@ export const LoyaltyPage: React.FC<{ state: AppState, setState: any, showToast: 
         </div>
 
         <motion.div variants={itemVariants}>
-          <Card className="bg-white/80 backdrop-blur-2xl border-zinc-200/50 sticky top-6 shadow-xl shadow-zinc-200/20">
+          <Card className="bg-white/80 backdrop-blur-2xl  sticky top-6 shadow-xl shadow-zinc-200/20">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-3 bg-velatra-warning/20 text-velatra-warning rounded-xl">
                 <GiftIcon size={24} />
@@ -157,7 +157,7 @@ export const LoyaltyPage: React.FC<{ state: AppState, setState: any, showToast: 
                   exit={{ opacity: 0, y: -10 }}
                   className="space-y-6"
                 >
-                  <div className="p-4 bg-zinc-50/50 rounded-xl border border-zinc-200/50">
+                  <div className="p-4 bg-zinc-50/50 rounded-xl border ">
                     <div className="text-sm text-zinc-500 mb-1">Membre sélectionné</div>
                     <div className="text-lg font-bold text-zinc-900">{selectedMember.name}</div>
                     <div className="text-2xl font-black text-velatra-warning mt-2">{selectedMember.pointsFidelite || 0} pts</div>
@@ -171,7 +171,7 @@ export const LoyaltyPage: React.FC<{ state: AppState, setState: any, showToast: 
                           type="number" 
                           value={pointsToAdd || ''} 
                           onChange={e => setPointsToAdd(Number(e.target.value) || 0)}
-                          className="text-center text-lg font-bold bg-white/60 backdrop-blur-xl border-zinc-200/50"
+                          className="text-center text-lg font-bold bg-white/60 backdrop-blur-xl "
                         />
                       </div>
                     </div>
@@ -179,21 +179,21 @@ export const LoyaltyPage: React.FC<{ state: AppState, setState: any, showToast: 
                     <div className="flex flex-col sm:flex-row gap-2">
                       <Button 
                         variant="primary" 
-                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white border-none shadow-lg shadow-emerald-500/20"
+                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-zinc-900 border-none shadow-lg shadow-emerald-500/20"
                         onClick={() => handleUpdatePoints(selectedMember, Math.abs(pointsToAdd))}
                       >
                         <PlusIcon size={16} className="mr-2" /> Ajouter
                       </Button>
                       <Button 
                         variant="primary" 
-                        className="flex-1 bg-rose-500 hover:bg-rose-600 text-white border-none shadow-lg shadow-rose-500/20"
+                        className="flex-1 bg-rose-500 hover:bg-rose-600 text-zinc-900 border-none shadow-lg shadow-rose-500/20"
                         onClick={() => handleUpdatePoints(selectedMember, -Math.abs(pointsToAdd))}
                       >
                         <MinusIcon size={16} className="mr-2" /> Retirer
                       </Button>
                     </div>
                     
-                    <Button variant="ghost" fullWidth onClick={() => { setSelectedMember(null); setPointsToAdd(0); }} className="hover:bg-zinc-100/50">
+                    <Button variant="ghost" fullWidth onClick={() => { setSelectedMember(null); setPointsToAdd(0); }} className="hover:bg-zinc-50/50">
                       Annuler
                     </Button>
                   </div>

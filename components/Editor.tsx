@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Program, Preset, Exercise, Day, ExerciseEntry, AppState } from '../types';
 import { Button, Input, Card, Badge } from './UI';
 import { 
@@ -7,6 +7,94 @@ import {
   ArrowUpIcon, ArrowDownIcon, CopyIcon
 } from './Icons';
 import { EXERCISE_CATEGORIES, GOALS } from '../constants';
+import { ChevronDownIcon, SearchIcon } from 'lucide-react';
+
+const SearchableExerciseSelect: React.FC<{
+  exercises: Exercise[];
+  value: number;
+  onChange: (id: number) => void;
+}> = ({ exercises, value, onChange }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const selectedEx = exercises.find(e => e.id === value);
+
+  const filteredExercises = exercises.filter(e => 
+    e.name.toLowerCase().includes(search.toLowerCase()) || 
+    e.cat.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <div 
+        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm font-black text-zinc-900 cursor-pointer flex justify-between items-center hover:border-velatra-accent transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="truncate">{selectedEx ? selectedEx.name : 'Sélectionner un exercice'}</span>
+        <ChevronDownIcon size={16} className={`text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </div>
+      
+      {isOpen && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-zinc-200 rounded-xl shadow-xl max-h-60 overflow-y-auto overflow-x-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="p-2 sticky top-0 bg-white border-b border-zinc-100 z-10">
+            <div className="relative">
+              <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <input
+                type="text"
+                className="w-full bg-zinc-50 border border-zinc-200 rounded-lg py-2 pl-9 pr-3 text-xs font-bold text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                placeholder="Rechercher un exercice..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onClick={e => e.stopPropagation()}
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="p-1">
+            {filteredExercises.length === 0 ? (
+              <div className="p-3 text-xs text-zinc-500 text-center font-medium">Aucun exercice trouvé</div>
+            ) : (
+              EXERCISE_CATEGORIES.map(cat => {
+                const catExs = filteredExercises.filter(e => e.cat === cat);
+                if (catExs.length === 0) return null;
+                return (
+                  <div key={cat} className="mb-2">
+                    <div className="px-3 py-1.5 text-[10px] font-black uppercase text-velatra-accent tracking-widest bg-zinc-50/80">{cat}</div>
+                    {catExs.map(e => (
+                      <div 
+                        key={e.id}
+                        className={`px-3 py-2.5 text-xs font-bold cursor-pointer rounded-lg transition-colors flex items-center justify-between ${e.id === value ? 'bg-velatra-accent/10 text-velatra-accent' : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900'}`}
+                        onClick={() => {
+                          onChange(e.id);
+                          setIsOpen(false);
+                          setSearch('');
+                        }}
+                      >
+                        <span>{e.name}</span>
+                        {e.id === value && <div className="w-1.5 h-1.5 rounded-full bg-velatra-accent" />}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface ProgramEditorProps {
   program: Program | null;
@@ -590,19 +678,11 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                     </div>
                                     <div className="flex-1 space-y-1">
                                       <label className="text-[9px] font-black text-velatra-accent uppercase tracking-widest ml-1">Mouvement</label>
-                                      <select 
-                                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm font-black text-zinc-900 focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
+                                      <SearchableExerciseSelect
+                                        exercises={exercises}
                                         value={ex.exId}
-                                        onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'exId', parseInt(e.target.value))}
-                                      >
-                                        {EXERCISE_CATEGORIES.map(cat => (
-                                          <optgroup key={cat} label={cat} className="bg-velatra-bg text-zinc-900">
-                                            {exercises.filter(e => e.cat === cat).map(e => (
-                                              <option key={e.id} value={e.id}>{e.name}</option>
-                                            ))}
-                                          </optgroup>
-                                        ))}
-                                      </select>
+                                        onChange={id => handleUpdateEx(selectedDayIdx, exIdx, 'exId', id)}
+                                      />
                                     </div>
                                     <div className="flex sm:hidden gap-1">
                                       <button 

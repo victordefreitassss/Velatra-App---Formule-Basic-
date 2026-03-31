@@ -202,8 +202,8 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     >
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Accueil</h1>
-          <p className="text-zinc-500 text-[10px] uppercase tracking-[3px] font-bold">Votre Centre de Contrôle</p>
+          <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-white">Accueil</h1>
+          <p className="text-zinc-400 text-[10px] uppercase tracking-[3px] font-bold">Votre Centre de Contrôle</p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <Button variant="secondary" onClick={onToggleTimer} className="flex-1 sm:flex-none !rounded-2xl !py-3 shadow-xl shadow-white/5">
@@ -214,29 +214,29 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
 
       {/* 4. Raccourcis Rapides */}
       <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'users', memberFilter: 'Tous' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'users', memberFilter: 'Tous' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-velatra-bgCard/60 backdrop-blur-xl border  rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-velatra-accent/5 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
             <UserIcon size={24} />
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Nouveau Membre</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-white">Nouveau Membre</span>
         </motion.button>
-        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'presets' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'presets' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-velatra-bgCard/60 backdrop-blur-xl border  rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-velatra-accent/5 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
             <FileTextIcon size={24} />
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Créer Programme</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-white">Créer Programme</span>
         </motion.button>
-        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-velatra-bgCard/60 backdrop-blur-xl border  rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-velatra-accent/5 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
             <BarChartIcon size={24} />
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Nouvelle Vente</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-white">Nouvelle Vente</span>
         </motion.button>
-        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'crm_pipeline' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-white/60 backdrop-blur-xl border border-zinc-200/50 rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
+        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'crm_pipeline' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-velatra-bgCard/60 backdrop-blur-xl border  rounded-3xl hover:border-velatra-accent/30 hover:shadow-lg hover:shadow-velatra-accent/10 transition-all group">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-velatra-accent/5 text-velatra-accent flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
             <TargetIcon size={24} />
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Nouveau Prospect</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-white">Nouveau Prospect</span>
         </motion.button>
       </motion.div>
 
@@ -247,56 +247,56 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
           {/* 5. Chiffres Clés */}
           <motion.section variants={itemVariants} className="space-y-4">
             <div className="flex justify-between items-center px-1">
-              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Chiffres Clés</h2>
+              <h2 className="text-xl font-black uppercase tracking-tight text-white italic">Chiffres Clés</h2>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <StatBox label="Séances (mois)" value={sessionsThisMonth} className="bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm" />
-              <StatBox label="Moyenne / jour" value={avgSessionsPerDay} className="bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm" />
+              <StatBox label="Séances (mois)" value={sessionsThisMonth} className="bg-velatra-bgCard/60 backdrop-blur-xl  shadow-sm" />
+              <StatBox label="Moyenne / jour" value={avgSessionsPerDay} className="bg-velatra-bgCard/60 backdrop-blur-xl  shadow-sm" />
               <StatBox 
                 label={showAnnual ? "ARR" : "MRR"} 
                 value={`${showAnnual ? (mrr * 12).toFixed(0) : mrr.toFixed(0)}€`} 
                 onClick={() => setShowAnnual(!showAnnual)} 
-                className={`bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm cursor-pointer hover:ring-2 hover:ring-velatra-accent/50 transition-all`}
+                className={`bg-velatra-bgCard/60 backdrop-blur-xl  shadow-sm cursor-pointer hover:ring-2 hover:ring-velatra-accent/50 transition-all`}
               />
-              <StatBox label="Panier Moyen" value={`${arpu.toFixed(0)}€`} onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} className="bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm" />
+              <StatBox label="Panier Moyen" value={`${arpu.toFixed(0)}€`} onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} className="bg-velatra-bgCard/60 backdrop-blur-xl  shadow-sm" />
             </div>
           </motion.section>
 
           {/* 1. Actions Urgentes */}
           <motion.section variants={itemVariants} className="space-y-4">
             <div className="flex justify-between items-center px-1">
-              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Actions Urgentes</h2>
+              <h2 className="text-xl font-black uppercase tracking-tight text-white italic">Actions Urgentes</h2>
               <Badge variant="blue">AUJOURD'HUI</Badge>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
-                <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:border-velatra-accent/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'users', memberFilter: 'Demande de Plan' }))}>
+                <Card className="!p-6 bg-velatra-bgCard/60 backdrop-blur-xl  hover:border-velatra-accent/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'users', memberFilter: 'Demande de Plan' }))}>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-2.5 bg-orange-500/10 text-orange-500 rounded-xl"><FileTextIcon size={20} /></div>
-                    <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Plans</div>
+                    <div className="font-black text-sm uppercase tracking-widest text-white">Plans</div>
                   </div>
-                  <div className="text-4xl font-display font-bold text-zinc-900">{planRequests.length}</div>
-                  <div className="text-[10px] font-bold text-zinc-500 uppercase mt-2 tracking-widest">En attente</div>
+                  <div className="text-4xl font-display font-bold text-white">{planRequests.length}</div>
+                  <div className="text-[10px] font-bold text-zinc-400 uppercase mt-2 tracking-widest">En attente</div>
                 </Card>
               </motion.div>
               <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
-                <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:border-velatra-accent/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'chat' }))}>
+                <Card className="!p-6 bg-velatra-bgCard/60 backdrop-blur-xl  hover:border-velatra-accent/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'chat' }))}>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl"><MessageCircleIcon size={20} /></div>
-                    <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Messages</div>
+                    <div className="font-black text-sm uppercase tracking-widest text-white">Messages</div>
                   </div>
-                  <div className="text-4xl font-display font-bold text-zinc-900">{unreadMessages.length}</div>
-                  <div className="text-[10px] font-bold text-zinc-500 uppercase mt-2 tracking-widest">Non lus</div>
+                  <div className="text-4xl font-display font-bold text-white">{unreadMessages.length}</div>
+                  <div className="text-[10px] font-bold text-zinc-400 uppercase mt-2 tracking-widest">Non lus</div>
                 </Card>
               </motion.div>
               <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
-                <Card className="!p-6 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:border-velatra-accent/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'crm_tasks' }))}>
+                <Card className="!p-6 bg-velatra-bgCard/60 backdrop-blur-xl  hover:border-velatra-accent/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'crm_tasks' }))}>
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-2.5 bg-green-500/10 text-green-500 rounded-xl"><CheckCircleIcon size={20} /></div>
-                    <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Tâches</div>
+                    <div className="font-black text-sm uppercase tracking-widest text-white">Tâches</div>
                   </div>
-                  <div className="text-4xl font-display font-bold text-zinc-900">{tasksToday.length}</div>
-                  <div className="text-[10px] font-bold text-zinc-500 uppercase mt-2 tracking-widest">Pour aujourd'hui</div>
+                  <div className="text-4xl font-display font-bold text-white">{tasksToday.length}</div>
+                  <div className="text-[10px] font-bold text-zinc-400 uppercase mt-2 tracking-widest">Pour aujourd'hui</div>
                 </Card>
               </motion.div>
             </div>
@@ -306,14 +306,14 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
           {state.currentClub?.settings?.booking?.enabled !== false && (
             <motion.section variants={itemVariants} className="space-y-4">
               <div className="flex justify-between items-center px-1">
-                <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Prochaines Séances</h2>
+                <h2 className="text-xl font-black uppercase tracking-tight text-white italic">Prochaines Séances</h2>
                 <Button variant="secondary" className="!py-1.5 !px-3 !text-[9px]" onClick={() => setState(s => ({ ...s, page: 'calendar' }))}>VOIR PLANNING</Button>
               </div>
               {upcomingEvents.length === 0 ? (
-                <Card className="!p-8 bg-white/60 backdrop-blur-xl border-dashed border-zinc-200/50 flex flex-col items-center justify-center text-center shadow-sm">
+                <Card className="!p-8 bg-velatra-bgCard/60 backdrop-blur-xl border-dashed  flex flex-col items-center justify-center text-center shadow-sm">
                   <CalendarIcon size={32} className="text-zinc-400 mb-3" />
-                  <p className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Aucune séance prévue</p>
-                  <p className="text-[10px] text-zinc-500 mt-2">Gérez vos créneaux depuis l'onglet Planning.</p>
+                  <p className="text-xs font-bold text-white uppercase tracking-widest">Aucune séance prévue</p>
+                  <p className="text-[10px] text-zinc-400 mt-2">Gérez vos créneaux depuis l'onglet Planning.</p>
                 </Card>
               ) : (
                 <div className="space-y-3">
@@ -324,15 +324,15 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                     const isToday = new Date(event.startTime).toDateString() === new Date().toDateString();
                     const eventDate = new Date(event.startTime).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
                     return (
-                      <Card key={idx} className="!p-4 bg-white/60 backdrop-blur-xl border-zinc-200/50 shadow-sm flex items-center justify-between">
+                      <Card key={idx} className="!p-4 bg-velatra-bgCard/60 backdrop-blur-xl  shadow-sm flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-xl bg-velatra-accent/10 text-velatra-accent flex flex-col items-center justify-center font-black text-xs leading-none">
                             <span className="text-[9px] mb-0.5 opacity-80">{isToday ? "AUJ" : eventDate.slice(0, 5)}</span>
                             <span>{startTime}</span>
                           </div>
                           <div>
-                            <div className="font-bold text-zinc-900">{member?.name || 'Membre Inconnu'}</div>
-                            <div className="text-xs text-zinc-500">{startTime} - {endTime}</div>
+                            <div className="font-bold text-white">{member?.name || 'Membre Inconnu'}</div>
+                            <div className="text-xs text-zinc-400">{startTime} - {endTime}</div>
                           </div>
                         </div>
                         <Button variant="secondary" className="!py-2 !px-3 !text-[10px]" onClick={() => setState(s => ({ ...s, page: 'calendar' }))}>
@@ -352,7 +352,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
           
           {/* 3. Alertes de Rétention */}
           <motion.section variants={itemVariants} className="space-y-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 px-1 italic">Alertes Rétention</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight text-white px-1 italic">Alertes Rétention</h2>
             <div className="space-y-3">
               {failedSubs.map(sub => {
                 const member = members.find(m => Number(m.id) === sub.memberId);
@@ -363,7 +363,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-600 shadow-inner"><InfoIcon size={20}/></div>
                         <div>
-                          <div className="text-xs font-black text-zinc-900">{member.name}</div>
+                          <div className="text-xs font-black text-white">{member.name}</div>
                           <div className="text-[9px] font-bold text-orange-600 uppercase tracking-widest mt-0.5">Paiement Échoué</div>
                         </div>
                       </div>
@@ -378,17 +378,17 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center text-red-600 font-black shadow-inner">{m.avatar}</div>
                       <div>
-                        <div className="text-xs font-black text-zinc-900">{m.name}</div>
+                        <div className="text-xs font-black text-white">{m.name}</div>
                         <div className="text-[9px] font-bold text-red-600 uppercase tracking-widest mt-0.5">Inactif depuis 7j+</div>
                       </div>
                     </div>
-                    <button onClick={() => handleLaunchCoaching(m)} className="p-2 text-zinc-500 hover:text-red-600 transition-colors bg-white/50 rounded-lg hover:bg-white/80"><PlayIcon size={18}/></button>
+                    <button onClick={() => handleLaunchCoaching(m)} className="p-2 text-zinc-400 hover:text-red-600 transition-colors bg-velatra-bgLight rounded-lg hover:bg-velatra-bgLight/80"><PlayIcon size={18}/></button>
                   </Card>
                 </motion.div>
               ))}
 
               {membersAtRisk.length === 0 && failedSubs.length === 0 && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-zinc-500 font-bold uppercase tracking-widest p-6 text-center bg-white/40 backdrop-blur-md rounded-3xl border border-zinc-200/50">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-zinc-400 font-bold uppercase tracking-widest p-6 text-center bg-velatra-bgCard/40 backdrop-blur-md rounded-3xl border ">
                   Tout est au vert <span className="text-green-500 ml-1">✅</span>
                 </motion.div>
               )}
@@ -397,7 +397,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
 
           {/* 4. Anniversaires à venir */}
           <motion.section variants={itemVariants} className="space-y-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 px-1 italic">Anniversaires</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight text-white px-1 italic">Anniversaires</h2>
             <div className="space-y-3">
               {upcomingBirthdays.map(member => {
                 const birthDate = new Date(member.birthDate!);
@@ -416,7 +416,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-velatra-accent/20 flex items-center justify-center text-velatra-accent shadow-inner"><GiftIcon size={20}/></div>
                         <div>
-                          <div className="text-xs font-black text-zinc-900">{member.name}</div>
+                          <div className="text-xs font-black text-white">{member.name}</div>
                           <div className="text-[9px] font-bold text-velatra-accent uppercase tracking-widest mt-0.5">
                             {isToday ? `Aujourd'hui ! (${nextAge} ans)` : `${birthDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })} (${nextAge} ans)`}
                           </div>
@@ -427,7 +427,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 );
               })}
               {upcomingBirthdays.length === 0 && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-zinc-500 font-bold uppercase tracking-widest p-6 text-center bg-white/40 backdrop-blur-md rounded-3xl border border-zinc-200/50">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-zinc-400 font-bold uppercase tracking-widest p-6 text-center bg-velatra-bgCard/40 backdrop-blur-md rounded-3xl border ">
                   Aucun anniversaire ce mois-ci
                 </motion.div>
               )}
@@ -437,18 +437,18 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
           {/* Flux d'activité */}
           <motion.section variants={itemVariants} className="space-y-4">
             <div className="flex justify-between items-center px-1">
-              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Activité</h2>
+              <h2 className="text-xl font-black uppercase tracking-tight text-white italic">Activité</h2>
             </div>
             <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
               {state.feed.filter(f => f.clubId === state.user?.clubId).map((item, i) => (
                 <motion.div key={item.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
-                  <Card className="!p-4 bg-white/60 backdrop-blur-xl border-zinc-200/50 flex items-center gap-4 group hover:border-velatra-accent/30 transition-all shadow-sm hover:shadow-md">
+                  <Card className="!p-4 bg-velatra-bgCard/60 backdrop-blur-xl  flex items-center gap-4 group hover:border-velatra-accent/30 transition-all shadow-sm hover:shadow-md">
                     <div className="p-2.5 bg-gradient-to-br from-velatra-accent/20 to-velatra-accent/5 rounded-xl text-velatra-accent shadow-inner group-hover:scale-110 transition-transform">
                       {item.title.includes("Feedback") ? <MessageCircleIcon size={20}/> : <SparklesIcon size={20}/>}
                     </div>
                     <div className="flex-1">
-                      <div className="text-xs font-bold text-zinc-900 group-hover:text-velatra-accent transition-colors">{item.title}</div>
-                      <div className="text-[9px] text-zinc-500 font-black uppercase tracking-widest mt-1">
+                      <div className="text-xs font-bold text-white group-hover:text-velatra-accent transition-colors">{item.title}</div>
+                      <div className="text-[9px] text-zinc-400 font-black uppercase tracking-widest mt-1">
                         {new Date(item.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} • {item.userName}
                       </div>
                     </div>
