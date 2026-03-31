@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { AppState, Message } from '../types';
-import { Card, Button, Input } from '../components/UI';
+import { Card, Button, Input, Textarea } from '../components/UI';
 import { MessageCircleIcon, PlusIcon, ChevronLeftIcon, FileIcon, DownloadIcon } from '../components/Icons';
 import { db, doc, setDoc, addDoc, collection } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -106,7 +106,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="space-y-6 flex-1 h-full overflow-y-auto min-h-0"
+        className="space-y-6"
       >
         <motion.div variants={itemVariants} className="px-1">
           <h1 className="text-3xl font-display font-black tracking-tight text-zinc-900 leading-none mb-2">Discussion</h1>
@@ -119,7 +119,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
           </div>
           <Input 
             placeholder="Rechercher un membre..." 
-            className="pl-14 !bg-white/60 backdrop-blur-xl ! !rounded-2xl font-bold shadow-sm focus:!bg-white" 
+            className="pl-14 !bg-white/60 backdrop-blur-xl !border-zinc-200/50 !rounded-2xl font-bold shadow-sm focus:!bg-white" 
             value={searchContact} 
             onChange={e => setSearchContact(e.target.value)} 
           />
@@ -141,13 +141,13 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Card onClick={() => setSelectedDest(c.id)} className="flex items-center gap-3 md:gap-4 !p-3 md:!p-4 bg-white/60 backdrop-blur-xl  hover:border-velatra-accent/30 hover:shadow-md transition-all cursor-pointer shadow-sm">
+                  <Card onClick={() => setSelectedDest(c.id)} className="flex items-center gap-4 !p-4 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:border-velatra-accent/30 hover:shadow-md transition-all cursor-pointer shadow-sm">
                      <div className="relative">
-                       <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-zinc-100/50 border  flex items-center justify-center font-black text-base md:text-lg text-velatra-accent shadow-inner backdrop-blur-md">
+                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-zinc-100/50 border border-zinc-200/50 flex items-center justify-center font-black text-lg text-velatra-accent shadow-inner backdrop-blur-md">
                          {c.avatar}
                        </div>
                        {unreadCount > 0 && (
-                         <div className="absolute -top-1 -right-1 w-5 h-5 bg-velatra-accent text-zinc-900 text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-lg animate-pulse">
+                         <div className="absolute -top-1 -right-1 w-5 h-5 bg-velatra-accent text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-lg animate-pulse">
                            {unreadCount}
                          </div>
                        )}
@@ -164,7 +164,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
             })}
           </AnimatePresence>
           {contacts.length === 0 && (
-            <motion.div variants={itemVariants} className="col-span-full text-center py-12 text-zinc-500 text-sm italic bg-white/40 backdrop-blur-md rounded-3xl border ">
+            <motion.div variants={itemVariants} className="col-span-full text-center py-12 text-zinc-500 text-sm italic bg-white/40 backdrop-blur-md rounded-3xl border border-zinc-200/50">
               Aucun membre à contacter pour le moment.
             </motion.div>
           )}
@@ -179,22 +179,22 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className={`flex flex-col min-h-0 overflow-hidden ${embedded ? 'h-full' : 'flex-1 h-full'}`}
+      className={`flex flex-col ${embedded ? 'h-full' : 'h-[calc(100dvh-144px)] md:h-[calc(100dvh-96px)]'}`}
     >
-      <header className="flex items-center gap-3 md:gap-4 mb-3 pb-3 md:mb-6 md:pb-4 border-b  bg-white/40 backdrop-blur-md p-3 md:p-4 rounded-t-2xl md:rounded-t-3xl -mx-3 -mt-3 md:-mx-4 md:-mt-4">
+      <header className="flex items-center gap-4 mb-6 pb-4 border-b border-zinc-200/50 bg-white/40 backdrop-blur-md p-4 rounded-t-3xl -mx-4 -mt-4">
         {(user.role === 'coach' || user.role === 'owner') && (
           <motion.button 
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setSelectedDest(null)} 
-            className="text-zinc-500 hover:text-zinc-900 transition-colors bg-white/60 p-1.5 md:p-2 rounded-xl shadow-sm"
+            className="text-zinc-500 hover:text-zinc-900 transition-colors bg-white/60 p-2 rounded-xl shadow-sm"
           >
-            <ChevronLeftIcon size={20} className="md:w-6 md:h-6" />
+            <ChevronLeftIcon size={24}/>
           </motion.button>
         )}
-        <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl bg-gradient-to-br from-velatra-accent to-velatra-accentDark flex items-center justify-center text-base md:text-lg font-black shadow-lg text-zinc-900">{dest?.avatar}</div>
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent to-velatra-accentDark flex items-center justify-center text-lg font-black shadow-lg text-white">{dest?.avatar}</div>
         <div>
-          <div className="font-black text-lg md:text-xl uppercase italic tracking-tight leading-none text-zinc-900">{dest?.name}</div>
+          <div className="font-black text-xl uppercase italic tracking-tight leading-none text-zinc-900">{dest?.name}</div>
           <div className="text-[10px] text-velatra-accent font-bold uppercase tracking-widest mt-1">En ligne</div>
         </div>
       </header>
@@ -208,18 +208,18 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
               animate={{ opacity: 1, y: 0, scale: 1 }}
               className={`flex ${m.from === user.id ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[85%] md:max-w-[80%] px-2.5 py-1.5 md:px-4 md:py-3 rounded-xl md:rounded-2xl text-xs md:text-sm shadow-sm backdrop-blur-md ${m.from === user.id ? 'bg-velatra-accent/90 text-zinc-900 rounded-tr-none' : 'bg-white/80 border  rounded-tl-none text-zinc-900'}`}>
+              <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm backdrop-blur-md ${m.from === user.id ? 'bg-velatra-accent/90 text-white rounded-tr-none' : 'bg-white/80 border border-zinc-200/50 rounded-tl-none text-zinc-900'}`}>
                 {m.text}
                 {m.file && (
-                  <div className={`mt-2 p-2 rounded-xl flex items-center gap-3 border ${m.from === user.id ? 'bg-white/20 border-white/30' : 'bg-zinc-50/50 '}`}>
+                  <div className={`mt-2 p-2 rounded-xl flex items-center gap-3 border ${m.from === user.id ? 'bg-white/20 border-white/30' : 'bg-zinc-50/50 border-zinc-200/50'}`}>
                     <FileIcon size={16} />
                     <span className="text-[10px] truncate flex-1 font-medium">Document joint</span>
-                    <a href={m.file} download="document" className={`p-1 transition-colors ${m.from === user.id ? 'hover:text-zinc-800' : 'hover:text-velatra-accent'}`}>
+                    <a href={m.file} download="document" className={`p-1 transition-colors ${m.from === user.id ? 'hover:text-zinc-200' : 'hover:text-velatra-accent'}`}>
                       <DownloadIcon size={14} />
                     </a>
                   </div>
                 )}
-                <div className={`text-[9px] mt-1 text-right font-medium ${m.from === user.id ? 'text-zinc-900/70' : 'text-zinc-400'}`}>
+                <div className={`text-[9px] mt-1 text-right font-medium ${m.from === user.id ? 'text-white/70' : 'text-zinc-400'}`}>
                   {new Date(m.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                 </div>
               </div>
@@ -244,21 +244,27 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
         </motion.div>
       )}
 
-      <div className="mt-2 md:mt-4 flex gap-1.5 md:gap-2 bg-white/40 backdrop-blur-md p-1 md:p-2 rounded-xl md:rounded-2xl border  shadow-sm">
-        <label className="p-1.5 md:p-3 bg-white/60 border  rounded-lg md:rounded-xl cursor-pointer hover:bg-white transition-all text-zinc-500 hover:text-velatra-accent shadow-sm flex items-center justify-center">
-          <PlusIcon size={18} className="md:w-5 md:h-5" />
+      <div className="mt-4 flex gap-2 items-end bg-white/40 backdrop-blur-md p-2 rounded-2xl border border-zinc-200/50 shadow-sm">
+        <label className="p-3 bg-white/60 border border-zinc-200/50 rounded-xl cursor-pointer hover:bg-white transition-all text-zinc-500 hover:text-velatra-accent shadow-sm flex items-center justify-center shrink-0 h-[50px] w-[50px]">
+          <PlusIcon size={20} />
           <input type="file" className="hidden" onChange={handleFileChange} accept=".pdf,image/*" />
         </label>
-        <Input 
+        <Textarea 
           placeholder="Message..." 
           value={text} 
           onChange={e => setText(e.target.value)} 
-          onKeyPress={e => e.key === 'Enter' && sendMessage()} 
-          className="!py-1.5 md:!py-3 text-xs md:text-sm !bg-white/60 backdrop-blur-xl ! shadow-inner focus:!bg-white" 
+          onKeyPress={e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+            }
+          }} 
+          className="!py-3 !bg-white/60 backdrop-blur-xl !border-zinc-200/50 shadow-inner focus:!bg-white min-h-[50px] max-h-[120px]" 
+          rows={1}
         />
-        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-          <Button onClick={sendMessage} className="!p-1.5 md:!p-3 h-full shadow-lg shadow-velatra-accent/20">
-            <MessageCircleIcon size={16} className="md:w-5 md:h-5" />
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="shrink-0 h-[50px] w-[50px]">
+          <Button onClick={sendMessage} className="!p-3 h-full w-full shadow-lg shadow-velatra-accent/20 flex items-center justify-center">
+            <MessageCircleIcon size={20} />
           </Button>
         </motion.div>
       </div>

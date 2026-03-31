@@ -1,16 +1,14 @@
-import React, { useState, useMemo } from 'react';
-import { AppState, SupplementProduct, User } from '../types';
+import React from 'react';
+import { AppState } from '../types';
 import { Card, Button, Badge } from '../components/UI';
-import { ShoppingCartIcon, SparklesIcon, InfoIcon } from '../components/Icons';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ShoppingCartIcon, InfoIcon, TargetIcon, ActivityIcon, ShieldIcon } from '../components/Icons';
+import { motion } from 'framer-motion';
 
 const containerVariants: import('framer-motion').Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: {
-      staggerChildren: 0.1
-    }
+    transition: { staggerChildren: 0.1 }
   }
 };
 
@@ -19,232 +17,143 @@ const itemVariants: import('framer-motion').Variants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
-interface Recommendation {
-  title: string;
-  description: string;
-  advice: string;
-  keywords: string[];
-}
-
-const getRecommendations = (user: User | null): Recommendation[] => {
-  if (!user) return [];
-  const recs: Recommendation[] = [];
-  
-  if (user.objectifs.includes('Prise de masse')) {
-    recs.push({
-      title: "Objectif Prise de Masse",
-      description: `Pour accompagner vos ${user.weight}kg vers une prise de masse musculaire optimale, l'apport calorique et protéique est crucial.`,
-      advice: "Privilégiez une Whey ou un Gainer après l'entraînement pour la construction musculaire, et de la Créatine pour améliorer votre force et vos performances.",
-      keywords: ['whey', 'gainer', 'créatine', 'creatine', 'protéine', 'masse']
-    });
-  }
-  
-  if (user.objectifs.includes('Perte de poids')) {
-    recs.push({
-      title: "Objectif Sèche & Définition",
-      description: "L'enjeu est d'optimiser votre perte de graisse tout en conservant votre masse musculaire durement acquise.",
-      advice: "Une Whey Isolate (très faible en sucres et graisses) pour la récupération, couplée à un brûleur de graisse ou de la L-Carnitine pour mobiliser les graisses pendant l'effort.",
-      keywords: ['isolate', 'brûleur', 'carnitine', 'minceur', 'perte', 'sèche', 'fat burner']
-    });
-  }
-
-  if (user.objectifs.includes('Performance sportive') || user.objectifs.includes('Prépa physique')) {
-    recs.push({
-      title: "Objectif Performance",
-      description: "Pour soutenir des entraînements intenses, repousser vos limites et garantir une récupération rapide.",
-      advice: "Un Pre-workout avant la séance pour l'énergie, des BCAA/EAA pendant l'effort pour l'endurance musculaire, et de la Whey pour la réparation tissulaire.",
-      keywords: ['pre-workout', 'bcaa', 'eaa', 'énergie', 'récupération', 'whey', 'booster']
-    });
-  }
-
-  if (user.objectifs.includes('Sport santé bien-être') || user.objectifs.includes('Remise en forme') || recs.length === 0) {
-    recs.push({
-      title: "Santé & Vitalité au quotidien",
-      description: "Les fondations pour maintenir un corps en pleine santé, éviter les carences et soutenir votre système immunitaire.",
-      advice: "Des Oméga 3 pour le système cardiovasculaire, un complexe Multivitamines pour la vitalité, et du Magnésium pour la récupération nerveuse et musculaire.",
-      keywords: ['vitamine', 'oméga', 'magnésium', 'santé', 'articulation', 'collagène', 'zinc']
-    });
-  }
-
-  return recs;
-};
-
 export const MemberSupplementsPage: React.FC<{ state: AppState, showToast: any }> = ({ state, showToast }) => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('Toutes');
-
-  const recommendations = useMemo(() => getRecommendations(state.user), [state.user]);
-
-  const filteredProducts = state.supplementProducts.filter(p => {
-    if (!p.nom.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    if (filterCategory !== 'Toutes' && p.cat !== filterCategory) return false;
-    return true;
-  });
-
-  const getMatchingProducts = (keywords: string[]) => {
-    return state.supplementProducts.filter(p => 
-      keywords.some(kw => 
-        p.nom.toLowerCase().includes(kw.toLowerCase()) || 
-        p.cat.toLowerCase().includes(kw.toLowerCase())
-      )
-    ).slice(0, 3); // Show max 3 matching products per recommendation
-  };
+  const supplements = [
+    {
+      id: 'whey',
+      title: 'Whey Protein',
+      category: 'Récupération & Muscle',
+      icon: <ActivityIcon size={24} className="text-blue-500" />,
+      color: 'blue',
+      description: 'La protéine en poudre la plus populaire. Idéale pour la récupération musculaire après l\'entraînement grâce à son assimilation rapide.',
+      tips: [
+        'Prendre 1 shaker (30g) dans les 30 minutes après l\'entraînement.',
+        'Peut aussi servir de collation riche en protéines dans la journée.',
+        'Mélanger avec de l\'eau pour une assimilation plus rapide, ou du lait pour plus d\'onctuosité.'
+      ],
+      image: 'https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&q=80&w=800'
+    },
+    {
+      id: 'creatine',
+      title: 'Créatine Monohydrate',
+      category: 'Force & Puissance',
+      icon: <TargetIcon size={24} className="text-red-500" />,
+      color: 'red',
+      description: 'Le supplément le plus étudié au monde. Augmente la force, la puissance explosive et favorise la prise de masse musculaire.',
+      tips: [
+        'Prendre 3g à 5g par jour, tous les jours (même les jours de repos).',
+        'Pas besoin de faire de "phase de charge".',
+        'Boire suffisamment d\'eau tout au long de la journée.'
+      ],
+      image: 'https://images.unsplash.com/photo-1579722820308-d74e571900a9?auto=format&fit=crop&q=80&w=800'
+    },
+    {
+      id: 'vitamins',
+      title: 'Multivitamines & Oméga-3',
+      category: 'Santé & Vitalité',
+      icon: <ShieldIcon size={24} className="text-green-500" />,
+      color: 'green',
+      description: 'La base pour la santé générale. Comble les carences de l\'alimentation moderne et soutient le système immunitaire et cardiovasculaire.',
+      tips: [
+        'Prendre au cours d\'un repas contenant des lipides pour une meilleure absorption.',
+        'Privilégier les Oméga-3 riches en EPA et DHA.',
+        'Ne remplace pas une alimentation variée et équilibrée.'
+      ],
+      image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=800'
+    }
+  ];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-12 page-transition pb-24">
+    <div className="p-6 max-w-5xl mx-auto space-y-8 page-transition pb-24">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
-          <h1 className="text-4xl font-black italic text-zinc-900 tracking-tight uppercase">Boutique & Conseils</h1>
-          <p className="text-zinc-500 text-sm font-medium mt-1">Découvrez notre sélection de compléments partenaires</p>
+          <h1 className="text-4xl font-black italic text-zinc-900 tracking-tight uppercase">Compléments</h1>
+          <p className="text-zinc-500 text-sm font-medium mt-1">Le guide ultime pour optimiser vos résultats</p>
         </div>
+        
+        <Button 
+          variant="primary" 
+          onClick={() => showToast("Notre boutique partenaire arrive très bientôt !", "info")}
+          className="shadow-xl shadow-velatra-accent/20"
+        >
+          <ShoppingCartIcon size={18} className="mr-2" />
+          Acheter nos recommandations
+        </Button>
       </div>
 
-      {/* Recommendations Section */}
-      {recommendations.length > 0 && !searchTerm && filterCategory === 'Toutes' && (
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="space-y-6"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <SparklesIcon size={24} className="text-velatra-accent" />
-            <h2 className="text-2xl font-bold text-zinc-900">Recommandé pour vous</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {recommendations.map((rec, idx) => {
-              const matchingProducts = getMatchingProducts(rec.keywords);
-              return (
-                <motion.div key={idx} variants={itemVariants}>
-                  <Card className="bg-white/60 backdrop-blur-xl  flex flex-col h-full hover:shadow-lg transition-all duration-300">
-                    <div className="mb-4">
-                      <h3 className="text-xl font-black mb-2 text-zinc-900">{rec.title}</h3>
-                      <p className="text-zinc-700 text-sm mb-3">{rec.description}</p>
-                      <div className="bg-white/60 rounded-xl p-3 text-sm text-zinc-800 flex items-start gap-3">
-                        <InfoIcon size={18} className="shrink-0 mt-0.5 opacity-70" />
-                        <p><strong>Le conseil du coach :</strong> {rec.advice}</p>
-                      </div>
-                    </div>
-                    
-                    {matchingProducts.length > 0 && (
-                      <div className="mt-auto pt-4 border-t border-black/5">
-                        <h4 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">Produits suggérés</h4>
-                        <div className="space-y-3">
-                          {matchingProducts.map(product => (
-                            <div key={product.id} className="flex items-center justify-between bg-white/80 p-3 rounded-xl shadow-sm">
-                              <div>
-                                <div className="font-bold text-sm text-zinc-900">{product.nom}</div>
-                                <div className="text-xs text-zinc-500">{product.prixVente} €</div>
-                              </div>
-                              {product.lienPartenaire ? (
-                                <Button 
-                                  variant="primary" 
-                                  onClick={() => window.open(product.lienPartenaire, '_blank')}
-                                  className="!py-1.5 !px-3 text-xs bg-zinc-900 hover:bg-zinc-800 text-white"
-                                >
-                                  Voir le produit
-                                </Button>
-                              ) : (
-                                <Badge variant="dark" className="text-[10px]">Bientôt dispo</Badge>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Full Catalog Section */}
-      <div className="space-y-6 pt-8 border-t ">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-2xl font-bold text-zinc-900">Tout le catalogue</h2>
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-            <div className="relative w-full sm:w-64">
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-900">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-              </div>
-              <input 
-                type="text"
-                placeholder="Rechercher un produit..." 
-                className="w-full pl-12 pr-4 py-2 bg-zinc-50 border  rounded-2xl font-bold text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors" 
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)} 
-              />
+      <Card className="bg-gradient-to-br from-zinc-900 to-zinc-800 text-white border-0 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-velatra-accent rounded-full blur-[100px] opacity-20 -translate-y-1/2 translate-x-1/2"></div>
+        <div className="relative z-10 flex flex-col md:flex-row gap-6 items-center">
+          <div className="flex-1 space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-bold uppercase tracking-wider">
+              <InfoIcon size={14} />
+              <span>Conseil du Coach</span>
             </div>
+            <h2 className="text-2xl font-black italic">Les compléments ne sont pas magiques.</h2>
+            <p className="text-zinc-300 leading-relaxed">
+              Ils portent bien leur nom : ils viennent <strong>compléter</strong> une alimentation déjà solide et un entraînement régulier. Ne dépensez pas votre argent dans des suppléments si votre nutrition de base et votre sommeil ne sont pas optimisés.
+            </p>
           </div>
         </div>
+      </Card>
 
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
-          {["Toutes", "Protéines", "Vitamines", "Équipement", "Autre"].map(f => (
-            <button
-              key={f}
-              onClick={() => setFilterCategory(f)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterCategory === f ? 'bg-velatra-accent text-white' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-        >
-          <AnimatePresence>
-          {filteredProducts.map(product => (
-            <motion.div key={product.id} variants={itemVariants} layout exit={{ opacity: 0, scale: 0.95 }}>
-              <Card className="bg-white/60 backdrop-blur-xl  flex flex-col justify-between h-full hover:shadow-lg transition-all duration-300">
-                <div>
-                  <div className="flex justify-between items-start mb-2">
-                    <Badge variant="blue">{product.cat}</Badge>
-                    {product.lienPartenaire && <Badge variant="dark" className="bg-zinc-900 text-white border-none">Partenaire</Badge>}
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="space-y-8"
+      >
+        {supplements.map((supp, index) => (
+          <motion.div key={supp.id} variants={itemVariants}>
+            <Card className="overflow-hidden p-0 border-zinc-200/50 hover:shadow-xl transition-all duration-300">
+              <div className="flex flex-col md:flex-row">
+                <div className="md:w-1/3 h-48 md:h-auto relative">
+                  <img 
+                    src={supp.image} 
+                    alt={supp.title} 
+                    className="absolute inset-0 w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent md:bg-gradient-to-r"></div>
+                  <div className="absolute bottom-4 left-4 right-4 md:bottom-auto md:top-4">
+                    <Badge variant={supp.color as any} className="shadow-lg backdrop-blur-md bg-white/90">
+                      {supp.category}
+                    </Badge>
                   </div>
-                  <h3 className="text-lg font-bold text-zinc-900 mb-1">{product.nom}</h3>
-                  <div className="text-2xl font-black text-velatra-accent mb-4">{product.prixVente} €</div>
                 </div>
-                <div className="flex items-center justify-between border-t  pt-4 mt-2">
-                  {product.lienPartenaire ? (
-                    <Button 
-                      variant="primary" 
-                      onClick={() => window.open(product.lienPartenaire, '_blank')}
-                      className="w-full bg-zinc-900 hover:bg-zinc-800 text-white flex items-center justify-center gap-2"
-                    >
-                      <ShoppingCartIcon size={16} /> Acheter sur le site
-                    </Button>
-                  ) : (
-                    <Button 
-                      variant="secondary" 
-                      disabled
-                      className="w-full flex items-center justify-center gap-2 opacity-50 cursor-not-allowed"
-                    >
-                      Bientôt disponible
-                    </Button>
-                  )}
+                
+                <div className="p-6 md:w-2/3 flex flex-col justify-center">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center bg-${supp.color}-50`}>
+                      {supp.icon}
+                    </div>
+                    <h3 className="text-2xl font-black text-zinc-900">{supp.title}</h3>
+                  </div>
+                  
+                  <p className="text-zinc-600 mb-6 leading-relaxed">
+                    {supp.description}
+                  </p>
+                  
+                  <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100">
+                    <h4 className="text-sm font-bold text-zinc-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <TargetIcon size={16} className="text-velatra-accent" />
+                      Comment l'utiliser
+                    </h4>
+                    <ul className="space-y-2">
+                      {supp.tips.map((tip, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-zinc-600">
+                          <span className="text-velatra-accent font-bold mt-0.5">•</span>
+                          <span>{tip}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-              </Card>
-            </motion.div>
-          ))}
-          </AnimatePresence>
-          {filteredProducts.length === 0 && (
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              className="col-span-full text-center py-12 text-zinc-500 italic bg-white/40 backdrop-blur-md rounded-3xl border "
-            >
-              Aucun produit trouvé.
-            </motion.div>
-          )}
-        </motion.div>
-      </div>
+              </div>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
     </div>
   );
 };
