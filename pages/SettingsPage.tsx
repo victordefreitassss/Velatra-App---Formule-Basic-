@@ -8,14 +8,6 @@ import { db, doc, updateDoc, setDoc, deleteDoc } from '../firebase';
 
 export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [defaultDuration, setDefaultDuration] = useState(state.currentClub?.settings?.defaultProgramDuration || 7);
-  const [loyaltyPoints, setLoyaltyPoints] = useState(state.currentClub?.settings?.loyalty?.pointsPerWorkout || 100);
-  const [loyaltyTiers, setLoyaltyTiers] = useState<{id: string, points: number, reward: string}[]>(
-    state.currentClub?.settings?.loyalty?.tiers || [
-      { id: '1', points: 1000, reward: 'T-shirt du club' },
-      { id: '2', points: 5000, reward: '1 mois offert' }
-    ]
-  );
-  
   const [stripeConnected, setStripeConnected] = useState(state.currentClub?.settings?.payment?.stripeConnected || false);
   const [stripeSecretKey, setStripeSecretKey] = useState(state.currentClub?.settings?.payment?.stripeSecretKey || '');
   const [acceptedMethods, setAcceptedMethods] = useState<string[]>(state.currentClub?.settings?.payment?.acceptedMethods || ['card', 'cash']);
@@ -49,10 +41,6 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     try {
       await updateDoc(doc(db, "clubs", state.user.clubId), {
         "settings.defaultProgramDuration": defaultDuration,
-        "settings.loyalty": {
-          pointsPerWorkout: loyaltyPoints,
-          tiers: loyaltyTiers
-        },
         "settings.payment": {
           stripeConnected,
           stripeSecretKey,
@@ -236,7 +224,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </div>
 
-      <Card className="p-8  bg-white">
+      <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
             <SettingsIcon size={24} />
@@ -249,7 +237,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">
               Code d'accès du club
             </label>
-            <div className="p-4 bg-zinc-50 border  rounded-xl flex justify-between items-center">
+            <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl flex justify-between items-center">
               <span className="text-xl font-black tracking-widest text-zinc-900">{state.currentClub?.id}</span>
               <Button 
                 variant="secondary" 
@@ -269,7 +257,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
-      <Card className="p-8  bg-white">
+      <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
             <SettingsIcon size={24} />
@@ -301,90 +289,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
-      <Card className="p-8  bg-white">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
-            <TargetIcon size={24} />
-          </div>
-          <h2 className="text-xl font-black uppercase">Fidélité & Récompenses</h2>
-        </div>
-
-        <div className="space-y-6 max-w-2xl">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">
-              Points XP par séance terminée
-            </label>
-            <Input 
-              type="number" 
-              min={1} 
-              value={loyaltyPoints || ''} 
-              onChange={(e) => setLoyaltyPoints(parseInt(e.target.value) || 0)} 
-            />
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">
-                Paliers de récompenses
-              </label>
-              <Button 
-                variant="secondary" 
-                className="!py-2 !px-4 !text-[10px]"
-                onClick={() => setLoyaltyTiers([...loyaltyTiers, { id: Date.now().toString(), points: 1000, reward: '' }])}
-              >
-                <PlusIcon size={12} className="mr-2" /> AJOUTER UN PALIER
-              </Button>
-            </div>
-            
-            <div className="space-y-3">
-              {loyaltyTiers.map((tier, index) => (
-                <div key={tier.id} className="flex items-center gap-3">
-                  <div className="w-1/3">
-                    <Input 
-                      type="number" 
-                      placeholder="Points requis"
-                      value={tier.points || ''}
-                      onChange={(e) => {
-                        const newTiers = [...loyaltyTiers];
-                        newTiers[index].points = parseInt(e.target.value) || 0;
-                        setLoyaltyTiers(newTiers);
-                      }}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Input 
-                      type="text" 
-                      placeholder="Description de la récompense"
-                      value={tier.reward}
-                      onChange={(e) => {
-                        const newTiers = [...loyaltyTiers];
-                        newTiers[index].reward = e.target.value;
-                        setLoyaltyTiers(newTiers);
-                      }}
-                    />
-                  </div>
-                  <button 
-                    onClick={() => setLoyaltyTiers(loyaltyTiers.filter(t => t.id !== tier.id))}
-                    className="p-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-                  >
-                    <Trash2Icon size={18} />
-                  </button>
-                </div>
-              ))}
-              {loyaltyTiers.length === 0 && (
-                <p className="text-sm text-zinc-500 italic">Aucun palier configuré.</p>
-              )}
-            </div>
-          </div>
-
-          <Button onClick={handleSave} disabled={isSaving} className="w-full !py-4">
-            <SaveIcon size={18} className="mr-2" />
-            {isSaving ? "ENREGISTREMENT..." : "ENREGISTRER LES PARAMÈTRES"}
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="p-8  bg-white">
+      <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
             <SettingsIcon size={24} />
@@ -393,7 +298,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
 
         <div className="space-y-6 max-w-2xl">
-          <div className="p-6 bg-zinc-50 border  rounded-2xl">
+          <div className="p-6 bg-zinc-50 border border-zinc-200 rounded-2xl">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div>
                 <h3 className="text-lg font-bold text-zinc-900">Connexion Stripe</h3>
@@ -425,7 +330,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             ) : (
               <div className="flex flex-col gap-4 w-full sm:w-auto">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <span className="text-xs text-zinc-500 font-mono bg-zinc-50 px-2 py-1 rounded">
+                  <span className="text-xs text-zinc-500 font-mono bg-zinc-100 px-2 py-1 rounded">
                     {stripeSecretKey ? `${stripeSecretKey.substring(0, 8)}...` : 'Clé non renseignée'}
                   </span>
                   <Button variant="secondary" onClick={() => setStripeConnected(false)} className="text-sm">
@@ -445,13 +350,13 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               {paymentMethodsList.map(method => {
                 const isDisabled = method.requiresStripe && !stripeConnected;
                 return (
-                  <label key={method.id} className={`flex items-center gap-3 p-4 border rounded-xl transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed  bg-zinc-50' : 'cursor-pointer  hover:bg-zinc-50'}`}>
+                  <label key={method.id} className={`flex items-center gap-3 p-4 border rounded-xl transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed border-zinc-100 bg-zinc-50' : 'cursor-pointer border-zinc-200 hover:bg-zinc-50'}`}>
                     <input 
                       type="checkbox" 
                       checked={acceptedMethods.includes(method.id)}
                       onChange={() => !isDisabled && toggleAcceptedMethod(method.id)}
                       disabled={isDisabled}
-                      className="w-5 h-5 rounded  text-velatra-accent focus:ring-velatra-accent disabled:opacity-50"
+                      className="w-5 h-5 rounded border-zinc-300 text-velatra-accent focus:ring-velatra-accent disabled:opacity-50"
                     />
                     <div>
                       <p className="font-bold text-zinc-900 text-sm">{method.label}</p>
@@ -470,7 +375,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
-      <Card className="p-8  bg-white">
+      <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex items-center gap-4 mb-8">
           <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
             <TargetIcon size={24} />
@@ -482,14 +387,14 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
 
         <div className="space-y-8">
-          <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl border ">
+          <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
             <div>
               <h3 className="font-bold text-zinc-900">Activer le module de planning</h3>
               <p className="text-sm text-zinc-500">Permet aux adhérents de réserver des créneaux avec vous.</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" className="sr-only peer" checked={planningEnabled} onChange={(e) => setPlanningEnabled(e.target.checked)} />
-              <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after: after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-velatra-accent"></div>
+              <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-velatra-accent"></div>
             </label>
           </div>
 
@@ -511,7 +416,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             
             <div className="space-y-3">
               {sessionTypes.map((type, idx) => (
-                <div key={type.id} className="flex gap-3 items-center bg-zinc-50 p-3 rounded-xl border ">
+                <div key={type.id} className="flex gap-3 items-center bg-zinc-50 p-3 rounded-xl border border-zinc-200">
                   <div className="flex-1">
                     <Input
                       value={type.name}
@@ -601,7 +506,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               {['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map((dayName, index) => {
                 const daySchedule = schedule.find(s => s.day === index) || { day: index, slots: [] };
                 return (
-                  <div key={index} className="flex items-start gap-4 p-4 border  rounded-xl bg-zinc-50">
+                  <div key={index} className="flex items-start gap-4 p-4 border border-zinc-200 rounded-xl bg-zinc-50">
                     <div className="w-32 font-bold text-zinc-900 pt-2">{dayName}</div>
                     <div className="flex-1 space-y-2">
                       {daySchedule.slots.map((slot, slotIndex) => (
@@ -643,7 +548,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                                 setSchedule(newSchedule);
                               }
                             }}
-                            className="w-full px-4 py-3 rounded-xl border  bg-white text-zinc-900 focus:ring-2 focus:ring-velatra-accent focus:border-transparent outline-none transition-all !py-1 !px-2 w-48"
+                            className="w-full px-4 py-3 rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:ring-2 focus:ring-velatra-accent focus:border-transparent outline-none transition-all !py-1 !px-2 w-48"
                           >
                             <option value="">Séance Standard</option>
                             {sessionTypes.map(t => (
@@ -698,7 +603,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
-      <Card className="p-8  bg-white">
+      <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
@@ -717,7 +622,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
 
         {isEditingPlan ? (
-          <div className="space-y-4 bg-zinc-50 p-6 rounded-3xl border ">
+          <div className="space-y-4 bg-zinc-50 p-6 rounded-3xl border border-zinc-200">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-zinc-900 uppercase tracking-widest">{editingPlan?.id ? "Modifier la formule" : "Créer une formule"}</h3>
               <button onClick={() => { setIsEditingPlan(false); setEditingPlan(null); }} className="text-zinc-500 hover:text-zinc-900">
@@ -736,7 +641,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                   <Input type="number" placeholder="Ex: 99" value={editingPlan?.price || ''} onChange={e => setEditingPlan({ ...editingPlan, price: Number(e.target.value) })} className="flex-1" />
                   <button 
                     onClick={() => setEditingPlan({ ...editingPlan, isTTC: !editingPlan?.isTTC })}
-                    className={`px-3 py-3 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors ${editingPlan?.isTTC ? 'bg-velatra-accent text-zinc-900 border-velatra-accent' : 'bg-transparent text-zinc-900  hover:'}`}
+                    className={`px-3 py-3 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors ${editingPlan?.isTTC ? 'bg-velatra-accent text-white border-velatra-accent' : 'bg-transparent text-zinc-900 border-zinc-200 hover:border-zinc-200'}`}
                   >
                     {editingPlan?.isTTC ? 'TTC' : 'HT'}
                   </button>
@@ -745,7 +650,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               <div className="space-y-1">
                 <label className="text-[10px] uppercase font-bold text-zinc-500">Cycle de facturation</label>
                 <select 
-                  className="w-full bg-zinc-50 border  rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent"
                   value={editingPlan?.billingCycle || 'monthly'}
                   onChange={e => setEditingPlan({ ...editingPlan, billingCycle: e.target.value as any })}
                 >
@@ -759,7 +664,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setEditingPlan({ ...editingPlan, hasCommitment: !editingPlan?.hasCommitment })}
-                    className={`px-3 py-3 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors ${editingPlan?.hasCommitment ? 'bg-velatra-accent text-zinc-900 border-velatra-accent' : 'bg-transparent text-zinc-900  hover:'}`}
+                    className={`px-3 py-3 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors ${editingPlan?.hasCommitment ? 'bg-velatra-accent text-white border-velatra-accent' : 'bg-transparent text-zinc-900 border-zinc-200 hover:border-zinc-200'}`}
                   >
                     {editingPlan?.hasCommitment ? 'OUI' : 'NON'}
                   </button>
@@ -771,12 +676,12 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               <div className="space-y-1 md:col-span-2">
                 <label className="text-[10px] uppercase font-bold text-zinc-500">Crédits de séance</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div className="flex items-center gap-2 bg-white border  p-2 rounded-xl">
+                  <div className="flex items-center gap-2 bg-white border border-zinc-200 p-2 rounded-xl">
                     <span className="text-xs font-bold text-zinc-700 flex-1">Séance Standard</span>
                     <Input type="number" placeholder="Ex: 4" value={editingPlan?.credits || ''} onChange={e => setEditingPlan({ ...editingPlan, credits: Number(e.target.value) })} className="w-20 !py-1" />
                   </div>
                   {sessionTypes.map(type => (
-                    <div key={type.id} className="flex items-center gap-2 bg-white border  p-2 rounded-xl">
+                    <div key={type.id} className="flex items-center gap-2 bg-white border border-zinc-200 p-2 rounded-xl">
                       <span className="text-xs font-bold text-zinc-700 flex-1">{type.name}</span>
                       <Input 
                         type="number" 
@@ -805,7 +710,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                     <button
                       key={method.id}
                       onClick={() => togglePaymentMethod(method.id)}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors flex items-center gap-2 ${editingPlan?.paymentMethods?.includes(method.id) ? 'bg-zinc-50 text-zinc-900 ' : 'bg-transparent text-zinc-900  hover:'}`}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors flex items-center gap-2 ${editingPlan?.paymentMethods?.includes(method.id) ? 'bg-zinc-100 text-zinc-900 border-zinc-300' : 'bg-transparent text-zinc-900 border-zinc-200 hover:border-zinc-200'}`}
                     >
                       {editingPlan?.paymentMethods?.includes(method.id) && <CheckIcon size={12} className="text-velatra-accent" />}
                       {method.label}
@@ -818,7 +723,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                 <Input placeholder="Description de la formule..." value={editingPlan?.description || ''} onChange={e => setEditingPlan({ ...editingPlan, description: e.target.value })} />
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 pt-4 border-t  w-full">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 pt-4 border-t border-zinc-200 w-full">
               <Button variant="secondary" fullWidth onClick={() => { setIsEditingPlan(false); setEditingPlan(null); }}>ANNULER</Button>
               <Button variant="primary" fullWidth onClick={handleSavePlan} disabled={!editingPlan?.name || !editingPlan?.price}>ENREGISTRER</Button>
             </div>
@@ -832,9 +737,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {state.plans.map(plan => (
-                  <div key={plan.id} className="bg-zinc-50 border  rounded-3xl p-6 relative group">
+                  <div key={plan.id} className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 relative group">
                     <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => { setEditingPlan(plan); setIsEditingPlan(true); }} className="p-2 bg-zinc-50 rounded-xl hover:bg-zinc-200 text-zinc-900 transition-colors">
+                      <button onClick={() => { setEditingPlan(plan); setIsEditingPlan(true); }} className="p-2 bg-zinc-100 rounded-xl hover:bg-zinc-200 text-zinc-900 transition-colors">
                         <Edit2Icon size={14} />
                       </button>
                       <button onClick={() => handleDeletePlan(plan.id)} className="p-2 bg-red-500/10 rounded-xl hover:bg-red-500/20 text-red-500 transition-colors">
@@ -880,7 +785,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                       </p>
                     )}
                     {plan.stripePriceId && (
-                      <div className="mt-4 pt-4 border-t ">
+                      <div className="mt-4 pt-4 border-t border-zinc-200">
                         <Button 
                           variant="secondary" 
                           className="w-full !py-2 !text-[10px]"
