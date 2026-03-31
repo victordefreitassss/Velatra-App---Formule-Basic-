@@ -48,7 +48,6 @@ import { NutritionPage } from './pages/NutritionPage';
 import { MemberNutritionPage } from './pages/MemberNutritionPage';
 import { MarketingPage } from './pages/MarketingPage';
 import { AdminDashboard } from './pages/AdminDashboard';
-import { SupplementsPage } from './pages/SupplementsPage';
 import { LoyaltyPage } from './pages/LoyaltyPage';
 import { MemberSupplementsPage } from './pages/MemberSupplementsPage';
 import { MemberLoyaltyPage } from './pages/MemberLoyaltyPage';
@@ -767,7 +766,6 @@ export default function App() {
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;
         case 'drive': return <DrivePage state={state} />;
         case 'marketing': return <MarketingPage state={state} setState={setState} />;
-        case 'supplements': return <SupplementsPage state={state} setState={setState} showToast={showToast} />;
         case 'loyalty': return <LoyaltyPage state={state} setState={setState} showToast={showToast} />;
         default: return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
       }
@@ -786,7 +784,6 @@ export default function App() {
       case 'messages': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
       case 'supplements': return <MemberSupplementsPage state={state} showToast={showToast} />;
       case 'loyalty': return <MemberLoyaltyPage state={state} />;
-      case 'drive': return <DrivePage state={state} />;
       default: return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
     }
   };

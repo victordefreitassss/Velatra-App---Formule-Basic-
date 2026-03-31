@@ -5,7 +5,6 @@ import { db, doc, updateDoc, setDoc, deleteDoc } from '../firebase';
 import { Plus, Search, Trash2, DollarSign, TrendingUp, CreditCard, AlertCircle, CheckCircle, Clock, User, Package, FileText, MessageCircle, Link as LinkIcon, Download, TrendingDown } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell } from 'recharts';
 import { motion } from 'framer-motion';
-import { SupplementsPage } from './SupplementsPage';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -503,12 +502,12 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
           </button>
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-2 bg-velatra-bgCard border  text-zinc-900 px-4 py-2 rounded-xl text-sm font-medium hover:bg-velatra-border transition-colors whitespace-nowrap"
+            className="flex items-center gap-2 bg-velatra-bgCard border border-velatra-border text-zinc-900 px-4 py-2 rounded-xl text-sm font-medium hover:bg-velatra-border transition-colors whitespace-nowrap"
           >
             <Download className="w-4 h-4" />
             Export CSV
           </button>
-          <div className="flex bg-velatra-bgCard p-1 rounded-xl border  overflow-x-auto">
+          <div className="flex bg-velatra-bgCard p-1 rounded-xl border border-velatra-border overflow-x-auto">
             <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'overview' ? 'bg-velatra-bg text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Vue d'ensemble</button>
             <button onClick={() => setActiveTab('payments')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'payments' ? 'bg-velatra-bg text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Paiements</button>
             <button onClick={() => setActiveTab('expenses')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'expenses' ? 'bg-velatra-bg text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Dépenses</button>
@@ -521,7 +520,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div 
-              className="bg-velatra-bgCard border  rounded-2xl p-6 relative overflow-hidden group cursor-pointer hover:border-velatra-accent/50 transition-colors"
+              className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 relative overflow-hidden group cursor-pointer hover:border-velatra-accent/50 transition-colors"
               onClick={() => setIsAnnual(!isAnnual)}
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-velatra-accent/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
@@ -542,7 +541,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
               <p className="text-sm text-velatra-success mt-4 flex items-center gap-1"><TrendingUp className="w-4 h-4" /> Basé sur {activeSubscriptions.length} abonnements actifs</p>
             </div>
 
-            <div className="bg-velatra-bgCard border  rounded-2xl p-6 relative overflow-hidden group">
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
               <div className="flex justify-between items-start relative z-10">
                 <div>
@@ -556,7 +555,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
               <p className="text-sm text-zinc-500 mt-4">Revenu moyen par abonné</p>
             </div>
 
-            <div className="bg-velatra-bgCard border  rounded-2xl p-6 relative overflow-hidden group">
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
               <div className="flex justify-between items-start relative z-10">
                 <div>
@@ -570,7 +569,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
               <p className="text-sm text-zinc-500 mt-4">Revenus ({totalRevenue.toFixed(0)}€) - Dépenses ({totalExpenses.toFixed(0)}€)</p>
             </div>
 
-            <div className="bg-velatra-bgCard border  rounded-2xl p-6 relative overflow-hidden group">
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
               <div className="flex justify-between items-start relative z-10">
                 <div>
@@ -586,7 +585,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-velatra-bgCard border  rounded-2xl p-6 relative overflow-hidden group">
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 relative overflow-hidden group">
               <div className="flex justify-between items-start relative z-10">
                 <div className="w-full">
                   <p className="text-zinc-500 font-medium mb-2 flex items-center justify-between">
@@ -600,7 +599,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                         type="number" 
                         value={newGoal} 
                         onChange={e => setNewGoal(Number(e.target.value))}
-                        className="w-24 bg-velatra-bg border  rounded-lg p-1 text-zinc-900 text-lg font-bold"
+                        className="w-24 bg-velatra-bg border border-velatra-border rounded-lg p-1 text-zinc-900 text-lg font-bold"
                       />
                       <button onClick={handleUpdateGoal} className="bg-velatra-accent text-zinc-900 px-3 py-1 rounded-lg text-sm font-bold">OK</button>
                       <button onClick={() => setIsEditingGoal(false)} className="text-zinc-500 hover:text-zinc-900 text-sm">Annuler</button>
@@ -625,7 +624,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
               </div>
             </div>
 
-            <div className="bg-velatra-bgCard border  rounded-2xl p-6 relative overflow-hidden group">
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 relative overflow-hidden group">
               <div className="flex justify-between items-start relative z-10">
                 <div>
                   <p className="text-zinc-500 font-medium mb-1">Prévision Trésorerie (M+1)</p>
@@ -638,7 +637,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
               </div>
             </div>
 
-            <div className="bg-velatra-bgCard border  rounded-2xl p-6 relative overflow-hidden group">
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 relative overflow-hidden group">
               <div className="flex justify-between items-start relative z-10">
                 <div className="w-full">
                   <p className="text-zinc-500 font-medium mb-2">Bilan TVA</p>
@@ -664,7 +663,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-velatra-bgCard border  rounded-2xl p-6">
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6">
               <h3 className="text-lg font-semibold text-zinc-900 mb-6">Revenus vs Dépenses (6 derniers mois)</h3>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -684,7 +683,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
               </div>
             </div>
 
-            <div className="bg-velatra-bgCard border  rounded-2xl p-6">
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6">
               <h3 className="text-lg font-semibold text-zinc-900 mb-6">Répartition des Revenus</h3>
               <div className="h-72 w-full flex items-center justify-center">
                 {pieChartData.length > 0 ? (
@@ -725,7 +724,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             <h2 className="text-xl font-semibold text-zinc-900">Historique des paiements</h2>
           </div>
 
-          <div className="bg-velatra-bgCard border  rounded-2xl overflow-hidden">
+          <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-velatra-bg text-zinc-500 uppercase text-xs">
@@ -739,7 +738,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                     <th className="px-6 py-4 font-medium text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-transparent">
+                <tbody className="divide-y divide-velatra-border">
                   {state.payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(payment => {
                     const member = state.users.find(u => Number(u.id) === payment.memberId);
                     return (
@@ -817,20 +816,20 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
           </div>
 
           {isAddingExpense && (
-            <div className="bg-velatra-bgCard border  rounded-xl p-6">
+            <div className="bg-velatra-bgCard border border-velatra-border rounded-xl p-6">
               <h3 className="text-lg font-medium text-zinc-900 mb-4">Nouvelle dépense</h3>
               <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-zinc-500 mb-1">Description</label>
-                  <input required type="text" value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900" placeholder="Ex: Loyer, Logiciel..." />
+                  <input required type="text" value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" placeholder="Ex: Loyer, Logiciel..." />
                 </div>
                 <div>
                   <label className="block text-sm text-zinc-500 mb-1">Montant (€)</label>
-                  <input required type="number" step="0.01" value={newExpense.amount || ''} onChange={e => setNewExpense({...newExpense, amount: Number(e.target.value) || 0})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900" />
+                  <input required type="number" step="0.01" value={newExpense.amount || ''} onChange={e => setNewExpense({...newExpense, amount: Number(e.target.value) || 0})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" />
                 </div>
                 <div>
                   <label className="block text-sm text-zinc-500 mb-1">Catégorie</label>
-                  <select value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value as any})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900">
+                  <select value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value as any})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900">
                     <option value="rent">Loyer</option>
                     <option value="salary">Salaire</option>
                     <option value="equipment">Matériel</option>
@@ -841,7 +840,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                 </div>
                 <div>
                   <label className="block text-sm text-zinc-500 mb-1">Taux de TVA (%)</label>
-                  <select value={newExpense.vatRate || 20} onChange={e => setNewExpense({...newExpense, vatRate: Number(e.target.value)})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900">
+                  <select value={newExpense.vatRate || 20} onChange={e => setNewExpense({...newExpense, vatRate: Number(e.target.value)})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900">
                     <option value={20}>20% (Standard)</option>
                     <option value={10}>10% (Intermédiaire)</option>
                     <option value={5.5}>5.5% (Réduit)</option>
@@ -851,7 +850,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                 </div>
                 <div>
                   <label className="block text-sm text-zinc-500 mb-1">Date</label>
-                  <input required type="date" value={newExpense.date} onChange={e => setNewExpense({...newExpense, date: e.target.value})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900" />
+                  <input required type="date" value={newExpense.date} onChange={e => setNewExpense({...newExpense, date: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" />
                 </div>
                 <div className="md:col-span-2 flex justify-end gap-2 mt-2">
                   <button type="button" onClick={() => setIsAddingExpense(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
@@ -861,7 +860,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             </div>
           )}
 
-          <div className="bg-velatra-bgCard border  rounded-2xl overflow-hidden">
+          <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-velatra-bg text-zinc-500 uppercase text-xs">
@@ -873,7 +872,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                     <th className="px-6 py-4 font-medium text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-transparent">
+                <tbody className="divide-y divide-velatra-border">
                   {filteredExpenses.map(expense => (
                     <tr key={expense.id} className="hover:bg-velatra-bg/50 transition-colors">
                       <td className="px-6 py-4 text-zinc-500">{new Date(expense.date).toLocaleDateString()}</td>
@@ -897,7 +896,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             </div>
           </div>
 
-          <div className="bg-velatra-bgCard border  rounded-2xl p-6 mt-8">
+          <div className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 mt-8">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-lg font-semibold text-zinc-900">Charges Fixes Mensuelles</h3>
@@ -913,15 +912,15 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             </div>
 
             {isAddingFixedCost && (
-              <div className="bg-velatra-bg border  rounded-xl p-6 mb-6">
+              <div className="bg-velatra-bg border border-velatra-border rounded-xl p-6 mb-6">
                 <form onSubmit={handleAddFixedCost} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm text-zinc-500 mb-1">Nom de la charge</label>
-                    <input required type="text" value={newFixedCost.name} onChange={e => setNewFixedCost({...newFixedCost, name: e.target.value})} className="w-full bg-white border  rounded-lg p-2 text-zinc-900" placeholder="Ex: Loyer, Électricité..." />
+                    <input required type="text" value={newFixedCost.name} onChange={e => setNewFixedCost({...newFixedCost, name: e.target.value})} className="w-full bg-white border border-velatra-border rounded-lg p-2 text-zinc-900" placeholder="Ex: Loyer, Électricité..." />
                   </div>
                   <div>
                     <label className="block text-sm text-zinc-500 mb-1">Montant Mensuel (€)</label>
-                    <input required type="number" step="0.01" value={newFixedCost.amount || ''} onChange={e => setNewFixedCost({...newFixedCost, amount: Number(e.target.value) || 0})} className="w-full bg-white border  rounded-lg p-2 text-zinc-900" />
+                    <input required type="number" step="0.01" value={newFixedCost.amount || ''} onChange={e => setNewFixedCost({...newFixedCost, amount: Number(e.target.value) || 0})} className="w-full bg-white border border-velatra-border rounded-lg p-2 text-zinc-900" />
                   </div>
                   <div className="md:col-span-2 flex justify-end gap-2 mt-2">
                     <button type="button" onClick={() => setIsAddingFixedCost(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 font-medium">Annuler</button>
@@ -933,7 +932,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {state.fixedCosts?.map(cost => (
-                <div key={cost.id} className="bg-velatra-bg border  rounded-xl p-4 flex justify-between items-center group">
+                <div key={cost.id} className="bg-velatra-bg border border-velatra-border rounded-xl p-4 flex justify-between items-center group">
                   <div>
                     <p className="font-medium text-zinc-900">{cost.name}</p>
                     <p className="text-sm text-zinc-500">{cost.amount.toFixed(2)} € / mois</p>
@@ -947,7 +946,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                 </div>
               ))}
               {(!state.fixedCosts || state.fixedCosts.length === 0) && (
-                <div className="col-span-full text-center py-8 text-zinc-500 border border-dashed  rounded-xl">
+                <div className="col-span-full text-center py-8 text-zinc-500 border border-dashed border-velatra-border rounded-xl">
                   Aucune charge fixe enregistrée.
                 </div>
               )}
@@ -973,21 +972,21 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-velatra-bgCard border  rounded-xl p-6"
+              className="bg-velatra-bgCard border border-velatra-border rounded-xl p-6"
             >
               <h3 className="text-lg font-medium text-zinc-900 mb-4">Créer une formule</h3>
               <form onSubmit={handleAddPlan} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-zinc-500 mb-1">Nom de la formule</label>
-                  <input required type="text" value={newPlan.name} onChange={e => setNewPlan({...newPlan, name: e.target.value})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900" placeholder="Ex: Annuel" />
+                  <input required type="text" value={newPlan.name} onChange={e => setNewPlan({...newPlan, name: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" placeholder="Ex: Annuel" />
                 </div>
                 <div>
                   <label className="block text-sm text-zinc-500 mb-1">Prix (€)</label>
-                  <input required type="number" step="0.01" value={newPlan.price || ''} onChange={e => setNewPlan({...newPlan, price: Number(e.target.value) || 0})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900" />
+                  <input required type="number" step="0.01" value={newPlan.price || ''} onChange={e => setNewPlan({...newPlan, price: Number(e.target.value) || 0})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" />
                 </div>
                 <div>
                   <label className="block text-sm text-zinc-500 mb-1">Cycle de facturation</label>
-                  <select value={newPlan.billingCycle} onChange={e => setNewPlan({...newPlan, billingCycle: e.target.value as any})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900">
+                  <select value={newPlan.billingCycle} onChange={e => setNewPlan({...newPlan, billingCycle: e.target.value as any})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900">
                     <option value="monthly">Mensuel</option>
                     <option value="yearly">Annuel</option>
                     <option value="once">Paiement unique</option>
@@ -995,7 +994,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                 </div>
                 <div>
                   <label className="block text-sm text-zinc-500 mb-1">Description</label>
-                  <input type="text" value={newPlan.description} onChange={e => setNewPlan({...newPlan, description: e.target.value})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900" placeholder="Avantages inclus..." />
+                  <input type="text" value={newPlan.description} onChange={e => setNewPlan({...newPlan, description: e.target.value})} className="w-full bg-velatra-bg border border-velatra-border rounded-lg p-2 text-zinc-900" placeholder="Avantages inclus..." />
                 </div>
                 <div className="md:col-span-2 flex justify-end gap-2 mt-2">
                   <button type="button" onClick={() => setIsAddingPlan(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
@@ -1007,14 +1006,14 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {state.plans.map(plan => (
-              <div key={plan.id} className="bg-velatra-bgCard border  rounded-2xl p-6 relative group">
+              <div key={plan.id} className="bg-velatra-bgCard border border-velatra-border rounded-2xl p-6 relative group">
                 <button 
                   onClick={() => handleDeletePlan(plan.id)}
                   className="absolute top-4 right-4 text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
-                <div className="w-12 h-12 bg-velatra-bg rounded-xl border  flex items-center justify-center text-velatra-accent mb-4">
+                <div className="w-12 h-12 bg-velatra-bg rounded-xl border border-velatra-border flex items-center justify-center text-velatra-accent mb-4">
                   <Package className="w-6 h-6" />
                 </div>
                 <h3 className="text-xl font-bold text-zinc-900 mb-1">{plan.name}</h3>
@@ -1026,7 +1025,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
               </div>
             ))}
             {state.plans.length === 0 && !isAddingPlan && (
-              <div className="col-span-3 text-center py-12 border border-dashed  rounded-2xl">
+              <div className="col-span-3 text-center py-12 border border-dashed border-velatra-border rounded-2xl">
                 <p className="text-zinc-500">Aucune formule créée. Ajoutez votre première formule d'abonnement.</p>
               </div>
             )}
