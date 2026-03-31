@@ -19,7 +19,7 @@ interface LayoutProps {
   unreadNotificationsCount?: number;
 }
 
-const AppLogo: React.FC<{ club: Club | null }> = ({ club }) => (
+const AppLogo: React.FC<{ club: Club | null, user: User }> = ({ club, user }) => (
   <div className="flex flex-col">
     <div className="flex items-center gap-3">
       <div className="w-10 h-10 rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.2)] overflow-hidden flex items-center justify-center shrink-0 bg-velatra-textDark">
@@ -32,7 +32,7 @@ const AppLogo: React.FC<{ club: Club | null }> = ({ club }) => (
     <div className="text-[8px] tracking-[2px] text-zinc-500 font-bold uppercase mt-1 pl-12 opacity-80">
       APPLICATION NUMÉRO 1
     </div>
-    {club && (
+    {club && (user.role === 'coach' || user.role === 'owner') && (
       <div className="mt-4 p-3 bg-zinc-50 border border-zinc-200 rounded-xl backdrop-blur-sm">
         <div className="text-[8px] uppercase tracking-widest text-zinc-500 font-black mb-1">Code d'accès Club</div>
         <div className="text-xs font-mono font-bold text-velatra-accent select-all">{club.id}</div>
@@ -105,7 +105,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     <div className="min-h-screen flex flex-col md:flex-row bg-transparent">
       <aside className="hidden md:flex flex-col w-[280px] bg-velatra-bgCard/80 backdrop-blur-xl border-r border-zinc-200 h-screen fixed left-0 top-0 py-12 px-6 z-40 shadow-2xl">
         <div className="mb-12 px-4">
-           <AppLogo club={club} />
+           <AppLogo club={club} user={user} />
         </div>
         
         <nav className="flex-1 space-y-6 overflow-y-auto no-scrollbar px-2">
