@@ -57,7 +57,6 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances', category: 'Business' },
     { id: 'crm_pipeline', icon: TargetIcon, label: 'ProspectFlow', category: 'Business' },
     { id: 'marketing', icon: MegaphoneIcon, label: 'Marketing', category: 'Business' },
-    { id: 'loyalty', icon: GiftIcon, label: 'Fidélité', category: 'Business' },
     { id: 'about', icon: InfoIcon, label: 'Club', category: 'Paramètres' },
     { id: 'settings', icon: SettingsIcon, label: 'Paramètres', category: 'Paramètres' },
   ];
@@ -71,7 +70,6 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Plus' },
     { id: 'drive', icon: FolderIcon, label: 'Documents', category: 'Plus' },
     { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', category: 'Plus' },
-    { id: 'loyalty', icon: GiftIcon, label: 'Fidélité', category: 'Plus' },
     { id: 'profile', icon: UserIcon, label: 'Profil', category: 'Plus' },
     { id: 'about', icon: InfoIcon, label: 'Club', category: 'Plus' },
   ];

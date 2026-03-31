@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppState, Message } from '../types';
 import { Card, Button, Input, Textarea } from '../components/UI';
 import { MessageCircleIcon, PlusIcon, ChevronLeftIcon, FileIcon, DownloadIcon } from '../components/Icons';
-import { db, doc, setDoc, addDoc, collection } from '../firebase';
+import { db, doc, setDoc, addDoc, collection, updateDoc } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast: any, embedded?: boolean }> = ({ state, setState, showToast, embedded }) => {
@@ -29,6 +29,19 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [thread]);
+
+  useEffect(() => {
+    const unreadMessages = thread.filter(m => m.to === user.id && !m.read);
+    if (unreadMessages.length > 0) {
+      unreadMessages.forEach(async (m) => {
+        try {
+          await updateDoc(doc(db, "messages", m.id.toString()), { read: true });
+        } catch (err) {
+          console.error("Error marking message as read", err);
+        }
+      });
+    }
+  }, [thread, user.id]);
 
   const sendMessage = async () => {
     if ((!text && !fileData) || !selectedDest) return;
