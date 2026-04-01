@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { AppState, User, SessionLog } from '../types';
 import { Card, Badge, Button } from '../components/UI';
 import { UserIcon, MailIcon, ActivityIcon, DumbbellIcon, TargetIcon, Edit2Icon, SaveIcon, LogOutIcon, PhoneIcon, CreditCardIcon, ExternalLinkIcon, CalendarIcon, MessageCircleIcon } from 'lucide-react';
-import { doc, updateDoc, db } from '../firebase';
+import { doc, updateDoc, db, storage } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { motion } from 'framer-motion';
 import { updateNutritionPlanForWeight } from '../utils';
 
@@ -162,12 +163,49 @@ export const ProfilePage: React.FC<{
       </motion.div>
 
       <motion.div variants={itemVariants}>
-        <Card className="!p-8 bg-white/60 backdrop-blur-xl  relative overflow-hidden shadow-xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-velatra-accent/5 rounded-full -mr-32 -mt-32 blur-3xl" />
+        <Card className="!p-8 bg-white backdrop-blur-xl  relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full -mr-32 -mt-32 blur-3xl" />
           
           <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8">
-            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-velatra-accent to-velatra-accentDark flex items-center justify-center font-bold text-5xl shadow-[0_0_30px_rgba(99,102,241,0.3)] text-zinc-900 ring-4 ring-white shrink-0">
-              {user.avatar}
+            <div className="relative group w-32 h-32 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center font-bold text-5xl shadow-[0_0_30px_rgba(16,185,129,0.3)] text-zinc-900 ring-4 ring-zinc-200 shrink-0 overflow-hidden">
+              {user.avatar?.startsWith('http') ? (
+                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                user.avatar || user.name.substring(0, 2).toUpperCase()
+              )}
+              {isEditing && (
+                <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <span className="text-white text-[10px] font-bold uppercase tracking-widest">Photo</span>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        try {
+                          showToast("Téléchargement de la photo...", "success");
+                          const avatarRef = ref(storage, `avatars/${user.id}_${Date.now()}`);
+                          await uploadBytes(avatarRef, file);
+                          const url = await getDownloadURL(avatarRef);
+                          
+                          const userRef = doc(db, "users", (user as any).firebaseUid);
+                          await updateDoc(userRef, { avatar: url });
+                          
+                          setState(prev => ({
+                            ...prev,
+                            user: { ...prev.user!, avatar: url }
+                          }));
+                          showToast("Photo téléchargée avec succès", "success");
+                        } catch (error) {
+                          console.error("Error uploading avatar:", error);
+                          showToast("Erreur lors du téléchargement", "error");
+                        }
+                      }
+                    }}
+                  />
+                </label>
+              )}
             </div>
             
             <div className="flex-1 space-y-6 w-full">
@@ -181,7 +219,7 @@ export const ProfilePage: React.FC<{
                         type="email" 
                         value={formData.email}
                         onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        className="w-full bg-white/50 border  rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                        className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                       />
                     </div>
                     <div>
@@ -190,7 +228,7 @@ export const ProfilePage: React.FC<{
                         type="tel" 
                         value={formData.phone}
                         onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                        className="w-full bg-white/50 border  rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                        className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                       />
                     </div>
                   </div>
@@ -211,7 +249,7 @@ export const ProfilePage: React.FC<{
               <div className="flex flex-wrap gap-2">
                 <Badge variant="blue" className="uppercase tracking-widest text-[10px]">{user.role}</Badge>
                 {user.gender && (
-                  <Badge variant="dark" className="uppercase tracking-widest text-[10px] bg-zinc-200 text-zinc-900 ">
+                  <Badge variant="dark" className="uppercase tracking-widest text-[10px] bg-zinc-100 text-zinc-900 ">
                     {user.gender === 'M' ? 'Homme' : 'Femme'}
                   </Badge>
                 )}
@@ -226,9 +264,9 @@ export const ProfilePage: React.FC<{
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <motion.div variants={itemVariants}>
-          <Card className="!p-6 bg-white/60 backdrop-blur-xl  shadow-lg h-full">
+          <Card className="!p-6 bg-zinc-50 backdrop-blur-xl  shadow-lg h-full">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                 <ActivityIcon size={20} />
               </div>
               <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Physique</h3>
@@ -242,7 +280,7 @@ export const ProfilePage: React.FC<{
                     type="date" 
                     value={formData.birthDate}
                     onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
-                    className="w-full bg-white/50 border  rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 ) : (
                   <div className="text-lg font-medium text-zinc-900">{user.birthDate ? new Date(user.birthDate).toLocaleDateString() : 'Non renseigné'}</div>
@@ -256,7 +294,7 @@ export const ProfilePage: React.FC<{
                     type="number" 
                     value={formData.height}
                     onChange={(e) => setFormData({...formData, height: Number(e.target.value)})}
-                    className="w-full bg-white/50 border  rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                    className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 ) : (
                   <div className="text-lg font-medium text-zinc-900">{user.height ? `${user.height} cm` : 'Non renseigné'}</div>
@@ -270,7 +308,7 @@ export const ProfilePage: React.FC<{
                     type="number" 
                     value={formData.weight}
                     onChange={(e) => setFormData({...formData, weight: Number(e.target.value)})}
-                    className="w-full bg-white/50 border  rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 ) : (
                   <div className="text-lg font-medium text-zinc-900">{user.weight ? `${user.weight} kg` : 'Non renseigné'}</div>
@@ -281,9 +319,9 @@ export const ProfilePage: React.FC<{
         </motion.div>
 
         <motion.div variants={itemVariants}>
-          <Card className="!p-6 bg-white/60 backdrop-blur-xl  shadow-lg h-full">
+          <Card className="!p-6 bg-zinc-50 backdrop-blur-xl  shadow-lg h-full">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                 <DumbbellIcon size={20} />
               </div>
               <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Entraînement</h3>
@@ -296,7 +334,7 @@ export const ProfilePage: React.FC<{
                   <select 
                     value={formData.experienceLevel}
                     onChange={(e) => setFormData({...formData, experienceLevel: e.target.value as any})}
-                    className="w-full bg-white/50 border  rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   >
                     <option value="Débutant">Débutant</option>
                     <option value="Intermédiaire">Intermédiaire</option>
@@ -313,7 +351,7 @@ export const ProfilePage: React.FC<{
                   <select 
                     value={formData.equipment}
                     onChange={(e) => setFormData({...formData, equipment: e.target.value as any})}
-                    className="w-full bg-white/50 border  rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   >
                     <option value="Salle de sport">Salle de sport</option>
                     <option value="Maison avec matériel">Maison avec matériel</option>
@@ -329,9 +367,9 @@ export const ProfilePage: React.FC<{
       </div>
 
       <motion.div variants={itemVariants}>
-        <Card className="!p-6 bg-white/60 backdrop-blur-xl  shadow-lg">
+        <Card className="!p-6 bg-zinc-50 backdrop-blur-xl  shadow-lg">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
               <TargetIcon size={20} />
             </div>
             <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Objectifs</h3>
@@ -340,7 +378,7 @@ export const ProfilePage: React.FC<{
           <div className="flex flex-wrap gap-3">
             {user.objectifs && user.objectifs.length > 0 ? (
               user.objectifs.map((obj, idx) => (
-                <div key={idx} className="px-4 py-2 bg-white/50 border  rounded-xl text-sm font-medium text-zinc-900 shadow-sm">
+                <div key={idx} className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-900 shadow-sm">
                   {obj}
                 </div>
               ))
@@ -353,9 +391,9 @@ export const ProfilePage: React.FC<{
 
       {/* Measurements Section */}
       <motion.div variants={itemVariants}>
-        <Card className="!p-6 bg-white/60 backdrop-blur-xl  shadow-lg">
+        <Card className="!p-6 bg-zinc-50 backdrop-blur-xl  shadow-lg">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
               <ActivityIcon size={20} />
             </div>
             <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Mensurations (cm)</h3>
@@ -376,7 +414,7 @@ export const ProfilePage: React.FC<{
                     type="number" 
                     value={(formData as any)[measurement.key]}
                     onChange={(e) => setFormData({...formData, [measurement.key]: Number(e.target.value)})}
-                    className="w-full bg-white/50 border  rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 ) : (
                   <div className="text-lg font-medium text-zinc-900">{(user.measurements as any)?.[measurement.key] ? `${(user.measurements as any)[measurement.key]} cm` : '-'}</div>
@@ -389,9 +427,9 @@ export const ProfilePage: React.FC<{
 
       {user.role === 'member' && (
         <motion.div variants={itemVariants}>
-          <Card className="!p-6 bg-white/60 backdrop-blur-xl  shadow-lg">
+          <Card className="!p-6 bg-zinc-50 backdrop-blur-xl  shadow-lg">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                 <CalendarIcon size={20} />
               </div>
               <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Historique Coaching</h3>
@@ -403,7 +441,7 @@ export const ProfilePage: React.FC<{
                   {(state.logs || []).filter(log => log.memberId === Number(user.id) && log.isCoaching)
                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                     .map(log => (
-                    <div key={log.id} className="bg-white/50 border  rounded-xl p-4 flex flex-col gap-3 shadow-sm">
+                    <div key={log.id} className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 flex flex-col gap-3 shadow-sm">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-sm font-bold text-zinc-900">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
@@ -417,10 +455,10 @@ export const ProfilePage: React.FC<{
                         </div>
                       </div>
                       {log.notes && (
-                        <div className="mt-2 p-3 bg-velatra-accent/5 rounded-lg border border-velatra-accent/10">
+                        <div className="mt-2 p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/10">
                           <div className="flex items-start gap-2">
-                            <MessageCircleIcon size={14} className="text-velatra-accent mt-0.5 shrink-0" />
-                            <p className="text-xs text-zinc-700 leading-relaxed italic line-clamp-2">"{log.notes}"</p>
+                            <MessageCircleIcon size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                            <p className="text-xs text-zinc-600 leading-relaxed italic line-clamp-2">"{log.notes}"</p>
                           </div>
                         </div>
                       )}
@@ -428,7 +466,7 @@ export const ProfilePage: React.FC<{
                   ))}
                 </div>
               ) : (
-                <div className="bg-white/50 border  rounded-xl p-6 text-center shadow-sm">
+                <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-6 text-center shadow-sm">
                   <p className="text-sm font-medium text-zinc-900">Aucune séance de coaching</p>
                   <p className="text-xs text-zinc-500 mt-1">Vos récaps de séances apparaîtront ici.</p>
                 </div>
@@ -440,10 +478,10 @@ export const ProfilePage: React.FC<{
 
       {user.role === 'member' && (
         <motion.div variants={itemVariants}>
-          <Card className="!p-6 bg-white/60 backdrop-blur-xl  shadow-lg">
+          <Card className="!p-6 bg-zinc-50 backdrop-blur-xl  shadow-lg">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-velatra-accent/10 flex items-center justify-center text-velatra-accent">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                   <CreditCardIcon size={20} />
                 </div>
                 <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Abonnement</h3>
@@ -460,7 +498,7 @@ export const ProfilePage: React.FC<{
                 const subscription = state.subscriptions.find(s => s.memberId === Number(user.id) && s.status === 'active');
                 if (subscription) {
                   return (
-                    <div className="bg-white/50 border  rounded-xl p-4 flex flex-col gap-4 shadow-sm">
+                    <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 flex flex-col gap-4 shadow-sm">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-zinc-900">{subscription.planName}</p>
@@ -471,8 +509,8 @@ export const ProfilePage: React.FC<{
                         <Badge variant="success" className="uppercase tracking-widest text-[10px]">Actif</Badge>
                       </div>
                       {subscription.contractUrl && (
-                        <div className="pt-4 border-t ">
-                          <a href={subscription.contractUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-velatra-accent flex items-center gap-2 hover:underline">
+                        <div className="pt-4 border-t border-zinc-200">
+                          <a href={subscription.contractUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-emerald-500 flex items-center gap-2 hover:underline">
                             <ExternalLinkIcon size={16} /> Voir mon contrat
                           </a>
                         </div>
@@ -481,7 +519,7 @@ export const ProfilePage: React.FC<{
                   );
                 }
                 return (
-                  <div className="bg-white/50 border  rounded-xl p-4 flex items-center justify-between shadow-sm">
+                  <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
                     <div>
                       <p className="text-sm font-medium text-zinc-900">Aucun abonnement actif</p>
                       <p className="text-xs text-zinc-500 mt-1">Vous n'avez pas d'abonnement en cours.</p>
@@ -495,11 +533,11 @@ export const ProfilePage: React.FC<{
       )}
 
       {selectedLog && createPortal(
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-white/50 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-white/80 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl"
+            className="bg-white border border-zinc-200 rounded-3xl p-6 max-w-lg w-full shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-start mb-6">
@@ -507,7 +545,7 @@ export const ProfilePage: React.FC<{
                 <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Récapitulatif</h3>
                 <p className="text-sm text-zinc-500">{new Date(selectedLog.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
-              <button onClick={() => setSelectedLog(null)} className="p-2 bg-zinc-50 rounded-full hover:bg-zinc-200 transition-colors">
+              <button onClick={() => setSelectedLog(null)} className="p-2 bg-zinc-50 rounded-full hover:bg-zinc-100 transition-colors text-zinc-900">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
@@ -524,7 +562,7 @@ export const ProfilePage: React.FC<{
                   <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Exercices réalisés</div>
                   <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
                     {selectedLog.exercises.map((ex, i) => (
-                      <div key={i} className="bg-zinc-50 border  rounded-xl p-3">
+                      <div key={i} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3">
                         <div className="font-bold text-sm text-zinc-900 mb-2">{ex.name}</div>
                         <div className="grid grid-cols-1 gap-1">
                           {ex.sets.map((set, j) => (
@@ -547,8 +585,8 @@ export const ProfilePage: React.FC<{
               {selectedLog.notes && (
                 <div>
                   <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Notes du Coach</div>
-                  <div className="p-4 bg-velatra-accent/5 rounded-2xl border border-velatra-accent/10">
-                    <p className="text-sm text-zinc-700 leading-relaxed italic">"{selectedLog.notes}"</p>
+                  <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+                    <p className="text-sm text-zinc-600 leading-relaxed italic">"{selectedLog.notes}"</p>
                   </div>
                 </div>
               )}
@@ -557,7 +595,7 @@ export const ProfilePage: React.FC<{
                 <div>
                   <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Difficulté ressentie (RPE)</div>
                   <div className="flex items-center gap-2">
-                    <div className="text-2xl font-black text-velatra-accent">{selectedLog.rpe}</div>
+                    <div className="text-2xl font-black text-emerald-500">{selectedLog.rpe}</div>
                     <div className="text-sm text-zinc-500">/ 10</div>
                   </div>
                 </div>

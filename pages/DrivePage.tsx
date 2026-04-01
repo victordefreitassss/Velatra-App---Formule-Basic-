@@ -11,11 +11,11 @@ import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebas
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-6 border-b ">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-zinc-50 border border-zinc-200 rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between p-6 border-b border-zinc-200">
           <h3 className="text-xl font-bold text-zinc-900">{title}</h3>
-          <button onClick={onClose} className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-full transition-colors">
+          <button onClick={onClose} className="p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-full transition-colors">
             <XIcon size={20} />
           </button>
         </div>
@@ -80,9 +80,9 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
     setUploadProgress(0);
 
     const totalFiles = files.length;
-    let completedFiles = 0;
+    const fileProgresses = new Array(totalFiles).fill(0);
 
-    const uploadPromises = Array.from(files).map((file) => {
+    const uploadPromises = Array.from(files).map((file, index) => {
       return new Promise<void>((resolve, reject) => {
         const fileId = doc(collection(db, 'driveFiles')).id;
         const storageRef = ref(storage, `drive/${state.currentClub!.id}/${fileId}_${file.name}`);
@@ -91,7 +91,10 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
 
         uploadTask.on('state_changed', 
           (snapshot) => {
-            // We could track individual progress, but for simplicity we'll just track overall completion
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            fileProgresses[index] = progress;
+            const overallProgress = fileProgresses.reduce((a, b) => a + b, 0) / totalFiles;
+            setUploadProgress(overallProgress);
           }, 
           (error) => {
             console.error("Error uploading file:", error);
@@ -117,8 +120,9 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
 
               await setDoc(doc(db, 'driveFiles', fileId), newFile);
               
-              completedFiles++;
-              setUploadProgress((completedFiles / totalFiles) * 100);
+              fileProgresses[index] = 100;
+              const overallProgress = fileProgresses.reduce((a, b) => a + b, 0) / totalFiles;
+              setUploadProgress(overallProgress);
               resolve();
             } catch (err) {
               reject(err);
@@ -249,7 +253,7 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
 
   return (
     <div 
-      className={`p-6 max-w-6xl mx-auto animate-in fade-in duration-300 min-h-[calc(100vh-4rem)] ${isDragging ? 'bg-emerald-50/50 border-2 border-dashed border-emerald-500 rounded-3xl' : ''}`}
+      className={`p-6 max-w-6xl mx-auto animate-in fade-in duration-300 min-h-[calc(100vh-4rem)] ${isDragging ? 'bg-emerald-500/10 border-2 border-dashed border-emerald-500 rounded-3xl' : ''}`}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -260,20 +264,16 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
             {currentFolderId && (
               <button 
                 onClick={() => setCurrentFolderId(currentFolder?.parentId || null)}
-                className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
+                className="p-2 text-zinc-900 hover:bg-zinc-100 rounded-full transition-colors"
               >
                 <ArrowLeftIcon size={20} />
               </button>
             )}
             <h1 className="text-3xl font-black tracking-tight text-zinc-900">
-              {currentFolder ? currentFolder.name : (isCoach ? 'Drive Intégré' : 'Mes Documents')}
+              {currentFolder ? currentFolder.name : 'Drive Intégré'}
             </h1>
           </div>
-          <p className="text-zinc-500 mt-1">
-            {isCoach 
-              ? "Stockez et partagez vos documents (PDF, guides, etc)."
-              : "Retrouvez ici tous les documents partagés par votre coach."}
-          </p>
+          <p className="text-zinc-500 mt-1">Stockez et partagez vos documents (PDF, guides, etc).</p>
         </div>
         <div className="flex gap-3">
           {isCoach && (
@@ -308,22 +308,20 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
       </div>
 
       {folders.length === 0 && files.length === 0 && !isUploading ? (
-        <div className="bg-white rounded-3xl p-12 text-center border  shadow-sm">
-          <div className="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
+        <div className="bg-zinc-50/50 rounded-3xl p-12 text-center border border-zinc-200 shadow-sm">
+          <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-6">
             <FolderIcon size={40} />
           </div>
           <h2 className="text-2xl font-bold text-zinc-900 mb-4">Ce dossier est vide</h2>
           <p className="text-zinc-500 max-w-md mx-auto mb-8">
-            {isCoach 
-              ? "Importez vos PDF, guides nutritionnels, et autres documents pour les partager facilement avec vos clients."
-              : "Aucun document n'a encore été partagé avec vous par votre coach."}
+            Importez vos PDF, guides nutritionnels, et autres documents pour les partager facilement avec vos clients.
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border  shadow-sm overflow-hidden">
+        <div className="bg-zinc-50/50 rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b  text-sm text-zinc-500">
+              <tr className="border-b border-zinc-200 text-sm text-zinc-500">
                 <th className="p-4 font-medium">Nom</th>
                 <th className="p-4 font-medium">Taille</th>
                 <th className="p-4 font-medium">Date</th>
@@ -332,10 +330,10 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
             </thead>
             <tbody>
               {folders.map(folder => (
-                <tr key={folder.id} className="border-b  hover:bg-zinc-50 transition-colors group cursor-pointer" onClick={() => setCurrentFolderId(folder.id)}>
+                <tr key={folder.id} className="border-b border-zinc-900 hover:bg-white transition-colors group cursor-pointer" onClick={() => setCurrentFolderId(folder.id)}>
                   <td className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
                         <FolderIcon size={20} />
                       </div>
                       <span className="font-medium text-zinc-900">{folder.name}</span>
@@ -348,7 +346,7 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
                   <td className="p-4 text-right">
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder); }}
-                      className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                     >
                       <Trash2Icon size={18} />
                     </button>
@@ -356,16 +354,16 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
                 </tr>
               ))}
               {files.map(file => (
-                <tr key={file.id} className="border-b  hover:bg-zinc-50 transition-colors group">
+                <tr key={file.id} className="border-b border-zinc-900 hover:bg-white transition-colors group">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
                         <FileIcon size={20} />
                       </div>
                       <div>
                         <span className="font-medium text-zinc-900 block">{file.name}</span>
                         {file.sharedWith.length > 0 && (
-                          <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full mt-1 inline-block">
+                          <span className="text-xs text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded-full mt-1 inline-block">
                             Partagé avec {file.sharedWith.length} client(s)
                           </span>
                         )}
@@ -382,7 +380,7 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
                         href={file.url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
+                        className="p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
                         title="Voir"
                       >
                         <EyeIcon size={18} />
@@ -394,14 +392,14 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
                               setShareModalFile(file);
                               setSelectedClients(file.sharedWith || []);
                             }}
-                            className="p-2 text-zinc-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="p-2 text-zinc-500 hover:text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
                             title="Partager"
                           >
                             <ShareIcon size={18} />
                           </button>
                           <button 
                             onClick={() => handleDeleteFile(file)}
-                            className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
                             title="Supprimer"
                           >
                             <Trash2Icon size={18} />
@@ -421,7 +419,7 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
       <Modal isOpen={isCreateFolderModalOpen} onClose={() => setIsCreateFolderModalOpen(false)} title="Nouveau dossier">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Nom du dossier</label>
+            <label className="block text-sm font-medium text-zinc-600 mb-1">Nom du dossier</label>
             <Input 
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
@@ -440,24 +438,24 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
       <Modal isOpen={!!shareModalFile} onClose={() => setShareModalFile(null)} title="Partager le fichier">
         <div className="space-y-4">
           <p className="text-sm text-zinc-500">
-            Sélectionnez les clients avec qui vous souhaitez partager <strong>{shareModalFile?.name}</strong>.
+            Sélectionnez les clients avec qui vous souhaitez partager <strong className="text-zinc-900">{shareModalFile?.name}</strong>.
           </p>
           
-          <div className="max-h-60 overflow-y-auto border  rounded-xl divide-y divide-transparent">
+          <div className="max-h-60 overflow-y-auto border border-zinc-200 rounded-xl divide-y divide-white/10">
             {clients.map(client => (
-              <label key={client.id} className="flex items-center gap-3 p-3 hover:bg-zinc-50 cursor-pointer">
+              <label key={client.id} className="flex items-center gap-3 p-3 hover:bg-white cursor-pointer">
                 <input 
                   type="checkbox" 
                   checked={selectedClients.includes(client.id)}
                   onChange={() => toggleClientSelection(client.id)}
-                  className="w-4 h-4 text-emerald-500 rounded  focus:ring-emerald-500"
+                  className="w-4 h-4 text-emerald-500 rounded border-zinc-300 bg-zinc-50 focus:ring-emerald-500"
                 />
                 <div className="flex items-center gap-3">
-                  {client.avatar ? (
+                  {client.avatar?.startsWith('http') ? (
                     <img src={client.avatar} alt={client.name} className="w-8 h-8 rounded-full object-cover" />
                   ) : (
                     <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 font-medium text-sm">
-                      {client.name.charAt(0)}
+                      {client.avatar || client.name.substring(0, 2).toUpperCase()}
                     </div>
                   )}
                   <span className="font-medium text-zinc-900">{client.name}</span>
@@ -479,11 +477,11 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
       </Modal>
 
       {confirmDeleteFileId && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+            className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 max-w-md w-full shadow-2xl"
           >
             <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer le fichier ?</h3>
             <p className="text-zinc-500 mb-6">Êtes-vous sûr de vouloir supprimer ce fichier ?</p>
@@ -497,11 +495,11 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
       )}
 
       {confirmDeleteFolderId && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+            className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 max-w-md w-full shadow-2xl"
           >
             <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer le dossier ?</h3>
             <p className="text-zinc-500 mb-6">Êtes-vous sûr de vouloir supprimer ce dossier et tout son contenu ?</p>

@@ -123,7 +123,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
       >
         <motion.div variants={itemVariants} className="px-1">
           <h1 className="text-3xl font-display font-black tracking-tight text-zinc-900 leading-none mb-2">Discussion</h1>
-          <p className="text-[10px] text-velatra-accent font-bold uppercase tracking-[3px]">Messagerie avec vos membres</p>
+          <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-[3px]">Messagerie avec vos membres</p>
         </motion.div>
         
         <motion.div variants={itemVariants} className="relative">
@@ -132,7 +132,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
           </div>
           <Input 
             placeholder="Rechercher un membre..." 
-            className="pl-14 !bg-white/60 backdrop-blur-xl !border-zinc-200/50 !rounded-2xl font-bold shadow-sm focus:!bg-white" 
+            className="pl-14 !bg-white backdrop-blur-xl !border-zinc-200/50 !rounded-2xl font-bold shadow-sm focus:!bg-white" 
             value={searchContact} 
             onChange={e => setSearchContact(e.target.value)} 
           />
@@ -154,13 +154,17 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
                   exit={{ opacity: 0, scale: 0.9 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <Card onClick={() => setSelectedDest(c.id)} className="flex items-center gap-4 !p-4 bg-white/60 backdrop-blur-xl border-zinc-200/50 hover:border-velatra-accent/30 hover:shadow-md transition-all cursor-pointer shadow-sm">
+                  <Card onClick={() => setSelectedDest(c.id)} className="flex items-center gap-4 !p-4 bg-white backdrop-blur-xl border-zinc-200/50 hover:border-emerald-500/30 hover:shadow-md transition-all cursor-pointer shadow-sm">
                      <div className="relative">
-                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-zinc-100/50 border border-zinc-200/50 flex items-center justify-center font-black text-lg text-velatra-accent shadow-inner backdrop-blur-md">
-                         {c.avatar}
+                       <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-zinc-100/50 border border-zinc-200/50 flex items-center justify-center font-black text-lg text-emerald-500 shadow-inner backdrop-blur-md overflow-hidden">
+                         {c.avatar?.startsWith('http') ? (
+                           <img src={c.avatar} alt={c.name} className="w-full h-full object-cover" />
+                         ) : (
+                           c.avatar || c.name.substring(0, 2).toUpperCase()
+                         )}
                        </div>
                        {unreadCount > 0 && (
-                         <div className="absolute -top-1 -right-1 w-5 h-5 bg-velatra-accent text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-lg animate-pulse">
+                         <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-500 text-zinc-900 text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-lg animate-pulse">
                            {unreadCount}
                          </div>
                        )}
@@ -177,7 +181,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
             })}
           </AnimatePresence>
           {contacts.length === 0 && (
-            <motion.div variants={itemVariants} className="col-span-full text-center py-12 text-zinc-500 text-sm italic bg-white/40 backdrop-blur-md rounded-3xl border border-zinc-200/50">
+            <motion.div variants={itemVariants} className="col-span-full text-center py-12 text-zinc-500 text-sm italic bg-white backdrop-blur-md rounded-3xl border border-zinc-200/50">
               Aucun membre à contacter pour le moment.
             </motion.div>
           )}
@@ -194,21 +198,27 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
       animate={{ opacity: 1 }}
       className={`flex flex-col ${embedded ? 'h-full' : 'h-[calc(100dvh-144px)] md:h-[calc(100dvh-96px)]'}`}
     >
-      <header className="flex items-center gap-4 mb-6 pb-4 border-b border-zinc-200/50 bg-white/40 backdrop-blur-md p-4 rounded-t-3xl -mx-4 -mt-4">
+      <header className="flex items-center gap-4 mb-6 pb-4 border-b border-zinc-200/50 bg-zinc-50 backdrop-blur-md p-4 rounded-t-3xl -mx-4 -mt-4">
         {(user.role === 'coach' || user.role === 'owner') && (
           <motion.button 
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setSelectedDest(null)} 
-            className="text-zinc-500 hover:text-zinc-900 transition-colors bg-white/60 p-2 rounded-xl shadow-sm"
+            className="text-zinc-500 hover:text-zinc-900 transition-colors bg-zinc-50 p-2 rounded-xl shadow-sm"
           >
             <ChevronLeftIcon size={24}/>
           </motion.button>
         )}
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-velatra-accent to-velatra-accentDark flex items-center justify-center text-lg font-black shadow-lg text-white">{dest?.avatar}</div>
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-lg font-black shadow-lg text-zinc-900 overflow-hidden">
+          {dest?.avatar?.startsWith('http') ? (
+            <img src={dest?.avatar} alt={dest?.name} className="w-full h-full object-cover" />
+          ) : (
+            dest?.avatar || dest?.name?.substring(0, 2).toUpperCase()
+          )}
+        </div>
         <div>
           <div className="font-black text-xl uppercase italic tracking-tight leading-none text-zinc-900">{dest?.name}</div>
-          <div className="text-[10px] text-velatra-accent font-bold uppercase tracking-widest mt-1">En ligne</div>
+          <div className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest mt-1">En ligne</div>
         </div>
       </header>
 
@@ -221,18 +231,18 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
               animate={{ opacity: 1, y: 0, scale: 1 }}
               className={`flex ${m.from === user.id ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm backdrop-blur-md ${m.from === user.id ? 'bg-velatra-accent/90 text-white rounded-tr-none' : 'bg-white/80 border border-zinc-200/50 rounded-tl-none text-zinc-900'}`}>
+              <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm backdrop-blur-md ${m.from === user.id ? 'bg-emerald-500/90 text-zinc-900 rounded-tr-none' : 'bg-zinc-100 border border-zinc-200/50 rounded-tl-none text-zinc-900'}`}>
                 {m.text}
                 {m.file && (
-                  <div className={`mt-2 p-2 rounded-xl flex items-center gap-3 border ${m.from === user.id ? 'bg-white/20 border-white/30' : 'bg-zinc-50/50 border-zinc-200/50'}`}>
+                  <div className={`mt-2 p-2 rounded-xl flex items-center gap-3 border ${m.from === user.id ? 'bg-zinc-50 border-zinc-400' : 'bg-white/50 border-zinc-200/50'}`}>
                     <FileIcon size={16} />
                     <span className="text-[10px] truncate flex-1 font-medium">Document joint</span>
-                    <a href={m.file} download="document" className={`p-1 transition-colors ${m.from === user.id ? 'hover:text-zinc-200' : 'hover:text-velatra-accent'}`}>
+                    <a href={m.file} download="document" className={`p-1 transition-colors ${m.from === user.id ? 'hover:text-zinc-700' : 'hover:text-emerald-500'}`}>
                       <DownloadIcon size={14} />
                     </a>
                   </div>
                 )}
-                <div className={`text-[9px] mt-1 text-right font-medium ${m.from === user.id ? 'text-white/70' : 'text-zinc-400'}`}>
+                <div className={`text-[9px] mt-1 text-right font-medium ${m.from === user.id ? 'text-zinc-900/70' : 'text-zinc-500'}`}>
                   {new Date(m.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                 </div>
               </div>
@@ -246,9 +256,9 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-2 px-4 py-2 bg-velatra-accent/10 backdrop-blur-md border border-velatra-accent/20 rounded-xl flex items-center justify-between shadow-sm"
+          className="mb-2 px-4 py-2 bg-emerald-500/10 backdrop-blur-md border border-emerald-500/20 rounded-xl flex items-center justify-between shadow-sm"
         >
-          <div className="flex items-center gap-2 text-[10px] font-bold text-velatra-accent">
+          <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500">
             <FileIcon size={14} /> {fileName}
           </div>
           <button onClick={() => { setFileData(null); setFileName(null); }} className="text-zinc-500 hover:text-zinc-900 transition-colors">
@@ -257,8 +267,8 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
         </motion.div>
       )}
 
-      <div className="mt-4 flex gap-2 items-end bg-white/40 backdrop-blur-md p-2 rounded-2xl border border-zinc-200/50 shadow-sm">
-        <label className="p-3 bg-white/60 border border-zinc-200/50 rounded-xl cursor-pointer hover:bg-white transition-all text-zinc-500 hover:text-velatra-accent shadow-sm flex items-center justify-center shrink-0 h-[50px] w-[50px]">
+      <div className="mt-4 flex gap-2 items-end bg-zinc-50 backdrop-blur-md p-2 rounded-2xl border border-zinc-200/50 shadow-sm">
+        <label className="p-3 bg-zinc-50 border border-zinc-200/50 rounded-xl cursor-pointer hover:bg-white transition-all text-zinc-500 hover:text-emerald-500 shadow-sm flex items-center justify-center shrink-0 h-[50px] w-[50px]">
           <PlusIcon size={20} />
           <input type="file" className="hidden" onChange={handleFileChange} accept=".pdf,image/*" />
         </label>
@@ -272,11 +282,11 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
               sendMessage();
             }
           }} 
-          className="!py-3 !bg-white/60 backdrop-blur-xl !border-zinc-200/50 shadow-inner focus:!bg-white min-h-[50px] max-h-[120px]" 
+          className="!py-3 !bg-zinc-50 backdrop-blur-xl !border-zinc-200/50 shadow-inner focus:!bg-white min-h-[50px] max-h-[120px]" 
           rows={1}
         />
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="shrink-0 h-[50px] w-[50px]">
-          <Button onClick={sendMessage} className="!p-3 h-full w-full shadow-lg shadow-velatra-accent/20 flex items-center justify-center">
+          <Button onClick={sendMessage} className="!p-3 h-full w-full shadow-lg shadow-emerald-500/20 flex items-center justify-center">
             <MessageCircleIcon size={20} />
           </Button>
         </motion.div>

@@ -278,22 +278,22 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
           <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">Réservation de Séances</p>
         </div>
         {!isCoach && (
-          <div className="bg-velatra-accent/10 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-sm">
-            <TargetIcon size={20} className="text-velatra-accent" />
+          <div className="bg-emerald-500/10 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-sm">
+            <TargetIcon size={20} className="text-emerald-500" />
             <div>
-              <div className="text-[10px] uppercase font-bold text-velatra-accent tracking-widest">Crédits restants</div>
+              <div className="text-[10px] uppercase font-bold text-emerald-500 tracking-widest">Crédits restants</div>
               <div className="text-xl font-black text-zinc-900 leading-none">{state.user?.credits || 0}</div>
             </div>
           </div>
         )}
       </motion.div>
 
-      <motion.div variants={itemVariants} className="flex items-center justify-between bg-white p-4 rounded-3xl border  shadow-sm">
-        <Button variant="secondary" className="!px-3 hover:bg-zinc-50" onClick={() => setCurrentWeekOffset(prev => prev - 1)}>&larr;</Button>
+      <motion.div variants={itemVariants} className="flex items-center justify-between bg-white p-4 rounded-3xl border border-zinc-200 shadow-sm">
+        <Button variant="secondary" className="!px-3 hover:bg-white" onClick={() => setCurrentWeekOffset(prev => prev - 1)}>&larr;</Button>
         <div className="font-bold text-zinc-900 text-sm md:text-base text-center">
           Semaine du {weekDates[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au {weekDates[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
         </div>
-        <Button variant="secondary" className="!px-3 hover:bg-zinc-50" onClick={() => setCurrentWeekOffset(prev => prev + 1)}>&rarr;</Button>
+        <Button variant="secondary" className="!px-3 hover:bg-white" onClick={() => setCurrentWeekOffset(prev => prev + 1)}>&rarr;</Button>
       </motion.div>
 
       {/* Mobile-first Date Strip */}
@@ -307,16 +307,16 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
               onClick={() => setSelectedDate(date)}
               className={`flex-shrink-0 w-[72px] h-[88px] rounded-2xl flex flex-col items-center justify-center transition-all snap-center border ${
                 isSelected 
-                  ? 'bg-velatra-accent text-zinc-900 border-velatra-accent shadow-lg shadow-velatra-accent/30 scale-105' 
+                  ? 'bg-emerald-500 text-zinc-900 border-emerald-500 shadow-lg shadow-emerald-500/30 scale-105' 
                   : isToday 
-                    ? 'bg-velatra-accent/10 text-velatra-accent border-velatra-accent/20' 
-                    : 'bg-white text-zinc-500  hover:border-velatra-accent/30 hover:bg-zinc-50'
+                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
+                    : 'bg-white text-zinc-500  hover:border-emerald-500/30 hover:bg-white'
               }`}
             >
               <span className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isSelected ? 'text-zinc-900/80' : ''}`}>
                 {date.toLocaleDateString('fr-FR', { weekday: 'short' })}
               </span>
-              <span className={`text-2xl font-black ${isSelected ? 'text-zinc-900' : isToday ? 'text-velatra-accent' : 'text-zinc-900'}`}>
+              <span className={`text-2xl font-black ${isSelected ? 'text-zinc-900' : isToday ? 'text-emerald-500' : 'text-zinc-900'}`}>
                 {date.getDate()}
               </span>
             </button>
@@ -327,7 +327,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
       {/* Selected Date Slots */}
       <motion.div variants={itemVariants} className="mt-4">
         <h2 className="text-lg font-black text-zinc-900 mb-4 capitalize flex items-center gap-2">
-          <CalendarIcon size={20} className="text-velatra-accent" />
+          <CalendarIcon size={20} className="text-emerald-500" />
           {selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
         </h2>
         
@@ -343,7 +343,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
 
             if (slots.length === 0) {
               return (
-                <motion.div variants={itemVariants} className="col-span-full text-center py-12 bg-white rounded-3xl border  border-dashed">
+                <motion.div variants={itemVariants} className="col-span-full text-center py-12 bg-white rounded-3xl border border-zinc-200 border-dashed">
                   <div className="w-12 h-12 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-3 text-zinc-500 shadow-sm">
                     <ClockIcon size={24} />
                   </div>
@@ -361,7 +361,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                 const isMyBooking = bookingForSlot.memberId === Number(state.user?.id);
                 const member = state.users.find(u => Number(u.id) === bookingForSlot.memberId);
                 
-                const bgColor = isCoach ? 'bg-zinc-50 text-zinc-900 shadow-lg' : (isMyBooking ? 'bg-velatra-accent text-zinc-900 shadow-lg shadow-velatra-accent/20' : 'bg-white text-zinc-500 border  shadow-sm');
+                const bgColor = isCoach ? 'bg-zinc-50 text-zinc-900 shadow-lg' : (isMyBooking ? 'bg-emerald-500 text-zinc-900 shadow-lg shadow-emerald-500/20' : 'bg-white text-zinc-500 border border-zinc-200 shadow-sm');
                 
                 return (
                   <motion.div key={sIdx} variants={itemVariants} className={`${bgColor} p-4 rounded-2xl flex flex-col justify-between min-h-[100px] transition-all ${isPast ? 'opacity-50' : 'hover:scale-[1.02]'}`}>
@@ -371,12 +371,12 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                         {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider">{sessionType.name}</div>}
                       </div>
                       {isMyBooking && !isCoach && (
-                        <Badge variant="dark" className="!bg-white/20 !text-zinc-900 !border-none shadow-sm">Ma séance</Badge>
+                        <Badge variant="dark" className="!bg-zinc-100 !text-zinc-900 !border-none shadow-sm">Ma séance</Badge>
                       )}
                     </div>
                     
                     {isCoach ? (
-                      <div className="flex items-center gap-2 text-zinc-700 text-sm mb-3 bg-white/10 p-2 rounded-xl backdrop-blur-sm">
+                      <div className="flex items-center gap-2 text-zinc-600 text-sm mb-3 bg-zinc-50 p-2 rounded-xl backdrop-blur-sm">
                         <UserIcon size={14} /> <span className="font-bold">{member?.name || 'Inconnu'}</span>
                       </div>
                     ) : (
@@ -386,7 +386,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                     )}
                     
                     {(isCoach || isMyBooking) && !isPast && (
-                      <Button variant="secondary" className={`w-full !py-2 !text-xs transition-colors ${isCoach ? ' hover:bg-zinc-50 text-zinc-900' : 'border-white/30 hover:bg-white/20 text-zinc-900'}`} onClick={() => handleCancelBooking(bookingForSlot)}>
+                      <Button variant="secondary" className={`w-full !py-2 !text-xs transition-colors ${isCoach ? ' hover:bg-white text-zinc-900' : 'border-zinc-400 hover:bg-zinc-100 text-zinc-900'}`} onClick={() => handleCancelBooking(bookingForSlot)}>
                         Annuler la réservation
                       </Button>
                     )}
@@ -424,11 +424,11 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                     setSelectedSlot(slot);
                     setIsBookingModalOpen(true);
                   }}
-                  className="p-4 rounded-2xl border  hover:border-velatra-accent hover:bg-zinc-50 transition-all text-zinc-900 bg-white flex flex-col justify-center items-center group min-h-[100px] shadow-sm hover:shadow-md"
+                  className="p-4 rounded-2xl border border-zinc-200 hover:border-emerald-500 hover:bg-zinc-50 transition-all text-zinc-900 bg-white flex flex-col justify-center items-center group min-h-[100px] shadow-sm hover:shadow-md"
                 >
-                  <div className="font-black text-xl mb-1 group-hover:text-velatra-accent transition-colors">{formatTime(slot.start)}</div>
-                  {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider mb-1 group-hover:text-velatra-accent/70">{sessionType.name}</div>}
-                  <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 group-hover:text-velatra-accent/70">Réserver</div>
+                  <div className="font-black text-xl mb-1 group-hover:text-emerald-500 transition-colors">{formatTime(slot.start)}</div>
+                  {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider mb-1 group-hover:text-emerald-500/70">{sessionType.name}</div>}
+                  <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 group-hover:text-emerald-500/70">Réserver</div>
                 </motion.button>
               );
             });
@@ -443,7 +443,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/25 backdrop-blur-sm z-50 flex items-center justify-center p-4"
         >
           <motion.div
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -455,24 +455,24 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
             <Card className="w-full p-8 bg-white  shadow-2xl">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">Confirmer la réservation</h2>
-                <button onClick={() => setIsBookingModalOpen(false)} className="text-zinc-500 hover:text-zinc-900 transition-colors bg-zinc-50 p-2 rounded-full hover:bg-zinc-700">
+                <button onClick={() => setIsBookingModalOpen(false)} className="text-zinc-500 hover:text-zinc-900 transition-colors bg-zinc-50 p-2 rounded-full hover:bg-zinc-100">
                   <XIcon size={24} />
                 </button>
               </div>
               
               <div className="space-y-6">
-                <div className="bg-zinc-50 p-4 rounded-2xl border  flex items-center gap-4 shadow-sm">
-                  <div className="w-12 h-12 bg-velatra-accent/10 rounded-xl flex items-center justify-center text-velatra-accent shadow-inner">
+                <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 flex items-center gap-4 shadow-sm">
+                  <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500 shadow-inner">
                     <CalendarIcon size={24} />
                   </div>
                   <div>
                     <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Date & Heure</div>
                     <div className="font-bold text-zinc-900 capitalize">{formatDate(selectedSlot.start)}</div>
-                    <div className="text-sm text-zinc-400">{formatTime(selectedSlot.start)} - {formatTime(selectedSlot.end)}</div>
+                    <div className="text-sm text-zinc-500">{formatTime(selectedSlot.start)} - {formatTime(selectedSlot.end)}</div>
                   </div>
                 </div>
 
-                <div className="bg-zinc-50 p-4 rounded-2xl border  flex items-center justify-between shadow-sm">
+                <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 flex items-center justify-between shadow-sm">
                   <div>
                     <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Coût</div>
                     <div className="font-bold text-zinc-900">1 Crédit {selectedSlot.sessionTypeId ? (bookingSettings.sessionTypes?.find(t => t.id === selectedSlot.sessionTypeId)?.name || 'Coaching') : 'Standard'}</div>
@@ -487,7 +487,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
 
                 <Button 
                   variant="primary" 
-                  className="w-full !py-4 shadow-lg shadow-velatra-accent/20" 
+                  className="w-full !py-4 shadow-lg shadow-emerald-500/20" 
                   onClick={handleBookSlot}
                   disabled={!isCoach && (selectedSlot.sessionTypeId ? (state.user?.sessionCredits?.[selectedSlot.sessionTypeId] || 0) <= 0 : (state.user?.credits || 0) <= 0)}
                 >
@@ -510,14 +510,14 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
       )}
 
       {confirmCancelBookingId && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border "
           >
             <h3 className="text-xl font-black text-zinc-900 mb-2">Annuler la réservation ?</h3>
-            <p className="text-zinc-400 mb-6">Voulez-vous vraiment annuler cette réservation ?</p>
+            <p className="text-zinc-500 mb-6">Voulez-vous vraiment annuler cette réservation ?</p>
             <div className="flex gap-3">
               <Button variant="secondary" fullWidth onClick={() => setConfirmCancelBookingId(null)}>Non, garder</Button>
               <Button variant="danger" fullWidth onClick={confirmCancelBooking}>Oui, annuler</Button>

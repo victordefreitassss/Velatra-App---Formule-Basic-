@@ -3,10 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Program, User, Exercise, AppState, SessionLog, Performance, ExerciseEntry } from '../types';
 import { Button, Input, Badge, Card } from './UI';
-import { XIcon, CheckIcon, DumbbellIcon, InfoIcon, RefreshCwIcon, SparklesIcon, TrophyIcon, LinkIcon } from './Icons';
+import { XIcon, CheckIcon, DumbbellIcon, InfoIcon, RefreshCwIcon, SparklesIcon, TrophyIcon, LinkIcon, VideoIcon } from './Icons';
 import { db, doc, setDoc, updateDoc, deleteDoc } from '../firebase';
 import { PROGRAM_DURATION_WEEKS } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 
 const getTargetRepsForSet = (repsString: string | number | undefined, setIndex: number): string => {
   if (typeof repsString === 'number') return String(repsString);
@@ -73,6 +74,30 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
   });
   const [completedExercises, setCompletedExercises] = useState<number[]>([]);
   const [sessionXP, setSessionXP] = useState(0);
+  const [activeVideo, setActiveVideo] = useState<string | null>(null);
+  const [restTimer, setRestTimer] = useState<number | null>(null);
+  const [isTimerActive, setIsTimerActive] = useState(false);
+
+  useEffect(() => {
+    let interval: any;
+    if (isTimerActive && restTimer !== null && restTimer > 0) {
+      interval = setInterval(() => {
+        setRestTimer(prev => (prev !== null && prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    } else if (restTimer === 0 && isTimerActive) {
+      setIsTimerActive(false);
+      try {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.play();
+      } catch(e) {}
+    }
+    return () => clearInterval(interval);
+  }, [isTimerActive, restTimer]);
+
+  const startTimer = (seconds: number) => {
+    setRestTimer(seconds);
+    setIsTimerActive(true);
+  };
 
   const containerVariants: any = {
     hidden: { opacity: 0 },
@@ -217,6 +242,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
     };
 
     const perfs: Performance[] = [];
+    let hasNewPR = false;
     currentDay.exercises.forEach((exEntry, exIndex) => {
       const baseEx = state.exercises.find(e => e.id === exEntry.exId);
       if (baseEx?.perfId) {
@@ -230,6 +256,15 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
             if (w > maxWeight) { maxWeight = w; associatedReps = r; }
           }
         }
+        
+        // Check for PR
+        const previousPerfs = state.performances.filter(p => p.memberId === Number(member.id) && p.exId === baseEx.perfId);
+        const previousMaxWeight = previousPerfs.length > 0 ? Math.max(...previousPerfs.map(p => p.weight)) : 0;
+        
+        if (maxWeight > previousMaxWeight && previousMaxWeight > 0) {
+          hasNewPR = true;
+        }
+
         if (maxWeight > 0 || duration) perfs.push({ 
           id: Date.now() + exIndex, 
           clubId: member.clubId,
@@ -243,6 +278,16 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
         });
       }
     });
+
+    if (hasNewPR) {
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#f43f5e', '#10b981', '#3b82f6']
+      });
+      showToast("NOUVEAU RECORD PERSONNEL ! 🎉", "success");
+    }
 
     const userRef = doc(db, "users", (member as any).firebaseUid);
     const newStreak = (member.lastWorkoutDate === new Date(Date.now() - 86400000).toISOString().split('T')[0]) ? (member.streak || 0) + 1 : 1;
@@ -293,7 +338,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 50 }}
-      className="fixed inset-0 bg-zinc-50 z-[100] flex flex-col page-transition"
+      className="fixed inset-0 bg-white z-[100] flex flex-col page-transition"
     >
       <header className="glass border-b  px-4 py-4 md:px-8 md:py-6 flex flex-col sticky top-0 z-20">
         <div className="flex items-center justify-between w-full">
@@ -304,7 +349,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                    ~{currentDay.duration} MIN
                  </Badge>
                )}
-               <div className="flex items-center gap-1 text-velatra-accent font-bold text-[10px] animate-pulse">
+               <div className="flex items-center gap-1 text-emerald-500 font-bold text-[10px] animate-pulse">
                   <SparklesIcon size={12}/> {sessionXP} XP
                </div>
             </div>
@@ -314,14 +359,14 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={onClose} 
-            className="p-3 bg-zinc-50 rounded-full text-zinc-500 hover:text-zinc-900 transition-all hover:bg-red-500 shrink-0"
+            className="p-3 bg-white rounded-full text-zinc-500 hover:text-zinc-900 transition-all hover:bg-red-500 shrink-0"
           >
             <XIcon size={20} />
           </motion.button>
         </div>
-        <div className="w-full h-1.5 bg-zinc-200 rounded-full mt-4 overflow-hidden">
+        <div className="w-full h-1.5 bg-zinc-100 rounded-full mt-4 overflow-hidden">
           <motion.div 
-            className="h-full bg-velatra-accent"
+            className="h-full bg-emerald-500"
             initial={{ width: 0 }}
             animate={{ width: `${(completedExercises.length / currentDay.exercises.length) * 100}%` }}
             transition={{ duration: 0.5, ease: "easeInOut" }}
@@ -334,14 +379,14 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
         animate="visible"
         className="flex-1 overflow-y-auto px-4 py-6 md:px-16 space-y-8 no-scrollbar"
       >
-        <motion.div variants={itemVariants} className="flex justify-between items-center bg-zinc-50 p-6 rounded-[32px] border ">
+        <motion.div variants={itemVariants} className="flex justify-between items-center bg-white p-6 rounded-[32px] border ">
            <div className="space-y-1">
               <span className="text-[10px] font-black uppercase tracking-[4px] text-zinc-900">Progression Cycle</span>
               <div className="text-sm font-black text-zinc-900 italic">
                 SEMAINE {Math.floor(program.currentDayIndex / program.nbDays) + 1} {program.durationWeeks ? `/ ${program.durationWeeks}` : ''} • JOUR {(program.currentDayIndex % program.nbDays) + 1}
               </div>
            </div>
-           <div className="w-14 h-14 bg-velatra-accent/10 rounded-2xl flex items-center justify-center text-velatra-accent shadow-inner">
+           <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 shadow-inner">
               <TrophyIcon size={28} />
            </div>
         </motion.div>
@@ -371,14 +416,14 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                     initial={{ height: 0 }}
                     animate={{ height: '100%' }}
                     transition={{ duration: 0.8, ease: "easeInOut" }}
-                    className="absolute left-0 top-0 w-2 bg-gradient-to-b from-velatra-accent to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" 
+                    className="absolute left-0 top-0 w-2 bg-gradient-to-b from-emerald-500 to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" 
                   />
                   
                   <motion.div 
                     initial={{ x: -20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                     transition={{ delay: 0.4 }}
-                    className="absolute -top-8 left-0 bg-velatra-accent text-zinc-900 px-4 py-2 rounded-r-2xl rounded-tl-2xl shadow-lg z-10 flex flex-col gap-1"
+                    className="absolute -top-8 left-0 bg-emerald-500 text-zinc-900 px-4 py-2 rounded-r-2xl rounded-tl-2xl shadow-lg z-10 flex flex-col gap-1"
                   >
                     <div className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                       <LinkIcon size={12} /> {group.groupName || 'SUPERSET'}
@@ -398,23 +443,34 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                 return (
                   <div key={exIndex} className="relative">
                     <div id={`exercise-${exIndex}`} className={`transition-all duration-500 ${isValidated ? 'opacity-30 grayscale scale-[0.98] pointer-events-none' : ''}`}>
-                      <Card className={`!p-6 md:!p-8 bg-white shadow-xl relative border-none ring-1  ${group.isGroup ? 'hover:ring-velatra-accent/50 transition-all' : ''}`}>
+                      <Card className={`!p-6 md:!p-8 bg-zinc-50 shadow-xl relative border-none ring-1 ring-zinc-200 ${group.isGroup ? 'hover:ring-emerald-500/50 transition-all' : ''}`}>
                         {group.isGroup && (
-                          <div className="absolute -left-6 md:-left-10 top-1/2 -translate-y-1/2 w-6 md:w-10 h-1 bg-velatra-accent/30" />
+                          <div className="absolute -left-6 md:-left-10 top-1/2 -translate-y-1/2 w-6 md:w-10 h-1 bg-emerald-500/30" />
                         )}
                         <div className="flex gap-4 md:gap-8 items-center mb-6 md:mb-10">
-                          <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-white border  flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
+                          <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-white border border-zinc-200 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
                             {baseEx?.photo ? (
                               <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
                             ) : (
-                              <div className="text-velatra-accent">
+                              <div className="text-emerald-500">
                                 <DumbbellIcon size={40} />
                               </div>
                             )}
                           </div>
                           <div className="flex-1">
-                            <div className="text-[10px] text-velatra-accent font-black uppercase tracking-[3px] mb-1 md:mb-2">{baseEx?.cat}</div>
-                            <div className="font-black text-2xl md:text-3xl tracking-tighter leading-none text-zinc-900 italic uppercase mb-2 md:mb-3">{baseEx?.name}</div>
+                            <div className="text-[10px] text-emerald-500 font-black uppercase tracking-[3px] mb-1 md:mb-2">{baseEx?.cat}</div>
+                            <div className="font-black text-2xl md:text-3xl tracking-tighter leading-none text-zinc-900 italic uppercase mb-2 md:mb-3 flex items-center gap-2">
+                              {baseEx?.name}
+                              {baseEx?.videoUrl && (
+                                <button 
+                                  onClick={() => setActiveVideo(baseEx.videoUrl!)}
+                                  className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg hover:bg-emerald-500/20 transition-colors"
+                                  title="Voir la vidéo"
+                                >
+                                  <VideoIcon size={18} />
+                                </button>
+                              )}
+                            </div>
                             <div className="flex flex-wrap gap-2 mb-2">
                               {exEntry.setType && exEntry.setType !== 'normal' && !group.isGroup && (
                                 <Badge variant="orange" className="uppercase">{exEntry.setType}</Badge>
@@ -423,7 +479,12 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                                 <Badge variant="dark" className="uppercase">Tempo: {exEntry.tempo}</Badge>
                               )}
                               {exEntry.rest && (
-                                <Badge variant="dark" className="uppercase">Repos: {exEntry.rest}s</Badge>
+                                <button onClick={() => startTimer(parseInt(exEntry.rest) || 90)} className="hover:scale-105 transition-transform active:scale-95">
+                                  <Badge variant="dark" className="uppercase flex items-center gap-1 cursor-pointer !bg-zinc-800 hover:!bg-zinc-700">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    Repos: {exEntry.rest}s
+                                  </Badge>
+                                </button>
                               )}
                             </div>
                             {pr && (
@@ -432,8 +493,8 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                               </div>
                             )}
                             {exEntry.notes && (
-                              <div className="mt-3 p-3 bg-velatra-accent/5 border border-velatra-accent/20 rounded-xl text-xs text-zinc-700 font-medium leading-relaxed">
-                                <span className="text-[9px] font-black text-velatra-accent uppercase tracking-widest block mb-1">Notes du coach</span>
+                              <div className="mt-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-xs text-zinc-600 font-medium leading-relaxed">
+                                <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest block mb-1">Notes du coach</span>
                                 {exEntry.notes}
                               </div>
                             )}
@@ -442,55 +503,62 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                         <div className="grid grid-cols-1 gap-4 md:gap-6 mb-8 md:mb-10">
                           {Array.from({ length: (typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1) }).map((_, sIdx) => (
                             <div key={sIdx} className="flex items-center gap-3 md:gap-6 group animate-in slide-in-from-left">
-                               <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-zinc-50 border  flex items-center justify-center text-xs font-black text-zinc-900 group-focus-within:border-velatra-accent transition-all shrink-0">{sIdx+1}</div>
-                               <div className="flex-1 grid grid-cols-2 gap-2 md:gap-4">
+                               <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center text-xs font-black text-zinc-900 group-focus-within:border-emerald-500 transition-all shrink-0">{sIdx+1}</div>
+                               <div className="flex-1 flex flex-col gap-1">
+                                 <div className="grid grid-cols-2 gap-2 md:gap-4">
                                   {baseEx?.cat === 'Cardio' ? (
                                     <div className="relative flex items-center col-span-2">
                                       <Input 
                                         placeholder={exEntry.duration || "DURÉE (ex: 15 min)"} 
-                                        className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-4" 
+                                        className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-4" 
                                         value={sessionData[`${exIndex}-${sIdx}-duration`] || ""} 
                                         onChange={e => handleInputChange(exIndex, sIdx, 'duration', e.target.value)} 
                                       />
-                                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">Temps / Distance</span>
+                                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-zinc-50 px-1 md:px-2 text-[7px] font-black text-zinc-500 uppercase">Temps / Distance</span>
                                     </div>
                                   ) : (
                                     <>
                                       <div className="relative flex items-center">
                                          <button 
                                            onClick={() => handleInputChange(exIndex, sIdx, 'weight', String(Math.max(0, (parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") - 1))))}
-                                           className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                           className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-white rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
                                          >-</button>
-                                         <Input type="number" inputMode="decimal" placeholder={(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "LEST" : "KG"} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
+                                         <Input type="number" inputMode="decimal" placeholder={(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "LEST" : "KG"} className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
                                          <button 
                                            onClick={() => handleInputChange(exIndex, sIdx, 'weight', String((parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") + 1)))}
-                                           className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                           className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-50 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
                                          >+</button>
-                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? 'Lest' : 'Charge'}</span>
+                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-zinc-50 px-1 md:px-2 text-[7px] font-black text-zinc-500 uppercase">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? 'Lest' : 'Charge'}</span>
                                       </div>
                                       <div className="relative flex items-center">
                                          <button 
                                            onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") - 1))))}
-                                           className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                           className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-50 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
                                          >-</button>
-                                         <Input type="text" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || String(exEntry.reps).toLowerCase().includes('s')) ? "SEC" : "REPS")} className="!bg-white !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
+                                         <Input type="text" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || String(exEntry.reps).toLowerCase().includes('s')) ? "SEC" : "REPS")} className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
                                          <button 
                                            onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") + 1)))}
-                                           className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-100 rounded-lg text-zinc-500 hover:bg-zinc-200 z-10"
+                                           className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-50 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
                                          >+</button>
-                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-white px-1 md:px-2 text-[7px] font-black text-zinc-900 uppercase whitespace-nowrap">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || getTargetRepsForSet(exEntry.reps, sIdx).toLowerCase().includes('s')) ? 'Temps (sec)' : 'Répétitions'} {exEntry.reps ? `(Cible: ${getTargetRepsForSet(exEntry.reps, sIdx)})` : ''}</span>
+                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-zinc-50 px-1 md:px-2 text-[7px] font-black text-zinc-500 uppercase whitespace-nowrap">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || getTargetRepsForSet(exEntry.reps, sIdx).toLowerCase().includes('s')) ? 'Temps (sec)' : 'Répétitions'} {exEntry.reps ? `(Cible: ${getTargetRepsForSet(exEntry.reps, sIdx)})` : ''}</span>
                                       </div>
                                     </>
                                   )}
                                </div>
+                               {baseEx?.cat !== 'Cardio' && sessionData[`${exIndex}-${sIdx}-weight`] && sessionData[`${exIndex}-${sIdx}-reps`] && (
+                                 <div className="text-[9px] font-bold text-zinc-400 text-right pr-2">
+                                   1RM Estimé : {Math.round(parseFloat(sessionData[`${exIndex}-${sIdx}-weight`]) * (1 + parseInt(sessionData[`${exIndex}-${sIdx}-reps`]) / 30))} kg
+                                 </div>
+                               )}
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        ))}
+                      </div>
                         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                           <Button 
                             variant={isValidated ? "success" : "primary"} 
                             fullWidth 
-                            className={`!py-5 !rounded-[24px] font-black italic tracking-widest text-base shadow-xl transition-colors duration-300 ${isValidated ? 'shadow-emerald-500/20 bg-emerald-500 text-white' : 'shadow-velatra-accent/20 text-zinc-900'}`} 
+                            className={`!py-5 !rounded-[24px] font-black italic tracking-widest text-base shadow-xl transition-colors duration-300 ${isValidated ? 'shadow-emerald-500/20 bg-emerald-500 text-zinc-900' : 'shadow-emerald-500/20 text-zinc-900'}`} 
                             onClick={() => toggleExerciseValidation(exIndex)}
                           >
                              <AnimatePresence mode="wait">
@@ -527,7 +595,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                             opacity: [0.5, 1, 0.5]
                           }}
                           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          className="w-8 h-8 rounded-full bg-velatra-accent/10 text-velatra-accent flex items-center justify-center backdrop-blur-sm border border-velatra-accent/30"
+                          className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center backdrop-blur-sm border border-emerald-500/30"
                         >
                           <LinkIcon size={14} />
                         </motion.div>
@@ -547,7 +615,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
       >
         <div className="flex justify-between items-center px-4">
            <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">Récompense de séance</div>
-           <div className="text-sm font-black text-velatra-accent italic">+{loyaltyPoints} XP</div>
+           <div className="text-sm font-black text-emerald-500 italic">+{loyaltyPoints} XP</div>
         </div>
         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
           <Button variant="success" fullWidth onClick={finishSession} className="!py-6 !rounded-[32px] font-black text-xl italic shadow-2xl shadow-emerald-500/20" disabled={completedExercises.length < currentDay.exercises.length}>
@@ -555,6 +623,79 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
           </Button>
         </motion.div>
       </motion.footer>
+
+      <AnimatePresence>
+        {restTimer !== null && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0, x: '-50%' }}
+            animate={{ y: 0, opacity: 1, x: '-50%' }}
+            exit={{ y: 100, opacity: 0, x: '-50%' }}
+            className="fixed bottom-24 left-1/2 bg-zinc-900 text-white px-6 py-3 rounded-full shadow-2xl z-[150] flex items-center gap-4 border border-zinc-800"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`w-2.5 h-2.5 rounded-full ${restTimer === 0 ? 'bg-red-500 animate-pulse' : 'bg-emerald-500 animate-pulse'}`} />
+              <span className="font-mono font-black text-2xl tracking-widest w-20 text-center">
+                {Math.floor(restTimer / 60).toString().padStart(2, '0')}:{(restTimer % 60).toString().padStart(2, '0')}
+              </span>
+            </div>
+            <div className="flex items-center gap-1 border-l border-zinc-700 pl-4">
+              <button onClick={() => setRestTimer(prev => prev !== null ? prev + 30 : 30)} className="px-2 py-1 text-[10px] font-bold text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors">+30s</button>
+              <button onClick={() => setIsTimerActive(!isTimerActive)} className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-emerald-500">
+                {isTimerActive ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                )}
+              </button>
+              <button onClick={() => { setRestTimer(null); setIsTimerActive(false); }} className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-white">
+                <XIcon size={18} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {activeVideo && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4"
+            onClick={() => setActiveVideo(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-4xl aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setActiveVideo(null)}
+                className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 z-10"
+              >
+                <XIcon size={24} />
+              </button>
+              {activeVideo.includes('youtube.com') || activeVideo.includes('youtu.be') ? (
+                <iframe 
+                  src={activeVideo.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                  className="w-full h-full"
+                  allowFullScreen
+                />
+              ) : activeVideo.includes('vimeo.com') ? (
+                <iframe 
+                  src={`https://player.vimeo.com/video/${activeVideo.split('/').pop()}`}
+                  className="w-full h-full"
+                  allowFullScreen
+                />
+              ) : (
+                <video src={activeVideo} controls className="w-full h-full" />
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>,
     document.body
   );

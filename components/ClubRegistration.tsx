@@ -103,16 +103,16 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-transparent">
         <div className="w-full max-w-[400px] space-y-8 py-12">
-          <Card className="p-8 space-y-6  ring-1  text-center bg-velatra-bgCard/60 backdrop-blur-3xl">
+          <Card className="p-8 space-y-6  ring-1  text-center bg-zinc-50/60 backdrop-blur-3xl">
             <h2 className="text-2xl font-black text-zinc-900 italic tracking-tighter">FÉLICITATIONS !</h2>
-            <p className="text-zinc-400 text-xs uppercase tracking-widest font-bold">Votre espace a été créé avec succès.</p>
+            <p className="text-zinc-500 text-xs uppercase tracking-widest font-bold">Votre espace a été créé avec succès.</p>
             
-            <div className="bg-velatra-bgLight p-6 rounded-2xl border ">
-              <p className="text-[10px] uppercase tracking-widest font-black text-velatra-accent mb-2">VOTRE CODE D'ACCÈS CLUB</p>
+            <div className="bg-white p-6 rounded-2xl border border-zinc-200">
+              <p className="text-[10px] uppercase tracking-widest font-black text-emerald-500 mb-2">VOTRE CODE D'ACCÈS CLUB</p>
               <p className="text-4xl font-black tracking-widest text-zinc-900">{createdClubId}</p>
             </div>
             
-            <p className="text-xs text-zinc-400">Gardez ce code précieusement. Vos adhérents en auront besoin pour s'inscrire et rejoindre votre club.</p>
+            <p className="text-xs text-zinc-500">Gardez ce code précieusement. Vos adhérents en auront besoin pour s'inscrire et rejoindre votre club.</p>
             
             <Button fullWidth onClick={onSuccess} className="!py-4 shadow-xl mt-4">
               ACCÉDER À MON ESPACE
@@ -127,38 +127,38 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
     <div className="min-h-screen flex items-center justify-center px-4 bg-transparent">
       <div className="w-full max-w-[400px] space-y-8 py-12">
         <div className="text-center">
-          <h2 className="text-3xl font-black text-zinc-900 italic tracking-tighter">CRÉER VOTRE <span className="text-velatra-accent">CLUB</span></h2>
-          <p className="text-zinc-400 text-xs mt-2 uppercase tracking-widest font-bold">Lancez votre plateforme SaaS Fitness</p>
+          <h2 className="text-3xl font-black text-zinc-900 italic tracking-tighter">CRÉER VOTRE <span className="text-emerald-500">CLUB</span></h2>
+          <p className="text-zinc-500 text-xs mt-2 uppercase tracking-widest font-bold">Lancez votre plateforme SaaS Fitness</p>
         </div>
 
-        <Card className="p-8 space-y-6  ring-1  bg-velatra-bgCard/60 backdrop-blur-3xl">
+        <Card className="p-8 space-y-6  ring-1  bg-zinc-50/60 backdrop-blur-3xl">
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-400 ml-1">Nom du Club / Studio</label>
-              <Input placeholder="Ex: Elite Fitness Studio" value={clubName} onChange={e => setClubName(e.target.value)} required className="!bg-velatra-bgLight !" />
+              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-500 ml-1">Nom du Club / Studio</label>
+              <Input placeholder="Ex: Elite Fitness Studio" value={clubName} onChange={e => setClubName(e.target.value)} required className="!bg-white border-zinc-200" />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-400 ml-1">Nom du Responsable</label>
-              <Input placeholder="Votre nom complet" value={ownerName} onChange={e => setOwnerName(e.target.value)} required className="!bg-velatra-bgLight !" />
+              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-500 ml-1">Nom du Responsable</label>
+              <Input placeholder="Votre nom complet" value={ownerName} onChange={e => setOwnerName(e.target.value)} required className="!bg-white border-zinc-200" />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-400 ml-1">Email Professionnel</label>
-              <Input type="email" placeholder="contact@votreclub.com" value={email} onChange={e => setEmail(e.target.value)} required className="!bg-velatra-bgLight !" />
+              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-500 ml-1">Email Professionnel</label>
+              <Input type="email" placeholder="contact@votreclub.com" value={email} onChange={e => setEmail(e.target.value)} required className="!bg-zinc-50 border-zinc-200" />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-400 ml-1">Mot de passe</label>
-              <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="!bg-velatra-bgLight !" />
+              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-500 ml-1">Mot de passe</label>
+              <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="!bg-zinc-50 border-zinc-200" />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] uppercase tracking-widest font-black text-velatra-accent ml-1">Code d'invitation (Bêta)</label>
-              <Input placeholder="Code requis" value={inviteCode} onChange={e => setInviteCode(e.target.value)} required className="!bg-velatra-bgLight border-velatra-accent/30 focus:border-velatra-accent" />
+              <label className="text-[9px] uppercase tracking-widest font-black text-emerald-500 ml-1">Code d'invitation (Bêta)</label>
+              <Input placeholder="Code requis" value={inviteCode} onChange={e => setInviteCode(e.target.value)} required className="!bg-white border-emerald-500/30 focus:border-emerald-500" />
             </div>
 
-            {error && <p className="text-[10px] text-velatra-accent font-bold text-center bg-velatra-accent/5 py-2 rounded-lg">{error}</p>}
+            {error && <p className="text-[10px] text-emerald-500 font-bold text-center bg-emerald-500/5 py-2 rounded-lg">{error}</p>}
 
             <Button type="submit" fullWidth disabled={loading} className="!py-4 shadow-xl">
               {loading ? "CRÉATION EN COURS..." : "CRÉER MON ESPACE"}

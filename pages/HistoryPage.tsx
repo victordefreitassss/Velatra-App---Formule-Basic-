@@ -46,7 +46,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
     >
       <motion.div variants={itemVariants} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Historique <span className="text-velatra-accent">VELATRA</span></h1>
+          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Historique <span className="text-emerald-500">VELATRA</span></h1>
           <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">{archives.length} Cycles archivés</p>
         </div>
         
@@ -56,7 +56,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
           </div>
           <Input 
             placeholder="Rechercher..." 
-            className="pl-12 !bg-white/50 ! !rounded-2xl font-bold text-sm shadow-sm" 
+            className="pl-12 \!bg-white \!border-zinc-200 !rounded-2xl font-bold text-sm shadow-sm" 
             value={searchTerm} 
             onChange={e => setSearchTerm(e.target.value)} 
           />
@@ -66,7 +66,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
       <motion.div variants={containerVariants} className="space-y-4">
         {archives.length === 0 ? (
           <motion.div variants={itemVariants}>
-            <Card className="py-20 text-center opacity-50 italic font-medium bg-white/60 backdrop-blur-xl border-dashed  shadow-sm">
+            <Card className="py-20 text-center opacity-50 italic font-medium bg-white backdrop-blur-xl border-dashed  shadow-sm">
               Aucun programme archivé. Terminez un cycle de 7 semaines pour le voir ici.
             </Card>
           </motion.div>
@@ -75,9 +75,9 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
             const member = state.users.find(u => Number(u.id) === prog.memberId);
             return (
               <motion.div variants={itemVariants} key={prog.id}>
-                <Card className="flex flex-col md:flex-row md:items-center justify-between gap-6 border  bg-white/60 backdrop-blur-xl hover:border-velatra-accent/30 !p-8 group transition-all shadow-sm hover:shadow-md">
+                <Card className="flex flex-col md:flex-row md:items-center justify-between gap-6 border border-zinc-200 bg-white backdrop-blur-xl hover:border-emerald-500/30 !p-8 group transition-all shadow-sm hover:shadow-md">
                   <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 rounded-3xl bg-white/50 flex items-center justify-center text-zinc-900 group-hover:text-velatra-accent transition-colors shadow-sm">
+                    <div className="w-16 h-16 rounded-3xl bg-zinc-50 flex items-center justify-center text-zinc-900 group-hover:text-emerald-500 transition-colors shadow-sm">
                       <HistoryIcon size={32} />
                     </div>
                     <div>
@@ -88,7 +88,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
                         </div>
                         {(user.role === 'coach' || user.role === 'owner') && (
                           <div className="flex items-center gap-1.5">
-                            <span className="text-velatra-accent">•</span> ATHLÈTE : {(prog as any).memberName || member?.name || 'Inconnu'}
+                            <span className="text-emerald-500">•</span> ATHLÈTE : {(prog as any).memberName || member?.name || 'Inconnu'}
                           </div>
                         )}
                       </div>

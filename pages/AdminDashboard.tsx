@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { collection, getDocs, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Club, User } from '../types';
 import { Card } from '../components/UI';
 import { Shield, CheckCircle, XCircle, Search, Activity, Crown, Power, Trash2 } from 'lucide-react';
@@ -169,6 +170,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
     }
   };
 
+  const handleLogoUpload = async (clubId: string, file: File) => {
+    try {
+      showToast("Téléchargement du logo en cours...", "success");
+      const logoRef = ref(storage, `clubs/${clubId}/logo_${Date.now()}`);
+      await uploadBytes(logoRef, file);
+      const url = await getDownloadURL(logoRef);
+      
+      await updateDoc(doc(db, 'clubs', clubId), { logo: url });
+      setClubs(clubs.map(c => c.id === clubId ? { ...c, logo: url } : c));
+      showToast("Logo mis à jour avec succès !", "success");
+    } catch (error) {
+      console.error("Error uploading logo:", error);
+      showToast("Erreur lors du téléchargement du logo", "error");
+    }
+  };
+
   const filteredClubs = clubs.filter(club => {
     if (!((club.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (owners[club.id]?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -202,8 +219,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white/40 backdrop-blur-xl flex items-center justify-center">
-        <div className="animate-spin text-velatra-accent">
+      <div className="min-h-screen bg-white backdrop-blur-xl flex items-center justify-center">
+        <div className="animate-spin text-emerald-500">
           <Activity size={32} />
         </div>
       </div>
@@ -219,8 +236,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
     >
       <motion.div variants={itemVariants} className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-velatra-accent/10 rounded-2xl flex items-center justify-center shadow-inner backdrop-blur-md">
-            <Shield className="text-velatra-accent" size={24} />
+          <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center shadow-inner backdrop-blur-md">
+            <Shield className="text-emerald-500" size={24} />
           </div>
           <div>
             <h1 className="text-3xl font-bold text-zinc-900 tracking-tight">Super Admin</h1>
@@ -229,19 +246,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
         </div>
         
         <div className="flex items-center gap-4">
-          <div className="bg-white/60 backdrop-blur-xl border  rounded-xl px-4 py-2 flex items-center gap-2 shadow-sm">
+          <div className="bg-white backdrop-blur-xl border border-zinc-200 rounded-xl px-4 py-2 flex items-center gap-2 shadow-sm">
             <span className="text-zinc-500 text-sm">Total Clubs:</span>
             <span className="text-zinc-900 font-bold">{clubs.length}</span>
           </div>
-          <div className="bg-velatra-accent/10 backdrop-blur-xl border border-velatra-accent/20 rounded-xl px-4 py-2 flex items-center gap-2 shadow-sm">
-            <span className="text-velatra-accent/70 text-sm">Premium:</span>
-            <span className="text-velatra-accent font-bold">{clubs.filter(c => c.plan === 'premium').length}</span>
+          <div className="bg-emerald-500/10 backdrop-blur-xl border border-emerald-500/20 rounded-xl px-4 py-2 flex items-center gap-2 shadow-sm">
+            <span className="text-emerald-500/70 text-sm">Premium:</span>
+            <span className="text-emerald-500 font-bold">{clubs.filter(c => c.plan === 'premium').length}</span>
           </div>
         </div>
       </motion.div>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-2">
-        <Card className="bg-white/60 backdrop-blur-xl  p-6 shadow-sm">
+        <Card className="bg-white backdrop-blur-xl  p-6 shadow-sm">
           <h3 className="text-lg font-bold text-zinc-900 mb-6">Répartition des Formules</h3>
           <div className="h-64 w-full flex items-center justify-center">
             {planDistribution.length > 0 ? (
@@ -267,12 +284,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-zinc-400 text-sm">Aucune donnée</div>
+              <div className="text-zinc-500 text-sm">Aucune donnée</div>
             )}
           </div>
         </Card>
 
-        <Card className="bg-white/60 backdrop-blur-xl  p-6 shadow-sm">
+        <Card className="bg-zinc-50 backdrop-blur-xl  p-6 shadow-sm">
           <h3 className="text-lg font-bold text-zinc-900 mb-6">Créations de Clubs (6 derniers mois)</h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -300,14 +317,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
               placeholder="Rechercher un club, un coach ou un email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white/60 backdrop-blur-xl border  rounded-2xl py-4 pl-12 pr-4 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-velatra-accent/50 transition-all shadow-sm focus:bg-white"
+              className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-2xl py-4 pl-12 pr-4 text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all shadow-sm focus:bg-white"
             />
           </div>
           <motion.button 
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={initializeOldClubs}
-            className="bg-white/60 backdrop-blur-xl hover:bg-white border  text-zinc-900 px-6 py-4 rounded-2xl font-medium transition-all shadow-sm"
+            className="bg-white backdrop-blur-xl hover:bg-white border border-zinc-200 text-zinc-900 px-6 py-4 rounded-2xl font-medium transition-all shadow-sm"
           >
             Initialiser les anciens clubs
           </motion.button>
@@ -320,7 +337,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setFilterStatus(f)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${filterStatus === f ? 'bg-velatra-accent text-zinc-900 shadow-velatra-accent/20' : 'bg-white/60 backdrop-blur-xl border  text-zinc-500 hover:text-zinc-900 hover:bg-white'}`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${filterStatus === f ? 'bg-emerald-500 text-zinc-900 shadow-emerald-500/20' : 'bg-zinc-50 backdrop-blur-xl border border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:bg-white'}`}
             >
               {f}
             </motion.button>
@@ -344,14 +361,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.2 }}
               >
-                <Card className="bg-white/60 backdrop-blur-xl  p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm hover:shadow-md transition-all">
+                <Card className="bg-zinc-50 backdrop-blur-xl  p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm hover:shadow-md transition-all">
                   <div className="flex items-center gap-6 flex-1">
-                    <div className="w-16 h-16 rounded-2xl bg-white/80 border  flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                    <div className="relative group w-16 h-16 rounded-2xl bg-zinc-100 border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
                       {club.logo ? (
                         <img src={club.logo} alt={club.name} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-2xl font-bold text-zinc-400">{club.name.charAt(0)}</span>
+                        <span className="text-2xl font-bold text-zinc-500">{club.name.charAt(0)}</span>
                       )}
+                      <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                        <span className="text-white text-[10px] font-bold uppercase tracking-widest">Logo</span>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleLogoUpload(club.id, file);
+                          }}
+                        />
+                      </label>
                     </div>
                     
                     <div>
@@ -368,12 +397,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                           </span>
                         )}
                         {club.plan === 'classic' && (
-                          <span className="px-2 py-0.5 rounded-full bg-velatra-accent/10 text-velatra-accent text-xs font-medium border border-velatra-accent/20 flex items-center gap-1 backdrop-blur-md">
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-medium border border-emerald-500/20 flex items-center gap-1 backdrop-blur-md">
                             Classic
                           </span>
                         )}
                         {(!club.plan || club.plan === 'basic') && (
-                          <span className="px-2 py-0.5 rounded-full bg-zinc-50/50 text-zinc-600 text-xs font-medium border  flex items-center gap-1 backdrop-blur-md">
+                          <span className="px-2 py-0.5 rounded-full bg-zinc-50/50 text-zinc-600 text-xs font-medium border border-zinc-200 flex items-center gap-1 backdrop-blur-md">
                             Basic
                           </span>
                         )}
@@ -387,7 +416,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                   </div>
 
                   <div className="flex items-center gap-3 w-full md:w-auto flex-wrap justify-end">
-                    <div className="flex items-center gap-2 bg-white/40 backdrop-blur-md border  p-1 rounded-xl shadow-inner">
+                    <div className="flex items-center gap-2 bg-zinc-50 backdrop-blur-md border border-zinc-200 p-1 rounded-xl shadow-inner">
                       <button
                         onClick={() => updatePlan(club.id, 'basic')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -399,7 +428,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                       <button
                         onClick={() => updatePlan(club.id, 'classic')}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                          club.plan === 'classic' ? 'bg-velatra-accent text-zinc-900 shadow-sm shadow-velatra-accent/20' : 'text-zinc-500 hover:text-zinc-900'
+                          club.plan === 'classic' ? 'bg-emerald-500 text-zinc-900 shadow-sm shadow-emerald-500/20' : 'text-zinc-500 hover:text-zinc-900'
                         }`}
                       >
                         Classic
@@ -447,13 +476,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
         </AnimatePresence>
 
         {filteredClubs.length === 0 && (
-          <motion.div variants={itemVariants} className="text-center py-12 text-zinc-500 bg-white/40 backdrop-blur-md rounded-3xl border ">
+          <motion.div variants={itemVariants} className="text-center py-12 text-zinc-500 bg-zinc-50 backdrop-blur-md rounded-3xl border ">
             Aucun club trouvé pour cette recherche.
           </motion.div>
         )}
       </motion.div>
       {confirmDeleteClubId && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -462,7 +491,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
             <h3 className="text-xl font-black text-zinc-900 mb-2">⚠️ ATTENTION ⚠️</h3>
             <p className="text-zinc-500 mb-6">Êtes-vous sûr de vouloir supprimer ce club et TOUTES ses données (membres, programmes, messages, etc.) ?<br/><br/>Cette action est DÉFINITIVE et IRRÉVERSIBLE.</p>
             <div className="flex gap-3">
-              <button className="flex-1 bg-zinc-50 hover:bg-zinc-200 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={() => setConfirmDeleteClubId(null)}>Annuler</button>
+              <button className="flex-1 bg-zinc-100 hover:bg-zinc-100 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={() => setConfirmDeleteClubId(null)}>Annuler</button>
               <button className="flex-1 bg-red-500 hover:bg-red-600 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={confirmDelete}>Supprimer</button>
             </div>
           </motion.div>

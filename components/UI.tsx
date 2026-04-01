@@ -6,7 +6,7 @@ import { LockIcon } from './Icons';
 export const Card: React.FC<{ children: React.ReactNode, className?: string, onClick?: () => void }> = ({ children, className = "", onClick }) => (
   <div 
     onClick={onClick}
-    className={`glass-card rounded-3xl p-6 transition-all duration-500 ${className} ${onClick ? 'cursor-pointer hover:border-velatra-accent/40 hover:shadow-[0_0_40px_-15px_rgba(99,102,241,0.3)] hover:-translate-y-1 active:scale-[0.98]' : ''}`}
+    className={`glass-card rounded-3xl p-6 transition-all duration-500 ${className} ${onClick ? 'cursor-pointer hover:border-emerald-500/40 hover:shadow-[0_0_40px_-15px_rgba(16,185,129,0.3)] hover:-translate-y-1 active:scale-[0.98]' : ''}`}
   >
     {children}
   </div>
@@ -15,15 +15,15 @@ export const Card: React.FC<{ children: React.ReactNode, className?: string, onC
 export const StatBox: React.FC<{ label: string, value: string | number, className?: string, icon?: React.ReactNode, onClick?: () => void, locked?: boolean }> = ({ label, value, className = "", icon, onClick, locked }) => (
   <div 
     onClick={onClick}
-    className={`bg-zinc-50 border border-zinc-200 rounded-3xl p-5 flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${onClick ? 'cursor-pointer hover:bg-zinc-50 hover:border-velatra-accent/40 hover:-translate-y-1' : ''} ${className}`}
+    className={`bg-white border border-zinc-200 rounded-3xl p-5 flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${onClick ? 'cursor-pointer hover:bg-zinc-50 hover:border-emerald-500/40 hover:-translate-y-1' : ''} ${className}`}
   >
     {locked && (
-      <div className="absolute inset-0 bg-zinc-50 backdrop-blur-[2px] z-10 flex items-center justify-center">
-        <LockIcon size={20} className="text-velatra-accent opacity-80" />
+      <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-10 flex items-center justify-center">
+        <LockIcon size={20} className="text-emerald-500 opacity-80" />
       </div>
     )}
-    {icon && <div className="text-velatra-accent mb-3 opacity-90">{icon}</div>}
-    <span className="text-[10px] uppercase tracking-[3px] font-bold text-zinc-900 mb-1">{label}</span>
+    {icon && <div className="text-emerald-500 mb-3 opacity-90">{icon}</div>}
+    <span className="text-[10px] uppercase tracking-[3px] font-bold text-zinc-500 mb-1">{label}</span>
     <span className={`text-3xl font-display font-bold text-zinc-900 tracking-tight ${locked ? 'opacity-20 blur-[2px]' : ''}`}>{value}</span>
   </div>
 );
@@ -33,13 +33,13 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
   fullWidth?: boolean
 }> = ({ children, variant = 'primary', className = "", fullWidth, ...props }) => {
   const variants = {
-    primary: 'bg-gradient-to-r from-velatra-accent to-velatra-accentDark text-white shadow-md hover:shadow-lg border border-transparent',
-    secondary: 'bg-zinc-50 text-zinc-900 border border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300',
+    primary: 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-zinc-900 shadow-md hover:shadow-lg border border-transparent',
+    secondary: 'bg-white text-zinc-900 border border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300',
     danger: 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40',
     success: 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/40',
     blue: 'bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/40',
-    glass: 'glass text-zinc-900 border-zinc-200 hover:bg-zinc-100',
-    ghost: 'bg-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'
+    glass: 'glass text-zinc-900 border-zinc-200 hover:bg-zinc-50',
+    ghost: 'bg-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
   };
 
   return (
@@ -62,8 +62,8 @@ export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (pro
     {...props}
     className={`
       w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl 
-      text-zinc-900 text-[15px] placeholder:text-zinc-900/30
-      focus:outline-none focus:border-velatra-accent/50 focus:bg-zinc-50 focus:ring-4 focus:ring-velatra-accent/10 transition-all duration-300
+      text-zinc-900 text-[15px] placeholder:text-zinc-500
+      focus:outline-none focus:border-emerald-500/50 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300
       ${props.className || ''}
     `}
   />
@@ -74,8 +74,8 @@ export const Textarea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement
     {...props}
     className={`
       w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl 
-      text-zinc-900 text-[15px] placeholder:text-zinc-900/30
-      focus:outline-none focus:border-velatra-accent/50 focus:bg-zinc-50 focus:ring-4 focus:ring-velatra-accent/10 transition-all duration-300 resize-none
+      text-zinc-900 text-[15px] placeholder:text-zinc-500
+      focus:outline-none focus:border-emerald-500/50 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 resize-none
       ${props.className || ''}
     `}
   />
@@ -83,11 +83,11 @@ export const Textarea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement
 
 export const Badge: React.FC<{ children: React.ReactNode, variant?: 'accent' | 'blue' | 'orange' | 'success' | 'dark', className?: string }> = ({ children, variant = 'accent', className = "" }) => {
   const colors = {
-    accent: 'bg-velatra-accent/10 text-velatra-accent border-velatra-accent/20',
+    accent: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
     blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
     orange: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
     success: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    dark: 'bg-zinc-50 text-zinc-500 border-zinc-200'
+    dark: 'bg-zinc-100 text-zinc-600 border-zinc-200'
   };
   return (
     <span className={`inline-block px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[2px] border backdrop-blur-md ${colors[variant]} ${className}`}>

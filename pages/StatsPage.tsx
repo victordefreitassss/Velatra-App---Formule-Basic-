@@ -4,7 +4,7 @@ import { AppState, BodyData } from '../types';
 import { Card, Badge, Input } from '../components/UI';
 import { TargetIcon, BarChartIcon, TrophyIcon, DatabaseIcon, SearchIcon } from '../components/Icons';
 import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, Legend
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, Legend, BarChart, Bar
 } from 'recharts';
 import { motion } from 'framer-motion';
 
@@ -87,16 +87,42 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
     return acc;
   }, {});
 
+  // Calculate 1RM (Brzycki Formula: weight * (36 / (37 - reps)))
+  const calculate1RM = (weight: number, reps: number) => {
+    if (reps === 1) return weight;
+    if (reps > 30) return weight; // Formula becomes inaccurate
+    return Math.round(weight * (36 / (37 - reps)));
+  };
+
   const bestsArray = Object.values(bests).filter((p: any) => {
     const ex = state.exercises.find(e => e.perfId === p.exId);
     if (!ex) return false;
     return ex.name.toLowerCase().includes(searchPR.toLowerCase());
   });
 
+  // Prepare 1RM data for top exercises
+  const top1RMData = useMemo(() => {
+    const rmData: any[] = [];
+    Object.values(bests).forEach((p: any) => {
+      const ex = state.exercises.find(e => e.perfId === p.exId);
+      if (ex && ex.cat !== 'Cardio' && p.weight && p.reps) {
+        const repsNum = parseInt(p.reps);
+        if (!isNaN(repsNum)) {
+          rmData.push({
+            name: ex.name,
+            rm: calculate1RM(p.weight, repsNum),
+            actual: p.weight
+          });
+        }
+      }
+    });
+    return rmData.sort((a, b) => b.rm - a.rm).slice(0, 5); // Top 5
+  }, [bests, state.exercises]);
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white/90 border  p-4 rounded-2xl backdrop-blur-xl shadow-2xl">
+        <div className="bg-zinc-100 border border-zinc-200 p-4 rounded-2xl backdrop-blur-xl shadow-2xl">
           <p className="text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex items-center justify-between gap-4">
@@ -119,19 +145,19 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
     >
       <motion.div variants={itemVariants} className="flex justify-between items-center px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Analyses <span className="text-velatra-accent">PERFORMANCE</span></h1>
+          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Analyses <span className="text-emerald-500">PERFORMANCE</span></h1>
           <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">Suivi biométrique & Records</p>
         </div>
       </motion.div>
 
       {/* Weight Chart */}
       <motion.div variants={itemVariants}>
-        <Card className="bg-white/60 backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-velatra-accent/5 rounded-full -mr-32 -mt-32 blur-3xl" />
+        <Card className="bg-white backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full -mr-32 -mt-32 blur-3xl" />
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-velatra-accent/10 rounded-2xl flex items-center justify-center text-velatra-accent shadow-inner">
+              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 shadow-inner">
                 <BarChartIcon size={24} />
               </div>
               <div>
@@ -142,7 +168,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
             
             <div className="flex gap-4">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-velatra-accent" />
+                <div className="w-2 h-2 rounded-full bg-emerald-500" />
                 <span className="text-[9px] font-black uppercase text-zinc-900 tracking-widest">Poids</span>
               </div>
               <div className="flex items-center gap-2">
@@ -156,7 +182,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
             </div>
           </div>
 
-          <div className="h-80 w-full relative bg-white/50 rounded-[32px] p-6 border  shadow-sm">
+          <div className="h-80 w-full relative bg-white rounded-[32px] p-6 border border-zinc-200 shadow-sm">
             {myBody.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
@@ -231,7 +257,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
 
       {/* Category Distribution Chart */}
       <motion.div variants={itemVariants}>
-        <Card className="bg-white/60 backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-xl">
+        <Card className="bg-white backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-xl">
           <div className="absolute top-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full -ml-32 -mt-32 blur-3xl" />
           
           <div className="flex items-center gap-4 relative z-10">
@@ -244,7 +270,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
             </div>
           </div>
 
-          <div className="h-80 w-full relative bg-white/50 rounded-[32px] p-6 border  shadow-sm flex items-center justify-center">
+          <div className="h-80 w-full relative bg-zinc-50 rounded-[32px] p-6 border border-zinc-200 shadow-sm flex items-center justify-center">
             {categoryDistribution.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -276,9 +302,50 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
           </div>
         </Card>
       </motion.div>
+
+      {/* 1RM Prediction Chart */}
+      <motion.div variants={itemVariants}>
+        <Card className="bg-zinc-50 backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-xl">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 rounded-full -mr-32 -mt-32 blur-3xl" />
+          
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="w-12 h-12 bg-rose-500/10 rounded-2xl flex items-center justify-center text-rose-500 shadow-inner">
+              <BarChartIcon size={24} />
+            </div>
+            <div>
+              <h2 className="text-xl font-black text-zinc-900 uppercase italic leading-none">Prédiction 1RM</h2>
+              <p className="text-[10px] text-zinc-900 font-black uppercase tracking-widest mt-1">Estimation de votre force maximale (Brzycki)</p>
+            </div>
+          </div>
+
+          <div className="h-80 w-full relative bg-white rounded-[32px] p-6 border border-zinc-200 shadow-sm flex items-center justify-center">
+            {top1RMData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={top1RMData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="rgba(0,0,0,0.05)" />
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#666', fontSize: 10, fontWeight: 900 }} width={100} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', borderRadius: '8px', color: '#18181b', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    formatter={(value: number) => [`${value} kg`, '']}
+                  />
+                  <Legend verticalAlign="top" height={36}/>
+                  <Bar dataKey="actual" name="Max Réalisé" fill="#94a3b8" radius={[0, 4, 4, 0]} barSize={12} />
+                  <Bar dataKey="rm" name="1RM Estimé" fill="#f43f5e" radius={[0, 4, 4, 0]} barSize={12} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center gap-4 opacity-30">
+                <DatabaseIcon size={48} />
+                <div className="text-[10px] text-zinc-900 uppercase font-black tracking-[6px] italic">Aucune donnée de force</div>
+              </div>
+            )}
+          </div>
+        </Card>
+      </motion.div>
       
       <motion.div variants={itemVariants}>
-        <Card className="bg-white/60 backdrop-blur-xl  !p-8 relative overflow-hidden shadow-lg">
+        <Card className="bg-zinc-50 backdrop-blur-xl  !p-8 relative overflow-hidden shadow-lg">
           <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-50 rounded-full -mr-32 -mt-32 blur-3xl" />
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
@@ -292,10 +359,10 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
               </div>
             </div>
             <div className="w-full md:w-64 relative">
-              <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+              <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
               <Input 
                 placeholder="Rechercher un exercice..." 
-                className="pl-10 !bg-white/50 !"
+                className="pl-10 !bg-zinc-50 !"
                 value={searchPR}
                 onChange={(e) => setSearchPR(e.target.value)}
               />
@@ -307,7 +374,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
       <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {bestsArray.length === 0 ? (
           <motion.div variants={itemVariants} className="col-span-full">
-            <Card className="py-20 text-center bg-white/60 backdrop-blur-xl border border-dashed  rounded-[40px] shadow-sm">
+            <Card className="py-20 text-center bg-zinc-50 backdrop-blur-xl border border-dashed  rounded-[40px] shadow-sm">
               <TrophyIcon size={48} className="mx-auto mb-4 text-zinc-900/10" />
               <p className="text-zinc-900 italic font-black uppercase tracking-widest text-xs">Aucune performance trouvée.</p>
             </Card>
@@ -316,13 +383,13 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
           const ex = state.exercises.find(e => e.perfId === p.exId);
           return (
             <motion.div variants={itemVariants} key={p.exId}>
-              <Card className="group border-none ring-1  hover:ring-velatra-accent/30 transition-all !p-8 bg-white/60 backdrop-blur-xl shadow-lg h-full">
+              <Card className="group border-none ring-1  hover:ring-emerald-500/30 transition-all !p-8 bg-zinc-50 backdrop-blur-xl shadow-lg h-full">
                 <div className="flex justify-between items-start mb-6">
                   <div>
-                    <div className="text-[10px] text-velatra-accent font-black uppercase tracking-[3px] mb-1 italic">Record Personnel</div>
-                    <div className="font-black text-2xl text-zinc-900 uppercase italic tracking-tighter group-hover:text-velatra-accent transition-colors">{ex?.name || p.exId}</div>
+                    <div className="text-[10px] text-emerald-500 font-black uppercase tracking-[3px] mb-1 italic">Record Personnel</div>
+                    <div className="font-black text-2xl text-zinc-900 uppercase italic tracking-tighter group-hover:text-emerald-500 transition-colors">{ex?.name || p.exId}</div>
                   </div>
-                  <div className="w-12 h-12 rounded-2xl bg-white/50 flex items-center justify-center text-velatra-accent group-hover:bg-velatra-accent group-hover:text-zinc-900 transition-all shadow-sm">
+                  <div className="w-12 h-12 rounded-2xl bg-zinc-50 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-zinc-900 transition-all shadow-sm">
                     <TrophyIcon size={24} />
                   </div>
                 </div>
@@ -330,22 +397,22 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
                 <div className="grid grid-cols-2 gap-2 md:gap-4">
                    {ex?.cat === 'Cardio' ? (
                      <>
-                       <div className="bg-white/50 border  p-3 md:p-4 rounded-2xl text-center group-hover: transition-all shadow-sm">
+                       <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
                           <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Durée</div>
                           <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.duration || 'N/A'}</div>
                        </div>
-                       <div className="bg-white/50 border  p-3 md:p-4 rounded-2xl text-center group-hover: transition-all shadow-sm">
+                       <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
                           <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Calories (Est.)</div>
                           <div className="font-black text-lg md:text-xl text-zinc-900 italic">{parseDuration(p.duration) * 10}<span className="text-[10px] ml-0.5 opacity-50">kcal</span></div>
                        </div>
                      </>
                    ) : (
                      <>
-                       <div className="bg-white/50 border  p-3 md:p-4 rounded-2xl text-center group-hover: transition-all shadow-sm">
+                       <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
                           <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Charge</div>
                           <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.weight}<span className="text-[10px] ml-0.5 opacity-50">kg</span></div>
                        </div>
-                       <div className="bg-white/50 border  p-3 md:p-4 rounded-2xl text-center group-hover: transition-all shadow-sm">
+                       <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
                           <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Reps</div>
                           <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.reps}</div>
                        </div>
@@ -357,7 +424,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
                   <div className="text-[9px] text-zinc-900 font-black uppercase tracking-widest flex items-center gap-2">
                      <TargetIcon size={12} /> {new Date(p.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
                   </div>
-                  <Badge variant="dark" className="!bg-white/50 !text-[8px] shadow-sm">{ex?.cat}</Badge>
+                  <Badge variant="dark" className="!bg-zinc-50 !text-[8px] shadow-sm">{ex?.cat}</Badge>
                 </div>
               </Card>
             </motion.div>

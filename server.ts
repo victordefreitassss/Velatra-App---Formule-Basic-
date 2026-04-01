@@ -118,9 +118,57 @@ app.use(express.json());
       }
 
       const session = await stripeClient.checkout.sessions.create(sessionConfig);
-      res.json({ url: session.url });
+      res.json({ url: session.url, id: session.id });
     } catch (error) {
       console.error(error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Erreur inconnue" });
+    }
+  });
+
+  app.post("/api/create-checkout-session", async (req, res) => {
+    try {
+      const { userId, email, clubId } = req.body;
+      
+      // In a real scenario, you'd fetch the club's stripe secret key from the DB
+      // For this demo, we expect it in the env
+      const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+      if (!stripeSecretKey) {
+        throw new Error("La clé STRIPE_SECRET_KEY est manquante dans les variables d'environnement.");
+      }
+      const stripeClient = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
+
+      const session = await stripeClient.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'eur',
+              product_data: {
+                name: 'Abonnement Premium VELATRA',
+                description: 'Accès illimité, programmes personnalisés, suivi biométrique.',
+              },
+              unit_amount: 4900, // 49.00 EUR
+              recurring: {
+                interval: 'month',
+              },
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url: `${req.headers.origin || 'http://localhost:3000'}/?onboarding_success=true`,
+        cancel_url: `${req.headers.origin || 'http://localhost:3000'}/?onboarding_canceled=true`,
+        customer_email: email,
+        client_reference_id: String(userId),
+        metadata: {
+          userId: String(userId),
+          clubId: String(clubId)
+        }
+      });
+
+      res.json({ id: session.id, url: session.url });
+    } catch (error) {
+      console.error("Create checkout session error:", error);
       res.status(500).json({ error: error instanceof Error ? error.message : "Erreur inconnue" });
     }
   });
@@ -156,6 +204,44 @@ app.use(express.json());
     } catch (error) {
       console.error(error);
       res.status(500).json({ error: error instanceof Error ? error.message : "Erreur inconnue" });
+    }
+  });
+
+  // Webhook endpoint for Stripe events
+  // Note: In a real app, you'd use express.raw({type: 'application/json'}) for this specific route
+  // to verify the webhook signature. For simplicity in this demo, we parse it as JSON.
+  app.post("/api/stripe/webhook", async (req, res) => {
+    const event = req.body;
+
+    try {
+      // Handle the event
+      switch (event.type) {
+        case 'checkout.session.completed':
+          const session = event.data.object;
+          console.log(`Payment successful for session ${session.id}`);
+          // Here you would typically update the user's status in your database
+          // e.g., db.collection('users').doc(session.client_reference_id).update({ paymentStatus: 'active' })
+          break;
+        case 'invoice.payment_failed':
+          const invoice = event.data.object;
+          console.log(`Payment failed for invoice ${invoice.id}`);
+          // Here you would suspend the user's access
+          // e.g., db.collection('users').doc(invoice.customer).update({ paymentStatus: 'past_due' })
+          break;
+        case 'customer.subscription.deleted':
+          const subscription = event.data.object;
+          console.log(`Subscription canceled: ${subscription.id}`);
+          // e.g., db.collection('users').doc(subscription.customer).update({ paymentStatus: 'canceled' })
+          break;
+        default:
+          console.log(`Unhandled event type ${event.type}`);
+      }
+
+      // Return a 200 response to acknowledge receipt of the event
+      res.send();
+    } catch (err) {
+      console.error(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      res.status(400).send(`Webhook Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   });
 

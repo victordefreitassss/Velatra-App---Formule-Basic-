@@ -7,7 +7,7 @@ import {
 } from './types';
 import type { Notification } from './types';
 import { 
-  INIT_EXERCISES, CLUB_INFO, COACHES 
+  INIT_EXERCISES, CLUB_INFO, COACHES, CATEGORY_MEDIA, getExerciseMedia 
 } from './constants';
 import { 
   auth, db, messaging,
@@ -50,6 +50,7 @@ import { MarketingPage } from './pages/MarketingPage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { MemberSupplementsPage } from './pages/MemberSupplementsPage';
 import { DrivePage } from './pages/DrivePage';
+import { Onboarding } from './components/Onboarding';
 
 const INITIAL_STATE: AppState = {
   user: null,
@@ -197,6 +198,17 @@ export default function App() {
 
   useEffect(() => {
     if (!state.user || !state.user.clubId) return;
+
+    // Check for onboarding success/cancel in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('onboarding_success') === 'true') {
+      showToast("Paiement réussi ! Bienvenue chez VELATRA.", "success");
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (urlParams.get('onboarding_canceled') === 'true') {
+      showToast("Paiement annulé.", "error");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
 
     const clubId = state.user.clubId;
 
@@ -623,7 +635,33 @@ export default function App() {
         }
       });
       
-      setState(prev => ({ ...prev, exercises: mergedExercises }));
+      const enhancedExercises = mergedExercises.map(ex => {
+        const media = getExerciseMedia(ex.name, ex.cat || "Autre");
+        
+        // Check if the photo is missing, is one of the generic category photos, is an unsplash URL, or is a generated placeholder
+        const isGenericPhoto = !ex.photo || 
+                               Object.values(CATEGORY_MEDIA).some(m => m.photo === ex.photo) ||
+                               ex.photo.includes('unsplash.com') ||
+                               ex.photo.startsWith('https://placehold.co/');
+        
+        // Use the specific media from getExerciseMedia, or fallback to placeholder if it's still generic
+        let photoUrl = ex.photo;
+        if (isGenericPhoto) {
+          photoUrl = media.photo || "";
+        }
+
+        // Check if the video is missing or is one of the generic category videos
+        const isGenericVideo = !ex.videoUrl || Object.values(CATEGORY_MEDIA).some(m => m.videoUrl === ex.videoUrl);
+        const videoUrl = isGenericVideo ? media.videoUrl : ex.videoUrl;
+
+        return {
+          ...ex,
+          photo: photoUrl,
+          videoUrl: videoUrl || ""
+        };
+      });
+      
+      setState(prev => ({ ...prev, exercises: enhancedExercises }));
     });
 
     const unsubCrmClients = onSnapshot(query(collection(db, "crmClients"), where("clubId", "==", clubId)), (snap) => {
@@ -736,7 +774,7 @@ export default function App() {
               </svg>
             </div>
             <h1 className="text-3xl font-bold text-zinc-900 mb-4">Compte Suspendu</h1>
-            <p className="text-zinc-900/60 max-w-md mb-8">
+            <p className="text-zinc-500 max-w-md mb-8">
               Votre accès a été suspendu. Veuillez contacter l'administrateur pour régulariser votre situation.
             </p>
           </div>
@@ -780,6 +818,7 @@ export default function App() {
       case 'profile': return <ProfilePage state={state} setState={setState} showToast={showToast} />;
       case 'messages': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
       case 'supplements': return <MemberSupplementsPage state={state} showToast={showToast} />;
+      case 'drive': return <DrivePage state={state} />;
       default: return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
     }
   };
@@ -845,13 +884,19 @@ export default function App() {
 
   if (loading) return (
     <div className="min-h-screen bg-white flex items-center justify-center">
-      <div className="animate-spin text-velatra-accent">
+      <div className="animate-spin text-emerald-500">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
       </div>
     </div>
   );
 
   if (!state.user) return <Login />;
+
+  if (state.user.role === 'member' && !state.user.onboardingCompleted) {
+    return <Onboarding user={state.user} club={state.currentClub} subscriptions={state.subscriptions} plans={state.plans} onComplete={() => {
+      setState(prev => prev.user ? { ...prev, user: { ...prev.user, onboardingCompleted: true } } : prev);
+    }} />;
+  }
 
   const unreadMessagesCount = state.messages.filter(m => !m.read && m.to === state.user?.id).length;
   const unreadNotificationsCount = state.notifications.filter(n => !n.read && n.userId === state.user?.id).length;

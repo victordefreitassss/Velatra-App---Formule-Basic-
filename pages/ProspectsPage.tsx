@@ -180,7 +180,7 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
           <div className="flex items-center gap-4 w-full md:w-auto">
             <button 
               onClick={() => setIsAdding(true)}
-              className="bg-velatra-accent hover:bg-velatra-accentDark text-zinc-900 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
+              className="bg-emerald-500 hover:bg-emerald-600 text-zinc-900 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2 whitespace-nowrap"
             >
               <Plus className="w-4 h-4" />
               <span>Nouveau Lead</span>
@@ -196,27 +196,27 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
               placeholder="Rechercher par nom ou email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-zinc-50 border  rounded-2xl py-3 pl-14 pr-4 text-zinc-900 font-bold focus:outline-none focus:border-velatra-accent transition-colors"
+              className="w-full bg-white border border-zinc-200 rounded-2xl py-3 pl-14 pr-4 text-zinc-900 font-bold focus:outline-none focus:border-emerald-500 transition-colors"
             />
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
             <button 
               onClick={() => setFilterStatus("Tous")} 
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterStatus === "Tous" ? 'bg-velatra-accent text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterStatus === "Tous" ? 'bg-emerald-500 text-zinc-900' : 'bg-white text-zinc-500 hover:text-zinc-900 hover:bg-white'}`}
             >
               Tous
             </button>
             
             <div className="relative">
               <select 
-                className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterStatus !== "Tous" ? 'bg-velatra-accent text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+                className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterStatus !== "Tous" ? 'bg-emerald-500 text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
                 value={filterStatus}
                 onChange={e => setFilterStatus(e.target.value)}
               >
                 <option value="Tous">Statut</option>
                 {COLUMNS.map(c => (
-                  <option key={c.id} value={c.id} className="bg-zinc-50 text-zinc-900">{c.title}</option>
+                  <option key={c.id} value={c.id} className="bg-white text-zinc-900">{c.title}</option>
                 ))}
               </select>
               <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -239,7 +239,7 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
             </button>
             
             <h2 className="text-2xl font-black mb-1 uppercase italic">Convertir en membre</h2>
-            <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">Créer le profil de {convertingProspect.name}</p>
+            <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-8">Créer le profil de {convertingProspect.name}</p>
 
             <div className="space-y-4">
               <div className="space-y-1">
@@ -248,7 +248,7 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
                   type="email"
                   value={convertData.email}
                   onChange={e => setConvertData({...convertData, email: e.target.value})}
-                  className="w-full bg-zinc-50 border  rounded-xl py-3 px-4 text-zinc-900 font-bold focus:outline-none focus:border-velatra-accent transition-colors"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl py-3 px-4 text-zinc-900 font-bold focus:outline-none focus:border-emerald-500 transition-colors"
                   placeholder="jean@email.com"
                 />
               </div>
@@ -258,13 +258,13 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
                   type="text"
                   value={convertData.password}
                   onChange={e => setConvertData({...convertData, password: e.target.value})}
-                  className="w-full bg-zinc-50 border  rounded-xl py-3 px-4 text-zinc-900 font-bold focus:outline-none focus:border-velatra-accent transition-colors"
-                  placeholder="Ex: velatra2026"
+                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl py-3 px-4 text-zinc-900 font-bold focus:outline-none focus:border-emerald-500 transition-colors"
+                  placeholder="Ex: password2026"
                 />
               </div>
               <button 
                 onClick={confirmConversion}
-                className="w-full bg-velatra-accent hover:bg-velatra-accentDark text-zinc-900 font-black italic rounded-xl py-4 mt-4 transition-colors uppercase tracking-widest text-xs"
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-zinc-900 font-black italic rounded-xl py-4 mt-4 transition-colors uppercase tracking-widest text-xs"
               >
                 Créer le membre
               </button>
@@ -280,29 +280,29 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-velatra-bgCard border  rounded-xl p-6"
+          className="bg-zinc-50 border border-zinc-200 rounded-xl p-6"
         >
           <h2 className="text-xl font-semibold text-zinc-900 mb-4">Ajouter un Prospect</h2>
           <form onSubmit={handleAddProspect} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-zinc-500 mb-1">Nom complet</label>
-              <input required type="text" value={newProspect.name} onChange={e => setNewProspect({...newProspect, name: e.target.value})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900" />
+              <input required type="text" value={newProspect.name} onChange={e => setNewProspect({...newProspect, name: e.target.value})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900" />
             </div>
             <div>
               <label className="block text-sm text-zinc-500 mb-1">Email</label>
-              <input type="email" value={newProspect.email} onChange={e => setNewProspect({...newProspect, email: e.target.value})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900" />
+              <input type="email" value={newProspect.email} onChange={e => setNewProspect({...newProspect, email: e.target.value})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900" />
             </div>
             <div>
               <label className="block text-sm text-zinc-500 mb-1">Téléphone</label>
-              <input type="tel" value={newProspect.phone} onChange={e => setNewProspect({...newProspect, phone: e.target.value})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900" />
+              <input type="tel" value={newProspect.phone} onChange={e => setNewProspect({...newProspect, phone: e.target.value})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900" />
             </div>
             <div>
               <label className="block text-sm text-zinc-500 mb-1">Notes / Objectifs</label>
-              <input type="text" value={newProspect.notes} onChange={e => setNewProspect({...newProspect, notes: e.target.value})} className="w-full bg-velatra-bg border  rounded-lg p-2 text-zinc-900" />
+              <input type="text" value={newProspect.notes} onChange={e => setNewProspect({...newProspect, notes: e.target.value})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900" />
             </div>
             <div className="md:col-span-2 flex justify-end gap-2 mt-2">
               <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
-              <button type="submit" className="bg-velatra-accent text-zinc-900 px-6 py-2 rounded-lg font-medium hover:bg-velatra-accentDark transition-colors">Enregistrer</button>
+              <button type="submit" className="bg-emerald-500 text-zinc-900 px-6 py-2 rounded-lg font-medium hover:bg-emerald-600 transition-colors">Enregistrer</button>
             </div>
           </form>
         </motion.div>
@@ -315,7 +315,7 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
           return (
             <div 
               key={col.id} 
-              className="flex-none w-80 bg-velatra-bgCard/50 border  rounded-xl flex flex-col snap-center"
+              className="flex-none w-80 bg-zinc-50/50 border border-zinc-200 rounded-xl flex flex-col snap-center"
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, col.id)}
             >
@@ -330,7 +330,7 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
                     key={prospect.id} 
                     draggable
                     onDragStart={(e) => handleDragStart(e, prospect.id)}
-                    className="bg-velatra-bg border  rounded-lg p-4 cursor-grab active:cursor-grabbing hover:border-velatra-textMuted transition-colors group"
+                    className="bg-white border border-zinc-200 rounded-lg p-4 cursor-grab active:cursor-grabbing hover:border-velatra-textMuted transition-colors group"
                   >
                     <div className="flex justify-between items-start mb-2">
                       <h4 className="font-medium text-zinc-900">{prospect.name}</h4>
@@ -346,13 +346,13 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
                     </div>
 
                     {prospect.notes && (
-                      <p className="text-xs text-zinc-900 bg-velatra-bgCard p-2 rounded mb-3 line-clamp-2">{prospect.notes}</p>
+                      <p className="text-xs text-zinc-900 bg-zinc-50 p-2 rounded mb-3 line-clamp-2">{prospect.notes}</p>
                     )}
 
                     <select 
                       value={prospect.status}
                       onChange={(e) => handleStatusChange(prospect.id, e.target.value)}
-                      className="w-full bg-velatra-bgCard border  rounded text-xs p-1.5 text-zinc-500 focus:outline-none"
+                      className="w-full bg-zinc-50 border border-zinc-200 rounded text-xs p-1.5 text-zinc-500 focus:outline-none"
                     >
                       {COLUMNS.map(c => <option key={c.id} value={c.id}>Déplacer vers {c.title}</option>)}
                     </select>
@@ -364,7 +364,7 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
         })}
       </div>
       {confirmDeleteId && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}

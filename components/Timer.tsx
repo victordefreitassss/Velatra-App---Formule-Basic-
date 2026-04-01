@@ -74,22 +74,22 @@ export const Timer: React.FC = () => {
   };
 
   return (
-    <Card className="bg-white/90  backdrop-blur-xl p-6 w-72 shadow-2xl ring-1 ">
+    <Card className="bg-zinc-50/90 backdrop-blur-xl p-6 w-72 shadow-2xl ring-1 ring-zinc-200">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <TimerIcon size={18} className="text-velatra-accent" />
+          <TimerIcon size={18} className="text-emerald-500" />
           <span className="text-[10px] font-black uppercase tracking-[3px] text-zinc-900 italic">Timer</span>
         </div>
-        <div className="flex bg-zinc-50 rounded-lg p-1">
+        <div className="flex bg-white rounded-lg p-1">
           <button 
             onClick={() => { setMode('countdown'); setTime(initialTime); setIsActive(false); }}
-            className={`px-3 py-1 rounded-md text-[8px] font-black uppercase transition-all ${mode === 'countdown' ? 'bg-velatra-accent text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
+            className={`px-3 py-1 rounded-md text-[8px] font-black uppercase transition-all ${mode === 'countdown' ? 'bg-emerald-500 text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
           >
             Timer
           </button>
           <button 
             onClick={() => { setMode('stopwatch'); setTime(0); setIsActive(false); }}
-            className={`px-3 py-1 rounded-md text-[8px] font-black uppercase transition-all ${mode === 'stopwatch' ? 'bg-velatra-accent text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
+            className={`px-3 py-1 rounded-md text-[8px] font-black uppercase transition-all ${mode === 'stopwatch' ? 'bg-emerald-500 text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
           >
             Chrono
           </button>
@@ -102,8 +102,8 @@ export const Timer: React.FC = () => {
         </div>
         {mode === 'countdown' && !isActive && (
           <div className="flex justify-center gap-4 mt-4">
-            <button onClick={() => adjustTime(-15)} className="w-8 h-8 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-500 hover:text-zinc-900">-15</button>
-            <button onClick={() => adjustTime(15)} className="w-8 h-8 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-500 hover:text-zinc-900">+15</button>
+            <button onClick={() => adjustTime(-15)} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-zinc-500 hover:text-zinc-900">-15</button>
+            <button onClick={() => adjustTime(15)} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-zinc-500 hover:text-zinc-900">+15</button>
           </div>
         )}
       </div>
