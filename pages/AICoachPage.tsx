@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppState } from '../types';
 import { Card, Input, Textarea } from '../components/UI';
 import { SendIcon, BotIcon, UserIcon, MessageCircleIcon } from '../components/Icons';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { CLUB_INFO, COACHES, INIT_SUPPLEMENTS } from '../constants';
 import Markdown from 'react-markdown';
 import { MessagesPage } from './MessagesPage';
@@ -55,10 +55,11 @@ RÈGLES DE REDIRECTION IMPORTANTES :
 2. Si l'adhérent pose une question sportive trop complexe, médicale, ou nécessitant une analyse approfondie (blessure, douleur, programme très spécifique), tu dois le rediriger vers les coachs sportifs (Thomas, Tristan ou Evan) lors de sa prochaine séance ou via la messagerie de l'application.`;
 
       chatRef.current = ai.chats.create({
-        model: "gemini-3-flash-preview",
+        model: "gemini-3.1-pro-preview",
         config: {
           systemInstruction,
           temperature: 0.7,
+          thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
         }
       });
     } catch (error: any) {
@@ -130,20 +131,20 @@ RÈGLES DE REDIRECTION IMPORTANTES :
           <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Discussions</h1>
           <p className="text-zinc-900 text-[10px] uppercase tracking-[3px] font-bold">Échange avec ton coach</p>
         </div>
-        <div className="p-4 bg-velatra-accent/10 rounded-2xl text-velatra-accent shadow-inner backdrop-blur-md">
+        <div className="p-4 bg-emerald-500/10 rounded-2xl text-emerald-500 shadow-inner backdrop-blur-md">
           <MessageCircleIcon size={32} />
         </div>
       </motion.div>
 
-      <motion.div variants={itemVariants} className="flex bg-white/50 backdrop-blur-md rounded-xl p-1 shrink-0 border border-zinc-200/50 shadow-sm">
+      <motion.div variants={itemVariants} className="flex bg-white backdrop-blur-md rounded-xl p-1 shrink-0 border border-zinc-200/50 shadow-sm">
         <button 
-          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'human' ? 'bg-velatra-accent text-white shadow-lg shadow-velatra-accent/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white/40'}`} 
+          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'human' ? 'bg-emerald-500 text-zinc-900 shadow-lg shadow-emerald-500/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white'}`} 
           onClick={() => setActiveTab('human')}
         >
           <MessageCircleIcon size={16} /> {coachName}
         </button>
         <button 
-          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'ai' ? 'bg-velatra-accent text-white shadow-lg shadow-velatra-accent/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white/40'}`} 
+          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'ai' ? 'bg-emerald-500 text-zinc-900 shadow-lg shadow-emerald-500/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white'}`} 
           onClick={() => setActiveTab('ai')}
         >
           <BotIcon size={16} /> Coach IA
@@ -158,14 +159,25 @@ RÈGLES DE REDIRECTION IMPORTANTES :
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 flex flex-col overflow-hidden bg-white/60 backdrop-blur-xl rounded-3xl border border-zinc-200/50 shadow-sm"
+            className="flex-1 flex flex-col overflow-hidden bg-zinc-50 backdrop-blur-xl rounded-3xl border border-zinc-200/50 shadow-sm"
           >
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-4 rounded-2xl ${msg.role === 'user' ? 'bg-velatra-accent text-white rounded-br-sm shadow-md shadow-velatra-accent/20' : 'bg-white text-zinc-800 rounded-bl-sm border border-zinc-200/50 shadow-sm'}`}>
+                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+                  {msg.role === 'model' && (
+                    <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mr-2 shrink-0 overflow-hidden shadow-sm mt-auto mb-1">
+                      {coach?.avatar?.startsWith('http') ? (
+                        <img src={coach.avatar} alt={coach.name} className="w-full h-full object-cover" />
+                      ) : coach?.avatar ? (
+                        <span className="text-xs font-bold text-emerald-500">{coach.avatar}</span>
+                      ) : (
+                        <BotIcon size={16} className="text-emerald-500" />
+                      )}
+                    </div>
+                  )}
+                  <div className={`max-w-[85%] p-4 rounded-2xl ${msg.role === 'user' ? 'bg-emerald-500 text-zinc-900 rounded-br-sm shadow-md shadow-emerald-500/20' : 'bg-white text-zinc-700 rounded-bl-sm border border-zinc-200/50 shadow-sm'}`}>
                     {msg.role === 'model' ? (
-                      <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-display prose-a:text-velatra-accent">
+                      <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-display prose-a:text-emerald-500">
                         <Markdown>{msg.text}</Markdown>
                       </div>
                     ) : (
@@ -175,17 +187,26 @@ RÈGLES DE REDIRECTION IMPORTANTES :
                 </div>
               ))}
               {loading && (
-                <div className="flex justify-start">
+                <div className="flex justify-start mb-4">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mr-2 shrink-0 overflow-hidden shadow-sm mt-auto mb-1">
+                    {coach?.avatar?.startsWith('http') ? (
+                      <img src={coach.avatar} alt={coach.name} className="w-full h-full object-cover" />
+                    ) : coach?.avatar ? (
+                      <span className="text-xs font-bold text-emerald-500">{coach.avatar}</span>
+                    ) : (
+                      <BotIcon size={16} className="text-emerald-500" />
+                    )}
+                  </div>
                   <div className="bg-white p-4 rounded-2xl rounded-bl-sm border border-zinc-200/50 shadow-sm flex items-center gap-2">
-                    <div className="w-2 h-2 bg-velatra-accent rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-velatra-accent rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-velatra-accent rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
-            <div className="p-4 bg-white/80 backdrop-blur-md border-t border-zinc-200/50">
+            <div className="p-4 bg-zinc-100 backdrop-blur-md border-t border-zinc-200/50">
               <div className="flex gap-2 items-end">
                 <Textarea
                   value={input}
@@ -197,14 +218,14 @@ RÈGLES DE REDIRECTION IMPORTANTES :
                     }
                   }}
                   placeholder="Pose ta question au coach IA..."
-                  className="flex-1 bg-white border-zinc-200/50 focus:border-velatra-accent focus:ring-velatra-accent/20 shadow-sm rounded-xl min-h-[56px] max-h-[120px]"
+                  className="flex-1 bg-white border-zinc-200/50 focus:border-emerald-500 focus:ring-emerald-500/20 shadow-sm rounded-xl min-h-[56px] max-h-[120px]"
                   disabled={loading}
                   rows={1}
                 />
                 <button
                   onClick={handleSend}
                   disabled={loading || !input.trim()}
-                  className="bg-velatra-accent text-white p-4 rounded-xl hover:bg-velatra-accent/90 disabled:opacity-50 transition-all shadow-md shadow-velatra-accent/20 flex items-center justify-center shrink-0 h-[56px] w-[56px]"
+                  className="bg-emerald-500 text-zinc-900 p-4 rounded-xl hover:bg-emerald-500/90 disabled:opacity-50 transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center shrink-0 h-[56px] w-[56px]"
                 >
                   <SendIcon size={20} />
                 </button>
@@ -218,7 +239,7 @@ RÈGLES DE REDIRECTION IMPORTANTES :
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 overflow-hidden bg-white/60 backdrop-blur-xl rounded-3xl border border-zinc-200/50 p-4 shadow-sm"
+            className="flex-1 overflow-hidden bg-zinc-50 backdrop-blur-xl rounded-3xl border border-zinc-200/50 p-4 shadow-sm"
           >
             <MessagesPage state={state} setState={setState} showToast={showToast} embedded={true} />
           </motion.div>

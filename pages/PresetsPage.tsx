@@ -73,10 +73,10 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
     <div className="space-y-8 page-transition pb-20">
       <div className="flex justify-between items-center px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Modèles <span className="text-velatra-accent">PRESETS</span></h1>
+          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Modèles <span className="text-emerald-500">PRESETS</span></h1>
           <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">{state.presets.length} Templates dispos</p>
         </div>
-        <Button onClick={handleNewPreset} variant="primary" className="!py-3 !rounded-2xl shadow-xl shadow-velatra-accent/20">
+        <Button onClick={handleNewPreset} variant="primary" className="!py-3 !rounded-2xl shadow-xl shadow-emerald-500/20">
           <PlusIcon size={18} className="mr-2" /> CRÉER UN MODÈLE
         </Button>
       </div>
@@ -86,7 +86,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
           <SearchIcon size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-900" />
           <Input 
             placeholder="Rechercher un modèle..." 
-            className="pl-14 !bg-zinc-50 ! !rounded-2xl font-bold" 
+            className="pl-14 \!bg-white \!border-zinc-200 !rounded-2xl font-bold" 
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
@@ -95,20 +95,20 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
         <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
           <button 
             onClick={() => { setFilterGoal(""); setFilterDays(null); }} 
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterGoal === "" && filterDays === null ? 'bg-velatra-accent text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${filterGoal === "" && filterDays === null ? 'bg-emerald-500 text-zinc-900' : 'bg-white text-zinc-500 hover:text-zinc-900 hover:bg-white'}`}
           >
             Tous
           </button>
           
           <div className="relative">
             <select 
-              className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterGoal !== "" ? 'bg-velatra-accent text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+              className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterGoal !== "" ? 'bg-emerald-500 text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
               value={filterGoal}
               onChange={e => setFilterGoal(e.target.value)}
             >
               <option value="">Objectif</option>
               {GOALS.map(g => (
-                <option key={g} value={g} className="bg-zinc-50 text-zinc-900">{g}</option>
+                <option key={g} value={g} className="bg-white text-zinc-900">{g}</option>
               ))}
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -120,7 +120,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
 
           <div className="relative">
             <select 
-              className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterDays !== null ? 'bg-velatra-accent text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+              className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterDays !== null ? 'bg-emerald-500 text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
               value={filterDays || ""}
               onChange={e => setFilterDays(e.target.value ? parseInt(e.target.value) : null)}
             >
@@ -159,11 +159,11 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
           }
 
           return filteredPresets.map(p => (
-            <Card key={p.id} className="group border-none ring-1  hover:ring-velatra-accent/30 transition-all !p-8 bg-white flex flex-col justify-between">
+            <Card key={p.id} className="group border-none ring-1  hover:ring-emerald-500/30 transition-all !p-8 bg-white flex flex-col justify-between">
               <div className="space-y-6">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
-                    <div className="font-black text-xl text-zinc-900 uppercase italic tracking-tighter group-hover:text-velatra-accent transition-colors">{p.name}</div>
+                    <div className="font-black text-xl text-zinc-900 uppercase italic tracking-tighter group-hover:text-emerald-500 transition-colors">{p.name}</div>
                     <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">{p.nbDays} JOURS • {p.durationWeeks ? `${p.durationWeeks} SEMAINES • ` : ''}{p.days.reduce((acc, d) => acc + d.exercises.length, 0)} MOUVEMENTS</div>
                   </div>
                   <Badge variant="blue" className="!bg-blue-500/10 !text-blue-500 !border-blue-500/20 italic">TEMPLATE</Badge>
@@ -197,7 +197,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
                         showToast("Erreur lors de la duplication", "error");
                       }
                     }}
-                    className="p-3 bg-zinc-50 text-zinc-400 hover:text-velatra-accent hover:bg-velatra-accent/10 rounded-xl transition-all"
+                    className="p-3 bg-zinc-50 text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all"
                     title="Dupliquer"
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -226,7 +226,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
             </button>
             
             <h2 className="text-2xl font-black mb-1 uppercase italic">Assigner Preset</h2>
-            <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">Modèle : {assigningTo.name}</p>
+            <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-8">Modèle : {assigningTo.name}</p>
 
             <div className="space-y-6">
               <div className="relative">
@@ -246,13 +246,19 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
                     <button 
                       key={member.id}
                       onClick={() => handleAssign(assigningTo, member)}
-                      className="w-full p-4 rounded-2xl bg-zinc-50 border  hover:border-velatra-accent/50 hover:bg-velatra-accent/5 transition-all flex items-center justify-between group"
+                      className="w-full p-4 rounded-2xl bg-zinc-50 border border-zinc-200 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all flex items-center justify-between group"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center font-black text-velatra-accent group-hover:bg-velatra-accent group-hover:text-zinc-900 transition-all">{member.avatar}</div>
+                        <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center font-black text-emerald-500 group-hover:bg-emerald-500 group-hover:text-zinc-900 transition-all overflow-hidden">
+                          {member.avatar?.startsWith('http') ? (
+                            <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
+                          ) : (
+                            member.avatar || member.name.substring(0, 2).toUpperCase()
+                          )}
+                        </div>
                         <span className="font-black text-xs uppercase italic text-zinc-900">{member.name}</span>
                       </div>
-                      <CheckIcon size={18} className="text-zinc-900 group-hover:text-velatra-accent transition-colors" />
+                      <CheckIcon size={18} className="text-zinc-900 group-hover:text-emerald-500 transition-colors" />
                     </button>
                   ))}
               </div>
@@ -265,7 +271,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
       )}
 
       {confirmDeletePresetId && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}

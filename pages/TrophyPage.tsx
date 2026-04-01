@@ -40,9 +40,9 @@ export const TrophyPage: React.FC<{ state: AppState, setState: any }> = ({ state
       className="space-y-8 pb-20 max-w-2xl mx-auto"
     >
       <motion.div variants={itemVariants} className="text-center space-y-4">
-        <div className="inline-flex p-6 bg-velatra-accent/10 rounded-3xl shadow-inner mb-2 relative overflow-hidden">
-           <div className="absolute inset-0 bg-gradient-to-br from-velatra-accent/20 to-transparent opacity-50" />
-           <TrophyIcon size={48} className="text-velatra-accent relative z-10" />
+        <div className="inline-flex p-6 bg-emerald-500/10 rounded-3xl shadow-inner mb-2 relative overflow-hidden">
+           <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-transparent opacity-50" />
+           <TrophyIcon size={48} className="text-emerald-500 relative z-10" />
         </div>
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Tableau des Trophées</h1>
@@ -55,8 +55,8 @@ export const TrophyPage: React.FC<{ state: AppState, setState: any }> = ({ state
           const unlocked = sessions >= m.target;
           return (
             <motion.div variants={itemVariants} key={i}>
-              <Card className={`flex items-center gap-6 !p-6 bg-white/60 backdrop-blur-xl transition-all shadow-sm ${!unlocked ? 'opacity-60 grayscale ' : 'border-velatra-warning/30 ring-1 ring-velatra-warning/20 hover:shadow-md hover:border-velatra-warning/50'}`}>
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold shadow-sm ${unlocked ? 'bg-gradient-to-br from-velatra-warning to-orange-500 text-zinc-900' : 'bg-white/50 border  text-zinc-400'}`}>
+              <Card className={`flex items-center gap-6 !p-6 bg-white backdrop-blur-xl transition-all shadow-sm ${!unlocked ? 'opacity-60 grayscale ' : 'border-velatra-warning/30 ring-1 ring-velatra-warning/20 hover:shadow-md hover:border-velatra-warning/50'}`}>
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-bold shadow-sm ${unlocked ? 'bg-gradient-to-br from-velatra-warning to-orange-500 text-zinc-900' : 'bg-white border border-zinc-200 text-zinc-500'}`}>
                   {unlocked ? <CheckIcon size={28} /> : m.target}
                 </div>
                 <div className="flex-1">

@@ -79,6 +79,8 @@ export interface User {
   stripeCustomerId?: string;
   credits?: number;
   sessionCredits?: Record<string, number>;
+  onboardingCompleted?: boolean;
+  paymentStatus?: 'active' | 'suspended';
   role: Role;
   avatar: string;
   gender: Gender;
@@ -179,6 +181,7 @@ export interface Exercise {
   cat: string;
   equip: string;
   photo: string | null;
+  videoUrl?: string; // Added for video support
   perfId: string | null;
 }
 

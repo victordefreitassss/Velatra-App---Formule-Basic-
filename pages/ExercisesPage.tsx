@@ -3,11 +3,11 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Exercise } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
-import { PlusIcon, SearchIcon, DumbbellIcon, Trash2Icon, Edit2Icon, XIcon, CheckIcon, SaveIcon, CameraIcon } from '../components/Icons';
-import { EXERCISE_CATEGORIES } from '../constants';
+import { PlusIcon, SearchIcon, DumbbellIcon, Trash2Icon, Edit2Icon, XIcon, CheckIcon, SaveIcon, CameraIcon, VideoIcon } from '../components/Icons';
+import { EXERCISE_CATEGORIES, CATEGORY_MEDIA } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { db, doc, updateDoc, setDoc, deleteDoc } from '../firebase';
+import { db, doc, updateDoc, setDoc, deleteDoc, storage, ref, uploadBytes, getDownloadURL } from '../firebase';
 
 const containerVariants: import('framer-motion').Variants = {
   hidden: { opacity: 0 },
@@ -28,13 +28,15 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("Tous");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [editingEx, setEditingEx] = useState<Exercise | null>(null);
   
   const [newEx, setNewEx] = useState<Partial<Exercise>>({
     name: "",
     cat: EXERCISE_CATEGORIES[0],
     equip: "Poids libre",
-    photo: ""
+    photo: "",
+    videoUrl: ""
   });
 
   const filtered = state.exercises.filter(ex => 
@@ -55,6 +57,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
       cat: newEx.cat || "Autre",
       equip: newEx.equip || "Aucun",
       photo: newEx.photo || null,
+      videoUrl: newEx.videoUrl || "",
       perfId: (newEx.name || '').toLowerCase().replace(/\s+/g, '_')
     };
 
@@ -103,10 +106,10 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
       <motion.div variants={itemVariants} className="flex justify-between items-center px-1">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">BIBLIOTHÈQUE</h1>
-          <p className="text-[10px] text-velatra-accent font-bold uppercase tracking-[3px] mt-2">{state.exercises.length} Exercices dispos</p>
+          <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-[3px] mt-2">{state.exercises.length} Exercices dispos</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setShowAddModal(true)} variant="primary" className="!py-3 !rounded-2xl shadow-xl shadow-velatra-accent/20">
+          <Button onClick={() => setShowAddModal(true)} variant="primary" className="!py-3 !rounded-2xl shadow-xl shadow-emerald-500/20">
             <PlusIcon size={18} className="mr-2" /> AJOUTER
           </Button>
         </div>
@@ -117,7 +120,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
           <SearchIcon size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-900" />
           <Input 
             placeholder="Rechercher un mouvement..." 
-            className="pl-14 !bg-white/60 backdrop-blur-xl ! !rounded-2xl font-bold shadow-sm" 
+            className="pl-14 \!bg-white backdrop-blur-xl \!border-zinc-200 !rounded-2xl font-bold shadow-sm" 
             value={search} 
             onChange={e => setSearch(e.target.value)} 
           />
@@ -126,14 +129,14 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
         <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
           <button 
             onClick={() => setFilter("Tous")} 
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${filter === "Tous" ? 'bg-velatra-accent text-zinc-900 shadow-velatra-accent/20' : 'bg-white/60 backdrop-blur-xl text-zinc-500 border  hover:text-zinc-900 hover:bg-white'}`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${filter === "Tous" ? 'bg-emerald-500 text-zinc-900 shadow-emerald-500/20' : 'bg-white backdrop-blur-xl text-zinc-500 border border-zinc-200 hover:text-zinc-900 hover:bg-white'}`}
           >
             Tous
           </button>
           
           <div className="relative">
             <select 
-              className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none shadow-sm ${filter !== "Tous" ? 'bg-velatra-accent text-zinc-900 shadow-velatra-accent/20' : 'bg-white/60 backdrop-blur-xl text-zinc-500 border  hover:text-zinc-900 hover:bg-white'}`}
+              className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none shadow-sm ${filter !== "Tous" ? 'bg-emerald-500 text-zinc-900 shadow-emerald-500/20' : 'bg-white backdrop-blur-xl text-zinc-500 border border-zinc-200 hover:text-zinc-900 hover:bg-white'}`}
               value={filter}
               onChange={e => setFilter(e.target.value)}
             >
@@ -163,16 +166,24 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
 
           return (
             <motion.div key={ex.id} variants={itemVariants} whileHover={{ y: -4 }} whileTap={{ scale: 0.98 }}>
-              <Card className={`!p-0 overflow-hidden group border-none ring-1 transition-all bg-white/60 backdrop-blur-xl h-full shadow-sm ${isSquatBarre && needsPhoto ? 'ring-velatra-accent/50 animate-pulse' : ' hover:ring-velatra-accent/30 hover:shadow-md'}`}>
-                <div className="aspect-[4/3] bg-white/40 flex items-center justify-center relative overflow-hidden">
+              <Card className={`!p-0 overflow-hidden group border-none ring-1 transition-all bg-zinc-50 backdrop-blur-xl h-full shadow-sm ${isSquatBarre && needsPhoto ? 'ring-emerald-500/50 animate-pulse' : ' hover:ring-emerald-500/30 hover:shadow-md'}`}>
+                <div className="aspect-[4/3] bg-zinc-50 flex items-center justify-center relative overflow-hidden">
                   {ex.photo ? (
                     <img src={ex.photo} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="" />
                   ) : (
                     <div className="flex flex-col items-center gap-3 opacity-40 group-hover:opacity-60 transition-opacity">
-                      <div className="text-velatra-accent">
+                      <div className="text-emerald-500">
                         <DumbbellIcon size={40} />
                       </div>
                       <span className="text-[9px] font-black uppercase tracking-widest">{ex.name}</span>
+                    </div>
+                  )}
+                  
+                  {ex.videoUrl && (
+                    <div className="absolute bottom-2 right-2 z-10">
+                      <div className="w-8 h-8 bg-emerald-500 text-zinc-900 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                        <VideoIcon size={14} />
+                      </div>
                     </div>
                   )}
                   
@@ -195,14 +206,14 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                           showToast("Erreur lors de la duplication", "error");
                         }
                       }}
-                      className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-600 hover:text-velatra-accent hover:bg-white shadow-sm transition-all"
+                      className="w-8 h-8 bg-zinc-100 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-600 hover:text-emerald-500 hover:bg-white shadow-sm transition-all"
                       title="Dupliquer l'exercice"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                     </button>
                     <button 
                       onClick={(e) => { e.stopPropagation(); setEditingEx(ex); }}
-                      className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-600 hover:text-velatra-accent hover:bg-white shadow-sm transition-all"
+                      className="w-8 h-8 bg-zinc-100 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-500 hover:text-emerald-500 hover:bg-white shadow-sm transition-all"
                       title="Modifier l'exercice"
                     >
                       <Edit2Icon size={14} />
@@ -212,7 +223,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                         e.stopPropagation();
                         setConfirmDeleteExId(ex.id);
                       }}
-                      className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-600 hover:text-red-500 hover:bg-white shadow-sm transition-all"
+                      className="w-8 h-8 bg-zinc-100 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-500 hover:text-red-500 hover:bg-white shadow-sm transition-all"
                       title="Supprimer l'exercice"
                     >
                       <Trash2Icon size={14} />
@@ -220,9 +231,9 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                   </div>
               </div>
               <div className="p-4 border-t ">
-                <div className="font-black text-sm truncate group-hover:text-velatra-accent transition-colors tracking-tight pr-8">{ex.name}</div>
+                <div className="font-black text-sm truncate group-hover:text-emerald-500 transition-colors tracking-tight pr-8">{ex.name}</div>
                 <div className="flex justify-between items-center mt-2">
-                  <Badge variant="dark" className="!bg-white/5 !p-0 !border-none !text-zinc-900">{ex.cat}</Badge>
+                  <Badge variant="dark" className="!bg-white !p-0 !border-none !text-zinc-900">{ex.cat}</Badge>
                   <div className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">{ex.equip}</div>
                 </div>
               </div>
@@ -240,7 +251,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/25 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
           onClick={() => setShowAddModal(false)}
         >
            <motion.div
@@ -251,29 +262,29 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
              className="w-full max-w-md"
              onClick={e => e.stopPropagation()}
            >
-             <Card className="w-full !p-8  relative shadow-2xl bg-white/80 backdrop-blur-2xl">
-              <button onClick={() => setShowAddModal(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 transition-colors bg-white/50 p-2 rounded-full hover:bg-white">
+             <Card className="w-full !p-8  relative shadow-2xl bg-zinc-100 backdrop-blur-2xl">
+              <button onClick={() => setShowAddModal(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 transition-colors bg-zinc-50 p-2 rounded-full hover:bg-white">
                 <XIcon size={24} />
               </button>
               
               <h2 className="text-2xl font-black mb-1">NOUVEL EXERCICE</h2>
-              <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">Ajout manuel à la bibliothèque</p>
+              <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-8">Ajout manuel à la bibliothèque</p>
 
-              <div className="space-y-5">
+              <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                 <div className="space-y-1">
                    <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Nom du mouvement</label>
                    <Input 
                     placeholder="Ex: Leg Press Incliné"
                     value={newEx.name}
                     onChange={e => setNewEx({...newEx, name: e.target.value})}
-                    className="!bg-white/60 backdrop-blur-xl ! shadow-sm"
+                    className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm"
                    />
                 </div>
 
                 <div className="space-y-1">
                    <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Catégorie</label>
                    <select 
-                     className="w-full bg-white/60 backdrop-blur-xl border  rounded-xl p-4 text-sm text-zinc-900 focus:border-velatra-accent outline-none appearance-none shadow-sm"
+                     className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-emerald-500 outline-none appearance-none shadow-sm"
                      value={newEx.cat}
                      onChange={e => setNewEx({...newEx, cat: e.target.value})}
                    >
@@ -287,17 +298,17 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                     placeholder="Ex: Machine, Barre, Haltères..."
                     value={newEx.equip}
                     onChange={e => setNewEx({...newEx, equip: e.target.value})}
-                    className="!bg-white/60 backdrop-blur-xl ! shadow-sm"
+                    className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm"
                    />
                 </div>
 
                 <div className="space-y-1">
                    <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Photo (URL ou Fichier)</label>
                    {newEx.photo?.startsWith('data:image') ? (
-                     <div className="flex items-center gap-3 p-2 bg-white/60 backdrop-blur-xl border  rounded-xl shadow-sm">
+                     <div className="flex items-center gap-3 p-2 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl shadow-sm">
                        <img src={newEx.photo} alt="Preview" className="w-10 h-10 object-cover rounded-lg" />
                        <span className="text-xs font-bold text-emerald-500 flex-1">Image chargée avec succès</span>
-                       <button onClick={() => setNewEx({...newEx, photo: ""})} className="p-2 text-zinc-400 hover:text-red-500">
+                       <button onClick={() => setNewEx({...newEx, photo: ""})} className="p-2 text-zinc-500 hover:text-red-500">
                          <XIcon size={16} />
                        </button>
                      </div>
@@ -306,9 +317,48 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                       placeholder="https://..."
                       value={newEx.photo || ""}
                       onChange={e => setNewEx({...newEx, photo: e.target.value})}
-                      className="!bg-white/60 backdrop-blur-xl ! shadow-sm"
+                      className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm"
                      />
                    )}
+                </div>
+
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Vidéo (Lien ou Fichier)</label>
+                   <Input 
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={newEx.videoUrl || ""}
+                    onChange={e => setNewEx({...newEx, videoUrl: e.target.value})}
+                    className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm mb-2"
+                   />
+                   <input 
+                     type="file" 
+                     accept="video/*"
+                     disabled={isUploadingVideo}
+                     className="w-full text-[10px] text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-emerald-500 file:text-zinc-900 hover:file:bg-emerald-600 cursor-pointer bg-zinc-50 backdrop-blur-xl p-2 rounded-xl border border-zinc-200 shadow-sm disabled:opacity-50"
+                     onChange={async (e) => {
+                       const file = e.target.files?.[0];
+                       if (file) {
+                         if (file.size > 50 * 1024 * 1024) {
+                           showToast("La vidéo est trop volumineuse (max 50MB)", "error");
+                           return;
+                         }
+                         setIsUploadingVideo(true);
+                         try {
+                           const videoRef = ref(storage, `videos/${Date.now()}_${file.name}`);
+                           await uploadBytes(videoRef, file);
+                           const url = await getDownloadURL(videoRef);
+                           setNewEx({...newEx, videoUrl: url});
+                           showToast("Vidéo chargée avec succès", "success");
+                         } catch (error) {
+                           console.error("Error uploading video:", error);
+                           showToast("Erreur lors du chargement de la vidéo", "error");
+                         } finally {
+                           setIsUploadingVideo(false);
+                         }
+                       }
+                     }}
+                   />
+                   {isUploadingVideo && <p className="text-[10px] font-bold text-emerald-500 mt-1 ml-1">Chargement de la vidéo en cours...</p>}
                 </div>
 
                 <div className="space-y-1">
@@ -316,7 +366,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                    <input 
                      type="file" 
                      accept="image/*"
-                     className="w-full text-[10px] text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-velatra-accent file:text-zinc-900 hover:file:bg-velatra-accentDark cursor-pointer bg-white/60 backdrop-blur-xl p-2 rounded-xl border  shadow-sm"
+                     className="w-full text-[10px] text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-emerald-500 file:text-zinc-900 hover:file:bg-emerald-600 cursor-pointer bg-zinc-50 backdrop-blur-xl p-2 rounded-xl border border-zinc-200 shadow-sm"
                      onChange={(e) => {
                        const file = e.target.files?.[0];
                        if (file) {
@@ -356,13 +406,13 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                      }}
                    />
                 </div>
+              </div>
 
-                <div className="pt-4 flex flex-col sm:flex-row gap-3">
-                  <Button variant="secondary" fullWidth onClick={() => setShowAddModal(false)} className="bg-white/60 hover:bg-white">ANNULER</Button>
-                  <Button variant="primary" fullWidth onClick={handleSaveNewEx} className="shadow-lg shadow-velatra-accent/20">
-                    CRÉER <CheckIcon size={18} className="ml-2" />
-                  </Button>
-                </div>
+              <div className="pt-6 mt-6 border-t border-zinc-200 flex flex-col sm:flex-row gap-3">
+                <Button variant="secondary" fullWidth onClick={() => setShowAddModal(false)} className="bg-zinc-50 hover:bg-white">ANNULER</Button>
+                <Button variant="primary" fullWidth onClick={handleSaveNewEx} className="shadow-lg shadow-emerald-500/20">
+                  CRÉER <CheckIcon size={18} className="ml-2" />
+                </Button>
               </div>
              </Card>
            </motion.div>
@@ -379,7 +429,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/25 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-y-auto"
           onClick={() => setEditingEx(null)}
         >
            <motion.div
@@ -387,32 +437,32 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
              animate={{ scale: 1, opacity: 1, y: 0 }}
              exit={{ scale: 0.95, opacity: 0, y: 20 }}
              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-             className="w-full max-w-md"
+             className="w-full max-w-md my-8"
              onClick={e => e.stopPropagation()}
            >
-             <Card className="w-full !p-8  relative shadow-2xl bg-white/80 backdrop-blur-2xl">
-              <button onClick={() => setEditingEx(null)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 transition-colors bg-white/50 p-2 rounded-full hover:bg-white">
+             <Card className="w-full !p-8 relative shadow-2xl bg-zinc-100 backdrop-blur-2xl">
+              <button onClick={() => setEditingEx(null)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 transition-colors bg-zinc-50 p-2 rounded-full hover:bg-white z-10">
                 <XIcon size={24} />
               </button>
               
               <h2 className="text-2xl font-black mb-1">MODIFIER L'EXERCICE</h2>
-              <p className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mb-8">{editingEx.name}</p>
+              <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-8">{editingEx.name}</p>
 
-              <div className="space-y-5">
+              <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                 <div className="space-y-1">
                    <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Nom du mouvement</label>
                    <Input 
                     placeholder="Ex: Leg Press Incliné"
                     value={editingEx.name}
                     onChange={e => setEditingEx({...editingEx, name: e.target.value})}
-                    className="!bg-white/60 backdrop-blur-xl ! shadow-sm"
+                    className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm"
                    />
                 </div>
 
                 <div className="space-y-1">
                    <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Catégorie</label>
                    <select 
-                     className="w-full bg-white/60 backdrop-blur-xl border  rounded-xl p-4 text-sm text-zinc-900 focus:border-velatra-accent outline-none appearance-none shadow-sm"
+                     className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-emerald-500 outline-none appearance-none shadow-sm"
                      value={editingEx.cat}
                      onChange={e => setEditingEx({...editingEx, cat: e.target.value})}
                    >
@@ -426,17 +476,17 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                     placeholder="Ex: Machine, Barre, Haltères..."
                     value={editingEx.equip}
                     onChange={e => setEditingEx({...editingEx, equip: e.target.value})}
-                    className="!bg-white/60 backdrop-blur-xl ! shadow-sm"
+                    className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm"
                    />
                 </div>
 
                 <div className="space-y-1">
                    <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Photo (URL ou Fichier)</label>
                    {editingEx.photo?.startsWith('data:image') ? (
-                     <div className="flex items-center gap-3 p-2 bg-white/60 backdrop-blur-xl border  rounded-xl shadow-sm">
+                     <div className="flex items-center gap-3 p-2 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl shadow-sm">
                        <img src={editingEx.photo} alt="Preview" className="w-10 h-10 object-cover rounded-lg" />
                        <span className="text-xs font-bold text-emerald-500 flex-1">Image chargée avec succès</span>
-                       <button onClick={() => setEditingEx({...editingEx, photo: ""})} className="p-2 text-zinc-400 hover:text-red-500">
+                       <button onClick={() => setEditingEx({...editingEx, photo: ""})} className="p-2 text-zinc-500 hover:text-red-500">
                          <XIcon size={16} />
                        </button>
                      </div>
@@ -445,9 +495,48 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                       placeholder="https://..."
                       value={editingEx.photo || ""}
                       onChange={e => setEditingEx({...editingEx, photo: e.target.value})}
-                      className="!bg-white/60 backdrop-blur-xl ! shadow-sm"
+                      className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm"
                      />
                    )}
+                </div>
+
+                <div className="space-y-1">
+                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Vidéo (Lien ou Fichier)</label>
+                   <Input 
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={editingEx.videoUrl || ""}
+                    onChange={e => setEditingEx({...editingEx, videoUrl: e.target.value})}
+                    className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm mb-2"
+                   />
+                   <input 
+                     type="file" 
+                     accept="video/*"
+                     disabled={isUploadingVideo}
+                     className="w-full text-[10px] text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-emerald-500 file:text-zinc-900 hover:file:bg-emerald-600 cursor-pointer bg-zinc-50 backdrop-blur-xl p-2 rounded-xl border border-zinc-200 shadow-sm disabled:opacity-50"
+                     onChange={async (e) => {
+                       const file = e.target.files?.[0];
+                       if (file) {
+                         if (file.size > 50 * 1024 * 1024) {
+                           showToast("La vidéo est trop volumineuse (max 50MB)", "error");
+                           return;
+                         }
+                         setIsUploadingVideo(true);
+                         try {
+                           const videoRef = ref(storage, `videos/${Date.now()}_${file.name}`);
+                           await uploadBytes(videoRef, file);
+                           const url = await getDownloadURL(videoRef);
+                           setEditingEx({...editingEx, videoUrl: url});
+                           showToast("Vidéo chargée avec succès", "success");
+                         } catch (error) {
+                           console.error("Error uploading video:", error);
+                           showToast("Erreur lors du chargement de la vidéo", "error");
+                         } finally {
+                           setIsUploadingVideo(false);
+                         }
+                       }
+                     }}
+                   />
+                   {isUploadingVideo && <p className="text-[10px] font-bold text-emerald-500 mt-1 ml-1">Chargement de la vidéo en cours...</p>}
                 </div>
 
                 <div className="space-y-1">
@@ -455,7 +544,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                    <input 
                      type="file" 
                      accept="image/*"
-                     className="w-full text-[10px] text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-velatra-accent file:text-zinc-900 hover:file:bg-velatra-accentDark cursor-pointer bg-white/60 backdrop-blur-xl p-2 rounded-xl border  shadow-sm"
+                     className="w-full text-[10px] text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-emerald-500 file:text-zinc-900 hover:file:bg-emerald-600 cursor-pointer bg-zinc-50 backdrop-blur-xl p-2 rounded-xl border border-zinc-200 shadow-sm"
                      onChange={(e) => {
                        const file = e.target.files?.[0];
                        if (file) {
@@ -495,13 +584,13 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                      }}
                    />
                 </div>
+              </div>
 
-                <div className="pt-4 flex flex-col sm:flex-row gap-3">
-                  <Button variant="secondary" fullWidth onClick={() => setEditingEx(null)} className="bg-white/60 hover:bg-white">ANNULER</Button>
-                  <Button variant="primary" fullWidth onClick={() => handleUpdateEx(editingEx)} className="shadow-lg shadow-velatra-accent/20">
-                    ENREGISTRER <SaveIcon size={18} className="ml-2" />
-                  </Button>
-                </div>
+              <div className="pt-6 mt-6 border-t border-zinc-200 flex flex-col sm:flex-row gap-3">
+                <Button variant="secondary" fullWidth onClick={() => setEditingEx(null)} className="bg-zinc-50 hover:bg-white">ANNULER</Button>
+                <Button variant="primary" fullWidth onClick={() => handleUpdateEx(editingEx)} className="shadow-lg shadow-emerald-500/20">
+                  ENREGISTRER <SaveIcon size={18} className="ml-2" />
+                </Button>
               </div>
              </Card>
            </motion.div>
@@ -509,10 +598,10 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
       )}
       </AnimatePresence>,
       document.body
-      )}
+    )}
 
       {confirmDeleteExId && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}

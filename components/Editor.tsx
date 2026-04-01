@@ -4,7 +4,7 @@ import { Button, Input, Card, Badge } from './UI';
 import { 
   PlusIcon, Trash2Icon, ChevronLeftIcon, SaveIcon, 
   DumbbellIcon, LayersIcon, InfoIcon, MessageCircleIcon, RefreshCwIcon, LinkIcon,
-  ArrowUpIcon, ArrowDownIcon, CopyIcon
+  ArrowUpIcon, ArrowDownIcon, CopyIcon, VideoIcon
 } from './Icons';
 import { EXERCISE_CATEGORIES, GOALS } from '../constants';
 import { ChevronDownIcon, SearchIcon } from 'lucide-react';
@@ -38,21 +38,21 @@ const SearchableExerciseSelect: React.FC<{
   return (
     <div className="relative w-full" ref={containerRef}>
       <div 
-        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm font-black text-zinc-900 cursor-pointer flex justify-between items-center hover:border-velatra-accent transition-colors"
+        className="w-full bg-white border border-zinc-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm font-black text-zinc-900 cursor-pointer flex justify-between items-center hover:border-emerald-500 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
         <span className="truncate">{selectedEx ? selectedEx.name : 'Sélectionner un exercice'}</span>
-        <ChevronDownIcon size={16} className={`text-zinc-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDownIcon size={16} className={`text-zinc-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </div>
       
       {isOpen && (
         <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-zinc-200 rounded-xl shadow-xl max-h-60 overflow-y-auto overflow-x-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
-          <div className="p-2 sticky top-0 bg-white border-b border-zinc-100 z-10">
+          <div className="p-2 sticky top-0 bg-white border-b border-zinc-200 z-10">
             <div className="relative">
-              <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
               <input
                 type="text"
-                className="w-full bg-zinc-50 border border-zinc-200 rounded-lg py-2 pl-9 pr-3 text-xs font-bold text-zinc-900 focus:outline-none focus:border-velatra-accent transition-colors"
+                className="w-full bg-white border border-zinc-200 rounded-lg py-2 pl-9 pr-3 text-xs font-bold text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                 placeholder="Rechercher un exercice..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -70,11 +70,11 @@ const SearchableExerciseSelect: React.FC<{
                 if (catExs.length === 0) return null;
                 return (
                   <div key={cat} className="mb-2">
-                    <div className="px-3 py-1.5 text-[10px] font-black uppercase text-velatra-accent tracking-widest bg-zinc-50/80">{cat}</div>
+                    <div className="px-3 py-1.5 text-[10px] font-black uppercase text-emerald-500 tracking-widest bg-white/80">{cat}</div>
                     {catExs.map(e => (
                       <div 
                         key={e.id}
-                        className={`px-3 py-2.5 text-xs font-bold cursor-pointer rounded-lg transition-colors flex items-center justify-between ${e.id === value ? 'bg-velatra-accent/10 text-velatra-accent' : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900'}`}
+                        className={`px-3 py-2.5 text-xs font-bold cursor-pointer rounded-lg transition-colors flex items-center justify-between ${e.id === value ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'}`}
                         onClick={() => {
                           onChange(e.id);
                           setIsOpen(false);
@@ -82,7 +82,7 @@ const SearchableExerciseSelect: React.FC<{
                         }}
                       >
                         <span>{e.name}</span>
-                        {e.id === value && <div className="w-1.5 h-1.5 rounded-full bg-velatra-accent" />}
+                        {e.id === value && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
                       </div>
                     ))}
                   </div>
@@ -139,6 +139,13 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   const [showPresets, setShowPresets] = useState(false);
 
   const handleApplyPreset = (p: Preset) => {
+    // If we are in "Day Import" mode, we apply to current day
+    if (showPresets && formData.days[selectedDayIdx]) {
+      handleApplyPresetToDay(p, selectedDayIdx);
+      setShowPresets(false);
+      return;
+    }
+
     setFormData({
       ...formData,
       name: p.name,
@@ -304,6 +311,48 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
     setFormData({ ...formData, days: newDays });
   };
 
+  const handleCopyExToDay = (dayIdx: number, exIdx: number, targetDayIdx: number) => {
+    const newDays = [...formData.days];
+    const exToCopy = JSON.parse(JSON.stringify(newDays[dayIdx].exercises[exIdx]));
+    newDays[targetDayIdx].exercises.push(exToCopy);
+    setFormData({ ...formData, days: newDays });
+  };
+
+  const handleToggleLink = (dayIdx: number, exIdx: number) => {
+    if (exIdx === 0) return;
+    const newDays = [...formData.days];
+    const currentEx = newDays[dayIdx].exercises[exIdx];
+    const prevEx = newDays[dayIdx].exercises[exIdx - 1];
+
+    if (currentEx.setGroup && currentEx.setGroup === prevEx.setGroup) {
+      // Unlink
+      newDays[dayIdx].exercises[exIdx] = { ...currentEx, setGroup: null, setType: 'normal' };
+    } else {
+      // Link
+      let groupToUse = prevEx.setGroup;
+      if (!groupToUse) {
+        const allGroups = newDays[dayIdx].exercises.map((e: ExerciseEntry) => e.setGroup).filter((g: number | null) => g !== null && g > 0) as number[];
+        groupToUse = allGroups.length > 0 ? Math.max(...allGroups) + 1 : 1;
+        newDays[dayIdx].exercises[exIdx - 1] = { ...prevEx, setGroup: groupToUse, setType: 'superset' };
+      }
+      newDays[dayIdx].exercises[exIdx] = { ...currentEx, setGroup: groupToUse, setType: prevEx.setType || 'superset' };
+    }
+    setFormData({ ...formData, days: newDays });
+  };
+
+  const handleApplyPresetToDay = (p: Preset, dayIdx: number) => {
+    const newDays = [...formData.days];
+    // For simplicity, we just take the first day of the preset or let user choose?
+    // Let's just append all exercises from the first day of the preset for now, 
+    // or if the preset has multiple days, maybe we should show a picker.
+    // For now, let's just append exercises from the first day.
+    if (p.days.length > 0) {
+      const presetExercises = JSON.parse(JSON.stringify(p.days[0].exercises));
+      newDays[dayIdx].exercises = [...newDays[dayIdx].exercises, ...presetExercises];
+      setFormData({ ...formData, days: newDays });
+    }
+  };
+
   return (
     <div className="space-y-8 max-w-4xl mx-auto pb-24 px-4 page-transition">
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-zinc-200/50 -mx-4 px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 shadow-sm">
@@ -315,11 +364,11 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
             <h1 className="text-2xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">
               {isEditingProgram ? "ADAPTER LE PLAN" : "ÉDITION MODÈLE"}
             </h1>
-            <p className="text-velatra-accent text-[10px] uppercase tracking-[3px] font-bold mt-1">Expert Coaching <span className="text-zinc-900">VELATRA</span></p>
+            <p className="text-emerald-500 text-[10px] uppercase tracking-[3px] font-bold mt-1">Expert Coaching <span className="text-zinc-900">VELATRA</span></p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
-          {isEditingProgram && (
+          {allPresets.length > 0 && (
              <Button onClick={() => setShowPresets(!showPresets)} variant="secondary" className="!rounded-full font-black text-[10px] tracking-widest italic shadow-sm">
                 {showPresets ? "X" : "APPLIQUER MODÈLE"}
              </Button>
@@ -331,15 +380,15 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
         </div>
       </header>
 
-      {showPresets && isEditingProgram && (
-        <Card className="!bg-velatra-accent/5 border-velatra-accent/20 animate-in slide-in-from-top-4 duration-300">
-           <h3 className="text-[10px] font-black uppercase tracking-widest text-velatra-accent mb-4">Choisir un modèle (Preset)</h3>
+      {showPresets && allPresets.length > 0 && (
+        <Card className="!bg-emerald-500/5 border-emerald-500/20 animate-in slide-in-from-top-4 duration-300">
+           <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-4">Choisir un modèle (Preset)</h3>
            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {allPresets.map(p => (
                 <button 
                   key={p.id} 
                   onClick={() => handleApplyPreset(p)}
-                  className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-left hover:border-velatra-accent transition-all"
+                  className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-left hover:border-emerald-500 transition-all"
                 >
                   <div className="text-xs font-black text-zinc-900 uppercase">{p.name}</div>
                   <div className="text-[8px] text-zinc-900 font-black mt-1 uppercase">{p.nbDays} JOURS</div>
@@ -354,7 +403,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
       <Card className="space-y-6 !p-8 bg-zinc-50 border-zinc-200 ring-1 ring-zinc-200">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Titre du Programme</label>
+            <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Titre du Programme</label>
             <Input 
               value={formData.name} 
               onChange={e => setFormData({...formData, name: e.target.value})}
@@ -363,11 +412,11 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
           </div>
           
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Durée (Semaines)</label>
+            <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Durée (Semaines)</label>
             <select 
               value={formData.durationWeeks || ''} 
               onChange={e => setFormData({...formData, durationWeeks: e.target.value ? parseInt(e.target.value) : null})}
-              className="w-full bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-3 text-zinc-900 text-sm font-medium focus:outline-none focus:border-velatra-accent focus:ring-1 focus:ring-velatra-accent transition-all"
+              className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-zinc-900 text-sm font-medium focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
             >
               <option value="">Pas de délai (Continu)</option>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20, 24].map(w => (
@@ -379,7 +428,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
           {isEditingProgram ? (
             <>
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Date de début</label>
+                <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Date de début</label>
                 <Input 
                   type="date"
                   value={formData.startDate} 
@@ -389,25 +438,25 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
               {member && (
                 <div className="space-y-2 col-span-1 md:col-span-2 mt-2 p-4 bg-zinc-100/50 rounded-2xl border border-zinc-200/50">
                   <div className="flex items-center gap-2 text-zinc-900 mb-2">
-                    <InfoIcon size={16} className="text-velatra-accent" />
+                    <InfoIcon size={16} className="text-emerald-500" />
                     <span className="text-[10px] font-black uppercase tracking-widest">Profil de {member.name}</span>
                   </div>
                   {member.objectifs && member.objectifs.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {member.objectifs.map((o: string) => (
-                        <Badge key={o} variant="dark" className="!bg-white !text-zinc-600 !border-zinc-200 !text-[8px]">{o}</Badge>
+                        <Badge key={o} variant="dark" className="!bg-white !text-zinc-500 !border-zinc-200 !text-[8px]">{o}</Badge>
                       ))}
                     </div>
                   )}
                   {member.notes && (
-                    <p className="text-xs text-zinc-600 italic leading-relaxed">"{member.notes}"</p>
+                    <p className="text-xs text-zinc-500 italic leading-relaxed">"{member.notes}"</p>
                   )}
                 </div>
               )}
             </>
           ) : (
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Objectifs du Modèle</label>
+              <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Objectifs du Modèle</label>
               <div className="flex flex-wrap gap-2 p-2 bg-zinc-50 border border-zinc-200 rounded-2xl min-h-[48px]">
                 {GOALS.map(g => {
                   const isSelected = formData.objectifs?.includes(g);
@@ -422,7 +471,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                           setFormData({ ...formData, objectifs: [...current, g] });
                         }
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${isSelected ? 'bg-velatra-accent border-velatra-accent text-zinc-900' : 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:text-zinc-900'}`}
+                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${isSelected ? 'bg-emerald-500 border-emerald-500 text-zinc-900' : 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:text-zinc-900'}`}
                     >
                       {g}
                     </button>
@@ -437,7 +486,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
         {isEditingProgram && formData.memberRemarks && (
           <div className="p-5 bg-orange-500/10 border-2 border-orange-500/30 rounded-[32px] flex flex-col sm:flex-row gap-5 items-start sm:items-center justify-between animate-in zoom-in duration-500">
              <div className="flex gap-5 items-center">
-               <div className="w-12 h-12 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0">
+               <div className="w-12 h-12 rounded-2xl bg-orange-500 text-zinc-900 flex items-center justify-center shrink-0">
                   <MessageCircleIcon size={24} />
                </div>
                <div>
@@ -460,12 +509,12 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
       <div className="space-y-6">
         <div className="flex items-center justify-between px-2">
           <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-3">
-            <LayersIcon size={18} className="text-velatra-accent" />
+            <LayersIcon size={18} className="text-emerald-500" />
             Planification Hebdomadaire
           </h2>
           <button 
             onClick={handleAddDay}
-            className="text-[11px] font-black text-velatra-accent bg-velatra-accent/10 px-4 py-2 rounded-full hover:bg-velatra-accent/20 transition-all flex items-center gap-2"
+            className="text-[11px] font-black text-emerald-500 bg-emerald-500/10 px-4 py-2 rounded-full hover:bg-emerald-500/20 transition-all flex items-center gap-2"
           >
             <PlusIcon size={14} /> NOUVEAU JOUR
           </button>
@@ -479,7 +528,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
               className={`
                 px-8 py-4 rounded-[20px] text-xs font-black whitespace-nowrap transition-all border shrink-0
                 ${selectedDayIdx === idx 
-                  ? 'bg-velatra-accent border-velatra-accent text-zinc-900 shadow-xl shadow-velatra-accent/20 scale-105 italic' 
+                  ? 'bg-emerald-500 border-emerald-500 text-zinc-900 shadow-xl shadow-emerald-500/20 scale-105 italic' 
                   : 'bg-zinc-50 border-zinc-200 text-zinc-900 hover:border-zinc-300'}
               `}
             >
@@ -495,7 +544,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                 <div className="flex-1 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Titre de la séance</label>
+                      <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Titre de la séance</label>
                       <Input 
                         className="!text-xl font-black italic !bg-white"
                         value={formData.days[selectedDayIdx]?.name || ''} 
@@ -509,7 +558,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-velatra-accent tracking-widest ml-1">Durée estimée (minutes)</label>
+                      <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Durée estimée (minutes)</label>
                       <Input 
                         type="number"
                         className="!text-xl font-black italic !bg-white"
@@ -533,6 +582,14 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
                     <button 
+                      onClick={() => setShowPresets(!showPresets)}
+                      className="p-3 text-emerald-500 hover:text-emerald-600 transition-colors bg-emerald-50 rounded-xl hover:bg-emerald-100 flex items-center gap-2 px-4"
+                      title="Importer un modèle sur ce jour"
+                    >
+                      <LayersIcon size={16} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Importer Modèle</span>
+                    </button>
+                    <button 
                       onClick={() => {
                         if (selectedDayIdx > 0) {
                           const newDays = [...formData.days];
@@ -544,7 +601,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                         }
                       }}
                       disabled={selectedDayIdx === 0}
-                      className="p-3 text-zinc-400 hover:text-velatra-accent disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-velatra-accent/10"
+                      className="p-3 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
                       title="Déplacer vers la gauche"
                     >
                       <ArrowUpIcon size={20} className="-rotate-90" />
@@ -561,7 +618,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                         }
                       }}
                       disabled={selectedDayIdx === formData.days.length - 1}
-                      className="p-3 text-zinc-400 hover:text-velatra-accent disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-velatra-accent/10"
+                      className="p-3 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
                       title="Déplacer vers la droite"
                     >
                       <ArrowDownIcon size={20} className="-rotate-90" />
@@ -570,14 +627,14 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                   <div className="flex gap-2">
                     <button 
                       onClick={() => handleDuplicateDay(selectedDayIdx)}
-                      className="p-3 text-zinc-400 hover:text-velatra-accent transition-colors bg-zinc-50 rounded-xl hover:bg-velatra-accent/10 flex-1 flex justify-center"
+                      className="p-3 text-zinc-500 hover:text-emerald-500 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10 flex-1 flex justify-center"
                       title="Dupliquer ce jour"
                     >
                       <CopyIcon size={20} />
                     </button>
                     <button 
                       onClick={() => handleRemoveDay(selectedDayIdx)}
-                      className="p-3 text-red-500/30 hover:text-red-500 transition-colors bg-zinc-50 rounded-xl hover:bg-red-50 flex-1 flex justify-center"
+                      className="p-3 text-red-500/30 hover:text-red-500 transition-colors bg-zinc-50 rounded-xl hover:bg-red-500/10 flex-1 flex justify-center"
                       title="Supprimer ce jour"
                     >
                       <Trash2Icon size={20} />
@@ -642,9 +699,9 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                         {group.isGroup && (
                           <>
                             {/* Ligne verticale de liaison */}
-                            <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-velatra-accent to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+                            <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-emerald-500 to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
                             
-                            <div className="absolute -top-8 left-0 bg-velatra-accent text-zinc-900 px-4 py-2 rounded-r-2xl rounded-tl-2xl shadow-lg z-10 flex flex-col gap-1">
+                            <div className="absolute -top-8 left-0 bg-emerald-500 text-zinc-900 px-4 py-2 rounded-r-2xl rounded-tl-2xl shadow-lg z-10 flex flex-col gap-1">
                               <div className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                                 <LinkIcon size={12} /> {group.groupName || 'SUPERSET'} {group.exercises[0]?.entry.setGroup}
                               </div>
@@ -660,24 +717,29 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                         
                         return (
                           <div key={exIdx} className="relative">
-                            <div className={`bg-white p-4 sm:p-6 rounded-3xl border relative group hover:border-velatra-accent/40 transition-all shadow-xl ${group.isGroup ? 'border-none ring-1 ring-zinc-200' : 'border-zinc-200'}`}>
+                            <div className={`bg-white p-4 sm:p-6 rounded-3xl border relative group hover:border-emerald-500/40 transition-all shadow-xl ${group.isGroup ? 'border-none ring-1 ring-zinc-200' : 'border-zinc-200'}`}>
                               {group.isGroup && (
-                                <div className="absolute -left-6 md:-left-10 top-1/2 -translate-y-1/2 w-6 md:w-10 h-1 bg-velatra-accent/30" />
+                                <div className="absolute -left-6 md:-left-10 top-1/2 -translate-y-1/2 w-6 md:w-10 h-1 bg-emerald-500/30" />
                               )}
                               <div className="flex flex-col gap-4 sm:gap-6">
                                 <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
                                   <div className="flex items-center gap-4 w-full">
-                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center shrink-0 overflow-hidden">
+                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center shrink-0 overflow-hidden relative">
                                       {baseEx?.photo ? (
                                         <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
                                       ) : (
-                                        <div className="text-velatra-accent">
+                                        <div className="text-emerald-500">
                                           <DumbbellIcon size={24} />
+                                        </div>
+                                      )}
+                                      {baseEx?.videoUrl && (
+                                        <div className="absolute bottom-1 right-1 bg-emerald-500 text-zinc-900 p-0.5 rounded shadow-sm">
+                                          <VideoIcon size={10} />
                                         </div>
                                       )}
                                     </div>
                                     <div className="flex-1 space-y-1">
-                                      <label className="text-[9px] font-black text-velatra-accent uppercase tracking-widest ml-1">Mouvement</label>
+                                      <label className="text-[9px] font-black text-emerald-500 uppercase tracking-widest ml-1">Mouvement</label>
                                       <SearchableExerciseSelect
                                         exercises={exercises}
                                         value={ex.exId}
@@ -686,22 +748,30 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                     </div>
                                     <div className="flex sm:hidden gap-1">
                                       <button 
+                                        onClick={() => handleToggleLink(selectedDayIdx, exIdx)}
+                                        disabled={exIdx === 0}
+                                        className={`p-2 transition-colors ${ex.setGroup && ex.setGroup === formData.days[selectedDayIdx].exercises[exIdx-1]?.setGroup ? 'text-emerald-500' : 'text-zinc-500'}`}
+                                        title="Lier avec le précédent"
+                                      >
+                                        <LinkIcon size={18} />
+                                      </button>
+                                      <button 
                                         onClick={() => handleMoveEx(selectedDayIdx, exIdx, 'up')}
                                         disabled={exIdx === 0}
-                                        className="p-2 text-zinc-400 hover:text-velatra-accent disabled:opacity-30 transition-colors"
+                                        className="p-2 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors"
                                       >
                                         <ArrowUpIcon size={18} />
                                       </button>
                                       <button 
                                         onClick={() => handleMoveEx(selectedDayIdx, exIdx, 'down')}
                                         disabled={exIdx === formData.days[selectedDayIdx].exercises.length - 1}
-                                        className="p-2 text-zinc-400 hover:text-velatra-accent disabled:opacity-30 transition-colors"
+                                        className="p-2 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors"
                                       >
                                         <ArrowDownIcon size={18} />
                                       </button>
                                       <button 
                                         onClick={() => handleDuplicateEx(selectedDayIdx, exIdx)}
-                                        className="p-2 text-zinc-400 hover:text-velatra-accent transition-colors"
+                                        className="p-2 text-zinc-500 hover:text-emerald-500 transition-colors"
                                       >
                                         <CopyIcon size={18} />
                                       </button>
@@ -715,9 +785,17 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                   </div>
                                   <div className="hidden sm:flex gap-1">
                                     <button 
+                                      onClick={() => handleToggleLink(selectedDayIdx, exIdx)}
+                                      disabled={exIdx === 0}
+                                      className={`p-3 transition-colors rounded-xl ${ex.setGroup && ex.setGroup === formData.days[selectedDayIdx].exercises[exIdx-1]?.setGroup ? 'bg-emerald-500 text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10'}`}
+                                      title="Lier avec le précédent (Superset)"
+                                    >
+                                      <LinkIcon size={18} />
+                                    </button>
+                                    <button 
                                       onClick={() => handleMoveEx(selectedDayIdx, exIdx, 'up')}
                                       disabled={exIdx === 0}
-                                      className="p-3 text-zinc-400 hover:text-velatra-accent disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-velatra-accent/10"
+                                      className="p-3 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
                                       title="Monter"
                                     >
                                       <ArrowUpIcon size={18} />
@@ -725,25 +803,46 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                     <button 
                                       onClick={() => handleMoveEx(selectedDayIdx, exIdx, 'down')}
                                       disabled={exIdx === formData.days[selectedDayIdx].exercises.length - 1}
-                                      className="p-3 text-zinc-400 hover:text-velatra-accent disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-velatra-accent/10"
+                                      className="p-3 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
                                       title="Descendre"
                                     >
                                       <ArrowDownIcon size={18} />
                                     </button>
                                     <button 
                                       onClick={() => handleDuplicateEx(selectedDayIdx, exIdx)}
-                                      className="p-3 text-zinc-400 hover:text-velatra-accent transition-colors bg-zinc-50 rounded-xl hover:bg-velatra-accent/10"
+                                      className="p-3 text-zinc-500 hover:text-emerald-500 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
                                       title="Dupliquer"
                                     >
                                       <CopyIcon size={18} />
                                     </button>
                                     <button 
                                       onClick={() => handleRemoveEx(selectedDayIdx, exIdx)}
-                                      className="p-3 text-red-500/30 hover:text-red-500 transition-colors bg-zinc-50 rounded-xl hover:bg-red-50"
+                                      className="p-3 text-red-500/30 hover:text-red-500 transition-colors bg-zinc-50 rounded-xl hover:bg-red-500/10"
                                       title="Supprimer"
                                     >
                                       <Trash2Icon size={18} />
                                     </button>
+                                    
+                                    {/* Copy to Day Dropdown (Simple version) */}
+                                    {formData.days.length > 1 && (
+                                      <div className="relative group/copy">
+                                        <button className="p-3 text-zinc-500 hover:text-emerald-500 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10">
+                                          <PlusIcon size={18} />
+                                        </button>
+                                        <div className="absolute right-0 bottom-full mb-2 bg-white border border-zinc-200 rounded-xl shadow-xl p-2 hidden group-hover/copy:block z-50 w-32">
+                                          <div className="text-[8px] font-black uppercase text-zinc-400 mb-1 px-2">Copier vers :</div>
+                                          {formData.days.map((d: any, dIdx: number) => dIdx !== selectedDayIdx && (
+                                            <button 
+                                              key={dIdx}
+                                              onClick={() => handleCopyExToDay(selectedDayIdx, exIdx, dIdx)}
+                                              className="w-full text-left px-2 py-1.5 text-[10px] font-bold text-zinc-900 hover:bg-emerald-500 hover:text-zinc-900 rounded-lg transition-colors truncate"
+                                            >
+                                              J{dIdx + 1} - {d.name}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
 
@@ -795,7 +894,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                   <div className="space-y-1">
                                     <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">TYPE</label>
                                     <select 
-                                      className="w-full bg-white border border-zinc-200 rounded-xl p-2 sm:p-3 text-center text-xs sm:text-sm font-black text-zinc-900 focus:outline-none focus:border-velatra-accent appearance-none cursor-pointer"
+                                      className="w-full bg-white border border-zinc-200 rounded-xl p-2 sm:p-3 text-center text-xs sm:text-sm font-black text-zinc-900 focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer"
                                       value={ex.setType || 'normal'}
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setType', e.target.value)}
                                     >
@@ -832,7 +931,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                             </div>
                             {group.isGroup && !isLastInGroup && (
                               <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center justify-center">
-                                <div className="w-8 h-8 rounded-full bg-velatra-accent/10 text-velatra-accent flex items-center justify-center backdrop-blur-sm border border-velatra-accent/30">
+                                <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center backdrop-blur-sm border border-emerald-500/30">
                                   <LinkIcon size={14} />
                                 </div>
                               </div>
@@ -847,7 +946,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
 
                 <button 
                   onClick={() => handleAddExercise(selectedDayIdx)}
-                  className="w-full py-6 border-2 border-dashed border-zinc-200 rounded-3xl text-zinc-900 hover:border-velatra-accent hover:text-velatra-accent transition-all font-black text-xs uppercase tracking-[4px] flex items-center justify-center gap-3 bg-zinc-50"
+                  className="w-full py-6 border-2 border-dashed border-zinc-200 rounded-3xl text-zinc-900 hover:border-emerald-500 hover:text-emerald-500 transition-all font-black text-xs uppercase tracking-[4px] flex items-center justify-center gap-3 bg-zinc-50"
                 >
                   <PlusIcon size={20} /> AJOUTER UN MOUVEMENT
                 </button>

@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import { User, BodyData } from "../types";
 
 const getApiKey = () => {
@@ -76,9 +76,10 @@ Format de sortie obligatoire (JSON) :
 `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.1-pro-preview",
     contents: prompt,
     config: {
+      thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -253,9 +254,10 @@ nombre de repas : 4
 `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.1-pro-preview",
     contents: prompt,
     config: {
+      thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
       systemInstruction: "Tu es un expert en nutrition sportive. Tu dois calculer les macros et calories avec précision et retourner UNIQUEMENT un objet JSON valide. Ne retourne aucun texte explicatif, aucune formule de calcul dans les champs. Les noms des repas doivent être simples (ex: 'Petit-déjeuner', 'Déjeuner', 'Collation', 'Dîner'). Les valeurs de calories et macros doivent être des nombres entiers. La description doit être courte et concise.",
       responseMimeType: "application/json",
       responseSchema: {
@@ -329,9 +331,10 @@ Retourne uniquement un objet JSON avec les champs suivants :
 }`;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.1-pro-preview",
     contents: prompt,
     config: {
+      thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -381,8 +384,11 @@ Le bilan doit être professionnel, encourageant, et prêt à être envoyé par m
 `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.1-pro-preview",
     contents: prompt,
+    config: {
+      thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
+    }
   });
 
   return response.text?.trim() || "Impossible de générer le rapport.";
@@ -418,9 +424,10 @@ Retourne uniquement un objet JSON avec :
 `;
 
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.1-pro-preview",
     contents: prompt,
     config: {
+      thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -453,7 +460,7 @@ export const analyzeMealImage = async (base64Image: string, mimeType: string) =>
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.1-pro-preview",
       contents: {
         parts: [
           {
@@ -468,6 +475,7 @@ export const analyzeMealImage = async (base64Image: string, mimeType: string) =>
         ]
       },
       config: {
+        thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -502,7 +510,7 @@ export const generateRecipeFromFridge = async (base64Image: string, mimeType: st
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: "gemini-3.1-pro-preview",
       contents: {
         parts: [
           {
@@ -515,6 +523,9 @@ export const generateRecipeFromFridge = async (base64Image: string, mimeType: st
             text: "Voici une photo de mon frigo ou de mes ingrédients. Génère une recette saine, sportive et anti-gaspillage avec ces ingrédients. Renvoie la réponse en Markdown, en incluant un titre accrocheur, la liste des ingrédients, les étapes de préparation, et une estimation des macros (Calories, Protéines, Glucides, Lipides)."
           }
         ]
+      },
+      config: {
+        thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
       }
     });
 

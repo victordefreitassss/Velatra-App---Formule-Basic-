@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AppState, Plan } from '../types';
 import { Card, Button, Input } from '../components/UI';
 import { SettingsIcon, SaveIcon, PlusIcon, Edit2Icon, Trash2Icon, CheckIcon, XIcon, TargetIcon } from '../components/Icons';
-import { db, doc, updateDoc, setDoc, deleteDoc } from '../firebase';
+import { db, doc, updateDoc, setDoc, deleteDoc, storage } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [defaultDuration, setDefaultDuration] = useState(state.currentClub?.settings?.defaultProgramDuration || 7);
@@ -98,11 +99,11 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     showToast("Compte Stripe connecté avec succès !");
   };
 
-  const [confirmDisconnectStripe, setConfirmDisconnectStripe] = useState(false);
-  const [confirmDeletePlanId, setConfirmDeletePlanId] = useState<string | null>(null);
+  const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState<string | null>(null);
 
   const handleDisconnectStripe = async () => {
-    setConfirmDisconnectStripe(true);
+    setIsDisconnectModalOpen(true);
   };
 
   const confirmDisconnect = async () => {
@@ -118,7 +119,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
       });
     }
     showToast("Compte Stripe déconnecté.");
-    setConfirmDisconnectStripe(false);
+    setIsDisconnectModalOpen(false);
   };
 
   const handleSavePlan = async () => {
@@ -190,18 +191,20 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   };
 
   const handleDeletePlan = async (planId: string) => {
-    setConfirmDeletePlanId(planId);
+    setPlanToDelete(planId);
   };
 
   const confirmDeletePlan = async () => {
-    if (!confirmDeletePlanId) return;
+    if (!planToDelete) return;
     try {
-      await deleteDoc(doc(db, "plans", confirmDeletePlanId));
+      await deleteDoc(doc(db, "plans", planToDelete));
       showToast("Formule supprimée");
+      setPlanToDelete(null);
     } catch (err) {
-      showToast("Erreur lors de la suppression", "error");
+      console.error("Erreur lors de la suppression de la formule:", err);
+      showToast("Erreur lors de la suppression de la formule", "error");
     } finally {
-      setConfirmDeletePlanId(null);
+      setPlanToDelete(null);
     }
   };
 
@@ -220,24 +223,67 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
       <div className="flex justify-between items-center px-1">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Paramètres</h1>
-          <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">Configuration du club</p>
+          <p className="text-[10px] text-zinc-900/70 font-bold uppercase tracking-[3px] mt-2">Configuration du club</p>
         </div>
       </div>
 
       <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
+          <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
             <SettingsIcon size={24} />
           </div>
           <h2 className="text-xl font-black uppercase">Informations du Club</h2>
         </div>
 
         <div className="space-y-6 max-w-md">
+          <div className="flex items-center gap-6 mb-8">
+            <div className="relative group w-24 h-24 rounded-2xl bg-zinc-100 border border-zinc-200 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+              {state.currentClub?.logo ? (
+                <img src={state.currentClub.logo} alt={state.currentClub.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-3xl font-bold text-zinc-500">{state.currentClub?.name.charAt(0)}</span>
+              )}
+              <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                <span className="text-white text-[10px] font-bold uppercase tracking-widest">Logo</span>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file && state.currentClub) {
+                      try {
+                        showToast("Téléchargement du logo...", "success");
+                        const logoRef = ref(storage, `clubs/${state.currentClub.id}/logo_${Date.now()}`);
+                        await uploadBytes(logoRef, file);
+                        const url = await getDownloadURL(logoRef);
+                        
+                        await updateDoc(doc(db, "clubs", state.currentClub.id), { logo: url });
+                        setState(prev => ({
+                          ...prev,
+                          currentClub: { ...prev.currentClub!, logo: url }
+                        }));
+                        showToast("Logo mis à jour avec succès !", "success");
+                      } catch (error) {
+                        console.error("Error uploading logo:", error);
+                        showToast("Erreur lors du téléchargement", "error");
+                      }
+                    }
+                  }}
+                />
+              </label>
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-zinc-900">{state.currentClub?.name}</h3>
+              <p className="text-xs text-zinc-500">Cliquez sur l'image pour modifier le logo du club.</p>
+            </div>
+          </div>
+
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">
+            <label className="text-[10px] font-black uppercase text-zinc-900/70 tracking-widest ml-1">
               Code d'accès du club
             </label>
-            <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl flex justify-between items-center">
+            <div className="p-4 bg-white border border-zinc-200 rounded-xl flex justify-between items-center">
               <span className="text-xl font-black tracking-widest text-zinc-900">{state.currentClub?.id}</span>
               <Button 
                 variant="secondary" 
@@ -250,7 +296,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                 COPIER
               </Button>
             </div>
-            <p className="text-xs text-zinc-900 mt-1">
+            <p className="text-xs text-zinc-900/70 mt-1">
               Partagez ce code avec vos membres pour qu'ils puissent rejoindre votre club lors de leur inscription.
             </p>
           </div>
@@ -259,7 +305,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
 
       <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
+          <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
             <SettingsIcon size={24} />
           </div>
           <h2 className="text-xl font-black uppercase">Programmation</h2>
@@ -267,7 +313,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
 
         <div className="space-y-6 max-w-md">
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">
+            <label className="text-[10px] font-black uppercase text-zinc-900/70 tracking-widest ml-1">
               Durée par défaut d'un programme (semaines)
             </label>
             <Input 
@@ -277,7 +323,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               value={defaultDuration || ''} 
               onChange={(e) => setDefaultDuration(parseInt(e.target.value) || 0)} 
             />
-            <p className="text-xs text-zinc-900 mt-1">
+            <p className="text-xs text-zinc-900/70 mt-1">
               Cette durée sera utilisée par défaut lors de la création d'un nouveau programme.
             </p>
           </div>
@@ -289,9 +335,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
-      <Card className="p-8 border-zinc-200 bg-white">
+      <Card className="p-8 border-zinc-200 bg-zinc-50">
         <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
+          <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
             <SettingsIcon size={24} />
           </div>
           <h2 className="text-xl font-black uppercase">Moyens d'encaissement</h2>
@@ -309,7 +355,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                   <CheckIcon size={14} /> Connecté
                 </span>
               ) : (
-                <span className="px-3 py-1 bg-zinc-200 text-zinc-600 rounded-full text-xs font-bold uppercase tracking-wider shrink-0 w-max">
+                <span className="px-3 py-1 bg-zinc-100 text-zinc-500 rounded-full text-xs font-bold uppercase tracking-wider shrink-0 w-max">
                   Non connecté
                 </span>
               )}
@@ -345,18 +391,18 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Moyens de paiement acceptés</h3>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900/70">Moyens de paiement acceptés</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {paymentMethodsList.map(method => {
                 const isDisabled = method.requiresStripe && !stripeConnected;
                 return (
-                  <label key={method.id} className={`flex items-center gap-3 p-4 border rounded-xl transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed border-zinc-100 bg-zinc-50' : 'cursor-pointer border-zinc-200 hover:bg-zinc-50'}`}>
+                  <label key={method.id} className={`flex items-center gap-3 p-4 border rounded-xl transition-colors ${isDisabled ? 'opacity-50 cursor-not-allowed border-zinc-900 bg-white' : 'cursor-pointer border-zinc-200 hover:bg-zinc-50'}`}>
                     <input 
                       type="checkbox" 
                       checked={acceptedMethods.includes(method.id)}
                       onChange={() => !isDisabled && toggleAcceptedMethod(method.id)}
                       disabled={isDisabled}
-                      className="w-5 h-5 rounded border-zinc-300 text-velatra-accent focus:ring-velatra-accent disabled:opacity-50"
+                      className="w-5 h-5 rounded border-zinc-300 text-emerald-500 focus:ring-emerald-500 disabled:opacity-50"
                     />
                     <div>
                       <p className="font-bold text-zinc-900 text-sm">{method.label}</p>
@@ -375,9 +421,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
-      <Card className="p-8 border-zinc-200 bg-white">
+      <Card className="p-8 border-zinc-200 bg-zinc-50">
         <div className="flex items-center gap-4 mb-8">
-          <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
+          <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
             <TargetIcon size={24} />
           </div>
           <div>
@@ -394,14 +440,14 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" className="sr-only peer" checked={planningEnabled} onChange={(e) => setPlanningEnabled(e.target.checked)} />
-              <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-velatra-accent"></div>
+              <div className="w-11 h-6 bg-zinc-100 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
             </label>
           </div>
 
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Types de séances</h3>
+                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900/70">Types de séances</h3>
                 <p className="text-xs text-zinc-500">Créez différents types de créneaux (ex: 45 min, 1h, 1h30).</p>
               </div>
               <Button
@@ -442,7 +488,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                   </div>
                   <Button
                     variant="ghost"
-                    className="text-red-500 hover:text-red-600 hover:bg-red-50 !p-2"
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 !p-2"
                     onClick={() => {
                       setSessionTypes(sessionTypes.filter((_, i) => i !== idx));
                     }}
@@ -457,7 +503,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           {planningEnabled && (
             <>
               <div className="space-y-4">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Durée par défaut (minutes)</h3>
+                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900/70">Durée par défaut (minutes)</h3>
                 <p className="text-xs text-zinc-500">Durée utilisée pour les créneaux sans type spécifique.</p>
                 <Input 
                   type="number" 
@@ -468,7 +514,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Délai minimum de réservation (heures)</h3>
+                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900/70">Délai minimum de réservation (heures)</h3>
                 <p className="text-xs text-zinc-500">Ex: 24 pour interdire la réservation le jour même. Laissez à 0 pour autoriser à la dernière minute.</p>
                 <Input 
                   type="number" 
@@ -479,7 +525,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               </div>
 
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Délai minimum d'annulation (heures)</h3>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900/70">Délai minimum d'annulation (heures)</h3>
             <p className="text-xs text-zinc-500">Ex: 24 pour interdire l'annulation tardive. Laissez à 0 pour autoriser à tout moment.</p>
             <Input 
               type="number" 
@@ -490,7 +536,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Nombre max de réservations par semaine / membre</h3>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900/70">Nombre max de réservations par semaine / membre</h3>
             <p className="text-xs text-zinc-500">Laissez à 0 pour illimité.</p>
             <Input 
               type="number" 
@@ -501,7 +547,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900">Horaires de disponibilité</h3>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-900/70">Horaires de disponibilité</h3>
             <div className="space-y-4">
               {['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map((dayName, index) => {
                 const daySchedule = schedule.find(s => s.day === index) || { day: index, slots: [] };
@@ -548,7 +594,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                                 setSchedule(newSchedule);
                               }
                             }}
-                            className="w-full px-4 py-3 rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:ring-2 focus:ring-velatra-accent focus:border-transparent outline-none transition-all !py-1 !px-2 w-48"
+                            className="w-full px-4 py-3 rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all !py-1 !px-2 w-48"
                           >
                             <option value="">Séance Standard</option>
                             {sessionTypes.map(t => (
@@ -557,7 +603,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                           </select>
                           <Button 
                             variant="secondary" 
-                            className="!p-1 !h-8 !w-8 flex items-center justify-center text-red-500 border-red-200 hover:bg-red-50"
+                            className="!p-1 !h-8 !w-8 flex items-center justify-center text-red-400 border-red-500/20 hover:bg-red-500/10"
                             onClick={() => {
                               const newSchedule = [...schedule];
                               const dayIdx = newSchedule.findIndex(s => s.day === index);
@@ -603,10 +649,10 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
-      <Card className="p-8 border-zinc-200 bg-white">
+      <Card className="p-8 border-zinc-200 bg-zinc-50">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
+            <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
               <SettingsIcon size={24} />
             </div>
             <h2 className="text-xl font-black uppercase">Formules d'abonnement</h2>
@@ -641,7 +687,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                   <Input type="number" placeholder="Ex: 99" value={editingPlan?.price || ''} onChange={e => setEditingPlan({ ...editingPlan, price: Number(e.target.value) })} className="flex-1" />
                   <button 
                     onClick={() => setEditingPlan({ ...editingPlan, isTTC: !editingPlan?.isTTC })}
-                    className={`px-3 py-3 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors ${editingPlan?.isTTC ? 'bg-velatra-accent text-white border-velatra-accent' : 'bg-transparent text-zinc-900 border-zinc-200 hover:border-zinc-200'}`}
+                    className={`px-3 py-3 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors ${editingPlan?.isTTC ? 'bg-emerald-500 text-zinc-900 border-emerald-500' : 'bg-transparent text-zinc-900 border-zinc-200 hover:border-zinc-300'}`}
                   >
                     {editingPlan?.isTTC ? 'TTC' : 'HT'}
                   </button>
@@ -650,7 +696,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               <div className="space-y-1">
                 <label className="text-[10px] uppercase font-bold text-zinc-500">Cycle de facturation</label>
                 <select 
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-velatra-accent"
+                  className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-emerald-500"
                   value={editingPlan?.billingCycle || 'monthly'}
                   onChange={e => setEditingPlan({ ...editingPlan, billingCycle: e.target.value as any })}
                 >
@@ -664,7 +710,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setEditingPlan({ ...editingPlan, hasCommitment: !editingPlan?.hasCommitment })}
-                    className={`px-3 py-3 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors ${editingPlan?.hasCommitment ? 'bg-velatra-accent text-white border-velatra-accent' : 'bg-transparent text-zinc-900 border-zinc-200 hover:border-zinc-200'}`}
+                    className={`px-3 py-3 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors ${editingPlan?.hasCommitment ? 'bg-emerald-500 text-zinc-900 border-emerald-500' : 'bg-transparent text-zinc-900 border-zinc-200 hover:border-zinc-300'}`}
                   >
                     {editingPlan?.hasCommitment ? 'OUI' : 'NON'}
                   </button>
@@ -676,13 +722,13 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               <div className="space-y-1 md:col-span-2">
                 <label className="text-[10px] uppercase font-bold text-zinc-500">Crédits de séance</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div className="flex items-center gap-2 bg-white border border-zinc-200 p-2 rounded-xl">
-                    <span className="text-xs font-bold text-zinc-700 flex-1">Séance Standard</span>
+                  <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 p-2 rounded-xl">
+                    <span className="text-xs font-bold text-zinc-900 flex-1">Séance Standard</span>
                     <Input type="number" placeholder="Ex: 4" value={editingPlan?.credits || ''} onChange={e => setEditingPlan({ ...editingPlan, credits: Number(e.target.value) })} className="w-20 !py-1" />
                   </div>
                   {sessionTypes.map(type => (
-                    <div key={type.id} className="flex items-center gap-2 bg-white border border-zinc-200 p-2 rounded-xl">
-                      <span className="text-xs font-bold text-zinc-700 flex-1">{type.name}</span>
+                    <div key={type.id} className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 p-2 rounded-xl">
+                      <span className="text-xs font-bold text-zinc-900 flex-1">{type.name}</span>
                       <Input 
                         type="number" 
                         placeholder="Ex: 2" 
@@ -710,9 +756,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                     <button
                       key={method.id}
                       onClick={() => togglePaymentMethod(method.id)}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors flex items-center gap-2 ${editingPlan?.paymentMethods?.includes(method.id) ? 'bg-zinc-100 text-zinc-900 border-zinc-300' : 'bg-transparent text-zinc-900 border-zinc-200 hover:border-zinc-200'}`}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors flex items-center gap-2 ${editingPlan?.paymentMethods?.includes(method.id) ? 'bg-zinc-100 text-zinc-900 border-zinc-300' : 'bg-transparent text-zinc-900 border-zinc-200 hover:border-zinc-300'}`}
                     >
-                      {editingPlan?.paymentMethods?.includes(method.id) && <CheckIcon size={12} className="text-velatra-accent" />}
+                      {editingPlan?.paymentMethods?.includes(method.id) && <CheckIcon size={12} className="text-emerald-500" />}
                       {method.label}
                     </button>
                   ))}
@@ -723,7 +769,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                 <Input placeholder="Description de la formule..." value={editingPlan?.description || ''} onChange={e => setEditingPlan({ ...editingPlan, description: e.target.value })} />
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 pt-4 border-t border-zinc-200 w-full">
+            <div className="flex flex-col sm:flex-row justify-end gap-2 mt-6 pt-4 border-t border-zinc-200 w-full sticky bottom-0 bg-zinc-50 pb-2 z-10">
               <Button variant="secondary" fullWidth onClick={() => { setIsEditingPlan(false); setEditingPlan(null); }}>ANNULER</Button>
               <Button variant="primary" fullWidth onClick={handleSavePlan} disabled={!editingPlan?.name || !editingPlan?.price}>ENREGISTRER</Button>
             </div>
@@ -739,7 +785,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                 {state.plans.map(plan => (
                   <div key={plan.id} className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 relative group">
                     <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => { setEditingPlan(plan); setIsEditingPlan(true); }} className="p-2 bg-zinc-100 rounded-xl hover:bg-zinc-200 text-zinc-900 transition-colors">
+                      <button onClick={() => { setEditingPlan(plan); setIsEditingPlan(true); }} className="p-2 bg-zinc-100 rounded-xl hover:bg-zinc-100 text-zinc-900 transition-colors">
                         <Edit2Icon size={14} />
                       </button>
                       <button onClick={() => handleDeletePlan(plan.id)} className="p-2 bg-red-500/10 rounded-xl hover:bg-red-500/20 text-red-500 transition-colors">
@@ -747,11 +793,11 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                       </button>
                     </div>
                     <h3 className="text-lg font-black text-zinc-900 uppercase tracking-widest mb-1 pr-16">{plan.name}</h3>
-                    <div className="text-2xl font-black text-velatra-accent mb-4">
+                    <div className="text-2xl font-black text-emerald-500 mb-4">
                       {plan.price}€ <span className="text-[10px] text-zinc-500 uppercase tracking-widest">{plan.isTTC ? 'TTC' : 'HT'} / {plan.billingCycle === 'monthly' ? 'mois' : plan.billingCycle === 'yearly' ? 'an' : 'fois'}</span>
                     </div>
                     
-                    <div className="space-y-2 text-xs text-zinc-900">
+                    <div className="space-y-2 text-xs text-zinc-900/70">
                       <div className="flex items-center gap-2">
                         <div className={`w-1.5 h-1.5 rounded-full ${plan.hasCommitment ? 'bg-orange-500' : 'bg-green-500'}`} />
                         {plan.hasCommitment ? `Engagement ${plan.commitmentMonths} mois` : 'Sans engagement'}
@@ -826,17 +872,17 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         )}
       </Card>
 
-      {confirmDisconnectStripe && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      {isDisconnectModalOpen && createPortal(
+        <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+            className="bg-white border border-zinc-200 rounded-3xl p-6 max-w-md w-full shadow-2xl"
           >
             <h3 className="text-xl font-black text-zinc-900 mb-2">Déconnecter Stripe ?</h3>
             <p className="text-zinc-500 mb-6">Voulez-vous vraiment déconnecter votre compte Stripe ? Vos clients ne pourront plus payer en ligne.</p>
             <div className="flex gap-3">
-              <Button variant="secondary" fullWidth onClick={() => setConfirmDisconnectStripe(false)}>Non, garder</Button>
+              <Button variant="secondary" fullWidth onClick={() => setIsDisconnectModalOpen(false)}>Non, garder</Button>
               <Button variant="danger" fullWidth onClick={confirmDisconnect}>Oui, déconnecter</Button>
             </div>
           </motion.div>
@@ -844,17 +890,17 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         document.body
       )}
 
-      {confirmDeletePlanId && createPortal(
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+      {planToDelete && createPortal(
+        <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
+            className="bg-white border border-zinc-200 rounded-3xl p-6 max-w-md w-full shadow-2xl"
           >
             <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer la formule ?</h3>
             <p className="text-zinc-500 mb-6">Voulez-vous vraiment supprimer cette formule ?</p>
             <div className="flex gap-3">
-              <Button variant="secondary" fullWidth onClick={() => setConfirmDeletePlanId(null)}>Non, garder</Button>
+              <Button variant="secondary" fullWidth onClick={() => setPlanToDelete(null)}>Non, garder</Button>
               <Button variant="danger" fullWidth onClick={confirmDeletePlan}>Oui, supprimer</Button>
             </div>
           </motion.div>

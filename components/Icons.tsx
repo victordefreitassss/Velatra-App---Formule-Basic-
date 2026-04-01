@@ -26,7 +26,7 @@ const createIcon = (path: React.ReactNode) => ({ size = 24, color = "currentColo
 );
 
 export const ActivityIcon = createIcon(<polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />);
-export const HomeIcon = createIcon(<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8m0 0V3m0 5h-5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16m0 0v5m0-5h-5" />);
+export const HomeIcon = createIcon(<><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>);
 export const UsersIcon = createIcon(<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm13 14v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />);
 export const LayersIcon = createIcon(<path d="M2 3h20v18H2zM2 8h20M7 3v18M12 3v18M17 3v18" />);
 export const TargetIcon = createIcon(<><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2" /></>);

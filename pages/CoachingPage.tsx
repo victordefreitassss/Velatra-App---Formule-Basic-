@@ -90,15 +90,15 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
         <p className="text-zinc-500">Gérez vos séances de coaching, suivez la progression et lancez des entraînements.</p>
       </div>
 
-      <div className="bg-white rounded-3xl border  p-6 mb-8 shadow-sm">
+      <div className="bg-white rounded-3xl border border-zinc-200 p-6 mb-8 shadow-sm">
         <div className="flex flex-col md:flex-row gap-4 mb-6">
           <div className="relative flex-1">
-            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
+            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
             <Input 
               placeholder="Rechercher un membre..." 
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="pl-12 !bg-zinc-50"
+              className="pl-12 !bg-white"
             />
           </div>
           <div className="flex flex-wrap gap-2 mt-4 sm:mt-0">
@@ -111,11 +111,15 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
         <div className="grid grid-cols-1 gap-4">
           {filteredMembers.map(member => {
             return (
-              <div key={member.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-5 bg-zinc-50 rounded-2xl border  hover:border-velatra-accent transition-colors gap-4">
+              <div key={member.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-5 bg-white rounded-2xl border border-zinc-200 hover:border-emerald-500 transition-colors gap-4">
                 
                 <div className="flex items-center gap-4 flex-1">
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-zinc-100 to-zinc-50 border border-white flex items-center justify-center font-black text-xl text-zinc-700 shadow-inner shrink-0 relative">
-                    {member.avatar || member.name.charAt(0)}
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-zinc-100 to-zinc-50 border border-white flex items-center justify-center font-black text-xl text-zinc-600 shadow-inner shrink-0 relative overflow-hidden">
+                    {member.avatar?.startsWith('http') ? (
+                      <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
+                    ) : (
+                      member.avatar || member.name.substring(0, 2).toUpperCase()
+                    )}
                     {member.lastSession && (new Date().getTime() - new Date(member.lastSession.date).getTime() < 7 * 24 * 60 * 60 * 1000) && (
                       <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full"></div>
                     )}
@@ -134,7 +138,7 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
                     
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-500">
                       {member.program ? (
-                        <div className="flex items-center gap-1 text-velatra-accent font-medium">
+                        <div className="flex items-center gap-1 text-emerald-500 font-medium">
                           <DumbbellIcon size={12} /> {member.program.name}
                         </div>
                       ) : (
@@ -166,10 +170,10 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
                       <span>Progression</span>
                       <span>{member.progress}%</span>
                     </div>
-                    <div className="h-1.5 bg-zinc-200 rounded-full overflow-hidden">
-                      <div className="h-full bg-velatra-accent rounded-full" style={{ width: `${member.progress}%` }}></div>
+                    <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${member.progress}%` }}></div>
                     </div>
-                    <div className="text-[10px] text-zinc-400 mt-1 truncate">
+                    <div className="text-[10px] text-zinc-500 mt-1 truncate">
                       Prochaine: {member.nextSessionName}
                     </div>
                   </div>
@@ -201,7 +205,7 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
           })}
           
           {filteredMembers.length === 0 && (
-            <div className="col-span-full text-center py-12 text-zinc-500 italic bg-zinc-50 rounded-2xl border border-dashed ">
+            <div className="col-span-full text-center py-12 text-zinc-500 italic bg-white rounded-2xl border border-dashed ">
               Aucun membre ne correspond à vos critères
             </div>
           )}

@@ -74,23 +74,23 @@ export const MemberSupplementsPage: React.FC<{ state: AppState, showToast: any }
         <Button 
           variant="primary" 
           onClick={() => showToast("Notre boutique partenaire arrive très bientôt !", "info")}
-          className="shadow-xl shadow-velatra-accent/20"
+          className="shadow-xl shadow-emerald-500/20"
         >
           <ShoppingCartIcon size={18} className="mr-2" />
           Acheter nos recommandations
         </Button>
       </div>
 
-      <Card className="bg-gradient-to-br from-zinc-900 to-zinc-800 text-white border-0 overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-velatra-accent rounded-full blur-[100px] opacity-20 -translate-y-1/2 translate-x-1/2"></div>
+      <Card className="bg-gradient-to-br from-zinc-900 to-zinc-800 text-zinc-900 border-0 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500 rounded-full blur-[100px] opacity-20 -translate-y-1/2 translate-x-1/2"></div>
         <div className="relative z-10 flex flex-col md:flex-row gap-6 items-center">
           <div className="flex-1 space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white text-xs font-bold uppercase tracking-wider">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-100 text-zinc-900 text-xs font-bold uppercase tracking-wider">
               <InfoIcon size={14} />
               <span>Conseil du Coach</span>
             </div>
             <h2 className="text-2xl font-black italic">Les compléments ne sont pas magiques.</h2>
-            <p className="text-zinc-300 leading-relaxed">
+            <p className="text-zinc-600 leading-relaxed">
               Ils portent bien leur nom : ils viennent <strong>compléter</strong> une alimentation déjà solide et un entraînement régulier. Ne dépensez pas votre argent dans des suppléments si votre nutrition de base et votre sommeil ne sont pas optimisés.
             </p>
           </div>
@@ -116,7 +116,7 @@ export const MemberSupplementsPage: React.FC<{ state: AppState, showToast: any }
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent md:bg-gradient-to-r"></div>
                   <div className="absolute bottom-4 left-4 right-4 md:bottom-auto md:top-4">
-                    <Badge variant={supp.color as any} className="shadow-lg backdrop-blur-md bg-white/90">
+                    <Badge variant={supp.color as any} className="shadow-lg backdrop-blur-md bg-zinc-100">
                       {supp.category}
                     </Badge>
                   </div>
@@ -134,15 +134,15 @@ export const MemberSupplementsPage: React.FC<{ state: AppState, showToast: any }
                     {supp.description}
                   </p>
                   
-                  <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100">
+                  <div className="bg-white rounded-xl p-4 border border-zinc-200">
                     <h4 className="text-sm font-bold text-zinc-900 uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <TargetIcon size={16} className="text-velatra-accent" />
+                      <TargetIcon size={16} className="text-emerald-500" />
                       Comment l'utiliser
                     </h4>
                     <ul className="space-y-2">
                       {supp.tips.map((tip, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-zinc-600">
-                          <span className="text-velatra-accent font-bold mt-0.5">•</span>
+                        <li key={i} className="flex items-start gap-2 text-sm text-zinc-500">
+                          <span className="text-emerald-500 font-bold mt-0.5">•</span>
                           <span>{tip}</span>
                         </li>
                       ))}

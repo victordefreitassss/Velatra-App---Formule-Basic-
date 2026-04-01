@@ -65,7 +65,7 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
         </div>
       </motion.div>
 
-      <motion.div variants={itemVariants} className="bg-white/60 backdrop-blur-xl p-6 rounded-3xl border  shadow-sm">
+      <motion.div variants={itemVariants} className="bg-white backdrop-blur-xl p-6 rounded-3xl border border-zinc-200 shadow-sm">
         <div className="flex justify-between items-end mb-4">
           <div>
             <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Progression Globale</div>
@@ -73,15 +73,15 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
           </div>
           <div className="text-right">
             <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Semaine</div>
-            <div className="text-sm font-black italic text-velatra-accent">{currentWeek} / {totalWeeks}</div>
+            <div className="text-sm font-black italic text-emerald-500">{currentWeek} / {totalWeeks}</div>
           </div>
         </div>
-        <div className="w-full bg-zinc-50/50 rounded-full h-3 overflow-hidden shadow-inner">
+        <div className="w-full bg-white/50 rounded-full h-3 overflow-hidden shadow-inner">
           <motion.div 
             initial={{ width: 0 }}
             animate={{ width: `${progressPercent}%` }}
             transition={{ duration: 1, ease: "easeOut" }}
-            className="bg-velatra-accent h-full rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]" 
+            className="bg-emerald-500 h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" 
           />
         </div>
       </motion.div>
@@ -94,9 +94,9 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
 
           return (
             <motion.div variants={itemVariants} key={idx}>
-              <Card className={`flex items-center justify-between group !p-4 md:!p-6  transition-all shadow-sm ${isCompleted ? 'bg-white/40 backdrop-blur-md opacity-60' : 'bg-white/60 backdrop-blur-xl hover:border-velatra-accent/30 hover:shadow-md'}`}>
+              <Card className={`flex items-center justify-between group !p-4 md:!p-6  transition-all shadow-sm ${isCompleted ? 'bg-white backdrop-blur-md opacity-60' : 'bg-zinc-50 backdrop-blur-xl hover:border-emerald-500/30 hover:shadow-md'}`}>
                 <div className="flex items-center gap-4 md:gap-6">
-                  <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl border flex items-center justify-center font-bold text-lg md:text-xl transition-all shadow-inner shrink-0 ${isCompleted ? 'bg-velatra-accent text-zinc-900 border-velatra-accent' : isCurrent ? 'bg-velatra-accent/10 text-velatra-accent border-velatra-accent/50' : 'bg-white/50  text-zinc-900 group-hover:text-velatra-accent group-hover:border-velatra-accent/50 group-hover:bg-velatra-accent/10'}`}>
+                  <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl border flex items-center justify-center font-bold text-lg md:text-xl transition-all shadow-inner shrink-0 ${isCompleted ? 'bg-emerald-500 text-zinc-900 border-emerald-500' : isCurrent ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/50' : 'bg-zinc-50  text-zinc-900 group-hover:text-emerald-500 group-hover:border-emerald-500/50 group-hover:bg-emerald-500/10'}`}>
                     {isCompleted ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> : idx + 1}
                   </div>
                   <div>
@@ -110,7 +110,7 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
                   <Badge variant="success" className="uppercase !text-[10px] shrink-0 ml-2 shadow-sm">Terminé</Badge>
                 ) : (
                   <motion.div whileHover={!isLocked ? { scale: 1.05 } : {}} whileTap={!isLocked ? { scale: 0.95 } : {}}>
-                    <Button variant={isCurrent ? "primary" : "secondary"} className={`!p-3 md:!p-4 !rounded-2xl shadow-lg shrink-0 ml-2 ${isCurrent ? 'shadow-velatra-accent/20' : 'bg-white/60 hover:bg-white'}`} onClick={() => startSession(idx)} disabled={isLocked}>
+                    <Button variant={isCurrent ? "primary" : "secondary"} className={`!p-3 md:!p-4 !rounded-2xl shadow-lg shrink-0 ml-2 ${isCurrent ? 'shadow-emerald-500/20' : 'bg-white hover:bg-white'}`} onClick={() => startSession(idx)} disabled={isLocked}>
                        <PlayIcon size={20} className={isCurrent ? "ml-1" : "ml-1 opacity-50"} />
                     </Button>
                   </motion.div>

@@ -65,7 +65,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
         <div className="text-center sm:text-left">
           <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">INFOS CLUB</h1>
-          <p className="text-velatra-accent text-[10px] uppercase tracking-[3px] font-bold">VELATRA Application numéro 1</p>
+          <p className="text-emerald-500 text-[10px] uppercase tracking-[3px] font-bold">VELATRA Application numéro 1</p>
         </div>
         
         {isCoach && !isEditing && (
@@ -89,8 +89,8 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Section Club Principale */}
         <Card className="space-y-6 !p-8 border-none ring-1  bg-gradient-to-br from-white/[0.03] to-transparent">
-          <div className="flex items-center gap-4 text-velatra-accent">
-            <div className="p-3 bg-velatra-accent/10 rounded-2xl">
+          <div className="flex items-center gap-4 text-emerald-500">
+            <div className="p-3 bg-emerald-500/10 rounded-2xl">
               <HomeIcon size={24} />
             </div>
             <h2 className="text-xl font-black">Le Club</h2>
@@ -99,9 +99,9 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
           {isEditing ? (
             <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase text-velatra-accent tracking-widest ml-1">Description du club</label>
+                <label className="text-[9px] font-black uppercase text-emerald-500 tracking-widest ml-1">Description du club</label>
                 <textarea 
-                  className="w-full bg-zinc-50 border  rounded-xl p-4 text-sm text-zinc-900 focus:outline-none focus:border-velatra-accent h-32 resize-none"
+                  className="w-full bg-white border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:outline-none focus:border-emerald-500 h-32 resize-none"
                   value={tempInfo.description}
                   onChange={e => setTempInfo({...tempInfo, description: e.target.value})}
                 />
@@ -115,12 +115,12 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
             <div className="space-y-2">
-               <div className="text-[10px] uppercase font-black text-velatra-accent tracking-widest flex items-center gap-2">
+               <div className="text-[10px] uppercase font-black text-emerald-500 tracking-widest flex items-center gap-2">
                  <DumbbellIcon size={14} /> HORAIRES
                </div>
                {isEditing ? (
                  <textarea 
-                   className="w-full bg-zinc-50 border  rounded-xl p-3 text-xs text-zinc-900 focus:outline-none focus:border-velatra-accent h-24 resize-none"
+                   className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-xs text-zinc-900 focus:outline-none focus:border-emerald-500 h-24 resize-none"
                    value={tempInfo.horaires}
                    onChange={e => setTempInfo({...tempInfo, horaires: e.target.value})}
                  />
@@ -136,7 +136,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
              {isEditing ? (
                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-velatra-accent tracking-widest ml-1">Téléphone</label>
+                    <label className="text-[9px] font-black uppercase text-emerald-500 tracking-widest ml-1">Téléphone</label>
                     <Input 
                       className="!py-2 !text-xs"
                       value={tempInfo.phone}
@@ -144,7 +144,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-velatra-accent tracking-widest ml-1">Email</label>
+                    <label className="text-[9px] font-black uppercase text-emerald-500 tracking-widest ml-1">Email</label>
                     <Input 
                       className="!py-2 !text-xs"
                       value={tempInfo.email}
@@ -152,7 +152,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-velatra-accent tracking-widest ml-1">Lien Avis Google</label>
+                    <label className="text-[9px] font-black uppercase text-emerald-500 tracking-widest ml-1">Lien Avis Google</label>
                     <Input 
                       className="!py-2 !text-xs"
                       value={tempInfo.googleReview}
@@ -165,7 +165,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                  <Button 
                   variant="primary" 
                   fullWidth 
-                  className="!py-4 shadow-xl shadow-velatra-accent/20"
+                  className="!py-4 shadow-xl shadow-emerald-500/20"
                   onClick={() => window.open(`tel:${aboutInfo.phone}`, '_self')}
                  >
                    APPELER LE CLUB
@@ -187,7 +187,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
         <div className="space-y-6">
           <div className="flex items-center justify-between px-2">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-velatra-accent/10 rounded-2xl text-velatra-accent">
+              <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
                 <DumbbellIcon size={24} />
               </div>
               <h2 className="text-xl font-black">Votre Équipe</h2>
@@ -195,7 +195,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
             {isEditing && (
               <button 
                 onClick={handleAddCoach}
-                className="p-2 bg-velatra-accent text-zinc-900 rounded-full hover:scale-110 transition-transform"
+                className="p-2 bg-emerald-500 text-zinc-900 rounded-full hover:scale-110 transition-transform"
               >
                 <PlusIcon size={20} />
               </button>
@@ -204,8 +204,8 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
           
           <div className="grid grid-cols-1 gap-4">
             {(isEditing ? tempCoaches : coaches).map(coach => (
-              <Card key={coach.id} className="flex items-center gap-5 !p-5 group hover:ring-velatra-accent/30 transition-all relative">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-velatra-accent/20 to-zinc-100 border  flex items-center justify-center font-black text-2xl text-velatra-accent shrink-0 shadow-lg overflow-hidden">
+              <Card key={coach.id} className="flex items-center gap-5 !p-5 group hover:ring-emerald-500/30 transition-all relative">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-zinc-100 border border-zinc-200 flex items-center justify-center font-black text-2xl text-emerald-500 shrink-0 shadow-lg overflow-hidden">
                   {coach.photo ? (
                     <img src={coach.photo} alt="" className="w-full h-full object-cover" />
                   ) : (
@@ -222,7 +222,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                         placeholder="Nom du coach"
                       />
                       <Input 
-                        className="!py-1 !px-2 !text-[10px] !text-velatra-accent"
+                        className="!py-1 !px-2 !text-[10px] !text-emerald-500"
                         value={coach.role}
                         onChange={e => updateCoach(coach.id, 'role', e.target.value)}
                         placeholder="Spécialité"
@@ -234,10 +234,10 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                         placeholder="Numéro WhatsApp"
                       />
                       {coach.photo?.startsWith('data:image') ? (
-                        <div className="flex items-center gap-2 p-1.5 bg-white/60 border  rounded-lg">
+                        <div className="flex items-center gap-2 p-1.5 bg-white border border-zinc-200 rounded-lg">
                           <img src={coach.photo} alt="Preview" className="w-6 h-6 object-cover rounded" />
                           <span className="text-[9px] font-bold text-emerald-500 flex-1">Image chargée</span>
-                          <button onClick={() => updateCoach(coach.id, 'photo', '')} className="p-1 text-zinc-400 hover:text-red-500">
+                          <button onClick={() => updateCoach(coach.id, 'photo', '')} className="p-1 text-zinc-500 hover:text-red-500">
                             <XIcon size={12} />
                           </button>
                         </div>
@@ -254,7 +254,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                         <input 
                           type="file" 
                           accept="image/*"
-                          className="text-[9px] text-zinc-500 file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[9px] file:font-black file:bg-velatra-accent file:text-zinc-900 hover:file:bg-velatra-accentDark cursor-pointer"
+                          className="text-[9px] text-zinc-500 file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[9px] file:font-black file:bg-emerald-500 file:text-zinc-900 hover:file:bg-emerald-600 cursor-pointer"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
@@ -271,7 +271,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                   ) : (
                     <>
                       <div className="font-black text-lg leading-tight">{coach.name}</div>
-                      <div className="text-[10px] text-velatra-accent font-black uppercase tracking-widest mt-1 mb-3">{coach.role}</div>
+                      <div className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mt-1 mb-3">{coach.role}</div>
                       <button 
                         onClick={() => window.open(`https://wa.me/${coach.whatsapp}`, '_blank')}
                         className="flex items-center gap-2 px-3 py-1.5 bg-[#25D366]/10 text-[#25D366] rounded-full text-[9px] font-black uppercase tracking-widest hover:bg-[#25D366] hover:text-zinc-900 transition-all w-fit"
