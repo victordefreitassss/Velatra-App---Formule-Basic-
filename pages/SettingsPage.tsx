@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppState, Plan } from '../types';
@@ -31,6 +31,27 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     { day: 0, slots: [] },
   ]);
 
+  useEffect(() => {
+    if (state.currentClub?.settings) {
+      setDefaultDuration(state.currentClub.settings.defaultProgramDuration || 7);
+      setStripeConnected(state.currentClub.settings.payment?.stripeConnected || false);
+      setStripeSecretKey(state.currentClub.settings.payment?.stripeSecretKey || '');
+      setAcceptedMethods(state.currentClub.settings.payment?.acceptedMethods || ['card', 'cash']);
+      
+      if (state.currentClub.settings.booking) {
+        setPlanningEnabled(state.currentClub.settings.booking.enabled ?? true);
+        setSessionTypes(state.currentClub.settings.booking.sessionTypes || [{ id: 'default', name: 'Séance Standard', duration: 60 }]);
+        setSessionDuration(state.currentClub.settings.booking.sessionDuration || 60);
+        setMinAdvanceBookingHours(state.currentClub.settings.booking.minAdvanceBookingHours || 0);
+        setMinCancellationHours(state.currentClub.settings.booking.minCancellationHours || 0);
+        setMaxBookingsPerWeek(state.currentClub.settings.booking.maxBookingsPerWeek || 0);
+        if (state.currentClub.settings.booking.schedule) {
+          setSchedule(state.currentClub.settings.booking.schedule);
+        }
+      }
+    }
+  }, [state.currentClub]);
+
   const [isSaving, setIsSaving] = useState(false);
 
   const [isEditingPlan, setIsEditingPlan] = useState(false);
@@ -45,24 +66,26 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     const finalStripeConnected = stripeConnected || isKeyValid;
 
     try {
-      await updateDoc(doc(db, "clubs", state.user.clubId), {
-        "settings.defaultProgramDuration": defaultDuration,
-        "settings.payment": {
-          stripeConnected: finalStripeConnected,
-          stripeSecretKey: key,
-          acceptedMethods,
-          autoCollection: true
-        },
-        "settings.booking": {
-          enabled: planningEnabled,
-          sessionTypes,
-          sessionDuration,
-          minAdvanceBookingHours,
-          minCancellationHours,
-          maxBookingsPerWeek,
-          schedule
+      await setDoc(doc(db, "clubs", state.user.clubId), {
+        settings: {
+          defaultProgramDuration: defaultDuration,
+          payment: {
+            stripeConnected: finalStripeConnected,
+            stripeSecretKey: key,
+            acceptedMethods,
+            autoCollection: true
+          },
+          booking: {
+            enabled: planningEnabled,
+            sessionTypes,
+            sessionDuration,
+            minAdvanceBookingHours,
+            minCancellationHours,
+            maxBookingsPerWeek,
+            schedule
+          }
         }
-      });
+      }, { merge: true });
       showToast("Paramètres enregistrés avec succès !");
     } catch (err) {
       console.error(err);
@@ -97,12 +120,22 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     }
     setStripeConnected(true);
     if (state.user?.clubId) {
-      await updateDoc(doc(db, "clubs", state.user.clubId), {
-        "settings.payment.stripeConnected": true,
-        "settings.payment.stripeSecretKey": key
-      });
+      try {
+        await setDoc(doc(db, "clubs", state.user.clubId), {
+          settings: {
+            payment: {
+              stripeConnected: true,
+              stripeSecretKey: key
+            }
+          }
+        }, { merge: true });
+        showToast("Compte Stripe connecté avec succès !");
+      } catch (error) {
+        console.error("Error connecting Stripe:", error);
+        showToast("Erreur lors de la connexion à Stripe", "error");
+        setStripeConnected(false); // Revert UI
+      }
     }
-    showToast("Compte Stripe connecté avec succès !");
   };
 
   const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
@@ -118,13 +151,22 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     const newMethods = acceptedMethods.filter(m => !['card', 'sepa'].includes(m));
     setAcceptedMethods(newMethods);
     if (state.user?.clubId) {
-      await updateDoc(doc(db, "clubs", state.user.clubId), {
-        "settings.payment.stripeConnected": false,
-        "settings.payment.stripeSecretKey": '',
-        "settings.payment.acceptedMethods": newMethods
-      });
+      try {
+        await setDoc(doc(db, "clubs", state.user.clubId), {
+          settings: {
+            payment: {
+              stripeConnected: false,
+              stripeSecretKey: '',
+              acceptedMethods: newMethods
+            }
+          }
+        }, { merge: true });
+        showToast("Compte Stripe déconnecté.");
+      } catch (error) {
+        console.error("Error disconnecting Stripe:", error);
+        showToast("Erreur lors de la déconnexion", "error");
+      }
     }
-    showToast("Compte Stripe déconnecté.");
     setIsDisconnectModalOpen(false);
   };
 
@@ -264,7 +306,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                         await uploadBytes(logoRef, file);
                         const url = await getDownloadURL(logoRef);
                         
-                        await updateDoc(doc(db, "clubs", state.currentClub.id), { logo: url });
+                        await setDoc(doc(db, "clubs", state.currentClub.id), { logo: url }, { merge: true });
                         setState(prev => ({
                           ...prev,
                           currentClub: { ...prev.currentClub!, logo: url }

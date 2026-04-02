@@ -901,6 +901,111 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
+  const [isCharging, setIsCharging] = useState<string | null>(null);
+
+  const [isGeneratingLinkForPayment, setIsGeneratingLinkForPayment] = useState<string | null>(null);
+
+  const handleGeneratePaymentLink = async (payment: Payment) => {
+    if (!isStripeConnected) {
+      showToast("Veuillez connecter votre compte Stripe dans les Paramètres.", "error");
+      return;
+    }
+
+    setIsGeneratingLinkForPayment(payment.id);
+    try {
+      const stripeSecretKey = state.currentClub?.settings?.payment?.stripeSecretKey;
+      
+      // We create a one-off product and price for this specific payment
+      const resPrice = await fetch('/api/stripe/create-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stripeSecretKey,
+          name: payment.category === 'subscription' ? 'Abonnement' : payment.category === 'coaching' ? 'Coaching' : 'Paiement',
+          price: payment.amount,
+          billingCycle: 'once',
+          description: `Paiement pour ${state.currentClub?.name || 'Club'}`
+        })
+      });
+
+      if (!resPrice.ok) throw new Error("Erreur lors de la création du prix Stripe");
+      const priceData = await resPrice.json();
+
+      const resLink = await fetch('/api/stripe/payment-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stripeSecretKey,
+          priceId: priceData.priceId
+        })
+      });
+
+      if (!resLink.ok) throw new Error("Erreur lors de la génération du lien");
+      const linkData = await resLink.json();
+
+      navigator.clipboard.writeText(linkData.url);
+      showToast("Lien de paiement copié dans le presse-papier !", "success");
+    } catch (error: any) {
+      console.error("Error generating payment link:", error);
+      showToast(error.message || "Erreur lors de la génération du lien", "error");
+    } finally {
+      setIsGeneratingLinkForPayment(null);
+    }
+  };
+
+  const handleCharge = async (payment: Payment) => {
+    const member = state.users.find(u => Number(u.id) === payment.memberId);
+    if (!member) return;
+
+    if (!isStripeConnected) {
+      showToast("Veuillez connecter votre compte Stripe dans les Paramètres.", "error");
+      return;
+    }
+
+    if (!member.stripeCustomerId) {
+      showToast("Ce membre n'a pas encore de moyen de paiement enregistré sur Stripe.", "error");
+      return;
+    }
+
+    setIsCharging(payment.id);
+    try {
+      const stripeSecretKey = state.currentClub?.settings?.payment?.stripeSecretKey;
+      const res = await fetch('/api/stripe/charge-customer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stripeSecretKey,
+          customerId: member.stripeCustomerId,
+          amount: payment.amount,
+          description: `Paiement pour ${payment.category || 'service'}`
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Erreur lors du prélèvement");
+      }
+
+      const data = await res.json();
+      
+      if (data.success && data.status === 'succeeded') {
+        // Update payment status to paid
+        await updateDoc(doc(db, "payments", payment.id), {
+          status: 'paid',
+          date: new Date().toISOString()
+        });
+        showToast("Prélèvement effectué avec succès !", "success");
+      } else {
+        showToast("Le prélèvement est en attente ou nécessite une action.", "info");
+      }
+    } catch (error: any) {
+      console.error("Error charging customer:", error);
+      showToast(error.message || "Erreur lors du prélèvement", "error");
+    } finally {
+      setIsCharging(null);
+    }
+  };
+
   const handleRemind = (payment: Payment) => {
     const member = state.users.find(u => Number(u.id) === payment.memberId);
     if (!member || !member.phone) {
@@ -1889,9 +1994,33 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                   
                                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0">
                                     {payment.status !== 'paid' && (
-                                      <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl text-orange-500 border-orange-500/30 hover:bg-orange-500/10" onClick={() => handleRemind(payment)}>
-                                        <BellIcon size={14} className="mr-1" /> RELANCER
-                                      </Button>
+                                      <>
+                                        {(payment.method === 'card' || payment.method === 'sepa') && isStripeConnected && (
+                                          <>
+                                            <Button 
+                                              variant="secondary" 
+                                              className="!py-2 !px-3 !text-[10px] !rounded-xl text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10" 
+                                              onClick={() => handleCharge(payment)}
+                                              disabled={isCharging === payment.id}
+                                            >
+                                              <CreditCardIcon size={14} className="mr-1" /> 
+                                              {isCharging === payment.id ? "EN COURS..." : "PRÉLEVER"}
+                                            </Button>
+                                            <Button 
+                                              variant="secondary" 
+                                              className="!py-2 !px-3 !text-[10px] !rounded-xl text-blue-500 border-blue-500/30 hover:bg-blue-500/10" 
+                                              onClick={() => handleGeneratePaymentLink(payment)}
+                                              disabled={isGeneratingLinkForPayment === payment.id}
+                                            >
+                                              <LinkIcon size={14} className="mr-1" /> 
+                                              {isGeneratingLinkForPayment === payment.id ? "GÉNÉRATION..." : "LIEN"}
+                                            </Button>
+                                          </>
+                                        )}
+                                        <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl text-orange-500 border-orange-500/30 hover:bg-orange-500/10" onClick={() => handleRemind(payment)}>
+                                          <BellIcon size={14} className="mr-1" /> RELANCER
+                                        </Button>
+                                      </>
                                     )}
                                     
                                     {invoice ? (
