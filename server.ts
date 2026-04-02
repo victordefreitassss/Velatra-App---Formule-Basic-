@@ -119,6 +119,58 @@ app.use(express.json());
     }
   });
 
+  app.post("/api/stripe/charge-customer", async (req, res) => {
+    try {
+      const { stripeSecretKey, customerId, amount, description } = req.body;
+      if (!stripeSecretKey || !stripeSecretKey.startsWith('sk_')) return res.status(400).json({ error: "Clé secrète invalide" });
+      if (!customerId) return res.status(400).json({ error: "ID Client Stripe manquant" });
+      
+      const stripeClient = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
+      
+      // First, get the customer's default payment method
+      const customer = await stripeClient.customers.retrieve(customerId);
+      if (customer.deleted) {
+        return res.status(400).json({ error: "Client Stripe supprimé" });
+      }
+
+      const activeCustomer = customer as Stripe.Customer;
+      let paymentMethodId = activeCustomer.invoice_settings?.default_payment_method;
+
+      if (!paymentMethodId) {
+        // Try to find any attached payment method
+        const paymentMethods = await stripeClient.paymentMethods.list({
+          customer: customerId,
+          type: 'card',
+        });
+        if (paymentMethods.data.length > 0) {
+          paymentMethodId = paymentMethods.data[0].id;
+        } else {
+          return res.status(400).json({ error: "Aucun moyen de paiement enregistré pour ce client" });
+        }
+      }
+
+      // Create and confirm a PaymentIntent
+      const paymentIntent = await stripeClient.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: 'eur',
+        customer: customerId,
+        payment_method: paymentMethodId as string,
+        off_session: true,
+        confirm: true,
+        description: description || 'Prélèvement manuel',
+      });
+
+      res.json({ success: true, paymentIntentId: paymentIntent.id, status: paymentIntent.status });
+    } catch (error: any) {
+      console.error("Stripe charge error:", error);
+      // Handle off-session authentication errors
+      if (error.code === 'authentication_required') {
+        return res.status(400).json({ error: "Le moyen de paiement requiert une authentification (3D Secure). Le prélèvement automatique a échoué." });
+      }
+      res.status(500).json({ error: error.message || "Erreur inconnue" });
+    }
+  });
+
   app.post("/api/stripe/checkout", async (req, res) => {
     try {
       const { stripeSecretKey, priceId, customerId, customerEmail, successUrl, cancelUrl } = req.body;
