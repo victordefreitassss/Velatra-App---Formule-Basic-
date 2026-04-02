@@ -50,6 +50,7 @@ import { MarketingPage } from './pages/MarketingPage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { MemberSupplementsPage } from './pages/MemberSupplementsPage';
 import { DrivePage } from './pages/DrivePage';
+import { GuidePage } from './pages/GuidePage';
 import { Onboarding } from './components/Onboarding';
 
 const INITIAL_STATE: AppState = {
@@ -822,6 +823,7 @@ export default function App() {
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;
         case 'drive': return <DrivePage state={state} />;
         case 'marketing': return <MarketingPage state={state} setState={setState} />;
+        case 'guide': return <GuidePage onNavigate={(p) => setState(s => ({ ...s, page: p }))} />;
         default: return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
       }
     }

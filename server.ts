@@ -64,16 +64,22 @@ app.use(express.json());
   });
 
   app.post("/api/stripe/create-plan", async (req, res) => {
+    console.log("HIT /api/stripe/create-plan", req.body);
     try {
       const { stripeSecretKey, name, price, billingCycle, description } = req.body;
-      if (!stripeSecretKey || (!stripeSecretKey.startsWith('sk_') && !stripeSecretKey.startsWith('rk_'))) return res.status(400).json({ error: "Clé secrète invalide" });
+      if (!stripeSecretKey || (!stripeSecretKey.startsWith('sk_') && !stripeSecretKey.startsWith('rk_'))) {
+        console.log("Invalid key:", stripeSecretKey);
+        return res.status(400).json({ error: "Clé secrète invalide" });
+      }
       
       const stripeClient = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
       
+      console.log("Creating product...");
       const product = await stripeClient.products.create({
         name,
         description: description || undefined,
       });
+      console.log("Product created:", product.id);
 
       const priceData: any = {
         product: product.id,
@@ -87,11 +93,13 @@ app.use(express.json());
         priceData.recurring = { interval: 'year' };
       }
 
+      console.log("Creating price...");
       const stripePrice = await stripeClient.prices.create(priceData);
+      console.log("Price created:", stripePrice.id);
 
       res.json({ productId: product.id, priceId: stripePrice.id });
     } catch (error) {
-      console.error(error);
+      console.error("Stripe create-plan error:", error);
       res.status(500).json({ error: error instanceof Error ? error.message : "Erreur inconnue" });
     }
   });
