@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppState } from '../types';
 import { Card, Input, Textarea } from '../components/UI';
 import { SendIcon, BotIcon, UserIcon, MessageCircleIcon } from '../components/Icons';
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { CLUB_INFO, COACHES, INIT_SUPPLEMENTS } from '../constants';
 import Markdown from 'react-markdown';
 import { MessagesPage } from './MessagesPage';
@@ -58,8 +58,7 @@ RÈGLES DE REDIRECTION IMPORTANTES :
         model: "gemini-3.1-pro-preview",
         config: {
           systemInstruction,
-          temperature: 0.7,
-          thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
+          temperature: 0.7
         }
       });
     } catch (error: any) {

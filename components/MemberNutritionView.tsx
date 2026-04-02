@@ -4,7 +4,7 @@ import { Card, Button, Input } from './UI';
 import { AppleIcon, PlusIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, CameraIcon } from './Icons';
 import { db, doc, setDoc } from '../firebase';
 import { SparklesIcon, RefreshCwIcon, Wand2Icon, ChefHatIcon } from 'lucide-react';
-import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { estimateFoodMacros, analyzeMealImage, generateRecipeFromFridge } from '../services/aiService';
 import Markdown from 'react-markdown';
 
@@ -207,10 +207,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
 
       const response = await ai.models.generateContent({
         model: "gemini-3.1-pro-preview",
-        contents: prompt,
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
-        }
+        contents: prompt
       });
 
       const idea = response.text?.trim() || "Repas généré";
