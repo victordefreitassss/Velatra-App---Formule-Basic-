@@ -212,14 +212,15 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             planData.stripeProductId = stripeData.productId;
             planData.stripePriceId = stripeData.priceId;
           } else {
-            let errMessage = 'Vérifiez les permissions de votre clé';
+            const text = await res.text();
+            console.error("Erreur lors de la création sur Stripe (raw text):", text);
+            let errMessage = `Erreur ${res.status}`;
             try {
-              const errData = await res.json();
+              const errData = JSON.parse(text);
               errMessage = errData.error || errMessage;
             } catch (e) {
-              errMessage = "Erreur serveur (non-JSON)";
+              errMessage = `Erreur ${res.status} (non-JSON): ` + text.substring(0, 100);
             }
-            console.error("Erreur lors de la création sur Stripe:", errMessage);
             showToast(`Erreur Stripe: ${errMessage}`, "error");
           }
         } catch (stripeErr: any) {
