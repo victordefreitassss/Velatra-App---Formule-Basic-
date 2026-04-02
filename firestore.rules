@@ -52,7 +52,7 @@ service cloud.firestore {
 
     match /clubs/{clubId} {
       allow read: if isAuthenticated();
-      allow write: if isSuperAdmin() || isSuperAdminEmail();
+      allow write: if isSuperAdmin() || isSuperAdminEmail() || (isAdmin() && isSameClub(clubId));
     }
 
     match /driveFiles/{fileId} {
