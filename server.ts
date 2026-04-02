@@ -16,7 +16,7 @@ app.use(express.json());
     try {
       const { stripeSecretKey } = req.body;
       
-      if (!stripeSecretKey || !stripeSecretKey.startsWith('sk_')) {
+      if (!stripeSecretKey || (!stripeSecretKey.startsWith('sk_') && !stripeSecretKey.startsWith('rk_'))) {
         return res.status(400).json({ error: "Clé secrète Stripe manquante ou invalide" });
       }
       
@@ -66,7 +66,7 @@ app.use(express.json());
   app.post("/api/stripe/create-plan", async (req, res) => {
     try {
       const { stripeSecretKey, name, price, billingCycle, description } = req.body;
-      if (!stripeSecretKey || !stripeSecretKey.startsWith('sk_')) return res.status(400).json({ error: "Clé secrète invalide" });
+      if (!stripeSecretKey || (!stripeSecretKey.startsWith('sk_') && !stripeSecretKey.startsWith('rk_'))) return res.status(400).json({ error: "Clé secrète invalide" });
       
       const stripeClient = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
       
@@ -99,7 +99,7 @@ app.use(express.json());
   app.post("/api/stripe/payment-link", async (req, res) => {
     try {
       const { stripeSecretKey, priceId } = req.body;
-      if (!stripeSecretKey || !stripeSecretKey.startsWith('sk_')) return res.status(400).json({ error: "Clé secrète invalide" });
+      if (!stripeSecretKey || (!stripeSecretKey.startsWith('sk_') && !stripeSecretKey.startsWith('rk_'))) return res.status(400).json({ error: "Clé secrète invalide" });
       
       const stripeClient = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
       
@@ -122,7 +122,7 @@ app.use(express.json());
   app.post("/api/stripe/charge-customer", async (req, res) => {
     try {
       const { stripeSecretKey, customerId, amount, description } = req.body;
-      if (!stripeSecretKey || !stripeSecretKey.startsWith('sk_')) return res.status(400).json({ error: "Clé secrète invalide" });
+      if (!stripeSecretKey || (!stripeSecretKey.startsWith('sk_') && !stripeSecretKey.startsWith('rk_'))) return res.status(400).json({ error: "Clé secrète invalide" });
       if (!customerId) return res.status(400).json({ error: "ID Client Stripe manquant" });
       
       const stripeClient = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
@@ -174,7 +174,7 @@ app.use(express.json());
   app.post("/api/stripe/checkout", async (req, res) => {
     try {
       const { stripeSecretKey, priceId, customerId, customerEmail, successUrl, cancelUrl } = req.body;
-      if (!stripeSecretKey || !stripeSecretKey.startsWith('sk_')) return res.status(400).json({ error: "Clé secrète invalide" });
+      if (!stripeSecretKey || (!stripeSecretKey.startsWith('sk_') && !stripeSecretKey.startsWith('rk_'))) return res.status(400).json({ error: "Clé secrète invalide" });
       
       const stripeClient = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
       
@@ -251,7 +251,7 @@ app.use(express.json());
   app.post("/api/stripe/portal", async (req, res) => {
     try {
       const { stripeSecretKey, customerId, returnUrl } = req.body;
-      if (!stripeSecretKey || !stripeSecretKey.startsWith('sk_')) return res.status(400).json({ error: "Clé secrète invalide" });
+      if (!stripeSecretKey || (!stripeSecretKey.startsWith('sk_') && !stripeSecretKey.startsWith('rk_'))) return res.status(400).json({ error: "Clé secrète invalide" });
       
       const stripeClient = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
       
@@ -270,7 +270,7 @@ app.use(express.json());
   app.post("/api/stripe/refund", async (req, res) => {
     try {
       const { stripeSecretKey, chargeId } = req.body;
-      if (!stripeSecretKey || !stripeSecretKey.startsWith('sk_')) return res.status(400).json({ error: "Clé secrète invalide" });
+      if (!stripeSecretKey || (!stripeSecretKey.startsWith('sk_') && !stripeSecretKey.startsWith('rk_'))) return res.status(400).json({ error: "Clé secrète invalide" });
       
       const stripeClient = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
       

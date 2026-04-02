@@ -159,7 +159,21 @@ export default function App() {
                 } else {
                   const clubsRef = collection(db, "clubs");
                   const clubsSnapshot = await getDocs(clubsRef);
-                  const clubId = clubsSnapshot.empty ? "CLUB123" : clubsSnapshot.docs[0].id;
+                  let clubId = "CLUB123";
+                  if (clubsSnapshot.empty) {
+                    await setDoc(doc(db, "clubs", clubId), {
+                      id: clubId,
+                      name: "Mon Club",
+                      settings: {
+                        payment: {
+                          stripeConnected: false,
+                          stripeSecretKey: ""
+                        }
+                      }
+                    });
+                  } else {
+                    clubId = clubsSnapshot.docs[0].id;
+                  }
                   
                   await setDoc(userDocRef, {
                     id: Date.now(),
