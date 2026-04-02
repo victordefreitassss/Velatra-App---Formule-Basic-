@@ -104,6 +104,8 @@ const INITIAL_STATE: AppState = {
   toast: null
 };
 
+import { ErrorBoundary } from './components/ErrorBoundary';
+
 export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [loading, setLoading] = useState(true);
@@ -307,7 +309,7 @@ export default function App() {
       });
       setState(prev => ({ ...prev, programs: allProgs }));
 
-      if (!isInitialProgsLoad && hasNewProgram && Notification.permission === 'granted') {
+      if (!isInitialProgsLoad && hasNewProgram && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau programme", {
           body: "Un nouveau programme d'entraînement vous a été assigné.",
           icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
@@ -398,7 +400,7 @@ export default function App() {
       snap.forEach(d => messages.push(d.data() as Message));
       setState(prev => ({ ...prev, messages }));
 
-      if (!isInitialMessagesLoad && hasNewUnread && Notification.permission === 'granted') {
+      if (!isInitialMessagesLoad && hasNewUnread && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau message", {
           body: "Vous avez reçu un nouveau message sur Velatra.",
           icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
@@ -458,7 +460,7 @@ export default function App() {
       snap.forEach(d => prospects.push({ ...d.data(), firebaseUid: d.id } as Prospect));
       setState(prev => ({ ...prev, prospects }));
 
-      if (!isInitialProspectsLoad && hasNewProspect && state.user?.role !== 'member' && Notification.permission === 'granted') {
+      if (!isInitialProspectsLoad && hasNewProspect && state.user?.role !== 'member' && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau prospect", {
           body: "Un nouveau prospect a été ajouté ou s'est inscrit.",
           icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
@@ -492,7 +494,7 @@ export default function App() {
       snap.forEach(d => tasks.push(d.data() as Task));
       setState(prev => ({ ...prev, tasks }));
 
-      if (!isInitialTasksLoad && hasNewTask && Notification.permission === 'granted') {
+      if (!isInitialTasksLoad && hasNewTask && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouvelle tâche", {
           body: `Vous avez une nouvelle tâche à accomplir : ${newTaskTitle}`,
           icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
@@ -518,7 +520,7 @@ export default function App() {
       snap.forEach(d => bookings.push({ ...d.data(), id: d.id } as Booking));
       setState(prev => ({ ...prev, bookings }));
 
-      if (!isInitialBookingsLoad && hasNewBooking && Notification.permission === 'granted') {
+      if (!isInitialBookingsLoad && hasNewBooking && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouvelle réservation", {
           body: "Vous avez une nouvelle session de coaching réservée.",
           icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
@@ -556,7 +558,7 @@ export default function App() {
       });
       setState(prev => ({ ...prev, nutritionPlans }));
 
-      if (!isInitialNutritionPlansLoad && hasNewNutritionPlan && Notification.permission === 'granted') {
+      if (!isInitialNutritionPlansLoad && hasNewNutritionPlan && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau plan nutritionnel", {
           body: "Un nouveau plan nutritionnel vous a été assigné.",
           icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
@@ -754,13 +756,13 @@ export default function App() {
           exercises={state.exercises}
           clubId={user.clubId}
           allPresets={state.presets}
-          member={state.editingProg ? state.users.find(u => Number(u.id) === state.editingProg!.memberId) : undefined}
+          member={state.editingProg ? (state.users || []).find(u => Number(u.id) === state.editingProg!.memberId) : undefined}
           onSave={async (data, action) => {
             const dataWithClub = { ...data, clubId: user.clubId };
             await setDoc(doc(db, state.editingProg ? "programs" : "presets", data.id.toString()), dataWithClub);
             
             if (state.editingProg) {
-              const member = state.users.find(u => Number(u.id) === state.editingProg!.memberId);
+              const member = (state.users || []).find(u => Number(u.id) === state.editingProg!.memberId);
               if (member && member.firebaseUid && member.planRequested) {
                 await updateDoc(doc(db, "users", member.firebaseUid), { planRequested: false });
               }
@@ -854,7 +856,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (state.user?.id && messaging) {
+    if (state.user?.id && messaging && 'Notification' in window) {
       const requestPushPermission = async () => {
         try {
           const permission = await Notification.requestPermission();
@@ -877,7 +879,7 @@ export default function App() {
       requestPushPermission();
 
       const unsubscribe = onMessage(messaging, (payload) => {
-        if (Notification.permission === 'granted') {
+        if ('Notification' in window && Notification.permission === 'granted') {
           new Notification(payload.notification?.title || "Nouvelle notification", {
             body: payload.notification?.body,
             icon: payload.notification?.icon || "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
@@ -890,9 +892,9 @@ export default function App() {
   }, [state.user?.id]);
 
   useEffect(() => {
-    if (state.user && state.tasks.length > 0 && !hasNotifiedTasks.current && Notification.permission === 'granted') {
+    if (state.user && (state.tasks || []).length > 0 && !hasNotifiedTasks.current && 'Notification' in window && Notification.permission === 'granted') {
       const today = new Date().toISOString().split('T')[0];
-      const tasksDueToday = state.tasks.filter(t => t.status === 'todo' && t.assignedTo === String(state.user?.id) && t.dueDate === today);
+      const tasksDueToday = (state.tasks || []).filter(t => t.status === 'todo' && t.assignedTo === String(state.user?.id) && t.dueDate === today);
       
       if (tasksDueToday.length > 0) {
         new Notification("Rappel de tâches", {
@@ -920,11 +922,11 @@ export default function App() {
     }} />;
   }
 
-  const unreadMessagesCount = state.messages.filter(m => !m.read && m.to === state.user?.id).length;
-  const unreadNotificationsCount = state.notifications.filter(n => !n.read && n.userId === state.user?.id).length;
+  const unreadMessagesCount = (state.messages || []).filter(m => !m.read && m.to === state.user?.id).length;
+  const unreadNotificationsCount = (state.notifications || []).filter(n => !n.read && n.userId === state.user?.id).length;
 
   return (
-    <>
+    <ErrorBoundary>
       <Layout user={state.user} club={state.currentClub} activePage={state.page} onPageChange={(p) => setState(s => ({ ...s, page: p }))} onLogout={handleLogout} unreadMessagesCount={unreadMessagesCount} unreadNotificationsCount={unreadNotificationsCount}>
         {renderActivePageContent(state.user)}
       </Layout>
@@ -988,6 +990,6 @@ export default function App() {
           />
         )
       )}
-    </>
+    </ErrorBoundary>
   );
 }
