@@ -23,11 +23,7 @@ const AppLogo: React.FC<{ club: Club | null, user: User }> = ({ club, user }) =>
   <div className="flex flex-col">
     <div className="flex items-center gap-3">
       <div className="w-10 h-10 rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.1)] overflow-hidden flex items-center justify-center shrink-0 bg-white">
-        {club?.logo?.startsWith('http') ? (
-          <img src={club.logo} alt={club.name} className="w-full h-full object-cover" />
-        ) : (
-          <img src="https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png" alt="Velatra Logo" className="w-full h-full object-contain scale-[1.4]" />
-        )}
+        <img src="https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png" alt="Velatra Logo" className="w-full h-full object-contain scale-[1.4]" />
       </div>
       <div className="font-display font-bold text-3xl tracking-tight leading-none text-zinc-900 truncate max-w-[180px]">
         VELA<span className="text-emerald-500">TRA</span>

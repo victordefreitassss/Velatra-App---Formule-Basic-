@@ -66,6 +66,19 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   });
   const failedSubs = state.subscriptions?.filter(s => (s.status === 'past_due' || s.status === 'unpaid') && s.clubId === state.user?.clubId) || [];
 
+  const endingSubs = state.subscriptions?.filter(s => {
+    if (s.clubId !== state.user?.clubId || s.status !== 'active') return false;
+    const targetDate = s.endDate || s.commitmentEndDate;
+    if (!targetDate) return false;
+    
+    const targetTime = new Date(targetDate).getTime();
+    const now = new Date().getTime();
+    const diffDays = (targetTime - now) / (1000 * 3600 * 24);
+    
+    // Alert if ending in 30 days or less, and hasn't ended yet
+    return diffDays >= 0 && diffDays <= 30;
+  }) || [];
+
   // 4. Anniversaires
   const upcomingBirthdays = members.filter(u => {
     if (!u.birthDate) return false;
@@ -204,11 +217,6 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Accueil</h1>
           <p className="text-zinc-500 text-[10px] uppercase tracking-[3px] font-bold">Votre Centre de Contrôle</p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button variant="secondary" onClick={onToggleTimer} className="flex-1 sm:flex-none !rounded-2xl !py-3 shadow-xl shadow-zinc-200/50">
-            <RefreshCwIcon size={18} className="mr-2" /> TIMER
-          </Button>
         </div>
       </motion.div>
 
@@ -372,6 +380,27 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 );
               })}
 
+              {endingSubs.map(sub => {
+                const member = members.find(m => Number(m.id) === sub.memberId);
+                if (!member) return null;
+                const targetDate = sub.endDate || sub.commitmentEndDate;
+                const daysLeft = targetDate ? Math.ceil((new Date(targetDate).getTime() - new Date().getTime()) / (1000 * 3600 * 24)) : 0;
+                
+                return (
+                  <motion.div key={`end_sub_${sub.id}`} whileHover={{ scale: 1.02, x: -4 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
+                    <Card className="!p-4 border-yellow-500/30 bg-zinc-50 flex items-center justify-between shadow-sm hover:shadow-yellow-500/20 transition-all">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center text-yellow-600 shadow-inner"><InfoIcon size={20}/></div>
+                        <div>
+                          <div className="text-xs font-black text-zinc-900">{member.name}</div>
+                          <div className="text-[9px] font-bold text-yellow-600 uppercase tracking-widest mt-0.5">Fin d'abonnement dans {daysLeft} jour{daysLeft > 1 ? 's' : ''}</div>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+
               {membersAtRisk.map(m => (
                 <motion.div key={`risk_${m.id}`} whileHover={{ scale: 1.02, x: -4 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
                   <Card className="!p-4 border-red-500/30 bg-zinc-50 flex items-center justify-between shadow-sm hover:shadow-red-500/20 transition-all">
@@ -393,7 +422,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 </motion.div>
               ))}
 
-              {membersAtRisk.length === 0 && failedSubs.length === 0 && (
+              {membersAtRisk.length === 0 && failedSubs.length === 0 && endingSubs.length === 0 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-zinc-500 font-bold uppercase tracking-widest p-6 text-center bg-zinc-50 rounded-3xl border border-zinc-200">
                   Tout est au vert <span className="text-green-500 ml-1">✅</span>
                 </motion.div>
