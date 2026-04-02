@@ -85,15 +85,16 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   };
 
   const handleConnectStripe = async () => {
-    if (!stripeSecretKey.startsWith('sk_')) {
-      showToast("Clé secrète invalide", "error");
+    const key = stripeSecretKey.trim();
+    if (!key.startsWith('sk_') && !key.startsWith('rk_')) {
+      showToast("Clé secrète invalide. Elle doit commencer par sk_ ou rk_", "error");
       return;
     }
     setStripeConnected(true);
     if (state.user?.clubId) {
       await updateDoc(doc(db, "clubs", state.user.clubId), {
         "settings.payment.stripeConnected": true,
-        "settings.payment.stripeSecretKey": stripeSecretKey
+        "settings.payment.stripeSecretKey": key
       });
     }
     showToast("Compte Stripe connecté avec succès !");
@@ -365,11 +366,11 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               <div className="space-y-4 w-full sm:w-auto">
                 <Input 
                   type="password" 
-                  placeholder="Clé secrète Stripe (sk_live_...)" 
+                  placeholder="Clé secrète Stripe (sk_live_... ou rk_live_...)" 
                   value={stripeSecretKey} 
-                  onChange={(e) => setStripeSecretKey(e.target.value)}
+                  onChange={(e) => setStripeSecretKey(e.target.value.trim())}
                 />
-                <Button onClick={handleConnectStripe} className="w-full" disabled={!stripeSecretKey.startsWith('sk_')}>
+                <Button onClick={handleConnectStripe} className="w-full">
                   Connecter mon compte Stripe
                 </Button>
               </div>
