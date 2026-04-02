@@ -29,18 +29,18 @@ interface CoachDashboardProps {
 }
 
 export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState, onToggleTimer, showToast }) => {
-  const members = state.users.filter(u => u.role === 'member' && u.clubId === state.user?.clubId);
+  const members = (state.users || []).filter(u => u.role === 'member' && u.clubId === state.user?.clubId);
 
   // 1. Actions Urgentes
   const planRequests = members.filter(u => u.planRequested);
-  const unreadMessages = state.messages?.filter(m => !m.read && m.to === state.user?.id) || [];
+  const unreadMessages = (state.messages || []).filter(m => !m.read && m.to === state.user?.id);
   const todayStr = new Date().toISOString().split('T')[0];
-  const tasksToday = state.tasks?.filter(t => t.status === 'todo' && t.dueDate === todayStr) || [];
+  const tasksToday = (state.tasks || []).filter(t => t.status === 'todo' && t.dueDate === todayStr);
 
   // 2. Prochaines Séances
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  const upcomingEvents = state.bookings.filter(b => {
+  const upcomingEvents = (state.bookings || []).filter(b => {
     const bDate = new Date(b.startTime);
     return bDate.getTime() >= todayStart.getTime() && b.status === 'confirmed';
   }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()).slice(0, 5);
@@ -55,7 +55,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     if (!isInactive) return false;
 
     // Si le coach a déjà traité l'alerte (tâche "Relance" terminée récemment), on n'affiche plus l'alerte
-    const hasRecentDoneTask = state.tasks?.some(t => 
+    const hasRecentDoneTask = (state.tasks || []).some(t => 
       t.relatedMemberId === u.id && 
       t.title.includes('Relance') && 
       t.status === 'done' &&
@@ -64,9 +64,9 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
 
     return !hasRecentDoneTask;
   });
-  const failedSubs = state.subscriptions?.filter(s => (s.status === 'past_due' || s.status === 'unpaid') && s.clubId === state.user?.clubId) || [];
+  const failedSubs = (state.subscriptions || []).filter(s => (s.status === 'past_due' || s.status === 'unpaid') && s.clubId === state.user?.clubId);
 
-  const endingSubs = state.subscriptions?.filter(s => {
+  const endingSubs = (state.subscriptions || []).filter(s => {
     if (s.clubId !== state.user?.clubId || s.status !== 'active') return false;
     const targetDate = s.endDate || s.commitmentEndDate;
     if (!targetDate) return false;
@@ -107,10 +107,10 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   });
 
   // 5. Chiffres Clés
-  const activeSubscriptions = state.subscriptions?.filter(s => s.status === 'active' && s.clubId === state.user?.clubId) || [];
+  const activeSubscriptions = (state.subscriptions || []).filter(s => s.status === 'active' && s.clubId === state.user?.clubId);
   const mrr = activeSubscriptions.reduce((acc, sub) => {
-    if (sub.billingCycle === 'monthly') return acc + sub.price;
-    if (sub.billingCycle === 'yearly') return acc + (sub.price / 12);
+    if (sub.billingCycle === 'monthly') return acc + (sub.price || 0);
+    if (sub.billingCycle === 'yearly') return acc + ((sub.price || 0) / 12);
     return acc;
   }, 0);
   const arpu = activeSubscriptions.length > 0 ? mrr / activeSubscriptions.length : 0;
@@ -119,10 +119,10 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   const currentYear = new Date().getFullYear();
   const currentDay = Math.max(1, new Date().getDate());
   
-  const sessionsThisMonth = state.logs?.filter(l => {
+  const sessionsThisMonth = (state.logs || []).filter(l => {
     const d = new Date(l.date);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear && l.clubId === state.user?.clubId;
-  }).length || 0;
+  }).length;
   
   const avgSessionsPerDay = (sessionsThisMonth / currentDay).toFixed(1);
   const [showAnnual, setShowAnnual] = useState(false);
@@ -132,7 +132,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     if (!state.user?.clubId) return;
     
     membersAtRisk.forEach(async (member) => {
-      const taskExists = state.tasks.some(t => t.relatedMemberId === member.id && t.status === 'todo' && t.title.includes('Relance'));
+      const taskExists = (state.tasks || []).some(t => t.relatedMemberId === member.id && t.status === 'todo' && t.title.includes('Relance'));
       if (!taskExists) {
         const taskId = `auto_${member.id}_${Date.now()}`;
         const newTask: Task = {
@@ -174,7 +174,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
         const taskTitle = `Anniversaire : ${member.name}`;
         const taskId = `bday_${member.id}_${nextBirthday.getFullYear()}`;
         
-        const taskExists = state.tasks.some(t => t.id === taskId);
+        const taskExists = (state.tasks || []).some(t => t.id === taskId);
         
         if (!taskExists) {
           const newTask: Task = {
@@ -198,7 +198,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   }, [upcomingBirthdays.length, state.tasks.length, state.user?.clubId]);
 
   const handleLaunchCoaching = (member: User) => {
-    const program = state.programs.find(p => p.memberId === Number(member.id) && !p.isPlannedSession);
+    const program = (state.programs || []).find(p => p.memberId === Number(member.id) && !p.isPlannedSession);
     if (!program) {
       showToast("Aucun programme actif", "error");
       return;
@@ -326,7 +326,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
               ) : (
                 <div className="space-y-3">
                   {upcomingEvents.map((event, idx) => {
-                    const member = state.users.find(u => Number(u.id) === event.memberId);
+                    const member = (state.users || []).find(u => Number(u.id) === event.memberId);
                     const startTime = new Date(event.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
                     const endTime = new Date(event.endTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
                     const isToday = new Date(event.startTime).toDateString() === new Date().toDateString();
@@ -409,7 +409,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                         {m.avatar?.startsWith('http') ? (
                           <img src={m.avatar} alt={m.name} className="w-full h-full object-cover" />
                         ) : (
-                          m.avatar || m.name.substring(0, 2).toUpperCase()
+                          m.avatar || (m.name || '??').substring(0, 2).toUpperCase()
                         )}
                       </div>
                       <div>
@@ -475,7 +475,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
               <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Activité</h2>
             </div>
             <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-              {state.feed.filter(f => f.clubId === state.user?.clubId).map((item, i) => (
+              {(state.feed || []).filter(f => f.clubId === state.user?.clubId).map((item, i) => (
                 <motion.div key={item.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
                   <Card className="!p-4 bg-zinc-50 border border-zinc-200 flex items-center gap-4 group hover:border-emerald-500/30 transition-all shadow-sm hover:shadow-md">
                     <div className="p-2.5 bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 rounded-xl text-emerald-500 shadow-inner group-hover:scale-110 transition-transform">
@@ -503,7 +503,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                   </Card>
                 </motion.div>
               ))}
-              {state.feed.length === 0 && (
+              {(state.feed || []).length === 0 && (
                 <p className="text-center py-8 text-zinc-500 italic text-xs uppercase tracking-widest opacity-50">Aucune activité récente</p>
               )}
             </div>
