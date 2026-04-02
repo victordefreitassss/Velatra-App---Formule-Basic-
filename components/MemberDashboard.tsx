@@ -5,7 +5,7 @@ import { Card, StatBox, Button, Badge, Input } from './UI';
 import { getLevel, formatDate } from '../utils';
 import { CalendarIcon, RefreshCwIcon, TargetIcon, BarChartIcon, TrophyIcon, FlameIcon, SparklesIcon, MessageCircleIcon, ShoppingCartIcon, GiftIcon, MegaphoneIcon, BotIcon, SendIcon } from './Icons';
 import { BodyHeatmap } from './BodyHeatmap';
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { db, doc, updateDoc, setDoc } from '../firebase';
 import Markdown from 'react-markdown';
 import { motion } from 'framer-motion';
@@ -102,10 +102,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
 
       const response = await ai.models.generateContent({
         model: 'gemini-3.1-pro-preview',
-        contents: `En tant que coach expert VELATRA, donne un conseil ultra-court et motivant (max 15 mots) pour cet athlète dont les dernières perfs sont : ${recentPerfs}. Son objectif est : ${(user.objectifs || []).join(', ')}.`,
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
-        }
+        contents: `En tant que coach expert VELATRA, donne un conseil ultra-court et motivant (max 15 mots) pour cet athlète dont les dernières perfs sont : ${recentPerfs}. Son objectif est : ${(user.objectifs || []).join(', ')}.`
       });
       
       setState(prev => ({ ...prev, aiSuggestion: response.text }));
