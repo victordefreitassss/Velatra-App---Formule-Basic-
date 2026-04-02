@@ -879,7 +879,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                         {plan.description}
                       </p>
                     )}
-                    {plan.stripePriceId && (
+                    {plan.stripePriceId ? (
                       <div className="mt-4 pt-4 border-t border-zinc-200">
                         <Button 
                           variant="secondary" 
@@ -910,6 +910,20 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                           }}
                         >
                           COPIER LE LIEN DE PAIEMENT
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="mt-4 pt-4 border-t border-zinc-200">
+                        <Button 
+                          variant="secondary" 
+                          className="w-full !py-2 !text-[10px] text-orange-500 border-orange-500/30 hover:bg-orange-500/10"
+                          onClick={() => {
+                            setEditingPlan(plan);
+                            setIsEditingPlan(true);
+                            showToast("Cliquez sur ENREGISTRER pour créer cette formule sur Stripe", "info");
+                          }}
+                        >
+                          CRÉER SUR STRIPE
                         </Button>
                       </div>
                     )}
