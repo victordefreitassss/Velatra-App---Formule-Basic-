@@ -212,8 +212,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             planData.stripeProductId = stripeData.productId;
             planData.stripePriceId = stripeData.priceId;
           } else {
-            console.error("Erreur lors de la création sur Stripe");
-            showToast("La formule sera créée localement (erreur Stripe)", "info");
+            const errData = await res.json();
+            console.error("Erreur lors de la création sur Stripe:", errData);
+            showToast(`Erreur Stripe: ${errData.error || 'Vérifiez les permissions de votre clé'}`, "error");
           }
         } catch (stripeErr) {
           console.error("Erreur réseau Stripe:", stripeErr);
