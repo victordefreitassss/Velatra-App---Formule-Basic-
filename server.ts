@@ -96,6 +96,29 @@ app.use(express.json());
     }
   });
 
+  app.post("/api/stripe/payment-link", async (req, res) => {
+    try {
+      const { stripeSecretKey, priceId } = req.body;
+      if (!stripeSecretKey || !stripeSecretKey.startsWith('sk_')) return res.status(400).json({ error: "Clé secrète invalide" });
+      
+      const stripeClient = new Stripe(stripeSecretKey, { apiVersion: "2026-02-25.clover" });
+      
+      const paymentLink = await stripeClient.paymentLinks.create({
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+      });
+
+      res.json({ url: paymentLink.url, id: paymentLink.id });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Erreur inconnue" });
+    }
+  });
+
   app.post("/api/stripe/checkout", async (req, res) => {
     try {
       const { stripeSecretKey, priceId, customerId, customerEmail, successUrl, cancelUrl } = req.body;
