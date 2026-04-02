@@ -198,7 +198,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   }, [upcomingBirthdays.length, state.tasks.length, state.user?.clubId]);
 
   const handleLaunchCoaching = (member: User) => {
-    const program = state.programs.find(p => p.memberId === Number(member.id));
+    const program = state.programs.find(p => p.memberId === Number(member.id) && !p.isPlannedSession);
     if (!program) {
       showToast("Aucun programme actif", "error");
       return;

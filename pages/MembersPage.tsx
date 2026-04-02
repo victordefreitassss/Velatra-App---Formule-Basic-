@@ -91,8 +91,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     
     if (filter === "Actifs") return u.lastWorkoutDate && (new Date().getTime() - new Date(u.lastWorkoutDate).getTime()) < 30 * 24 * 60 * 60 * 1000;
     if (filter === "Inactifs") return !u.lastWorkoutDate || (new Date().getTime() - new Date(u.lastWorkoutDate).getTime()) >= 30 * 24 * 60 * 60 * 1000;
-    if (filter === "Avec Programme") return state.programs.some(p => p.memberId === Number(u.id));
-    if (filter === "Sans Programme") return !state.programs.some(p => p.memberId === Number(u.id));
+    if (filter === "Avec Programme") return state.programs.some(p => p.memberId === Number(u.id) && !p.isPlannedSession);
+    if (filter === "Sans Programme") return !state.programs.some(p => p.memberId === Number(u.id) && !p.isPlannedSession);
     if (filter === "Demande de Plan") return u.planRequested;
     
     return true;
@@ -233,7 +233,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const handleEditProgram = (member: User) => {
     const mid = Number(member.id);
-    const existingProg = state.programs.find(p => Number(p.memberId) === mid);
+    const existingProg = state.programs.find(p => Number(p.memberId) === mid && !p.isPlannedSession);
     if (existingProg) {
       setState((prev: AppState) => ({ ...prev, editingProg: existingProg }));
     } else {
@@ -444,7 +444,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       }
 
       const mid = Number(selectedProfile.id);
-      const existingProg = state.programs.find(p => Number(p.memberId) === mid);
+      const existingProg = state.programs.find(p => Number(p.memberId) === mid && !p.isPlannedSession);
       const progId = existingProg ? existingProg.id : Date.now();
       
       const newProg: Program = {
@@ -581,7 +581,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     const mid = Number(memberId);
     const memberPerfs = (state.performances || []).filter(p => Number(p.memberId) === mid);
     const memberBody = (state.bodyData || []).filter(b => Number(b.memberId) === mid);
-    const program = (state.programs || []).find(p => Number(p.memberId) === mid);
+    const program = (state.programs || []).find(p => Number(p.memberId) === mid && !p.isPlannedSession);
 
     const topPerfs = memberPerfs.reduce((acc: any, curr) => {
       if (!acc[curr.exId] || acc[curr.exId].weight < curr.weight) {

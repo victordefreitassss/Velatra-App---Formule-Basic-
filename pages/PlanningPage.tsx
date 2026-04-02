@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { AppState, Booking, User } from '../types';
+import { AppState, Booking, User, Program } from '../types';
 import { Card, Button, Badge } from '../components/UI';
-import { CalendarIcon, PlusIcon, ClockIcon, UserIcon, CheckIcon, XIcon, TargetIcon } from '../components/Icons';
+import { CalendarIcon, PlusIcon, ClockIcon, UserIcon, CheckIcon, XIcon, TargetIcon, PlayIcon } from '../components/Icons';
 import { db, collection, addDoc, updateDoc, doc, deleteDoc, query, where, getDocs } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -261,9 +261,10 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
       return bDate.getDate() === date.getDate() && 
              bDate.getMonth() === date.getMonth() && 
              bDate.getFullYear() === date.getFullYear() &&
-             b.status === 'confirmed';
+             (b.status === 'confirmed' || b.status === 'completed');
     }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   };
+
 
   return (
     <motion.div 
@@ -370,9 +371,11 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                         <div className="font-black text-lg text-zinc-900">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
                         {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider">{sessionType.name}</div>}
                       </div>
-                      {isMyBooking && !isCoach && (
+                      {bookingForSlot.status === 'completed' ? (
+                        <Badge variant="success" className="!bg-emerald-100 !text-emerald-700 !border-none shadow-sm">Terminé</Badge>
+                      ) : isMyBooking && !isCoach ? (
                         <Badge variant="dark" className="!bg-zinc-100 !text-zinc-900 !border-none shadow-sm">Ma séance</Badge>
-                      )}
+                      ) : null}
                     </div>
                     
                     {isCoach ? (
@@ -381,14 +384,85 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                       </div>
                     ) : (
                       <div className="text-[10px] uppercase tracking-widest opacity-80 mb-3 font-bold">
-                        {isMyBooking ? 'Réservé' : 'Indisponible'}
+                        {bookingForSlot.status === 'completed' ? 'Terminé' : (isMyBooking ? 'Réservé' : 'Indisponible')}
                       </div>
                     )}
                     
-                    {(isCoach || isMyBooking) && !isPast && (
-                      <Button variant="secondary" className={`w-full !py-2 !text-xs transition-colors ${isCoach ? ' hover:bg-white text-zinc-900' : 'border-zinc-400 hover:bg-zinc-100 text-zinc-900'}`} onClick={() => handleCancelBooking(bookingForSlot)}>
-                        Annuler la réservation
-                      </Button>
+                    {(isCoach || isMyBooking) && !isPast && bookingForSlot.status !== 'completed' && (
+                      <div className="flex flex-col gap-2 mt-2">
+                        {isCoach && member && (
+                          <div className="flex flex-col gap-2">
+                            {state.programs.filter(p => p.memberId === Number(member.id) && p.isPlannedSession && p.bookingId === bookingForSlot.id).map(plannedSession => (
+                              <Button 
+                                key={plannedSession.id}
+                                variant="primary" 
+                                onClick={() => setState((s: AppState) => ({ ...s, workout: plannedSession, workoutMember: member, workoutIsProgramSession: false }))} 
+                                className="w-full !py-2 !text-xs !bg-blue-500 hover:!bg-blue-600"
+                              >
+                                <PlayIcon size={14} className="mr-1.5" /> Lancer {plannedSession.name}
+                              </Button>
+                            ))}
+                            <div className="flex gap-2">
+                              <Button variant="secondary" className="flex-1 !py-2 !text-xs hover:bg-white text-zinc-900" onClick={() => {
+                                const dummyProgram: Program = {
+                                  id: Date.now(),
+                                  clubId: member.clubId,
+                                  memberId: Number(member.id),
+                                  name: `Séance du ${new Date(bookingForSlot.startTime).toLocaleDateString('fr-FR')}`,
+                                  presetId: null,
+                                  nbDays: 1,
+                                  durationWeeks: 1,
+                                  currentDayIndex: 0,
+                                  startDate: new Date().toISOString(),
+                                  completedWeeks: [],
+                                  days: [{ name: "Séance Libre", exercises: [], isCoaching: true }],
+                                  isPlannedSession: true,
+                                  bookingId: bookingForSlot.id
+                                };
+                                setState((s: AppState) => ({ ...s, editingProg: dummyProgram }));
+                              }}>
+                                Libre
+                              </Button>
+                              
+                              <Button 
+                                variant={state.programs.some(p => p.memberId === Number(member.id) && !p.isPlannedSession) ? "primary" : "secondary"}
+                                className="flex-1 !py-2 !text-xs" 
+                                disabled={!state.programs.some(p => p.memberId === Number(member.id) && !p.isPlannedSession)}
+                                onClick={() => {
+                                  const program = state.programs.find(p => p.memberId === Number(member.id) && !p.isPlannedSession);
+                                  if (program) {
+                                    const dayIndex = program.currentDayIndex % program.nbDays;
+                                    const nextSession = program.days[dayIndex];
+                                    
+                                    const singleSessionProgram: Program = {
+                                      id: Date.now(),
+                                      clubId: member.clubId,
+                                      memberId: Number(member.id),
+                                      name: nextSession.name || "Séance du programme",
+                                      presetId: null,
+                                      nbDays: 1,
+                                      durationWeeks: 1,
+                                      currentDayIndex: 0,
+                                      startDate: new Date().toISOString(),
+                                      completedWeeks: [],
+                                      days: [JSON.parse(JSON.stringify(nextSession))],
+                                      isPlannedSession: true,
+                                      originalProgramId: program.id,
+                                      bookingId: bookingForSlot.id
+                                    };
+                                    setState((s: AppState) => ({ ...s, editingProg: singleSessionProgram }));
+                                  }
+                                }}
+                              >
+                                Prog.
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        <Button variant="secondary" className={`w-full !py-2 !text-xs transition-colors ${isCoach ? ' hover:bg-white text-zinc-900' : 'border-zinc-400 hover:bg-zinc-100 text-zinc-900'}`} onClick={() => handleCancelBooking(bookingForSlot)}>
+                          Annuler la réservation
+                        </Button>
+                      </div>
                     )}
                   </motion.div>
                 );

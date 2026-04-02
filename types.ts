@@ -218,6 +218,9 @@ export interface Program {
   currentDayIndex: number;
   days: Day[];
   memberRemarks?: string; // Remarques de l'adhérent
+  isPlannedSession?: boolean;
+  bookingId?: string;
+  originalProgramId?: number;
 }
 
 export interface Preset {
@@ -540,7 +543,7 @@ export interface Booking {
   coachId: string; // The coach's ID
   startTime: string; // ISO string
   endTime: string; // ISO string
-  status: 'confirmed' | 'cancelled';
+  status: 'confirmed' | 'cancelled' | 'completed';
   type: 'coaching';
   sessionTypeId?: string;
 }
