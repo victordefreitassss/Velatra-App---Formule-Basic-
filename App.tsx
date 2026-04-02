@@ -842,7 +842,7 @@ export default function App() {
               vapidKey: 'BH_DNK6qCrM8TNPAXNLnL_vWKM2S6wjzsdoHwG4lKVvkxkJQJIz5E2vL7CF-N_XZy1a27sgZaOnQVjpHUwVa3Lw' 
             });
             if (token) {
-              await setDoc(doc(db, "users", String(state.user.id)), {
+              await setDoc(doc(db, "users", state.user.firebaseUid || String(state.user.id)), {
                 fcmToken: token
               }, { merge: true });
             }

@@ -16,16 +16,27 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userPath) ? get(userPath).data : null;
     }
 
     function isSameClub(docClubId) {
-      return isAuthenticated() && getUserData().clubId == docClubId;
+      let userData = getUserData();
+      return isAuthenticated() && userData != null && userData.clubId == docClubId;
     }
 
     function isAdmin() {
-      let user = getUserData();
-      return isAuthenticated() && (user.role == 'superadmin' || user.role == 'owner' || user.role == 'coach');
+      let userData = getUserData();
+      return isAuthenticated() && userData != null && (userData.role == 'superadmin' || userData.role == 'owner' || userData.role == 'coach');
+    }
+
+    function isSuperAdmin() {
+      let userData = getUserData();
+      return isAuthenticated() && userData != null && userData.role == 'superadmin';
+    }
+
+    function isSuperAdminEmail() {
+      return isAuthenticated() && request.auth.token.email == 'victor.defreitas.pro@gmail.com';
     }
 
     // ===============================================================
@@ -33,38 +44,43 @@ service cloud.firestore {
     // ===============================================================
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || isSameClub(resource.data.clubId);
+      allow read: if isOwner(userId) || isSameClub(resource.data.clubId) || isSuperAdmin() || isSuperAdminEmail();
       allow create: if isAuthenticated();
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
+      allow update: if isOwner(userId) || isAdmin() || isSuperAdminEmail();
+      allow delete: if isSuperAdmin() || isSuperAdminEmail();
     }
 
     match /clubs/{clubId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isSuperAdmin() || isSuperAdminEmail();
     }
 
     match /driveFiles/{fileId} {
-      allow read: if isAuthenticated() && (isSameClub(resource.data.clubId) || resource.data.sharedWith.hasAny([getUserData().id]));
-      allow create: if isAuthenticated() && isSameClub(request.resource.data.clubId);
-      allow update: if isAuthenticated() && isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin());
-      allow delete: if isAuthenticated() && isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin());
+      allow read: if isAuthenticated() && (isSameClub(resource.data.clubId) || resource.data.sharedWith.hasAny([getUserData().id]) || isSuperAdminEmail());
+      allow create: if isAuthenticated() && (isSameClub(request.resource.data.clubId) || isSuperAdminEmail());
+      allow update: if isAuthenticated() && ((isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin())) || isSuperAdminEmail());
+      allow delete: if isAuthenticated() && ((isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin())) || isSuperAdminEmail());
     }
 
     match /driveFolders/{folderId} {
-      allow read: if isAuthenticated() && isSameClub(resource.data.clubId);
-      allow create: if isAuthenticated() && isSameClub(request.resource.data.clubId);
-      allow update: if isAuthenticated() && isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin());
-      allow delete: if isAuthenticated() && isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin());
+      allow read: if isAuthenticated() && (isSameClub(resource.data.clubId) || isSuperAdminEmail());
+      allow create: if isAuthenticated() && (isSameClub(request.resource.data.clubId) || isSuperAdminEmail());
+      allow update: if isAuthenticated() && ((isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin())) || isSuperAdminEmail());
+      allow delete: if isAuthenticated() && ((isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin())) || isSuperAdminEmail());
     }
 
     // Default rule for all other collections
     match /{document=**} {
       allow read: if isAuthenticated() && (
-        resource == null || !('clubId' in resource.data) || isSameClub(resource.data.clubId)
+        isSameClub(resource.data.clubId) || 
+        resource.data.clubId == 'global' || 
+        isSuperAdmin() ||
+        isSuperAdminEmail()
       );
       allow write: if isAuthenticated() && (
-        request.resource == null || !('clubId' in request.resource.data) || isSameClub(request.resource.data.clubId)
+        isSameClub(request.resource.data.clubId) || 
+        isSuperAdmin() ||
+        isSuperAdminEmail()
       );
     }
   }
