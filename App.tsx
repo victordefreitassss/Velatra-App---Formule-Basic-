@@ -12,7 +12,7 @@ import {
 import { 
   auth, db, messaging,
   onAuthStateChanged, signOut, 
-  doc, getDoc, setDoc, onSnapshot, updateDoc, collection, deleteDoc, query, where, getDocs,
+  doc, getDoc, getDocFromServer, setDoc, onSnapshot, updateDoc, collection, deleteDoc, query, where, getDocs,
   getToken, onMessage
 } from './firebase';
 
@@ -109,6 +109,23 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [loading, setLoading] = useState(true);
+  const [connectionTested, setConnectionTested] = useState(false);
+
+  useEffect(() => {
+    if (!connectionTested) {
+      const testConnection = async () => {
+        try {
+          await getDocFromServer(doc(db, 'test', 'connection'));
+        } catch (error) {
+          if (error instanceof Error && error.message.includes('the client is offline')) {
+            console.error("Please check your Firebase configuration. The client is offline.");
+          }
+        }
+      };
+      testConnection();
+      setConnectionTested(true);
+    }
+  }, [connectionTested]);
 
   useEffect(() => {
     let unsubUserDoc: () => void;
