@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 
 export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ state, setState }) => {
   const user = state.user!;
-  const program = state.programs.find(p => p.memberId === Number(user.id));
+  const program = state.programs.find(p => p.memberId === Number(user.id) && !p.isPlannedSession);
 
   if (!program) {
     return (

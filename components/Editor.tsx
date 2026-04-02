@@ -4,7 +4,7 @@ import { Button, Input, Card, Badge } from './UI';
 import { 
   PlusIcon, Trash2Icon, ChevronLeftIcon, SaveIcon, 
   DumbbellIcon, LayersIcon, InfoIcon, MessageCircleIcon, RefreshCwIcon, LinkIcon,
-  ArrowUpIcon, ArrowDownIcon, CopyIcon, VideoIcon
+  ArrowUpIcon, ArrowDownIcon, CopyIcon, VideoIcon, CalendarIcon, PlayIcon
 } from './Icons';
 import { EXERCISE_CATEGORIES, GOALS } from '../constants';
 import { ChevronDownIcon, SearchIcon } from 'lucide-react';
@@ -101,7 +101,7 @@ interface ProgramEditorProps {
   preset: Preset | null;
   exercises: Exercise[];
   clubId: string; // New prop
-  onSave: (data: Program | Preset) => void;
+  onSave: (data: any, action?: 'plan' | 'start') => void;
   onCancel: () => void;
   allPresets?: Preset[]; 
   member?: any;
@@ -137,6 +137,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   const [formData, setFormData] = useState<any>(initialData);
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
   const [showPresets, setShowPresets] = useState(false);
+  const isSingleSession = formData.isPlannedSession;
 
   const handleApplyPreset = (p: Preset) => {
     // If we are in "Day Import" mode, we apply to current day
@@ -362,7 +363,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
           </button>
           <div>
             <h1 className="text-2xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">
-              {isEditingProgram ? "ADAPTER LE PLAN" : "ÉDITION MODÈLE"}
+              {isSingleSession ? "PRÉPARER LA SÉANCE" : (isEditingProgram ? "ADAPTER LE PLAN" : "ÉDITION MODÈLE")}
             </h1>
             <p className="text-emerald-500 text-[10px] uppercase tracking-[3px] font-bold mt-1">Expert Coaching <span className="text-zinc-900">VELATRA</span></p>
           </div>
@@ -373,10 +374,23 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                 {showPresets ? "X" : "APPLIQUER MODÈLE"}
              </Button>
           )}
-          <Button onClick={() => onSave(formData)} variant="success" className="shadow-lg px-8 py-3 !rounded-full font-black italic">
-            <SaveIcon size={18} className="mr-2" />
-            VALIDER
-          </Button>
+          {isSingleSession ? (
+            <>
+              <Button onClick={() => onSave(formData, 'plan')} variant="secondary" className="shadow-sm px-6 py-3 !rounded-full font-black italic">
+                <CalendarIcon size={18} className="mr-2" />
+                PRÉVOIR
+              </Button>
+              <Button onClick={() => onSave(formData, 'start')} variant="primary" className="shadow-lg px-6 py-3 !rounded-full font-black italic !bg-blue-500 hover:!bg-blue-600">
+                <PlayIcon size={18} className="mr-2" />
+                COMMENCER MTN
+              </Button>
+            </>
+          ) : (
+            <Button onClick={() => onSave(formData)} variant="success" className="shadow-lg px-8 py-3 !rounded-full font-black italic">
+              <SaveIcon size={18} className="mr-2" />
+              VALIDER
+            </Button>
+          )}
         </div>
       </header>
 
@@ -403,27 +417,31 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
       <Card className="space-y-6 !p-8 bg-zinc-50 border-zinc-200 ring-1 ring-zinc-200">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Titre du Programme</label>
+            <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">
+              {isSingleSession ? "Titre de la séance" : "Titre du Programme"}
+            </label>
             <Input 
               value={formData.name} 
               onChange={e => setFormData({...formData, name: e.target.value})}
-              placeholder="Ex: Hypertrophie Poussée" 
+              placeholder={isSingleSession ? "Ex: Séance Pectoraux" : "Ex: Hypertrophie Poussée"} 
             />
           </div>
           
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Durée (Semaines)</label>
-            <select 
-              value={formData.durationWeeks || ''} 
-              onChange={e => setFormData({...formData, durationWeeks: e.target.value ? parseInt(e.target.value) : null})}
-              className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-zinc-900 text-sm font-medium focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
-            >
-              <option value="">Pas de délai (Continu)</option>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20, 24].map(w => (
-                <option key={w} value={w}>{w} Semaine{w > 1 ? 's' : ''}</option>
-              ))}
-            </select>
-          </div>
+          {!isSingleSession && (
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Durée (Semaines)</label>
+              <select 
+                value={formData.durationWeeks || ''} 
+                onChange={e => setFormData({...formData, durationWeeks: e.target.value ? parseInt(e.target.value) : null})}
+                className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-zinc-900 text-sm font-medium focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
+              >
+                <option value="">Pas de délai (Continu)</option>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20, 24].map(w => (
+                  <option key={w} value={w}>{w} Semaine{w > 1 ? 's' : ''}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {isEditingProgram ? (
             <>
@@ -506,57 +524,62 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
         )}
       </Card>
 
-      <div className="space-y-6">
-        <div className="flex items-center justify-between px-2">
-          <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-3">
-            <LayersIcon size={18} className="text-emerald-500" />
-            Planification Hebdomadaire
-          </h2>
-          <button 
-            onClick={handleAddDay}
-            className="text-[11px] font-black text-emerald-500 bg-emerald-500/10 px-4 py-2 rounded-full hover:bg-emerald-500/20 transition-all flex items-center gap-2"
-          >
-            <PlusIcon size={14} /> NOUVEAU JOUR
-          </button>
-        </div>
-
-        <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-          {formData.days.map((day: Day, idx: number) => (
-            <button
-              key={idx}
-              onClick={() => setSelectedDayIdx(idx)}
-              className={`
-                px-8 py-4 rounded-[20px] text-xs font-black whitespace-nowrap transition-all border shrink-0
-                ${selectedDayIdx === idx 
-                  ? 'bg-emerald-500 border-emerald-500 text-zinc-900 shadow-xl shadow-emerald-500/20 scale-105 italic' 
-                  : 'bg-zinc-50 border-zinc-200 text-zinc-900 hover:border-zinc-300'}
-              `}
+      {!isSingleSession && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-3">
+              <LayersIcon size={18} className="text-emerald-500" />
+              Planification Hebdomadaire
+            </h2>
+            <button 
+              onClick={handleAddDay}
+              className="text-[11px] font-black text-emerald-500 bg-emerald-500/10 px-4 py-2 rounded-full hover:bg-emerald-500/20 transition-all flex items-center gap-2"
             >
-              J{idx + 1} - {(day.name || `Jour ${idx + 1}`).substring(0, 12)}
+              <PlusIcon size={14} /> NOUVEAU JOUR
             </button>
-          ))}
-        </div>
+          </div>
 
-        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-          <Card className="border-2 border-zinc-200 !p-8 bg-white">
-            <div className="flex flex-col gap-8 mb-8">
-              <div className="flex justify-between items-start border-b border-zinc-200 pb-6">
-                <div className="flex-1 space-y-6">
+          <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
+            {formData.days.map((day: Day, idx: number) => (
+              <button
+                key={idx}
+                onClick={() => setSelectedDayIdx(idx)}
+                className={`
+                  px-8 py-4 rounded-[20px] text-xs font-black whitespace-nowrap transition-all border shrink-0
+                  ${selectedDayIdx === idx 
+                    ? 'bg-emerald-500 border-emerald-500 text-zinc-900 shadow-xl shadow-emerald-500/20 scale-105 italic' 
+                    : 'bg-zinc-50 border-zinc-200 text-zinc-900 hover:border-zinc-300'}
+                `}
+              >
+                J{idx + 1} - {(day.name || `Jour ${idx + 1}`).substring(0, 12)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+        <Card className="border-2 border-zinc-200 !p-8 bg-white">
+          <div className="flex flex-col gap-8 mb-8">
+            <div className="flex justify-between items-start border-b border-zinc-200 pb-6">
+              <div className="flex-1 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Titre de la séance</label>
-                      <Input 
-                        className="!text-xl font-black italic !bg-white"
-                        value={formData.days[selectedDayIdx]?.name || ''} 
-                        onChange={e => {
-                          const newDays = [...formData.days];
-                          if (newDays[selectedDayIdx]) {
-                            newDays[selectedDayIdx].name = e.target.value;
-                            setFormData({...formData, days: newDays});
-                          }
-                        }}
-                      />
-                    </div>
+                    {!isSingleSession && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Titre de la séance</label>
+                        <Input 
+                          className="!text-xl font-black italic !bg-white"
+                          value={formData.days[selectedDayIdx]?.name || ''} 
+                          onChange={e => {
+                            const newDays = [...formData.days];
+                            if (newDays[selectedDayIdx]) {
+                              newDays[selectedDayIdx].name = e.target.value;
+                              setFormData({...formData, days: newDays});
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Durée estimée (minutes)</label>
                       <Input 
@@ -581,65 +604,73 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                 </div>
                 <div className="flex flex-col gap-2">
                   <div className="flex gap-2">
-                    <button 
-                      onClick={() => setShowPresets(!showPresets)}
-                      className="p-3 text-emerald-500 hover:text-emerald-600 transition-colors bg-emerald-50 rounded-xl hover:bg-emerald-100 flex items-center gap-2 px-4"
-                      title="Importer un modèle sur ce jour"
-                    >
-                      <LayersIcon size={16} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Importer Modèle</span>
-                    </button>
-                    <button 
-                      onClick={() => {
-                        if (selectedDayIdx > 0) {
-                          const newDays = [...formData.days];
-                          const temp = newDays[selectedDayIdx];
-                          newDays[selectedDayIdx] = newDays[selectedDayIdx - 1];
-                          newDays[selectedDayIdx - 1] = temp;
-                          setFormData({...formData, days: newDays});
-                          setSelectedDayIdx(selectedDayIdx - 1);
-                        }
-                      }}
-                      disabled={selectedDayIdx === 0}
-                      className="p-3 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
-                      title="Déplacer vers la gauche"
-                    >
-                      <ArrowUpIcon size={20} className="-rotate-90" />
-                    </button>
-                    <button 
-                      onClick={() => {
-                        if (selectedDayIdx < formData.days.length - 1) {
-                          const newDays = [...formData.days];
-                          const temp = newDays[selectedDayIdx];
-                          newDays[selectedDayIdx] = newDays[selectedDayIdx + 1];
-                          newDays[selectedDayIdx + 1] = temp;
-                          setFormData({...formData, days: newDays});
-                          setSelectedDayIdx(selectedDayIdx + 1);
-                        }
-                      }}
-                      disabled={selectedDayIdx === formData.days.length - 1}
-                      className="p-3 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
-                      title="Déplacer vers la droite"
-                    >
-                      <ArrowDownIcon size={20} className="-rotate-90" />
-                    </button>
+                    {!isSingleSession && (
+                      <button 
+                        onClick={() => setShowPresets(!showPresets)}
+                        className="p-3 text-emerald-500 hover:text-emerald-600 transition-colors bg-emerald-50 rounded-xl hover:bg-emerald-100 flex items-center gap-2 px-4"
+                        title="Importer un modèle sur ce jour"
+                      >
+                        <LayersIcon size={16} />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Importer Modèle</span>
+                      </button>
+                    )}
+                    {!isSingleSession && (
+                      <>
+                        <button 
+                          onClick={() => {
+                            if (selectedDayIdx > 0) {
+                              const newDays = [...formData.days];
+                              const temp = newDays[selectedDayIdx];
+                              newDays[selectedDayIdx] = newDays[selectedDayIdx - 1];
+                              newDays[selectedDayIdx - 1] = temp;
+                              setFormData({...formData, days: newDays});
+                              setSelectedDayIdx(selectedDayIdx - 1);
+                            }
+                          }}
+                          disabled={selectedDayIdx === 0}
+                          className="p-3 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
+                          title="Déplacer vers la gauche"
+                        >
+                          <ArrowUpIcon size={20} className="-rotate-90" />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (selectedDayIdx < formData.days.length - 1) {
+                              const newDays = [...formData.days];
+                              const temp = newDays[selectedDayIdx];
+                              newDays[selectedDayIdx] = newDays[selectedDayIdx + 1];
+                              newDays[selectedDayIdx + 1] = temp;
+                              setFormData({...formData, days: newDays});
+                              setSelectedDayIdx(selectedDayIdx + 1);
+                            }
+                          }}
+                          disabled={selectedDayIdx === formData.days.length - 1}
+                          className="p-3 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
+                          title="Déplacer vers la droite"
+                        >
+                          <ArrowDownIcon size={20} className="-rotate-90" />
+                        </button>
+                      </>
+                    )}
                   </div>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => handleDuplicateDay(selectedDayIdx)}
-                      className="p-3 text-zinc-500 hover:text-emerald-500 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10 flex-1 flex justify-center"
-                      title="Dupliquer ce jour"
-                    >
-                      <CopyIcon size={20} />
-                    </button>
-                    <button 
-                      onClick={() => handleRemoveDay(selectedDayIdx)}
-                      className="p-3 text-red-500/30 hover:text-red-500 transition-colors bg-zinc-50 rounded-xl hover:bg-red-500/10 flex-1 flex justify-center"
-                      title="Supprimer ce jour"
-                    >
-                      <Trash2Icon size={20} />
-                    </button>
-                  </div>
+                  {!isSingleSession && (
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => handleDuplicateDay(selectedDayIdx)}
+                        className="p-3 text-zinc-500 hover:text-emerald-500 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10 flex-1 flex justify-center"
+                        title="Dupliquer ce jour"
+                      >
+                        <CopyIcon size={20} />
+                      </button>
+                      <button 
+                        onClick={() => handleRemoveDay(selectedDayIdx)}
+                        className="p-3 text-red-500/30 hover:text-red-500 transition-colors bg-zinc-50 rounded-xl hover:bg-red-500/10 flex-1 flex justify-center"
+                        title="Supprimer ce jour"
+                      >
+                        <Trash2Icon size={20} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -955,6 +986,5 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
           </Card>
         </div>
       </div>
-    </div>
   );
 };

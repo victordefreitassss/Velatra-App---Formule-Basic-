@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AppState, User, Program } from '../types';
 import { Button, Input, Badge } from '../components/UI';
-import { SearchIcon, TargetIcon, DumbbellIcon, CalendarIcon, ClockIcon, ActivityIcon, MessageCircleIcon, UserIcon, Edit2Icon } from '../components/Icons';
+import { SearchIcon, TargetIcon, DumbbellIcon, CalendarIcon, ClockIcon, ActivityIcon, MessageCircleIcon, UserIcon, Edit2Icon, PlayIcon } from '../components/Icons';
 
 interface CoachingPageProps {
   state: AppState;
@@ -17,7 +17,7 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
   
   const membersWithStats = useMemo(() => {
     return activeMembers.map(member => {
-      const program = state.programs.find(p => p.memberId === Number(member.id));
+      const program = state.programs.find(p => p.memberId === Number(member.id) && !p.isPlannedSession);
       const logs = state.logs.filter(l => l.memberId === Number(member.id)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       const lastSession = logs[0];
       
@@ -59,7 +59,25 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
   });
 
   const handleStartProgramSession = (member: User, program: Program) => {
-    setState(s => ({ ...s, workout: program, workoutMember: member, workoutIsProgramSession: true }));
+    const dayIndex = program.currentDayIndex % program.nbDays;
+    const nextSession = program.days[dayIndex];
+    
+    const singleSessionProgram: Program = {
+      id: Date.now(),
+      clubId: member.clubId,
+      memberId: Number(member.id),
+      name: nextSession.name || "Séance du programme",
+      presetId: null,
+      nbDays: 1,
+      durationWeeks: 1,
+      currentDayIndex: 0,
+      startDate: new Date().toISOString(),
+      completedWeeks: [],
+      days: [JSON.parse(JSON.stringify(nextSession))],
+      isPlannedSession: true,
+      originalProgramId: program.id
+    };
+    setState(s => ({ ...s, editingProg: singleSessionProgram }));
   };
 
   const handleStartFreeSession = (member: User) => {
@@ -74,9 +92,14 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
       currentDayIndex: 0,
       startDate: new Date().toISOString(),
       completedWeeks: [],
-      days: [{ name: "Séance Libre", exercises: [], isCoaching: true }]
+      days: [{ name: "Séance Libre", exercises: [], isCoaching: true }],
+      isPlannedSession: true
     };
-    setState(s => ({ ...s, workout: dummyProgram, workoutMember: member, workoutIsProgramSession: false }));
+    setState(s => ({ ...s, editingProg: dummyProgram }));
+  };
+
+  const handleStartPlannedSession = (member: User, program: Program) => {
+    setState(s => ({ ...s, workout: program, workoutMember: member, workoutIsProgramSession: false }));
   };
 
   const handleViewProfile = (member: User) => {
@@ -187,8 +210,19 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
                   </div>
                   
                   <Button variant="secondary" onClick={() => handleStartFreeSession(member)} className="!py-2 !px-3 !text-xs whitespace-nowrap">
-                    <ActivityIcon size={14} className="mr-1.5" /> Séance Libre
+                    <ActivityIcon size={14} className="mr-1.5" /> Libre
                   </Button>
+                  
+                  {state.programs.filter(p => p.memberId === Number(member.id) && p.isPlannedSession).map(plannedSession => (
+                    <Button 
+                      key={plannedSession.id}
+                      variant="primary" 
+                      onClick={() => handleStartPlannedSession(member, plannedSession)} 
+                      className="!py-2 !px-3 !text-xs whitespace-nowrap !bg-blue-500 hover:!bg-blue-600"
+                    >
+                      <PlayIcon size={14} className="mr-1.5" /> {plannedSession.name}
+                    </Button>
+                  ))}
                   
                   <Button 
                     variant={member.program && !member.isFinished ? "primary" : "secondary"}
@@ -196,7 +230,7 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
                     disabled={!member.program || member.isFinished}
                     className="!py-2 !px-3 !text-xs whitespace-nowrap"
                   >
-                    <TargetIcon size={14} className="mr-1.5" /> Séance Prog.
+                    <TargetIcon size={14} className="mr-1.5" /> Prog.
                   </Button>
                 </div>
                 

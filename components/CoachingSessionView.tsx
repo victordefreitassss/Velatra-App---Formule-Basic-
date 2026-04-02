@@ -285,12 +285,17 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
       showToast("NOUVEAU RECORD PERSONNEL ! 🎉", "success");
     }
 
-    if (isProgramSession) {
-      const nextDayIndex = program.currentDayIndex + 1;
-      try {
-        await updateDoc(doc(db, "programs", program.id.toString()), { currentDayIndex: nextDayIndex });
-      } catch (err) {
-        console.error("Error updating program index:", err);
+    if (isProgramSession || program.originalProgramId) {
+      const targetProgramId = program.originalProgramId || program.id;
+      const targetProgram = state.programs.find(p => p.id === targetProgramId);
+      
+      if (targetProgram) {
+        const nextDayIndex = targetProgram.currentDayIndex + 1;
+        try {
+          await updateDoc(doc(db, "programs", targetProgramId.toString()), { currentDayIndex: nextDayIndex });
+        } catch (err) {
+          console.error("Error updating program index:", err);
+        }
       }
     }
 

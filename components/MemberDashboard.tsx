@@ -40,7 +40,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
   const user = state.user!;
   const myLogs = state.logs.filter(l => Number(l.memberId) === Number(user.id));
   const level = getLevel(user.xp); 
-  const program = state.programs.find(p => Number(p.memberId) === Number(user.id));
+  const program = state.programs.find(p => Number(p.memberId) === Number(user.id) && !p.isPlannedSession);
   const lastArchive = state.archivedPrograms
     .filter(p => Number(p.memberId) === Number(user.id))
     .sort((a, b) => new Date((b as any).endDate || 0).getTime() - new Date((a as any).endDate || 0).getTime())[0];

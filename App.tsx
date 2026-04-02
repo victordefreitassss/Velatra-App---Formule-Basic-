@@ -740,7 +740,7 @@ export default function App() {
           clubId={user.clubId}
           allPresets={state.presets}
           member={state.editingProg ? state.users.find(u => Number(u.id) === state.editingProg!.memberId) : undefined}
-          onSave={async (data) => {
+          onSave={async (data, action) => {
             const dataWithClub = { ...data, clubId: user.clubId };
             await setDoc(doc(db, state.editingProg ? "programs" : "presets", data.id.toString()), dataWithClub);
             
@@ -748,6 +748,12 @@ export default function App() {
               const member = state.users.find(u => Number(u.id) === state.editingProg!.memberId);
               if (member && member.firebaseUid && member.planRequested) {
                 await updateDoc(doc(db, "users", member.firebaseUid), { planRequested: false });
+              }
+              
+              if (action === 'start' && member) {
+                setState(s => ({ ...s, editingProg: null, editingPreset: null, workout: data, workoutMember: member, workoutIsProgramSession: false }));
+                showToast("Séance démarrée");
+                return;
               }
             }
 
@@ -923,6 +929,15 @@ export default function App() {
               
               await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
               for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
+              
+              if (state.workout?.isPlannedSession) {
+                await deleteDoc(doc(db, "programs", state.workout.id.toString()));
+              }
+              
+              if (state.workout?.bookingId) {
+                await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
+              }
+              
               setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
               showToast("Séance de coaching enregistrée !");
             }}
@@ -942,6 +957,15 @@ export default function App() {
               
               await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
               for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
+
+              if (state.workout?.isPlannedSession) {
+                await deleteDoc(doc(db, "programs", state.workout.id.toString()));
+              }
+              
+              if (state.workout?.bookingId) {
+                await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
+              }
+
               setState(s => ({ ...s, workout: null, workoutMember: null }));
               showToast("Séance enregistrée !");
             }}

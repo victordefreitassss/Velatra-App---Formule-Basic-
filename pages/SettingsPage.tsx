@@ -370,7 +370,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                   value={stripeSecretKey} 
                   onChange={(e) => setStripeSecretKey(e.target.value.trim())}
                 />
-                <Button onClick={handleConnectStripe} className="w-full">
+                <Button onClick={handleConnectStripe} disabled={!stripeSecretKey.trim()} className="w-full">
                   Connecter mon compte Stripe
                 </Button>
               </div>
