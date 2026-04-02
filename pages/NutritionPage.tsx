@@ -61,6 +61,8 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
   const [goal, setGoal] = useState<Goal>('Sport santé bien-être');
   const [dietPreference, setDietPreference] = useState<string>('Standard');
   const [durationWeeks, setDurationWeeks] = useState<number>(4);
+  const [shoppingList, setShoppingList] = useState<{ id: string; name: string; checked: boolean }[]>([]);
+  const [meals, setMeals] = useState<Meal[]>([]);
   
   const [isSaving, setIsSaving] = useState(false);
 
@@ -97,6 +99,8 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       setGoal(existingPlan.goal || member.objectifs?.[0] || 'Sport santé bien-être');
       setDietPreference(existingPlan.dietPreference || 'Standard');
       setDurationWeeks(existingPlan.durationWeeks || 4);
+      setShoppingList(existingPlan.liste_courses || []);
+      setMeals(existingPlan.meals || []);
       setTargetCalories(existingPlan.targetCalories || 0);
       setProtein(existingPlan.protein || 0);
       setCarbs(existingPlan.carbs || 0);
@@ -109,6 +113,8 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       setGoal(member.objectifs?.[0] || 'Sport santé bien-être');
       setDietPreference('Standard');
       setDurationWeeks(4);
+      setShoppingList([]);
+      setMeals([]);
       setTargetCalories(0);
       setProtein(0);
       setCarbs(0);
@@ -169,22 +175,6 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
       const existingPlan = state.nutritionPlans.find(p => p.memberId === Number(selectedMember.id));
       const planId = existingPlan?.id?.toString() || Date.now().toString();
       
-      let updatedMeals = existingPlan?.meals || [];
-      if (updatedMeals.length > 0 && existingPlan) {
-        const oldCals = existingPlan.targetCalories || 1;
-        const oldProt = existingPlan.protein || 1;
-        const oldCarbs = existingPlan.carbs || 1;
-        const oldFat = existingPlan.fat || 1;
-
-        updatedMeals = updatedMeals.map(m => ({
-          ...m,
-          calories: Math.round((m.calories / oldCals) * targetCalories),
-          protein: Math.round((m.protein / oldProt) * protein),
-          carbs: Math.round((m.carbs / oldCarbs) * carbs),
-          fat: Math.round((m.fat / oldFat) * fat),
-        }));
-      }
-
       const planData: NutritionPlan = {
         id: planId,
         memberId: Number(selectedMember.id),
@@ -205,8 +195,8 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
         protein: protein,
         carbs: carbs,
         fat: fat,
-        meals: updatedMeals,
-        liste_courses: existingPlan?.liste_courses || [],
+        meals: meals,
+        liste_courses: shoppingList,
         aiGenerated: existingPlan?.aiGenerated || false
       };
       
@@ -530,36 +520,111 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
           </div>
         </motion.div>
 
-        {existingPlan && existingPlan.meals && existingPlan.meals.length > 0 && (
+        {meals && (
           <motion.div variants={itemVariants} className="max-w-4xl mx-auto space-y-6 w-full">
             <Card className="p-6 bg-zinc-50 backdrop-blur-xl  shadow-sm space-y-4">
-              <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
-                <AppleIcon size={16} className="text-emerald-500" /> Plan Alimentaire Généré
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
+                  <AppleIcon size={16} className="text-emerald-500" /> Plan Alimentaire
+                </h3>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setMeals([...meals, { id: Date.now().toString(), name: 'Nouveau Repas', description: '', calories: 0, protein: 0, carbs: 0, fat: 0 }])}
+                  className="!p-1 text-emerald-500 hover:bg-emerald-50"
+                >
+                  <PlusIcon size={16} />
+                </Button>
+              </div>
               <div className="space-y-4">
-                {existingPlan.meals.map((repas: any, idx: number) => {
-                  const mealTotalCals = repas.calories || 0;
-                  const mealTotalProt = repas.protein || 0;
-                  const mealTotalCarbs = repas.carbs || 0;
-                  const mealTotalFat = repas.fat || 0;
-                  
+                {meals.map((repas: Meal, idx: number) => {
                   return (
-                    <div key={idx} className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-2xl p-4 shadow-sm">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-bold text-zinc-900">{repas.name}</h4>
-                        <div className="text-xs font-bold text-zinc-500 bg-zinc-50 backdrop-blur-xl px-2 py-1 rounded-lg border ">
-                          {mealTotalCals} kcal
+                    <div key={repas.id || idx} className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm space-y-3">
+                      <div className="flex justify-between items-center gap-3">
+                        <Input 
+                          value={repas.name} 
+                          onChange={(e) => {
+                            const newMeals = [...meals];
+                            newMeals[idx].name = e.target.value;
+                            setMeals(newMeals);
+                          }}
+                          className="font-bold text-zinc-900 !py-1"
+                        />
+                        <button 
+                          onClick={() => {
+                            const newMeals = [...meals];
+                            newMeals.splice(idx, 1);
+                            setMeals(newMeals);
+                          }}
+                          className="text-red-400 hover:text-red-500 p-1"
+                        >
+                          <Trash2Icon size={16} />
+                        </button>
+                      </div>
+                      
+                      <textarea
+                        value={repas.description}
+                        onChange={(e) => {
+                          const newMeals = [...meals];
+                          newMeals[idx].description = e.target.value;
+                          setMeals(newMeals);
+                        }}
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm text-zinc-600 focus:outline-none focus:border-emerald-500 min-h-[80px]"
+                        placeholder="Description du repas..."
+                      />
+                      
+                      <div className="grid grid-cols-4 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-zinc-500">Kcal</label>
+                          <Input 
+                            type="number" 
+                            value={repas.calories || ''} 
+                            onChange={(e) => {
+                              const newMeals = [...meals];
+                              newMeals[idx].calories = Number(e.target.value);
+                              setMeals(newMeals);
+                            }}
+                            className="!py-1 !text-xs text-center"
+                          />
                         </div>
-                      </div>
-                      
-                      <div className="text-sm text-zinc-500 mb-4 whitespace-pre-wrap">
-                        {repas.description}
-                      </div>
-                      
-                      <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest">
-                        <div className="text-blue-400">Prot: {mealTotalProt}g</div>
-                        <div className="text-emerald-400">Gluc: {mealTotalCarbs}g</div>
-                        <div className="text-orange-400">Lip: {mealTotalFat}g</div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-blue-400">Prot</label>
+                          <Input 
+                            type="number" 
+                            value={repas.protein || ''} 
+                            onChange={(e) => {
+                              const newMeals = [...meals];
+                              newMeals[idx].protein = Number(e.target.value);
+                              setMeals(newMeals);
+                            }}
+                            className="!py-1 !text-xs text-center"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-emerald-400">Gluc</label>
+                          <Input 
+                            type="number" 
+                            value={repas.carbs || ''} 
+                            onChange={(e) => {
+                              const newMeals = [...meals];
+                              newMeals[idx].carbs = Number(e.target.value);
+                              setMeals(newMeals);
+                            }}
+                            className="!py-1 !text-xs text-center"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold uppercase text-orange-400">Lip</label>
+                          <Input 
+                            type="number" 
+                            value={repas.fat || ''} 
+                            onChange={(e) => {
+                              const newMeals = [...meals];
+                              newMeals[idx].fat = Number(e.target.value);
+                              setMeals(newMeals);
+                            }}
+                            className="!py-1 !text-xs text-center"
+                          />
+                        </div>
                       </div>
                     </div>
                   );
@@ -567,18 +632,73 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
               </div>
             </Card>
 
-            {existingPlan.liste_courses && existingPlan.liste_courses.length > 0 && (
-              <Card className="p-6 bg-zinc-50 backdrop-blur-xl  shadow-sm space-y-4">
+            <Card className="p-6 bg-zinc-50 backdrop-blur-xl shadow-sm space-y-4">
+              <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
                   🛒 Liste de Courses
                 </h3>
-                <ul className="list-disc list-inside space-y-1 text-sm text-zinc-500">
-                  {existingPlan.liste_courses.map((item: string, idx: number) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-              </Card>
-            )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      const allChecked = shoppingList.every(i => i.checked);
+                      setShoppingList(shoppingList.map(i => ({ ...i, checked: !allChecked })));
+                    }}
+                    className="!py-1 !px-3 !text-xs text-emerald-600 hover:bg-emerald-50"
+                  >
+                    {shoppingList.length > 0 && shoppingList.every(i => i.checked) ? "Tout décocher" : "Tout cocher"}
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setShoppingList([...shoppingList, { id: Date.now().toString(), name: '', checked: false }])}
+                    className="!p-1 text-emerald-500 hover:bg-emerald-50"
+                  >
+                    <PlusIcon size={16} />
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {shoppingList.map((item, idx) => (
+                  <div key={item.id} className="flex items-center gap-3">
+                    <input 
+                      type="checkbox" 
+                      checked={item.checked} 
+                      onChange={(e) => {
+                        const newList = [...shoppingList];
+                        newList[idx].checked = e.target.checked;
+                        setShoppingList(newList);
+                      }}
+                      className="w-4 h-4 text-emerald-500 rounded border-zinc-300 focus:ring-emerald-500"
+                    />
+                    <Input 
+                      value={item.name} 
+                      onChange={(e) => {
+                        const newList = [...shoppingList];
+                        newList[idx].name = e.target.value;
+                        setShoppingList(newList);
+                      }}
+                      placeholder="Nom de l'aliment"
+                      className="flex-1 !py-1 !text-sm bg-white"
+                    />
+                    <button 
+                      onClick={() => {
+                        const newList = [...shoppingList];
+                        newList.splice(idx, 1);
+                        setShoppingList(newList);
+                      }}
+                      className="text-red-400 hover:text-red-500 p-1"
+                    >
+                      <Trash2Icon size={16} />
+                    </button>
+                  </div>
+                ))}
+                {shoppingList.length === 0 && (
+                  <div className="text-sm text-zinc-500 text-center py-4">
+                    Aucun aliment dans la liste de courses.
+                  </div>
+                )}
+              </div>
+            </Card>
           </motion.div>
         )}
       </motion.div>

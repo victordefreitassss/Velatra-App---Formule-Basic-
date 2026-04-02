@@ -461,7 +461,7 @@ export interface NutritionPlan {
   fat: number;
   
   meals: Meal[];
-  liste_courses?: string[];
+  liste_courses?: { id: string; name: string; checked: boolean }[];
   aiGenerated?: boolean;
   durationWeeks?: number;
 }

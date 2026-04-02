@@ -542,6 +542,102 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
           })}
         </div>
       </Card>
+
+      {/* Generated Plan */}
+      {plan.meals && plan.meals.length > 0 && (
+        <Card className="p-6 bg-zinc-50 shadow-sm space-y-4">
+          <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
+            <AppleIcon size={16} className="text-emerald-500" /> Plan Alimentaire
+          </h3>
+          <div className="space-y-4">
+            {plan.meals.map((repas: any, idx: number) => (
+              <div key={idx} className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm">
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="font-bold text-zinc-900">{repas.name}</h4>
+                  <div className="text-xs font-bold text-zinc-500 bg-zinc-50 px-2 py-1 rounded-lg border">
+                    {repas.calories || 0} kcal
+                  </div>
+                </div>
+                
+                <div className="text-sm text-zinc-500 mb-4 whitespace-pre-wrap">
+                  {repas.description}
+                </div>
+                
+                <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest">
+                  <div className="text-blue-400">Prot: {repas.protein || 0}g</div>
+                  <div className="text-emerald-400">Gluc: {repas.carbs || 0}g</div>
+                  <div className="text-orange-400">Lip: {repas.fat || 0}g</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Shopping List */}
+      {plan.liste_courses && plan.liste_courses.length > 0 && (
+        <Card className="p-6 bg-zinc-50 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
+              🛒 Liste de Courses
+            </h3>
+            {!readOnly && (
+              <Button
+                variant="ghost"
+                onClick={async () => {
+                  const allChecked = plan.liste_courses.every((i: any) => i.checked);
+                  const newList = plan.liste_courses.map((i: any) => ({ ...i, checked: !allChecked }));
+                  try {
+                    const { doc, setDoc } = await import('firebase/firestore');
+                    const { db } = await import('../firebase');
+                    await setDoc(doc(db, "nutritionPlans", plan.id.toString()), {
+                      ...plan,
+                      liste_courses: newList
+                    });
+                  } catch (err) {
+                    console.error(err);
+                    showToast("Erreur lors de la mise à jour de la liste", "error");
+                  }
+                }}
+                className="!py-1 !px-3 !text-xs text-emerald-600 hover:bg-emerald-50"
+              >
+                {plan.liste_courses.every((i: any) => i.checked) ? "Tout décocher" : "Tout cocher"}
+              </Button>
+            )}
+          </div>
+          <div className="space-y-2">
+            {plan.liste_courses.map((item, idx) => (
+              <div key={item.id} className="flex items-center gap-3 p-2 bg-white rounded-xl border border-zinc-200">
+                <input 
+                  type="checkbox" 
+                  checked={item.checked} 
+                  disabled={readOnly}
+                  onChange={async (e) => {
+                    if (readOnly) return;
+                    const newList = [...(plan.liste_courses || [])];
+                    newList[idx].checked = e.target.checked;
+                    try {
+                      const { doc, setDoc } = await import('firebase/firestore');
+                      const { db } = await import('../firebase');
+                      await setDoc(doc(db, "nutritionPlans", plan.id.toString()), {
+                        ...plan,
+                        liste_courses: newList
+                      });
+                    } catch (err) {
+                      console.error(err);
+                      showToast("Erreur lors de la mise à jour de la liste", "error");
+                    }
+                  }}
+                  className="w-5 h-5 text-emerald-500 rounded border-zinc-300 focus:ring-emerald-500"
+                />
+                <span className={`text-sm ${item.checked ? 'text-zinc-400 line-through' : 'text-zinc-900 font-medium'}`}>
+                  {item.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

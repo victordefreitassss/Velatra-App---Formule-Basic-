@@ -561,7 +561,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           carbs: typeof r.glucides === 'number' ? r.glucides : parseInt(r.glucides || "0") || 0,
           fat: typeof r.lipides === 'number' ? r.lipides : parseInt(r.lipides || "0") || 0
         })) || [],
-        liste_courses: plan.liste_courses || [],
+        liste_courses: (plan.liste_courses || []).map((item: string, idx: number) => ({
+          id: Date.now().toString() + 'course' + idx,
+          name: item,
+          checked: false
+        })),
         aiGenerated: true
       };
 
@@ -2779,7 +2783,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 if (!repas) return null;
                 return (
                 <div key={idx} className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 shadow-sm">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center mb-3">
                     <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">{repas.name || `Repas ${idx + 1}`}</h4>
                     <div className="flex items-center gap-3">
                       <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full uppercase tracking-widest">{repas.calories} kcal</span>
@@ -2788,6 +2792,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       <span className="text-[10px] font-black text-yellow-400 bg-yellow-500/10 px-3 py-1 rounded-full uppercase tracking-widest">{repas.fat}g L</span>
                     </div>
                   </div>
+                  <div className="text-sm text-zinc-500 whitespace-pre-wrap">
+                    {repas.description}
+                  </div>
                 </div>
               )})}
             </div>
@@ -2795,10 +2802,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             <h3 className="text-xl font-black text-zinc-900 uppercase italic mb-6">Liste de Courses</h3>
             <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 shadow-sm">
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {nutritionPlan.liste_courses?.map((item: string, idx: number) => (
-                  <li key={idx} className="text-sm text-zinc-600 flex items-center gap-3">
-                    <div className="w-4 h-4 rounded border border-zinc-200 flex items-center justify-center bg-zinc-50"></div>
-                    {item}
+                {nutritionPlan.liste_courses?.map((item: any, idx: number) => (
+                  <li key={item.id || idx} className="text-sm text-zinc-600 flex items-center gap-3">
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${item.checked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-zinc-200 bg-zinc-50'}`}>
+                      {item.checked && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                    </div>
+                    <span className={item.checked ? 'line-through text-zinc-400' : ''}>{item.name || item}</span>
                   </li>
                 ))}
               </ul>

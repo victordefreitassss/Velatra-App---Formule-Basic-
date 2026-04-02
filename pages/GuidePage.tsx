@@ -138,7 +138,7 @@ const FEATURES = [
     description: 'Communiquez facilement avec vos membres, envoyez des rappels et maintenez un lien fort pour garantir leurs résultats.',
     icon: MessageCircleIcon,
     category: 'Communication',
-    image: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+    image: 'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
     details: ['Chat en temps réel', 'Partage de fichiers et médias', 'Notifications push', 'Groupes de discussion'],
     targetPage: 'chat' as Page,
     subTopics: [
