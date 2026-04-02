@@ -86,8 +86,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
 
   const handleConnectStripe = async () => {
     const key = stripeSecretKey.trim();
-    if (!key.startsWith('sk_') && !key.startsWith('rk_')) {
-      showToast("Clé secrète invalide. Elle doit commencer par sk_ ou rk_", "error");
+    if (!key.startsWith('sk') && !key.startsWith('rk')) {
+      showToast("Clé secrète invalide. Elle doit commencer par sk ou rk", "error");
       return;
     }
     setStripeConnected(true);
