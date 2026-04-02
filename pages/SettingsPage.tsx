@@ -39,12 +39,17 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   const handleSave = async () => {
     if (!state.user?.clubId) return;
     setIsSaving(true);
+    
+    const key = stripeSecretKey.trim();
+    const isKeyValid = key.startsWith('sk') || key.startsWith('rk');
+    const finalStripeConnected = stripeConnected || isKeyValid;
+
     try {
       await updateDoc(doc(db, "clubs", state.user.clubId), {
         "settings.defaultProgramDuration": defaultDuration,
         "settings.payment": {
-          stripeConnected,
-          stripeSecretKey,
+          stripeConnected: finalStripeConnected,
+          stripeSecretKey: key,
           acceptedMethods,
           autoCollection: true
         },

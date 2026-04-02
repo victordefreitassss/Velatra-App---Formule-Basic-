@@ -849,21 +849,62 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
-  const isStripeConnected = state.currentClub?.settings?.payment?.stripeConnected;
+  const isStripeConnected = state.currentClub?.settings?.payment?.stripeConnected || 
+    (state.currentClub?.settings?.payment?.stripeSecretKey?.startsWith('sk') || 
+     state.currentClub?.settings?.payment?.stripeSecretKey?.startsWith('rk'));
 
-  const handleCopyPaymentLink = () => {
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+
+  const handleCopyPaymentLink = async () => {
     if (!isStripeConnected) {
-      alert("Veuillez connecter votre compte Stripe dans les Paramètres pour générer des liens de paiement.");
+      showToast("Veuillez connecter votre compte Stripe dans les Paramètres pour générer des liens de paiement.", "error");
       return;
     }
-    navigator.clipboard.writeText("https://buy.stripe.com/test_mock_link");
-    alert("Lien de paiement Stripe copié dans le presse-papier !");
+    
+    const subscription = state.subscriptions?.find(s => s.memberId === Number(selectedProfile?.id) && s.status === 'active');
+    if (!subscription) {
+      showToast("Ce membre n'a pas d'abonnement actif. Veuillez lui assigner une formule d'abord.", "error");
+      return;
+    }
+
+    const plan = state.plans?.find(p => p.id === subscription.planId);
+    if (!plan || !plan.stripePriceId) {
+      showToast("La formule de ce membre n'a pas d'ID Stripe. Veuillez recréer ou modifier la formule dans les paramètres.", "error");
+      return;
+    }
+
+    setIsGeneratingLink(true);
+    try {
+      const stripeSecretKey = state.currentClub?.settings?.payment?.stripeSecretKey;
+      const res = await fetch('/api/stripe/payment-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stripeSecretKey,
+          priceId: plan.stripePriceId
+        })
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Erreur lors de la génération du lien");
+      }
+
+      const data = await res.json();
+      navigator.clipboard.writeText(data.url);
+      showToast("Lien de paiement Stripe généré et copié dans le presse-papier !", "success");
+    } catch (error: any) {
+      console.error("Error generating payment link:", error);
+      showToast(error.message || "Erreur lors de la génération du lien", "error");
+    } finally {
+      setIsGeneratingLink(false);
+    }
   };
 
   const handleRemind = (payment: Payment) => {
     const member = state.users.find(u => Number(u.id) === payment.memberId);
     if (!member || !member.phone) {
-      alert("Ce membre n'a pas de numéro de téléphone enregistré.");
+      showToast("Ce membre n'a pas de numéro de téléphone enregistré.", "error");
       return;
     }
     const paymentLink = isStripeConnected ? " Vous pouvez régler directement via ce lien sécurisé : https://buy.stripe.com/test_mock_link." : "";
@@ -888,9 +929,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     try {
       await setDoc(doc(db, "invoices", id), invoice);
       await updateDoc(doc(db, "payments", payment.id), { invoiceId: id });
-      alert(`Facture ${invoiceNumber} générée avec succès.`);
+      showToast(`Facture ${invoiceNumber} générée avec succès.`, "success");
     } catch (err) {
       console.error(err);
+      showToast("Erreur lors de la génération de la facture.", "error");
     }
   };
 
@@ -1753,8 +1795,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         </div>
                       </div>
                       <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm flex flex-col justify-center">
-                        <Button variant="primary" fullWidth onClick={handleCopyPaymentLink} className="!py-4 mb-3">
-                          <LinkIcon size={16} className="mr-2" /> COPIER LIEN DE PAIEMENT
+                        <Button variant="primary" fullWidth onClick={handleCopyPaymentLink} disabled={isGeneratingLink} className="!py-4 mb-3">
+                          <LinkIcon size={16} className="mr-2" /> {isGeneratingLink ? "GÉNÉRATION..." : "COPIER LIEN DE PAIEMENT"}
                         </Button>
                         <p className="text-[10px] text-zinc-500 text-center">Envoyez ce lien à votre client pour un paiement en ligne sécurisé via Stripe.</p>
                       </div>
