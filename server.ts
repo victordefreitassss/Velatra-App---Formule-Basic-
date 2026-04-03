@@ -10,7 +10,16 @@ app.use(express.json());
 // Initialize Firebase Admin
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   try {
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    // Handle potential escaping issues with Vercel environment variables
+    let serviceAccountStr = process.env.FIREBASE_SERVICE_ACCOUNT;
+    
+    const serviceAccount = JSON.parse(serviceAccountStr);
+    
+    // Fix private key newlines if they were escaped by the environment
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+
     if (!admin.apps.length) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)
