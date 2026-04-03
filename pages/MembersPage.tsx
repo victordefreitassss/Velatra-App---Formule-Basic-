@@ -177,7 +177,29 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const confirmDeleteMember = async () => {
     if (!confirmDeleteMemberId) return;
     try {
+      // 1. Delete from Firestore
       await deleteDoc(doc(db, "users", confirmDeleteMemberId));
+      
+      // 2. Delete from Firebase Auth via our backend API
+      try {
+        const response = await fetch('/api/delete-user', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ uid: confirmDeleteMemberId }),
+        });
+        
+        const data = await response.json();
+        if (!response.ok) {
+          console.warn("Could not delete auth user:", data.error);
+          // We don't throw here because the Firestore doc is already deleted,
+          // which is enough to block their access to the app.
+        }
+      } catch (apiErr) {
+        console.error("Error calling delete-user API:", apiErr);
+      }
+
       showToast("Membre supprimé avec succès");
       setIsEditingInfo(false);
       closeProfile();
@@ -190,8 +212,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleDeleteMember = async () => {
-    if (!selectedProfile || !selectedProfile.firebaseUid) return;
-    setConfirmDeleteMemberId(selectedProfile.firebaseUid);
+    if (!selectedProfile) return;
+    const uid = selectedProfile.firebaseUid || selectedProfile.id?.toString();
+    if (!uid) return;
+    setConfirmDeleteMemberId(uid);
   };
 
   const handleUpdateCredits = async (member: User, amount: number) => {
