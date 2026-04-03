@@ -193,14 +193,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         const data = await response.json();
         if (!response.ok) {
           console.warn("Could not delete auth user:", data.error);
-          // We don't throw here because the Firestore doc is already deleted,
-          // which is enough to block their access to the app.
+          showToast(`Le profil est supprimé, mais le compte de connexion n'a pas pu être supprimé : ${data.error}`, "error");
+        } else {
+          showToast("Membre et compte de connexion supprimés avec succès", "success");
         }
       } catch (apiErr) {
         console.error("Error calling delete-user API:", apiErr);
+        showToast("Erreur de communication avec le serveur pour supprimer le compte", "error");
       }
 
-      showToast("Membre supprimé avec succès");
       setIsEditingInfo(false);
       closeProfile();
     } catch (err) {
