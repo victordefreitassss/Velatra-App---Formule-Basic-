@@ -27,20 +27,10 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
   const [error, setError] = useState<string | null>(null);
   const sigCanvas = useRef<SignatureCanvas>(null);
 
-  const totalSteps = 4;
+  const totalSteps = 2;
 
   const handleNext = () => {
-    if (step === 3) {
-      const hasSignatureInCanvas = sigCanvas.current && !sigCanvas.current.isEmpty();
-      if (hasSignatureInCanvas) {
-        setSignature(sigCanvas.current.getCanvas().toDataURL('image/png'));
-        setStep(4);
-      } else if (signature) {
-        setStep(4);
-      } else {
-        setError("Veuillez signer le contrat avant de continuer.");
-      }
-    } else if (step < totalSteps) {
+    if (step < totalSteps) {
       setStep(step + 1);
     }
   };
@@ -194,88 +184,6 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
             />
           </motion.div>
         );
-      case 3:
-        return (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
-          >
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-display font-bold text-zinc-900 mb-2">Contrat & Engagement</h2>
-              <p className="text-zinc-500">Veuillez lire et signer votre contrat d'adhésion.</p>
-            </div>
-            
-            {!hasPlanAssigned ? (
-              <div className="bg-orange-500/10 border border-orange-500/20 p-6 rounded-2xl text-center">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                  <FileTextIcon size={24} className="text-orange-500" />
-                </div>
-                <h3 className="text-lg font-bold text-zinc-900 mb-2">En attente de votre formule</h3>
-                <p className="text-zinc-500 text-sm">Votre coach est en train de préparer votre formule sur mesure. Vous pourrez signer votre contrat et procéder au paiement une fois celle-ci attribuée.</p>
-              </div>
-            ) : (
-              <>
-                <Card className="p-6 bg-white border border-zinc-200 h-48 overflow-y-auto text-sm text-zinc-500 mb-6">
-                  <h3 className="font-bold text-zinc-900 mb-2">Conditions Générales - {planName}</h3>
-                  <p className="mb-2">En signant ce document, vous acceptez les conditions générales de vente et le règlement intérieur du club {club?.name || 'VELATRA'}.</p>
-                  <p className="mb-2">Vous souscrivez à la formule <strong>{planName}</strong> au tarif de <strong>{planPrice}€ {planBillingCycle === 'monthly' ? '/mois' : planBillingCycle === 'yearly' ? '/an' : ''}</strong>, {commitmentText}.</p>
-                  <p className="mb-2">Vous vous engagez à respecter le matériel, les autres membres et le personnel.</p>
-                  <p>L'abonnement est souscrit pour la durée choisie lors du paiement et est soumis à tacite reconduction sauf résiliation selon les termes prévus.</p>
-                </Card>
-                <div>
-                  <label className="block text-sm font-bold text-zinc-500 mb-2">Votre signature :</label>
-                  <div className="border-2 border-dashed border-zinc-200 rounded-2xl bg-white overflow-hidden">
-                    <SignatureCanvas 
-                      ref={sigCanvas}
-                      penColor="#18181b"
-                      canvasProps={{className: 'w-full h-40'}}
-                      onEnd={() => {
-                        if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
-                          setSignature(sigCanvas.current.getCanvas().toDataURL('image/png'));
-                          setError(null);
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="flex justify-between items-center mt-2">
-                    {error && step === 3 && <span className="text-xs text-red-500">{error}</span>}
-                    <button onClick={clearSignature} className="text-xs text-zinc-500 hover:text-zinc-900 underline ml-auto">Effacer</button>
-                  </div>
-                </div>
-              </>
-            )}
-          </motion.div>
-        );
-      case 4:
-        return (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-6 text-center"
-          >
-            <div className="w-20 h-20 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CreditCardIcon size={40} />
-            </div>
-            <h2 className="text-3xl font-display font-bold text-zinc-900 mb-2">Dernière étape !</h2>
-            <p className="text-zinc-500 mb-8">Procédez au paiement sécurisé pour activer votre compte et commencer votre transformation.</p>
-            
-            <Card className="p-6 border-2 border-emerald-500 bg-emerald-500/5 max-w-md mx-auto mb-8">
-              <div className="flex justify-between items-center mb-4">
-                <span className="font-bold text-zinc-900">{planName}</span>
-                <span className="text-2xl font-black text-emerald-500">{planPrice}€<span className="text-sm text-zinc-500 font-normal">{planBillingCycle === 'monthly' ? '/mois' : planBillingCycle === 'yearly' ? '/an' : ''}</span></span>
-              </div>
-              <ul className="text-left text-sm text-zinc-500 space-y-2">
-                <li className="flex items-center gap-2"><CheckIcon size={16} className="text-emerald-500" /> Accès au club</li>
-                <li className="flex items-center gap-2"><CheckIcon size={16} className="text-emerald-500" /> {commitmentText}</li>
-              </ul>
-            </Card>
-
-            {error && <div className="text-red-500 text-sm mb-4">{error}</div>}
-          </motion.div>
-        );
       default:
         return null;
     }
@@ -312,17 +220,17 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
             {step < totalSteps ? (
               <Button 
                 onClick={handleNext} 
-                disabled={(step === 1 && objectives.length === 0) || (step === 3 && !hasPlanAssigned)}
+                disabled={(step === 1 && objectives.length === 0)}
               >
                 Continuer <ArrowRightIcon size={20} className="ml-2" />
               </Button>
             ) : (
               <Button 
-                onClick={handleCheckout} 
+                onClick={finishOnboarding} 
                 disabled={isProcessing}
                 className="bg-emerald-500 text-zinc-900 hover:bg-emerald-500/90"
               >
-                {isProcessing ? 'Traitement...' : 'Payer et Commencer'} <CreditCardIcon size={20} className="ml-2" />
+                {isProcessing ? 'Traitement...' : 'Terminer'} <CheckIcon size={20} className="ml-2" />
               </Button>
             )}
           </div>
