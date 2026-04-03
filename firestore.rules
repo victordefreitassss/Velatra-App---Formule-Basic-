@@ -46,12 +46,13 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isOwner(userId) || isSameClub(resource.data.clubId) || isSuperAdmin() || isSuperAdminEmail();
       allow create: if isAuthenticated();
-      allow update: if isOwner(userId) || isAdmin() || isSuperAdminEmail();
+      allow update: if isOwner(userId) || (isAdmin() && isSameClub(resource.data.clubId)) || isSuperAdmin() || isSuperAdminEmail();
       allow delete: if isSuperAdmin() || isSuperAdminEmail();
     }
 
     match /clubs/{clubId} {
-      allow read: if isAuthenticated();
+      allow get: if true;
+      allow list: if isAuthenticated();
       allow write: if isSuperAdmin() || isSuperAdminEmail() || (isAdmin() && isSameClub(clubId));
     }
 
