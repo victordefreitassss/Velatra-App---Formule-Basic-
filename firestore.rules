@@ -47,7 +47,7 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isSameClub(resource.data.clubId) || isSuperAdmin() || isSuperAdminEmail();
       allow create: if isAuthenticated();
       allow update: if isOwner(userId) || (isAdmin() && isSameClub(resource.data.clubId)) || isSuperAdmin() || isSuperAdminEmail();
-      allow delete: if isSuperAdmin() || isSuperAdminEmail();
+      allow delete: if isSuperAdmin() || isSuperAdminEmail() || (isAdmin() && isSameClub(resource.data.clubId));
     }
 
     match /clubs/{clubId} {
