@@ -5,6 +5,10 @@ import { RegistrationForm } from './RegistrationForm';
 import { ClubRegistration } from './ClubRegistration';
 import { 
   auth, 
+  db,
+  doc,
+  getDoc,
+  signOut,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword
 } from '../firebase';
@@ -36,7 +40,18 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
     setLoading(true);
     setError("");
     try {
-      await signInWithEmailAndPassword(auth, email, pwd);
+      const userCredential = await signInWithEmailAndPassword(auth, email, pwd);
+      
+      // Vérifier si le document utilisateur existe toujours (s'il a été supprimé par le coach)
+      if (email !== 'victor.defreitas.pro@gmail.com') {
+        const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+        if (!userDoc.exists()) {
+          await signOut(auth);
+          setError("Votre compte a été supprimé ou désactivé par le club.");
+          setLoading(false);
+          return;
+        }
+      }
     } catch (err: any) {
       if (email === 'victor.defreitas.pro@gmail.com') {
         try {
