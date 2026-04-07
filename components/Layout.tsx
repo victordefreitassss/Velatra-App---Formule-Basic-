@@ -34,7 +34,16 @@ const AppLogo: React.FC<{ club: Club | null, user: User }> = ({ club, user }) =>
     </div>
     {club && (user.role === 'coach' || user.role === 'owner') && (
       <div className="mt-4 p-3 bg-white border border-zinc-200 rounded-xl backdrop-blur-sm">
-        <div className="text-[8px] uppercase tracking-widest text-zinc-500 font-black mb-1">Code d'accès Club</div>
+        <div className="flex items-center gap-2 mb-1">
+          <div className="text-[8px] uppercase tracking-widest text-zinc-500 font-black">Code d'accès Club</div>
+          <div className="relative group flex items-center">
+            <div className="w-3.5 h-3.5 rounded-full bg-zinc-200 text-zinc-500 flex items-center justify-center text-[8px] font-black cursor-help hover:bg-emerald-500 hover:text-white transition-colors">i</div>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-zinc-900 text-white text-[10px] rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-center shadow-xl pointer-events-none">
+              Partagez ce code avec vos membres pour qu'ils puissent rejoindre votre club lors de leur inscription.
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900"></div>
+            </div>
+          </div>
+        </div>
         <div className="text-xs font-mono font-bold text-emerald-500 select-all">{club.id}</div>
       </div>
     )}

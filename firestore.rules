@@ -57,7 +57,7 @@ service cloud.firestore {
     }
 
     match /driveFiles/{fileId} {
-      allow read: if isAuthenticated() && (isSameClub(resource.data.clubId) || resource.data.sharedWith.hasAny([getUserData().id]) || isSuperAdminEmail());
+      allow read: if isAuthenticated() && (isSameClub(resource.data.clubId) || ('sharedWith' in resource.data && resource.data.sharedWith.hasAny([getUserData().id])) || isSuperAdminEmail());
       allow create: if isAuthenticated() && (isSameClub(request.resource.data.clubId) || isSuperAdminEmail());
       allow update: if isAuthenticated() && ((isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin())) || isSuperAdminEmail());
       allow delete: if isAuthenticated() && ((isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin())) || isSuperAdminEmail());
@@ -68,6 +68,11 @@ service cloud.firestore {
       allow create: if isAuthenticated() && (isSameClub(request.resource.data.clubId) || isSuperAdminEmail());
       allow update: if isAuthenticated() && ((isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin())) || isSuperAdminEmail());
       allow delete: if isAuthenticated() && ((isSameClub(resource.data.clubId) && (isOwner(resource.data.createdBy) || isAdmin())) || isSuperAdminEmail());
+    }
+
+    match /exercises/{exerciseId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin() || isSuperAdminEmail() || (isAdmin() && isSameClub(resource.data.clubId));
     }
 
     // Default rule for all other collections

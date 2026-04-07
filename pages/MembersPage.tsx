@@ -5,7 +5,7 @@ import { AppState, User, Performance, BodyData, Program, Gender, Goal, Subscript
 import { Card, Button, Input, Badge } from '../components/UI';
 import { 
   SearchIcon, InfoIcon, 
-  XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon
+  XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon, MailIcon
 } from '../components/Icons';
 import { db, doc, setDoc, updateDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage, addDoc } from '../firebase';
 import { uploadBytesResumable, deleteObject } from 'firebase/storage';
@@ -70,6 +70,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
   const [isDetectingStagnation, setIsDetectingStagnation] = useState(false);
   const [stagnationResult, setStagnationResult] = useState<any>(null);
+  const [showOnboardingEmailModal, setShowOnboardingEmailModal] = useState(false);
+  const [onboardingEmailData, setOnboardingEmailData] = useState({ paymentLink: '', contractLink: '' });
+  const [isSendingOnboardingEmail, setIsSendingOnboardingEmail] = useState(false);
   const [isGeneratingProgram, setIsGeneratingProgram] = useState(false);
   const [isAdjustingTargets, setIsAdjustingTargets] = useState(false);
   const [nutritionTargets, setNutritionTargets] = useState({ calories: 2000, protein: 150, carbs: 200, fat: 70 });
@@ -89,6 +92,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     if (u.role !== 'member') return false;
     if (!u.name?.toLowerCase().includes(search.toLowerCase())) return false;
     
+    if (filter === "En pause") return u.status === 'paused';
+    
+    // Exclude paused members from other specific filters
+    if (filter !== "Tous" && u.status === 'paused') return false;
+
     if (filter === "Actifs") return u.lastWorkoutDate && (new Date().getTime() - new Date(u.lastWorkoutDate).getTime()) < 30 * 24 * 60 * 60 * 1000;
     if (filter === "Inactifs") return !u.lastWorkoutDate || (new Date().getTime() - new Date(u.lastWorkoutDate).getTime()) >= 30 * 24 * 60 * 60 * 1000;
     if (filter === "Avec Programme") return state.programs.some(p => p.memberId === Number(u.id) && !p.isPlannedSession);
@@ -217,6 +225,28 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     const uid = selectedProfile.firebaseUid || selectedProfile.id?.toString();
     if (!uid) return;
     setConfirmDeleteMemberId(uid);
+  };
+
+  const handleTogglePauseMember = async () => {
+    if (!selectedProfile || !selectedProfile.firebaseUid) return;
+    const newStatus = selectedProfile.status === 'paused' ? 'active' : 'paused';
+    
+    try {
+      await updateDoc(doc(db, "users", selectedProfile.firebaseUid), {
+        status: newStatus
+      });
+      
+      setSelectedProfile({ ...selectedProfile, status: newStatus });
+      setState((s: AppState) => ({
+        ...s,
+        users: s.users.map(u => u.id === selectedProfile.id ? { ...u, status: newStatus } : u)
+      }));
+      
+      showToast(newStatus === 'paused' ? "Profil mis en pause" : "Profil réactivé", "success");
+    } catch (err) {
+      console.error("Error toggling pause status:", err);
+      showToast("Erreur lors de la modification du statut", "error");
+    }
   };
 
   const handleUpdateCredits = async (member: User, amount: number) => {
@@ -698,6 +728,47 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     } catch (err) {
       console.error("Error assigning subscription", err);
       showToast("Erreur lors de l'assignation", "error");
+    }
+  };
+
+  const handleSendOnboardingEmail = async () => {
+    if (!selectedProfile || !selectedProfile.email) {
+      showToast("Le membre n'a pas d'adresse email renseignée.", "error");
+      return;
+    }
+    
+    if (!onboardingEmailData.paymentLink || !onboardingEmailData.contractLink) {
+      showToast("Veuillez renseigner le lien de paiement et le lien du contrat.", "error");
+      return;
+    }
+
+    setIsSendingOnboardingEmail(true);
+    try {
+      const response = await fetch('/api/send-onboarding-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: selectedProfile.email,
+          memberName: selectedProfile.name,
+          paymentLink: onboardingEmailData.paymentLink,
+          contractLink: onboardingEmailData.contractLink,
+          clubName: state.currentClub?.name || 'Velatra'
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        showToast("Email envoyé avec succès !", "success");
+        setShowOnboardingEmailModal(false);
+        setOnboardingEmailData({ paymentLink: '', contractLink: '' });
+      } else {
+        showToast(data.error || "Erreur lors de l'envoi de l'email.", "error");
+      }
+    } catch (err) {
+      console.error("Error sending onboarding email:", err);
+      showToast("Erreur de connexion au serveur.", "error");
+    } finally {
+      setIsSendingOnboardingEmail(false);
     }
   };
 
@@ -1196,7 +1267,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         </div>
         
         <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
-          {["Tous", "Demande de Plan", "Actifs", "Inactifs", "Avec Programme", "Sans Programme"].map(f => (
+          {["Tous", "Demande de Plan", "Actifs", "Inactifs", "En pause", "Avec Programme", "Sans Programme"].map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -1231,6 +1302,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   <div className="flex-1">
                     <div className="font-black text-lg text-zinc-900 leading-none mb-2 uppercase tracking-tight">{u.name}</div>
                     <div className="flex flex-wrap gap-2">
+                      {u.status === 'paused' && <Badge variant="dark" className="!bg-zinc-800 !text-white !border-zinc-800 !p-1 !text-[8px]">EN PAUSE</Badge>}
                       <Badge variant="dark" className="!bg-zinc-50 !backdrop-blur-xl \!text-zinc-500 \!border-zinc-200 !p-1 !text-[8px]">{stats.perfs.length} PR</Badge>
                       {hasFeedback && <Badge variant="orange" className="!bg-orange-500/10 !text-orange-500 !border-orange-500/20 !p-1 !text-[8px] animate-pulse">FEEDBACK</Badge>}
                       {u.planRequested && <Badge variant="orange" className="!bg-orange-500/10 !text-orange-500 !border-orange-500/20 !p-1 !text-[8px] animate-pulse">DEMANDE PLAN</Badge>}
@@ -1357,7 +1429,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     >
                       <Edit2Icon size={16} />
                     </button>
-                    <h2 className="text-3xl font-black text-zinc-900 uppercase italic tracking-tighter">{selectedProfile.name}</h2>
+                    <h2 className="text-3xl font-black text-zinc-900 uppercase italic tracking-tighter flex items-center justify-center gap-2">
+                      {selectedProfile.name}
+                      {selectedProfile.status === 'paused' && <Badge variant="dark" className="!bg-zinc-800 !text-white !border-zinc-800 !px-2 !py-0.5 !text-[10px] not-italic">EN PAUSE</Badge>}
+                    </h2>
                     <Badge variant="accent" className="mt-3 !px-4 !py-1.5">ÉVOLUTION</Badge>
                   </div>
 
@@ -1642,9 +1717,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             </div>
                           </div>
                         ) : (
-                          <button onClick={() => setIsAssigningPlan(true)} className="w-full border border-dashed  text-zinc-500 hover:text-zinc-900 hover:border-zinc-300 rounded-3xl py-4 text-[10px] font-black uppercase tracking-widest transition-colors">
-                            + Assigner une formule
-                          </button>
+                          <div className="space-y-2">
+                            <button onClick={() => setIsAssigningPlan(true)} className="w-full border border-dashed  text-zinc-500 hover:text-zinc-900 hover:border-zinc-300 rounded-3xl py-4 text-[10px] font-black uppercase tracking-widest transition-colors">
+                              + Assigner une formule
+                            </button>
+                            <button onClick={() => setShowOnboardingEmailModal(true)} className="w-full bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 rounded-3xl py-4 text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
+                              <MailIcon size={14} /> ENVOYER CONTRAT & PAIEMENT
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}
@@ -2463,7 +2543,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 ENREGISTRER <CheckIcon size={18} className="ml-2" />
               </Button>
             </div>
-            <div className="pt-2 shrink-0">
+            <div className="pt-2 shrink-0 flex flex-col gap-2">
+              <Button 
+                variant="secondary" 
+                fullWidth 
+                onClick={handleTogglePauseMember} 
+                className={selectedProfile?.status === 'paused' ? "!bg-emerald-500/10 !text-emerald-600 hover:!bg-emerald-500/20" : "!bg-orange-500/10 !text-orange-600 hover:!bg-orange-500/20"}
+              >
+                {selectedProfile?.status === 'paused' ? "RÉACTIVER LE PROFIL" : "METTRE EN PAUSE"}
+              </Button>
               <Button variant="secondary" fullWidth onClick={handleDeleteMember} className="!bg-red-500/10 !text-red-500 hover:!bg-red-500/20">
                 SUPPRIMER LE MEMBRE
               </Button>
@@ -2842,6 +2930,67 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       )}
       </AnimatePresence>,
       document.body
+      )}
+
+      {showOnboardingEmailModal && selectedProfile && createPortal(
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-zinc-50 rounded-3xl p-8 max-w-md w-full shadow-2xl border"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-black text-zinc-900 uppercase italic tracking-tight">Envoyer Contrat & Paiement</h3>
+                <p className="text-sm text-zinc-500">À : {selectedProfile.email}</p>
+              </div>
+              <button onClick={() => setShowOnboardingEmailModal(false)} className="p-2 bg-zinc-100 rounded-full hover:bg-zinc-200 text-zinc-500 transition-colors">
+                <XIcon size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-indigo-500/10 text-indigo-600 p-4 rounded-2xl text-[10px] flex items-start gap-2 border border-indigo-500/20">
+                <InfoIcon size={14} className="shrink-0 mt-0.5" />
+                <p>Un email automatique sera envoyé au membre avec les liens ci-dessous pour finaliser son inscription.</p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Lien de paiement (Stripe)</label>
+                <Input 
+                  type="url" 
+                  placeholder="https://buy.stripe.com/..." 
+                  value={onboardingEmailData.paymentLink} 
+                  onChange={e => setOnboardingEmailData({...onboardingEmailData, paymentLink: e.target.value})} 
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Lien du contrat (DocuSign, Yousign...)</label>
+                <Input 
+                  type="url" 
+                  placeholder="https://..." 
+                  value={onboardingEmailData.contractLink} 
+                  onChange={e => setOnboardingEmailData({...onboardingEmailData, contractLink: e.target.value})} 
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <Button variant="secondary" fullWidth onClick={() => setShowOnboardingEmailModal(false)}>Annuler</Button>
+                <Button 
+                  variant="primary" 
+                  fullWidth 
+                  onClick={handleSendOnboardingEmail}
+                  disabled={isSendingOnboardingEmail || !onboardingEmailData.paymentLink || !onboardingEmailData.contractLink}
+                  className="bg-indigo-500 hover:bg-indigo-600 border-indigo-500 text-white"
+                >
+                  {isSendingOnboardingEmail ? "ENVOI..." : "ENVOYER L'EMAIL"}
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>,
+        document.body
       )}
 
       {showNutritionLog && selectedProfile && createPortal(
