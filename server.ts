@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import admin from "firebase-admin";
+import nodemailer from "nodemailer";
 
 const app = express();
 const PORT = parseInt(process.env.PORT as string) || 3000;
@@ -36,6 +37,72 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 // API routes FIRST
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+// Endpoint to send onboarding email (Contract & Payment)
+app.post("/api/send-onboarding-email", async (req, res) => {
+  try {
+    const { email, memberName, paymentLink, contractLink, clubName } = req.body;
+
+    if (!email || !paymentLink || !contractLink) {
+      return res.status(400).json({ error: "Email, lien de paiement et lien de contrat sont requis." });
+    }
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM || '"Velatra" <noreply@velatra.com>',
+      to: email,
+      subject: `Finalisez votre inscription chez ${clubName || 'Velatra'}`,
+      html: `
+        <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto; color: #18181b;">
+          <h2 style="color: #18181b;">Bonjour ${memberName},</h2>
+          <p>Bienvenue chez <strong>${clubName || 'Velatra'}</strong> ! Votre profil a été validé par votre coach.</p>
+          <p>Pour finaliser votre inscription et démarrer votre accompagnement, veuillez compléter les deux étapes ci-dessous :</p>
+          
+          <div style="margin: 30px 0; padding: 20px; background-color: #f4f4f5; border-radius: 12px;">
+            <h3 style="margin-top: 0; color: #18181b;">1. Signature du contrat</h3>
+            <p style="color: #52525b;">Veuillez lire et signer numériquement votre contrat d'engagement :</p>
+            <a href="${contractLink}" style="display: inline-block; padding: 12px 24px; background-color: #10B981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px;">Signer le contrat</a>
+          </div>
+
+          <div style="margin: 30px 0; padding: 20px; background-color: #f4f4f5; border-radius: 12px;">
+            <h3 style="margin-top: 0; color: #18181b;">2. Paiement de l'abonnement</h3>
+            <p style="color: #52525b;">Veuillez configurer votre moyen de paiement sécurisé via Stripe :</p>
+            <a href="${paymentLink}" style="display: inline-block; padding: 12px 24px; background-color: #6366F1; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px;">Régler mon abonnement</a>
+          </div>
+
+          <p style="margin-top: 40px;">À très vite !</p>
+          <p style="font-weight: bold;">L'équipe ${clubName || 'Velatra'}</p>
+        </div>
+      `
+    };
+
+    // If SMTP is not configured, simulate the email send (useful for testing/preview)
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+      console.warn("SMTP credentials missing. Simulating email send.");
+      console.log("--- SIMULATED EMAIL ---");
+      console.log("To:", email);
+      console.log("Content:", mailOptions.html);
+      console.log("-----------------------");
+      return res.json({ success: true, simulated: true, message: "Email simulé avec succès (identifiants SMTP manquants)" });
+    }
+
+    // Configure transporter with real credentials
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || "smtp.gmail.com",
+      port: parseInt(process.env.SMTP_PORT || "587"),
+      secure: process.env.SMTP_SECURE === "true",
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    await transporter.sendMail(mailOptions);
+    res.json({ success: true, message: "Email envoyé avec succès" });
+  } catch (error: any) {
+    console.error("Error sending email:", error);
+    res.status(500).json({ error: error.message || "Failed to send email" });
+  }
 });
 
 // Endpoint to delete a user from Firebase Auth

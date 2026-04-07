@@ -102,6 +102,7 @@ export interface User {
   pointsFidelite: number;
   planRequested?: boolean;
   firebaseUid?: string;
+  status?: 'active' | 'paused';
   integrations?: {
     appleHealth?: boolean;
     myFitnessPal?: boolean;

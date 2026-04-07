@@ -126,7 +126,16 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, 
               <Input type="password" placeholder="••••••••" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
             </div>
             <div className="space-y-1">
-              <label className="text-[9px] font-black uppercase text-zinc-500 tracking-widest ml-1">Code d'accès du club (6 chiffres)</label>
+              <div className="flex items-center gap-2 ml-1">
+                <label className="text-[9px] font-black uppercase text-zinc-500 tracking-widest">Code d'accès du club (6 chiffres)</label>
+                <div className="relative group flex items-center">
+                  <div className="w-4 h-4 rounded-full bg-zinc-200 text-zinc-500 flex items-center justify-center text-[10px] font-black cursor-help hover:bg-emerald-500 hover:text-white transition-colors">i</div>
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-zinc-900 text-white text-[10px] rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-center shadow-xl pointer-events-none">
+                    Demandez ce code à 6 caractères à votre coach ou à l'accueil de votre club pour lier votre compte.
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900"></div>
+                  </div>
+                </div>
+              </div>
               <Input placeholder="Ex: 482910" value={formData.clubId} onChange={e => setFormData({...formData, clubId: e.target.value.toUpperCase()})} />
             </div>
             <Button fullWidth onClick={nextStep} className="!py-4" disabled={!formData.email || !formData.password || formData.password.length < 6 || !formData.name || !formData.clubId}>CONTINUER</Button>
