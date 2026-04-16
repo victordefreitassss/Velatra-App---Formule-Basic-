@@ -26,6 +26,31 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
   const [isEditingGoal, setIsEditingGoal] = useState(false);
   const [newGoal, setNewGoal] = useState(state.currentClub?.settings?.finances?.monthlyGoal || 5000);
   const [isAnnual, setIsAnnual] = useState(false);
+  const [dateFilter, setDateFilter] = useState<'30d' | '7d' | 'thisMonth' | 'thisYear' | 'all'>('30d');
+
+  // Helper for date filtering
+  const isWithinDateFilter = (dateString: string) => {
+    if (dateFilter === 'all') return true;
+    const itemDate = new Date(dateString).getTime();
+    const now = new Date();
+    const todayMillis = now.getTime();
+    
+    if (dateFilter === '7d') {
+      return itemDate >= todayMillis - 7 * 24 * 60 * 60 * 1000;
+    }
+    if (dateFilter === '30d') {
+      return itemDate >= todayMillis - 30 * 24 * 60 * 60 * 1000;
+    }
+    if (dateFilter === 'thisMonth') {
+      const d = new Date(dateString);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }
+    if (dateFilter === 'thisYear') {
+      const d = new Date(dateString);
+      return d.getFullYear() === now.getFullYear();
+    }
+    return true;
+  };
 
   // Derived Data
   const activeSubscriptions = state.subscriptions.filter(s => s.status === 'active');
@@ -37,20 +62,32 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
   
   const arpu = activeSubscriptions.length > 0 ? mrr / activeSubscriptions.length : 0;
 
-  const totalRevenue = state.payments.filter(p => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0);
-  const pendingPayments = state.payments.filter(p => p.status === 'pending').reduce((acc, p) => acc + p.amount, 0);
-  const totalExpenses = state.expenses.reduce((acc, e) => acc + e.amount, 0);
+  const filteredPayments = state.payments.filter(p => isWithinDateFilter(p.date));
+  const filteredExpensesList = state.expenses.filter(e => isWithinDateFilter(e.date));
+
+  const totalRevenue = filteredPayments.filter(p => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0);
+  const pendingPayments = filteredPayments.filter(p => p.status === 'pending').reduce((acc, p) => acc + p.amount, 0);
+  // Fixed costs are monthly. Depending on date filter, we might just estimate or exclude. Keep simple for now and add directly to total expenses.
+  const totalMonthlyFixedCosts = (state.fixedCosts || []).reduce((acc, cost) => acc + cost.amount, 0);
+  
+  // Adjust fixed costs based on timeframe for accurate UI
+  let applicableFixedCosts = totalMonthlyFixedCosts;
+  if (dateFilter === '7d') applicableFixedCosts = (totalMonthlyFixedCosts / 30) * 7;
+  else if (dateFilter === 'thisYear') applicableFixedCosts = totalMonthlyFixedCosts * (new Date().getMonth() + 1); // rough estimate
+  else if (dateFilter === 'all') applicableFixedCosts = totalMonthlyFixedCosts * 12; // just an arbitrary year scaling
+
+  const totalExpenses = filteredExpensesList.reduce((acc, e) => acc + e.amount, 0) + applicableFixedCosts;
   const netProfit = totalRevenue - totalExpenses;
 
   // TVA Calculations
-  const tvaCollected = state.payments.reduce((acc, payment) => {
+  const tvaCollected = filteredPayments.reduce((acc, payment) => {
     if (payment.status !== 'paid') return acc;
     const rate = payment.vatRate || 20;
     const ht = payment.amount / (1 + rate / 100);
     return acc + (payment.amount - ht);
   }, 0);
 
-  const tvaDeductible = state.expenses.reduce((acc, expense) => {
+  const tvaDeductible = filteredExpensesList.reduce((acc, expense) => {
     const rate = expense.vatRate || 20;
     const ht = expense.amount / (1 + rate / 100);
     return acc + (expense.amount - ht);
@@ -66,11 +103,12 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
   const projectedRevenue = mrr + (state.payments.filter(p => p.category === 'coaching' || p.category === 'boutique').reduce((acc, p) => acc + p.amount, 0) / 3); // Rough estimate: MRR + average monthly one-off sales
 
   const filteredExpenses = state.expenses.filter(e => {
-    if (!e.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    if (!isWithinDateFilter(e.date)) return false;
+    if (searchTerm && !e.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // Generate chart data based on real payments and expenses
+  // Generate chart data based on real payments and expenses (unfiltered by date to show history)
   const chartData = useMemo(() => {
     const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
     const currentMonth = new Date().getMonth();
@@ -115,7 +153,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
       other: { name: 'Autre', value: 0, color: '#A1A1AA' }
     };
 
-    state.payments.filter(p => p.status === 'paid').forEach(p => {
+    filteredPayments.filter(p => p.status === 'paid').forEach(p => {
       const cat = p.category || 'other';
       if (categories[cat]) {
         categories[cat].value += p.amount;
@@ -125,7 +163,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
     });
 
     return Object.values(categories).filter(c => c.value > 0);
-  }, [state.payments]);
+  }, [filteredPayments]);
 
   const handleExportCSV = () => {
     const csvRows = [];
@@ -145,8 +183,8 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
     const formatNum = (num: number) => num.toFixed(2).replace('.', ',');
 
     const allTransactions = [
-      ...state.payments.map(p => ({ ...p, type: 'Revenu', dateObj: new Date(p.date) })),
-      ...state.expenses.map(e => ({ ...e, type: 'Dépense', dateObj: new Date(e.date) }))
+      ...filteredPayments.map(p => ({ ...p, type: 'Revenu', dateObj: new Date(p.date) })),
+      ...filteredExpensesList.map(e => ({ ...e, type: 'Dépense', dateObj: new Date(e.date) }))
     ].sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
 
     allTransactions.forEach(t => {
@@ -253,8 +291,8 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
     const tableData: any[] = [];
     
     const allTransactions = [
-      ...state.payments.filter(p => p.status === 'paid').map(p => ({ ...p, type: 'Revenu', dateObj: new Date(p.date) })),
-      ...state.expenses.map(e => ({ ...e, type: 'Dépense', dateObj: new Date(e.date) }))
+      ...filteredPayments.filter(p => p.status === 'paid').map(p => ({ ...p, type: 'Revenu', dateObj: new Date(p.date) })),
+      ...filteredExpensesList.map(e => ({ ...e, type: 'Dépense', dateObj: new Date(e.date) }))
     ].sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
 
     allTransactions.forEach(t => {
@@ -513,6 +551,18 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             <button onClick={() => setActiveTab('expenses')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'expenses' ? 'bg-white text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Dépenses</button>
             <button onClick={() => setActiveTab('plans')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'plans' ? 'bg-white text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Formules</button>
           </div>
+          
+          <select 
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value as any)}
+            className="bg-white border border-zinc-200 text-zinc-900 px-4 py-2.5 rounded-xl text-sm font-medium hover:border-zinc-300 focus:outline-none focus:border-zinc-500 transition-colors"
+          >
+            <option value="7d">7 derniers jours</option>
+            <option value="30d">30 derniers jours</option>
+            <option value="thisMonth">Ce mois-ci</option>
+            <option value="thisYear">Cette année</option>
+            <option value="all">Historique complet</option>
+          </select>
         </div>
       </div>
 
@@ -739,7 +789,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-800">
-                  {state.payments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(payment => {
+                  {filteredPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(payment => {
                     const member = state.users.find(u => Number(u.id) === payment.memberId);
                     return (
                       <tr key={payment.id} className="hover:bg-white transition-colors">

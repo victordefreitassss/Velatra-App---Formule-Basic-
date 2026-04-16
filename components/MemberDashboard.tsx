@@ -388,12 +388,14 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
               <FlameIcon size={16} className="text-orange-500" /> État Musculaire
             </h3>
             <div className="flex gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-500"></div>Fatigué</div>
-              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-orange-500"></div>En récup</div>
-              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500"></div>Frais</div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-400"></div>Fatigué</div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-400"></div>En récup</div>
+              <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-400"></div>Frais</div>
             </div>
           </div>
-          <BodyHeatmap muscleData={muscleData} />
+          <div className="py-2">
+            <BodyHeatmap muscleData={muscleData} />
+          </div>
         </div>
       </motion.section>
 

@@ -4,7 +4,7 @@ import { AppState, CRMClient, CRMFormula, ManualStats, PendingProspect } from '.
 import { db, doc, setDoc, updateDoc, deleteDoc } from '../firebase';
 import { 
   BarChart2, Users, Clock, Settings, Plus, Search, Trash2, Edit2, 
-  Copy, CheckCircle, XCircle, AlertCircle, Calendar, DollarSign, Phone, PhoneCall, PhoneForwarded, Upload
+  Copy, CheckCircle, XCircle, AlertCircle, Calendar, DollarSign, Phone, PhoneCall, PhoneForwarded, Upload, MessageCircle, Mail
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -282,7 +282,10 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     const id = pendingForm.id || generateId();
     const pending: PendingProspect = {
       id, clubId,
+      name: pendingForm.name || '',
       email: pendingForm.email || '',
+      phone: pendingForm.phone || '',
+      notes: pendingForm.notes || '',
       createdAt: pendingForm.createdAt || new Date().toISOString(),
       reminderDate: pendingForm.reminderDate || new Date().toISOString(),
       status: pendingForm.status || 'PENDING',
@@ -340,7 +343,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     <div className="p-6 max-w-7xl mx-auto space-y-8 page-transition pb-24">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-display font-bold text-zinc-900 tracking-tight">ProspectFlow <span className="text-emerald-500">Manager</span></h1>
+          <h1 className="text-4xl font-display font-bold text-zinc-900 tracking-tight">Prospects</h1>
           <p className="text-zinc-500 mt-1">Gérez vos prospects, analysez vos appels et convertissez plus.</p>
         </div>
         
@@ -572,8 +575,11 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
           {isAddingPending && (
             <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 shadow-2xl">
               <form onSubmit={savePending} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input required type="text" placeholder="Nom du prospect" value={pendingForm.name || ''} onChange={e => setPendingForm({...pendingForm, name: e.target.value})} className="bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
                 <input required type="email" placeholder="Email du prospect" value={pendingForm.email || ''} onChange={e => setPendingForm({...pendingForm, email: e.target.value})} className="bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
+                <input type="tel" placeholder="Téléphone (optionnel)" value={pendingForm.phone || ''} onChange={e => setPendingForm({...pendingForm, phone: e.target.value})} className="bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
                 <input required type="date" value={pendingForm.reminderDate ? format(new Date(pendingForm.reminderDate), 'yyyy-MM-dd') : ''} onChange={e => setPendingForm({...pendingForm, reminderDate: new Date(e.target.value).toISOString()})} className="bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors" />
+                <textarea placeholder="Notes (optionnel)" value={pendingForm.notes || ''} onChange={e => setPendingForm({...pendingForm, notes: e.target.value})} className="md:col-span-2 bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors min-h-[80px]" />
                 <div className="md:col-span-2 flex justify-end gap-2 mt-2 sticky bottom-0 bg-zinc-50 pb-2 pt-2 z-10 border-t border-zinc-200">
                   <button type="button" onClick={() => setIsAddingPending(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 font-medium">Annuler</button>
                   <button type="submit" className="bg-emerald-500 text-zinc-900 px-6 py-2 rounded-xl font-medium hover:bg-emerald-600 transition-colors shadow-[0_0_15px_rgba(16,185,129,0.4)]">Enregistrer</button>
@@ -582,35 +588,110 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {state.pendingProspects
-              .filter(p => p.email.toLowerCase().includes(searchPending.toLowerCase()))
-              .map(prospect => {
-              const isOverdue = isBefore(new Date(prospect.reminderDate), new Date()) && prospect.status === 'PENDING';
-              return (
-                <div key={prospect.id} className={`bg-zinc-50 border rounded-2xl p-5 shadow-2xl ${isOverdue ? 'border-red-500/30 bg-red-500/5' : ''}`}>
-                  <div className="flex justify-between items-start mb-3">
-                    <h3 className="font-bold text-zinc-900 truncate pr-4">{prospect.email}</h3>
-                    {isOverdue && <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />}
-                  </div>
-                  <div className="space-y-2 text-sm text-zinc-500 mb-4">
-                    <p>Ajouté le: {format(new Date(prospect.createdAt), 'dd/MM/yyyy')}</p>
-                    <p className={isOverdue ? 'text-red-400 font-medium' : ''}>Rappel: {format(new Date(prospect.reminderDate), 'dd/MM/yyyy')}</p>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${prospect.status === 'CONTACTED' ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'}`}>
-                      {prospect.status === 'CONTACTED' ? 'Contacté' : 'En attente'}
-                    </span>
-                    <div className="flex gap-2">
-                      {prospect.status === 'PENDING' && (
-                        <button onClick={() => { setPendingForm({...prospect, status: 'CONTACTED'}); savePending({preventDefault: () => {}} as any); }} className="text-green-400 hover:bg-green-500/20 p-2 rounded-lg transition-colors"><CheckCircle className="w-4 h-4" /></button>
-                      )}
-                      <button onClick={() => deletePending(prospect.id)} className="text-red-400 hover:bg-red-500/20 p-2 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+            {/* Colonne À contacter */}
+            <div className="bg-zinc-100/50 rounded-2xl p-3 md:p-4">
+              <div className="flex items-center justify-between mb-3 md:mb-4">
+                <h3 className="font-bold text-zinc-900 text-sm md:text-base">À contacter</h3>
+                <span className="bg-zinc-200 text-zinc-600 px-2 py-1 rounded-full text-xs font-medium">
+                  {state.pendingProspects.filter(p => p.status === 'PENDING' && p.email.toLowerCase().includes(searchPending.toLowerCase())).length}
+                </span>
+              </div>
+              <div className="space-y-3 md:space-y-4">
+                {state.pendingProspects
+                  .filter(p => p.status === 'PENDING' && p.email.toLowerCase().includes(searchPending.toLowerCase()))
+                  .map(prospect => {
+                  const isOverdue = isBefore(new Date(prospect.reminderDate), new Date());
+                  return (
+                    <div key={prospect.id} className={`bg-white border rounded-2xl p-3 md:p-5 shadow-sm ${isOverdue ? 'border-red-500/30 bg-red-500/5' : ''}`}>
+                      <div className="flex justify-between items-start mb-2 md:mb-3">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-bold text-zinc-900 truncate pr-2 text-sm md:text-base">{prospect.name || prospect.email}</h3>
+                          {prospect.name && <p className="text-[10px] md:text-xs text-zinc-500 truncate">{prospect.email}</p>}
+                        </div>
+                        {isOverdue && <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-red-400 flex-shrink-0 ml-2" />}
+                      </div>
+                      <div className="space-y-1.5 md:space-y-2 text-xs md:text-sm text-zinc-500 mb-3 md:mb-4">
+                        {prospect.phone && <p className="flex items-center gap-1.5 md:gap-2"><Phone className="w-3 h-3" /> {prospect.phone}</p>}
+                        <p>Ajouté le: {format(new Date(prospect.createdAt), 'dd/MM/yyyy')}</p>
+                        <p className={isOverdue ? 'text-red-400 font-medium' : ''}>Rappel: {format(new Date(prospect.reminderDate), 'dd/MM/yyyy')}</p>
+                        {prospect.notes && <p className="text-[10px] md:text-xs italic bg-zinc-50 p-1.5 md:p-2 rounded-lg border border-zinc-100 mt-1.5 md:mt-2 line-clamp-2 md:line-clamp-none">{prospect.notes}</p>}
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-[10px] md:text-xs font-medium border bg-yellow-500/20 text-yellow-600 border-yellow-500/30">
+                          En attente
+                        </span>
+                        <div className="flex gap-1 md:gap-2">
+                          {prospect.phone && (
+                            <a href={`https://wa.me/${prospect.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="text-emerald-500 hover:bg-emerald-500/10 p-1.5 md:p-2 rounded-lg transition-colors" title="WhatsApp">
+                              <MessageCircle className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                            </a>
+                          )}
+                          <a href={`mailto:${prospect.email}`} className="text-indigo-500 hover:bg-indigo-500/10 p-1.5 md:p-2 rounded-lg transition-colors" title="Email">
+                            <Mail className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          </a>
+                          <button onClick={async () => { 
+                            await updateDoc(doc(db, 'pendingProspects', prospect.id), { status: 'CONTACTED' });
+                          }} className="text-green-500 hover:bg-green-500/20 p-1.5 md:p-2 rounded-lg transition-colors" title="Marquer comme contacté">
+                            <CheckCircle className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          </button>
+                          <button onClick={() => deletePending(prospect.id)} className="text-red-400 hover:bg-red-500/20 p-1.5 md:p-2 rounded-lg transition-colors" title="Supprimer">
+                            <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Colonne Contactés */}
+            <div className="bg-zinc-100/50 rounded-2xl p-3 md:p-4 opacity-75 hover:opacity-100 transition-opacity">
+              <div className="flex items-center justify-between mb-3 md:mb-4">
+                <h3 className="font-bold text-zinc-900 text-sm md:text-base">Contactés</h3>
+                <span className="bg-zinc-200 text-zinc-600 px-2 py-1 rounded-full text-xs font-medium">
+                  {state.pendingProspects.filter(p => p.status === 'CONTACTED' && p.email.toLowerCase().includes(searchPending.toLowerCase())).length}
+                </span>
+              </div>
+              <div className="space-y-3 md:space-y-4">
+                {state.pendingProspects
+                  .filter(p => p.status === 'CONTACTED' && p.email.toLowerCase().includes(searchPending.toLowerCase()))
+                  .map(prospect => {
+                  return (
+                    <div key={prospect.id} className="bg-white border rounded-2xl p-3 md:p-5 shadow-sm">
+                      <div className="flex justify-between items-start mb-2 md:mb-3">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-bold text-zinc-900 truncate pr-2 text-sm md:text-base">{prospect.name || prospect.email}</h3>
+                          {prospect.name && <p className="text-[10px] md:text-xs text-zinc-500 truncate">{prospect.email}</p>}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5 md:space-y-2 text-xs md:text-sm text-zinc-500 mb-3 md:mb-4">
+                        {prospect.phone && <p className="flex items-center gap-1.5 md:gap-2"><Phone className="w-3 h-3" /> {prospect.phone}</p>}
+                        <p>Ajouté le: {format(new Date(prospect.createdAt), 'dd/MM/yyyy')}</p>
+                        {prospect.notes && <p className="text-[10px] md:text-xs italic bg-zinc-50 p-1.5 md:p-2 rounded-lg border border-zinc-100 mt-1.5 md:mt-2 line-clamp-2 md:line-clamp-none">{prospect.notes}</p>}
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-[10px] md:text-xs font-medium border bg-green-500/20 text-green-600 border-green-500/30">
+                          Contacté
+                        </span>
+                        <div className="flex gap-1 md:gap-2">
+                          <button onClick={async () => { 
+                            await updateDoc(doc(db, 'pendingProspects', prospect.id), { status: 'PENDING' });
+                          }} className="text-yellow-500 hover:bg-yellow-500/20 p-1.5 md:p-2 rounded-lg transition-colors" title="Remettre en attente">
+                            <Clock className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          </button>
+                          <button onClick={() => deletePending(prospect.id)} className="text-red-400 hover:bg-red-500/20 p-1.5 md:p-2 rounded-lg transition-colors" title="Supprimer">
+                            <Trash2 className="w-3.5 h-3.5 md:w-4 md:h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {state.pendingProspects.length === 0 && (
               <div className="col-span-full text-center py-10 text-zinc-500">Aucun prospect en attente.</div>
             )}

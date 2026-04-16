@@ -110,7 +110,7 @@ const FEATURES = [
   },
   {
     id: 'crm',
-    title: 'CRM & ProspectFlow',
+    title: 'CRM & Prospects',
     description: 'Transformez vos prospects en clients fidèles grâce à un tunnel de vente optimisé et un suivi client irréprochable.',
     icon: TargetIcon,
     category: 'Business',

@@ -50,6 +50,7 @@ import { MarketingPage } from './pages/MarketingPage';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { MemberSupplementsPage } from './pages/MemberSupplementsPage';
 import { DrivePage } from './pages/DrivePage';
+import { EvolutionGalleryPage } from './pages/EvolutionGalleryPage';
 import { GuidePage } from './pages/GuidePage';
 import { Onboarding } from './components/Onboarding';
 
@@ -88,6 +89,7 @@ const INITIAL_STATE: AppState = {
   bookings: [],
   driveFiles: [],
   driveFolders: [],
+  progressPhotos: [],
   notifications: [],
   aboutInfo: CLUB_INFO,
   coaches: COACHES,
@@ -740,13 +742,19 @@ export default function App() {
       setState(prev => ({ ...prev, notifications }));
     });
 
+    const unsubProgressPhotos = onSnapshot(query(collection(db, "progressPhotos"), where("clubId", "==", clubId)), (snap) => {
+      const progressPhotos: ProgressPhoto[] = [];
+      snap.forEach(d => progressPhotos.push({ id: d.id, ...d.data() } as ProgressPhoto));
+      setState(prev => ({ ...prev, progressPhotos }));
+    });
+
     return () => {
       unsubClub(); unsubUsers(); unsubProgs(); unsubPresets(); 
       unsubArchives(); unsubPerfs(); unsubProducts(); unsubOrders();
       unsubLogs(); unsubMessages(); unsubFeed(); unsubBody();
       unsubProspects(); unsubNewsletters(); unsubExercises();
       unsubTasks(); unsubBookings(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubFixedCosts(); unsubNutritionPlans(); unsubNutritionLogs();
-      unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects(); unsubDriveFiles(); unsubDriveFolders(); unsubNotifications();
+      unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects(); unsubDriveFiles(); unsubDriveFolders(); unsubNotifications(); unsubProgressPhotos();
     };
   }, [state.user?.clubId]);
 
@@ -860,6 +868,7 @@ export default function App() {
       case 'messages': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
       case 'supplements': return <MemberSupplementsPage state={state} showToast={showToast} />;
       case 'drive': return <DrivePage state={state} />;
+      case 'evolution': return <EvolutionGalleryPage state={state} setState={setState} showToast={showToast} />;
       default: return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
     }
   };
