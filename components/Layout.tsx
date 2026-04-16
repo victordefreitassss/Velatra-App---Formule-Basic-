@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { User, Page, Club } from '../types';
 import { 
   HomeIcon, UsersIcon, LayersIcon, BarChartIcon, 
-  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon, FolderIcon, PlayCircleIcon, UserIcon, ActivityIcon, BellIcon
+  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon, FolderIcon, PlayCircleIcon, UserIcon, ActivityIcon, BellIcon, ImageIcon
 } from './Icons';
 import { Timer } from './Timer';
 
@@ -64,7 +64,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Bibliothèque' },
     { id: 'drive', icon: FolderIcon, label: 'Drive', category: 'Bibliothèque' },
     { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances', category: 'Business' },
-    { id: 'crm_pipeline', icon: TargetIcon, label: 'ProspectFlow', category: 'Business' },
+    { id: 'crm_pipeline', icon: TargetIcon, label: 'Prospects', category: 'Business' },
     { id: 'marketing', icon: MegaphoneIcon, label: 'Marketing', category: 'Business' },
     { id: 'guide', icon: InfoIcon, label: 'Guide', category: 'Paramètres' },
     { id: 'about', icon: InfoIcon, label: 'Club', category: 'Paramètres' },
@@ -80,6 +80,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Plus' },
     { id: 'drive', icon: FolderIcon, label: 'Documents', category: 'Plus' },
     { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', category: 'Plus' },
+    { id: 'evolution', icon: ImageIcon, label: 'Évolution', category: 'Plus' },
     { id: 'profile', icon: UserIcon, label: 'Profil', category: 'Plus' },
     { id: 'about', icon: InfoIcon, label: 'Club', category: 'Plus' },
   ];

@@ -627,28 +627,64 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
       <AnimatePresence>
         {restTimer !== null && (
           <motion.div 
-            initial={{ y: 100, opacity: 0, x: '-50%' }}
-            animate={{ y: 0, opacity: 1, x: '-50%' }}
-            exit={{ y: 100, opacity: 0, x: '-50%' }}
-            className="fixed bottom-24 left-1/2 bg-zinc-900 text-white px-6 py-3 rounded-full shadow-2xl z-[150] flex items-center gap-4 border border-zinc-800"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="fixed inset-0 bg-zinc-900 z-[200] flex flex-col items-center justify-center p-6"
           >
-            <div className="flex items-center gap-3">
-              <div className={`w-2.5 h-2.5 rounded-full ${restTimer === 0 ? 'bg-red-500 animate-pulse' : 'bg-emerald-500 animate-pulse'}`} />
-              <span className="font-mono font-black text-2xl tracking-widest w-20 text-center">
-                {Math.floor(restTimer / 60).toString().padStart(2, '0')}:{(restTimer % 60).toString().padStart(2, '0')}
-              </span>
-            </div>
-            <div className="flex items-center gap-1 border-l border-zinc-700 pl-4">
-              <button onClick={() => setRestTimer(prev => prev !== null ? prev + 30 : 30)} className="px-2 py-1 text-[10px] font-bold text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition-colors">+30s</button>
-              <button onClick={() => setIsTimerActive(!isTimerActive)} className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-emerald-500">
-                {isTimerActive ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                )}
+            <div className="absolute top-8 right-8">
+              <button 
+                onClick={() => { setRestTimer(null); setIsTimerActive(false); }} 
+                className="p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+              >
+                <XIcon size={32} />
               </button>
-              <button onClick={() => { setRestTimer(null); setIsTimerActive(false); }} className="p-2 hover:bg-zinc-800 rounded-full transition-colors text-zinc-400 hover:text-white">
-                <XIcon size={18} />
+            </div>
+
+            <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md">
+              <h2 className="text-2xl font-black text-zinc-400 uppercase tracking-widest mb-12">Temps de repos</h2>
+              
+              <div className="relative flex items-center justify-center mb-16">
+                <svg className="absolute w-[320px] h-[320px] -rotate-90">
+                  <circle cx="160" cy="160" r="150" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
+                  <motion.circle 
+                    cx="160" cy="160" r="150" 
+                    fill="none" 
+                    stroke={restTimer === 0 ? "#ef4444" : "#10b981"} 
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    initial={{ strokeDasharray: "942", strokeDashoffset: "0" }}
+                    animate={{ strokeDashoffset: restTimer === 0 ? 0 : (1 - (restTimer % 60) / 60) * 942 }}
+                    transition={{ duration: 1, ease: "linear" }}
+                  />
+                </svg>
+                <div className="text-center z-10">
+                  <span className={`font-mono font-black text-8xl tracking-tighter ${restTimer === 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                    {Math.floor(restTimer / 60).toString().padStart(2, '0')}:{(restTimer % 60).toString().padStart(2, '0')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 w-full">
+                <button 
+                  onClick={() => setRestTimer(prev => prev !== null ? prev + 30 : 30)} 
+                  className="py-6 bg-zinc-800 hover:bg-zinc-700 rounded-3xl text-white font-black text-xl uppercase tracking-wider transition-colors"
+                >
+                  +30 SEC
+                </button>
+                <button 
+                  onClick={() => setIsTimerActive(!isTimerActive)} 
+                  className={`py-6 rounded-3xl text-white font-black text-xl uppercase tracking-wider transition-colors ${isTimerActive ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+                >
+                  {isTimerActive ? 'PAUSE' : 'REPRENDRE'}
+                </button>
+              </div>
+              
+              <button 
+                onClick={() => { setRestTimer(null); setIsTimerActive(false); }}
+                className="mt-8 py-6 w-full bg-white text-zinc-900 rounded-3xl font-black text-2xl uppercase tracking-wider hover:bg-zinc-200 transition-colors"
+              >
+                PASSER LE REPOS
               </button>
             </div>
           </motion.div>

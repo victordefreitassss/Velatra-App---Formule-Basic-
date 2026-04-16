@@ -424,7 +424,7 @@ export interface Newsletter {
   author: string;
 }
 
-export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "community" | "coaching" | "notifications" | "guide";
+export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "community" | "coaching" | "notifications" | "guide" | "evolution";
 
 export type ActivityLevel = "Sédentaire" | "Légèrement actif" | "Modérément actif" | "Très actif" | "Extrêmement actif";
 
@@ -531,7 +531,10 @@ export interface DailyLog {
 export interface PendingProspect {
   id: string;
   clubId: string;
+  name?: string;
   email: string;
+  phone?: string;
+  notes?: string;
   createdAt: string;
   reminderDate: string;
   status: 'PENDING' | 'CONTACTED';
@@ -582,6 +585,26 @@ export interface Product {
   imageUrl?: string;
 }
 
+export interface ProgressPhoto {
+  id: string;
+  clubId: string;
+  memberId: number;
+  date: string;
+  frontUrl?: string;
+  sideUrl?: string;
+  backUrl?: string;
+  weight?: number;
+  visibility?: 'private' | 'coach';
+  measurements?: {
+    chest?: number;
+    waist?: number;
+    hips?: number;
+    arm?: number;
+    thigh?: number;
+    calf?: number;
+  };
+}
+
 export interface AppState {
   user: User | null;
   currentClub: Club | null;
@@ -617,6 +640,7 @@ export interface AppState {
   bookings: Booking[];
   driveFiles: DriveFile[];
   driveFolders: DriveFolder[];
+  progressPhotos: ProgressPhoto[];
   notifications: Notification[];
   aboutInfo: ClubInfo;
   coaches: CoachInfo[];

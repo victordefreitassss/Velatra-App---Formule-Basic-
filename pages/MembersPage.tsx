@@ -5,7 +5,7 @@ import { AppState, User, Performance, BodyData, Program, Gender, Goal, Subscript
 import { Card, Button, Input, Badge } from '../components/UI';
 import { 
   SearchIcon, InfoIcon, 
-  XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon, MailIcon
+  XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon, MailIcon, ImageIcon, SparklesIcon
 } from '../components/Icons';
 import { db, doc, setDoc, updateDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage, addDoc } from '../firebase';
 import { uploadBytesResumable, deleteObject } from 'firebase/storage';
@@ -37,6 +37,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [filter, setFilter] = useState(state.memberFilter || "Tous");
   const [selectedProfile, setSelectedProfile] = useState<User | null>(state.selectedMember || null);
   const [selectedLog, setSelectedLog] = useState<SessionLog | null>(null);
+  const [selectedEvolutionPhoto, setSelectedEvolutionPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     if (state.memberFilter) {
@@ -477,13 +478,41 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
+  const [isAIGeneratorModalOpen, setIsAIGeneratorModalOpen] = useState(false);
+  const [aiGeneratorParams, setAiGeneratorParams] = useState({ 
+    nbDays: 3, 
+    goals: '', 
+    intensity: 'Normal', 
+    extraNotes: '',
+    includeWarmup: false,
+    includeCardioFinisher: false,
+    includeCoreFocus: false,
+    timeConstraint: ''
+  });
+
+  const openAIGeneratorModal = () => {
+    if (!selectedProfile) return;
+    setAiGeneratorParams({
+      nbDays: selectedProfile.trainingDays || 3,
+      goals: (selectedProfile.objectifs || []).join(', ') || '',
+      intensity: 'Normal',
+      extraNotes: '',
+      includeWarmup: false,
+      includeCardioFinisher: false,
+      includeCoreFocus: false,
+      timeConstraint: ''
+    });
+    setIsAIGeneratorModalOpen(true);
+  };
+
   const handleGenerateProgram = async () => {
     if (!selectedProfile) return;
     setIsGeneratingProgram(true);
+    setIsAIGeneratorModalOpen(false);
     try {
       const { generateSportsProgram } = await import('../services/aiService');
       
-      const generatedData = await generateSportsProgram(selectedProfile, state.exercises);
+      const generatedData = await generateSportsProgram(selectedProfile, state.exercises, aiGeneratorParams);
       
       const validDays = (generatedData.days || []).map((day: any) => ({
         ...day,
@@ -519,7 +548,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         return { ...prev, editingProg: newProg };
       });
       
-      showToast("Programme généré avec succès", "success");
+      showToast("Programme généré ! Vous pouvez maintenant le modifier et l'enregistrer.", "success");
       closeProfile();
     } catch (error: any) {
       console.error("Erreur génération programme:", error);
@@ -1732,10 +1761,93 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
                   <div className="space-y-4">
                     <div className="flex items-center justify-between px-1">
+                       <h3 className="text-[10px] font-black uppercase tracking-[4px] text-emerald-500">Évolution</h3>
+                    </div>
+                    {(() => {
+                      const memberPhotos = state.progressPhotos?.filter(p => p.memberId === Number(selectedProfile.id) && p.visibility === 'coach') || [];
+                      const photosByDate = memberPhotos.reduce((acc, photo) => {
+                        const date = photo.date.split('T')[0];
+                        if (!acc[date]) acc[date] = photo;
+                        return acc;
+                      }, {} as Record<string, import('../types').ProgressPhoto>);
+                      const sortedDates = Object.keys(photosByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+                      const latestDate = sortedDates[0];
+                      const latestPhoto = latestDate ? photosByDate[latestDate] : null;
+
+                      if (!latestPhoto) {
+                        return (
+                          <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm text-center">
+                            <ImageIcon size={24} className="mx-auto text-zinc-300 mb-2" />
+                            <p className="text-xs text-zinc-500 font-medium">Aucune photo partagée.</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm space-y-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <span className="font-black text-zinc-900 text-sm uppercase">Dernières photos</span>
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase">{new Date(latestDate).toLocaleDateString()}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 mb-4">
+                            {['frontUrl', 'sideUrl', 'backUrl'].map((type) => {
+                              const url = (latestPhoto as any)[type];
+                              return (
+                                <div key={type} className="aspect-[3/4] bg-zinc-200 rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity" onClick={() => url && setSelectedEvolutionPhoto(url)}>
+                                  {url ? (
+                                    <img src={url} alt={type} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-zinc-400">
+                                      <ImageIcon size={16} />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                          {latestPhoto.measurements && Object.keys(latestPhoto.measurements).length > 0 && (
+                            <div className="bg-white rounded-2xl p-4 border border-zinc-200">
+                              <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">Mensurations (cm)</h4>
+                              <div className="grid grid-cols-3 gap-y-3 gap-x-2">
+                                {[
+                                  { key: 'chest', label: 'Poitrine' },
+                                  { key: 'waist', label: 'Taille' },
+                                  { key: 'hips', label: 'Hanches' },
+                                  { key: 'arm', label: 'Bras' },
+                                  { key: 'thigh', label: 'Cuisse' },
+                                  { key: 'calf', label: 'Mollet' }
+                                ].map(m => latestPhoto.measurements?.[m.key as keyof NonNullable<ProgressPhoto['measurements']>] ? (
+                                  <div key={m.key}>
+                                    <div className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider">{m.label}</div>
+                                    <div className="text-sm font-black text-zinc-900">{latestPhoto.measurements[m.key as keyof NonNullable<ProgressPhoto['measurements']>] || '--'}</div>
+                                  </div>
+                                ) : null)}
+                              </div>
+                            </div>
+                          )}
+
+                          {sortedDates.length > 1 && (
+                            <div className="text-center pt-2">
+                              <span className="text-[10px] font-bold text-zinc-500 uppercase">{sortedDates.length} dates disponibles</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between px-1">
                        <h3 className="text-[10px] font-black uppercase tracking-[4px] text-emerald-500">Plan Actif</h3>
-                       <button onClick={() => handleEditProgram(selectedProfile)} className="text-zinc-500 hover:text-zinc-900 transition-colors">
-                          <LayersIcon size={14} />
-                       </button>
+                       <div className="flex gap-2">
+                         <button onClick={openAIGeneratorModal} disabled={isGeneratingProgram} className={`text-emerald-500 hover:text-emerald-600 transition-colors ${isGeneratingProgram ? 'animate-pulse cursor-not-allowed' : ''}`} title="Générer avec l'IA">
+                            <SparklesIcon size={14} />
+                         </button>
+                         <button onClick={() => handleEditProgram(selectedProfile)} className="text-zinc-500 hover:text-zinc-900 transition-colors" title="Créer / Modifier">
+                            <LayersIcon size={14} />
+                         </button>
+                       </div>
                     </div>
                     {stats.program ? (
                       <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 shadow-sm relative overflow-hidden">
@@ -1772,9 +1884,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     ) : (
                       <div className="bg-zinc-50 rounded-3xl p-8 border border-dashed  text-center">
                          <p className="text-xs italic text-zinc-900 mb-4">Aucun cycle en cours</p>
-                         <Button variant="primary" fullWidth onClick={() => handleEditProgram(selectedProfile)} className="!py-3 !text-[10px]">
-                            CRÉER UN PROGRAMME
-                         </Button>
+                         <div className="flex flex-col gap-2">
+                           <Button variant="primary" fullWidth onClick={() => handleEditProgram(selectedProfile)} className="!py-3 !text-[10px]">
+                              CRÉER MANUELLEMENT
+                           </Button>
+                           <Button variant="secondary" fullWidth onClick={openAIGeneratorModal} disabled={isGeneratingProgram} className={`!py-3 !text-[10px] bg-gradient-to-r from-emerald-500/10 to-emerald-600/10 text-emerald-600 hover:from-emerald-500/20 hover:to-emerald-600/20 shadow-sm border-none transition-all ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                             <SparklesIcon size={14} className="mr-2 inline" />
+                             {isGeneratingProgram ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER VIA IA'}
+                           </Button>
+                         </div>
                       </div>
                     )}
                   </div>
@@ -1812,15 +1930,17 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
                             <LayersIcon size={16} className="text-emerald-500" /> Génération Programme
                           </h4>
-                          <p className="text-[10px] text-zinc-500 mb-4 leading-relaxed">Générez un programme d'entraînement complet et sur-mesure basé sur les objectifs et le niveau du membre.</p>
-                          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 mb-6">
-                            <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest text-center">
-                              Bientôt disponible
-                            </p>
-                          </div>
+                          <p className="text-[10px] text-zinc-500 mb-6 leading-relaxed">Générez un programme d'entraînement complet et sur-mesure basé sur les objectifs et le niveau du membre.</p>
                         </div>
-                        <Button variant="secondary" fullWidth disabled className="!py-3 !text-[10px] !rounded-xl relative z-10 border-emerald-500/30 !bg-emerald-500/10 !text-emerald-500 opacity-70 cursor-not-allowed">
-                          LA GÉNÉRATION DE PROGRAMME SERA BIENTÔT DISPONIBLE
+                        <Button 
+                          variant="secondary" 
+                          fullWidth 
+                          onClick={openAIGeneratorModal} 
+                          disabled={isGeneratingProgram} 
+                          className={`!py-3 !text-[10px] !rounded-xl relative z-10 border-emerald-500/30 !bg-emerald-500/10 !text-emerald-500 hover:!bg-emerald-500/20 transition-all ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                          <SparklesIcon size={14} className="mr-2 inline" />
+                          {isGeneratingProgram ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER VIA IA'}
                         </Button>
                       </div>
 
@@ -2375,6 +2495,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 </div>
               </div>
               </ErrorBoundary>
+
             </motion.div>
           </motion.div>
         );
@@ -3123,6 +3244,127 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               <Button variant="danger" fullWidth onClick={confirmDeleteMember}>Supprimer</Button>
             </div>
           </motion.div>
+        </div>,
+        document.body
+      )}
+
+      <AnimatePresence>
+        {selectedEvolutionPhoto && createPortal(
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
+            onClick={() => setSelectedEvolutionPhoto(null)}
+          >
+            <button 
+              className="absolute top-6 right-6 text-white/50 hover:text-white transition-colors"
+              onClick={() => setSelectedEvolutionPhoto(null)}
+            >
+              <XIcon size={32} />
+            </button>
+            <img src={selectedEvolutionPhoto} alt="Evolution" className="max-w-full max-h-full object-contain rounded-lg" />
+          </motion.div>,
+          document.body
+        )}
+      </AnimatePresence>
+
+      {/* AI GENERATOR MODAL */}
+      {isAIGeneratorModalOpen && selectedProfile && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+            <div className="flex justify-between items-center mb-6 relative z-10">
+              <h3 className="text-lg font-black text-zinc-900 uppercase italic flex items-center gap-2">
+                <BotIcon size={20} className="text-emerald-500" /> Paramètres IA
+              </h3>
+              <button onClick={() => setIsAIGeneratorModalOpen(false)} className="text-zinc-400 hover:text-zinc-900">
+                <XIcon size={20} />
+              </button>
+            </div>
+            
+            <div className="space-y-4 relative z-10">
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1 ml-1">Jours d'entraînement / sem</label>
+                <Input type="number" min="1" max="7" value={aiGeneratorParams.nbDays} onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, nbDays: Number(e.target.value)})} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1 ml-1">Objectifs (séparés par des virgules)</label>
+                <Input type="text" value={aiGeneratorParams.goals} onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, goals: e.target.value})} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1 ml-1">Intensité de la programmation</label>
+                <select 
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-medium"
+                  value={aiGeneratorParams.intensity} 
+                  onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, intensity: e.target.value})}
+                >
+                  <option value="Normal">Normale (Séries classiques)</option>
+                  <option value="Supersets / Bisets (Haute densité)">Supersets / Bisets (Haute densité)</option>
+                  <option value="Trisets / Giant sets (Intensité extrême)">Trisets / Giant sets (Intensité extrême)</option>
+                  <option value="Dropsets / Rest-pause (Hypertrophie max)">Dropsets / Rest-pause (Hypertrophie max)</option>
+                  <option value="Force (Temps de repos longs)">Force (Temps de repos longs)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1 ml-1">Instructions supplémentaires</label>
+                <textarea 
+                  placeholder="Ex: Éviter les mouvements avec haltères lourds, accent sur les fessiers..."
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-medium min-h-[80px]"
+                  value={aiGeneratorParams.extraNotes}
+                  onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, extraNotes: e.target.value})}
+                />
+              </div>
+
+              <div className="pt-2">
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 ml-1">Options supplémentaires</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${aiGeneratorParams.includeWarmup ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100'}`}>
+                    <input type="checkbox" className="hidden" checked={aiGeneratorParams.includeWarmup} onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, includeWarmup: e.target.checked})} />
+                    <div className={`w-4 h-4 rounded shadow-sm border flex shrink-0 items-center justify-center transition-all ${aiGeneratorParams.includeWarmup ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-zinc-300'}`}>
+                      {aiGeneratorParams.includeWarmup && <CheckIcon size={12} className="text-white" />}
+                    </div>
+                    <span className="text-[9px] font-bold text-zinc-900 uppercase">Échauffement / Mobilité</span>
+                  </label>
+                  
+                  <label className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${aiGeneratorParams.includeCardioFinisher ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100'}`}>
+                    <input type="checkbox" className="hidden" checked={aiGeneratorParams.includeCardioFinisher} onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, includeCardioFinisher: e.target.checked})} />
+                    <div className={`w-4 h-4 rounded shadow-sm border flex shrink-0 items-center justify-center transition-all ${aiGeneratorParams.includeCardioFinisher ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-zinc-300'}`}>
+                      {aiGeneratorParams.includeCardioFinisher && <CheckIcon size={12} className="text-white" />}
+                    </div>
+                    <span className="text-[9px] font-bold text-zinc-900 uppercase">Finisher Cardio</span>
+                  </label>
+                  
+                  <label className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${aiGeneratorParams.includeCoreFocus ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100'}`}>
+                    <input type="checkbox" className="hidden" checked={aiGeneratorParams.includeCoreFocus} onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, includeCoreFocus: e.target.checked})} />
+                    <div className={`w-4 h-4 rounded shadow-sm border flex shrink-0 items-center justify-center transition-all ${aiGeneratorParams.includeCoreFocus ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-zinc-300'}`}>
+                      {aiGeneratorParams.includeCoreFocus && <CheckIcon size={12} className="text-white" />}
+                    </div>
+                    <span className="text-[9px] font-bold text-zinc-900 uppercase">Focus Abdos</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1 ml-1">Durée cible de la séance</label>
+                <select 
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-medium"
+                  value={aiGeneratorParams.timeConstraint} 
+                  onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, timeConstraint: e.target.value})}
+                >
+                  <option value="">Celle du profil ({selectedProfile.sessionDuration || 60}m)</option>
+                  <option value="30">-30 min (Séance Flash)</option>
+                  <option value="45">-45 min (Express)</option>
+                  <option value="60">~60 min (Classique)</option>
+                  <option value="90">+90 min (Volume important / Force)</option>
+                </select>
+              </div>
+              
+              <Button variant="primary" fullWidth onClick={handleGenerateProgram} className="!py-4 !mt-6 shadow-xl shadow-emerald-500/20 text-xs">
+                <SparklesIcon size={16} className="mr-2 inline" /> LANCER LA GÉNÉRATION
+              </Button>
+            </div>
+          </div>
         </div>,
         document.body
       )}
