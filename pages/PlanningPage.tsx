@@ -360,27 +360,31 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
 
               if (bookingForSlot) {
                 const isMyBooking = bookingForSlot.memberId === Number(state.user?.id);
+                const isProspectTrial = bookingForSlot.type === 'trial';
                 const member = state.users.find(u => Number(u.id) === bookingForSlot.memberId);
+                const prospect = isProspectTrial && bookingForSlot.prospectId ? state.prospects?.find(p => p.id === bookingForSlot.prospectId) : null;
                 
-                const bgColor = isCoach ? 'bg-zinc-50 text-zinc-900 shadow-lg' : (isMyBooking ? 'bg-emerald-500 text-zinc-900 shadow-lg shadow-emerald-500/20' : 'bg-white text-zinc-500 border border-zinc-200 shadow-sm');
+                const bgColor = isCoach ? (isProspectTrial ? 'bg-orange-50 text-orange-900 border border-orange-200' : 'bg-zinc-50 text-zinc-900 shadow-lg') : (isMyBooking ? 'bg-emerald-500 text-zinc-900 shadow-lg shadow-emerald-500/20' : 'bg-white text-zinc-500 border border-zinc-200 shadow-sm');
                 
                 return (
                   <motion.div key={sIdx} variants={itemVariants} className={`${bgColor} p-4 rounded-2xl flex flex-col justify-between min-h-[100px] transition-all ${isPast ? 'opacity-50' : 'hover:scale-[1.02]'}`}>
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="font-black text-lg text-zinc-900">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
-                        {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider">{sessionType.name}</div>}
+                        <div className="text-xs opacity-70 font-medium uppercase tracking-wider">{isProspectTrial ? "SÉANCE D'ESSAI" : (sessionType ? sessionType.name : "COACHING")}</div>
                       </div>
                       {bookingForSlot.status === 'completed' ? (
                         <Badge variant="success" className="!bg-emerald-100 !text-emerald-700 !border-none shadow-sm">Terminé</Badge>
+                      ) : isProspectTrial ? (
+                        <Badge variant="success" className="!bg-orange-100 !text-orange-700 !border-none shadow-sm">Prospect</Badge>
                       ) : isMyBooking && !isCoach ? (
                         <Badge variant="dark" className="!bg-zinc-100 !text-zinc-900 !border-none shadow-sm">Ma séance</Badge>
                       ) : null}
                     </div>
                     
                     {isCoach ? (
-                      <div className="flex items-center gap-2 text-zinc-600 text-sm mb-3 bg-zinc-50 p-2 rounded-xl backdrop-blur-sm">
-                        <UserIcon size={14} /> <span className="font-bold">{member?.name || 'Inconnu'}</span>
+                      <div className={`flex items-center gap-2 text-sm mb-3 p-2 rounded-xl backdrop-blur-sm ${isProspectTrial ? 'bg-orange-100/50 text-orange-800' : 'bg-zinc-50 text-zinc-600'}`}>
+                        <UserIcon size={14} /> <span className="font-bold">{isProspectTrial ? (prospect?.name || 'Prospect inconnu') : (member?.name || 'Inconnu')}</span>
                       </div>
                     ) : (
                       <div className="text-[10px] uppercase tracking-widest opacity-80 mb-3 font-bold">
@@ -390,7 +394,12 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                     
                     {(isCoach || isMyBooking) && !isPast && bookingForSlot.status !== 'completed' && (
                       <div className="flex flex-col gap-2 mt-2">
-                        {isCoach && member && (
+                        {isCoach && isProspectTrial && (
+                          <Button variant="secondary" className="w-full !py-2 !text-xs !bg-orange-200/50 hover:!bg-orange-200 text-orange-900 border-none" onClick={() => setConfirmCancelBookingId(bookingForSlot.id)}>
+                            Annuler ce créneau d'essai
+                          </Button>
+                        )}
+                        {isCoach && member && !isProspectTrial && (
                           <div className="flex flex-col gap-2">
                             {state.programs.filter(p => p.memberId === Number(member.id) && p.isPlannedSession && p.bookingId === bookingForSlot.id).map(plannedSession => (
                               <Button 
