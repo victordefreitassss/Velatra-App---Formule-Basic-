@@ -188,7 +188,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         stripeProductId: editingPlan.stripeProductId || undefined,
         stripePriceId: editingPlan.stripePriceId || undefined,
         credits: Number(editingPlan.credits) || 0,
+        creditsInterval: editingPlan.creditsInterval || 'cycle',
         sessionCredits: editingPlan.sessionCredits || {},
+        sessionCreditsIntervals: editingPlan.sessionCreditsIntervals || {},
       };
 
       // Create product/price in Stripe if not already done and if Stripe is connected
@@ -780,7 +782,16 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 p-2 rounded-xl">
                     <span className="text-xs font-bold text-zinc-900 flex-1">Séance Standard</span>
-                    <Input type="number" placeholder="Ex: 4" value={editingPlan?.credits || ''} onChange={e => setEditingPlan({ ...editingPlan, credits: Number(e.target.value) })} className="w-20 !py-1" />
+                    <Input type="number" placeholder="Ex: 4" value={editingPlan?.credits || ''} onChange={e => setEditingPlan({ ...editingPlan, credits: Number(e.target.value) })} className="w-16 !py-1" />
+                    <select
+                      className="bg-white border border-zinc-200 rounded-md p-1 text-[10px] font-bold uppercase focus:outline-none"
+                      value={editingPlan?.creditsInterval || 'cycle'}
+                      onChange={e => setEditingPlan({ ...editingPlan, creditsInterval: e.target.value as any })}
+                    >
+                      <option value="weekly">/ Semaine</option>
+                      <option value="monthly">/ Mois</option>
+                      <option value="cycle">/ Cycle</option>
+                    </select>
                   </div>
                   {sessionTypes.map(type => (
                     <div key={type.id} className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 p-2 rounded-xl">
@@ -794,8 +805,21 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                           newSessionCredits[type.id] = Number(e.target.value);
                           setEditingPlan({ ...editingPlan, sessionCredits: newSessionCredits });
                         }} 
-                        className="w-20 !py-1" 
+                        className="w-16 !py-1" 
                       />
+                      <select
+                        className="bg-white border border-zinc-200 rounded-md p-1 text-[10px] font-bold uppercase focus:outline-none"
+                        value={editingPlan?.sessionCreditsIntervals?.[type.id] || 'cycle'}
+                        onChange={e => {
+                          const newIntervals = { ...(editingPlan?.sessionCreditsIntervals || {}) };
+                          newIntervals[type.id] = e.target.value as any;
+                          setEditingPlan({ ...editingPlan, sessionCreditsIntervals: newIntervals });
+                        }}
+                      >
+                        <option value="weekly">/ Sem</option>
+                        <option value="monthly">/ Mois</option>
+                        <option value="cycle">/ Cycle</option>
+                      </select>
                     </div>
                   ))}
                 </div>
@@ -858,19 +882,20 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                         <div className={`w-1.5 h-1.5 rounded-full ${plan.hasCommitment ? 'bg-orange-500' : 'bg-green-500'}`} />
                         {plan.hasCommitment ? `Engagement ${plan.commitmentMonths} mois` : 'Sans engagement'}
                       </div>
-                      {plan.credits && plan.credits > 0 && (
+                      {plan.credits && plan.credits > 0 ? (
                         <div className="flex items-center gap-2">
                           <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                          {plan.credits} crédit{plan.credits > 1 ? 's' : ''} Standard / {plan.billingCycle === 'monthly' ? 'mois' : plan.billingCycle === 'yearly' ? 'an' : 'cycle'}
+                          {plan.credits} crédit{plan.credits > 1 ? 's' : ''} Standard / {plan.creditsInterval === 'weekly' ? 'semaine' : plan.creditsInterval === 'monthly' ? 'mois' : plan.billingCycle === 'monthly' ? 'mois' : 'cycle'}
                         </div>
-                      )}
+                      ) : null}
                       {plan.sessionCredits && Object.entries(plan.sessionCredits).map(([typeId, amount]) => {
                         if (!amount) return null;
                         const typeName = sessionTypes.find(t => t.id === typeId)?.name || 'Séance';
+                        const interval = plan.sessionCreditsIntervals?.[typeId] || 'cycle';
                         return (
                           <div key={typeId} className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                            {amount} crédit{amount > 1 ? 's' : ''} {typeName} / {plan.billingCycle === 'monthly' ? 'mois' : plan.billingCycle === 'yearly' ? 'an' : 'cycle'}
+                            {amount} crédit{amount > 1 ? 's' : ''} {typeName} / {interval === 'weekly' ? 'semaine' : interval === 'monthly' ? 'mois' : plan.billingCycle === 'monthly' ? 'mois' : 'cycle'}
                           </div>
                         );
                       })}
@@ -894,19 +919,17 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                           onClick={async () => {
                             try {
                               showToast("Génération du lien...", "info");
-                              const res = await fetch('/api/stripe/checkout', {
+                              const res = await fetch('/api/stripe/payment-link', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                   stripeSecretKey,
-                                  priceId: plan.stripePriceId,
-                                  successUrl: window.location.origin + '/success',
-                                  cancelUrl: window.location.origin + '/cancel'
+                                  priceId: plan.stripePriceId
                                 })
                               });
                               if (res.ok) {
                                 const data = await res.json();
-                                navigator.clipboard.writeText(data.url);
+                                navigator.clipboard.writeText(data.link);
                                 showToast("Lien de paiement copié !");
                               } else {
                                 throw new Error("Erreur");
