@@ -76,6 +76,7 @@ export interface User {
   name: string;
   email?: string;
   phone?: string;
+  address?: string;
   stripeCustomerId?: string;
   credits?: number;
   sessionCredits?: Record<string, number>;
@@ -361,7 +362,9 @@ export interface Plan {
   stripeProductId?: string;
   stripePriceId?: string;
   credits?: number; // Number of credits given per billing cycle
+  creditsInterval?: 'weekly' | 'monthly' | 'cycle';
   sessionCredits?: Record<string, number>; // Credits per session type
+  sessionCreditsIntervals?: Record<string, 'weekly' | 'monthly' | 'cycle'>;
 }
 
 export interface Subscription {

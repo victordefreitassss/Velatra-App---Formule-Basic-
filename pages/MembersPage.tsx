@@ -7,7 +7,7 @@ import {
   SearchIcon, InfoIcon, 
   XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon, MailIcon, ImageIcon, SparklesIcon
 } from '../components/Icons';
-import { db, doc, setDoc, updateDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage, addDoc } from '../firebase';
+import { db, doc, setDoc, updateDoc, deleteDoc, auth, secondaryAuth, createUserWithEmailAndPassword, sendPasswordResetEmail, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage, addDoc } from '../firebase';
 import { uploadBytesResumable, deleteObject } from 'firebase/storage';
 import { GOALS } from '../constants';
 import { calculateNutritionPlan, updateNutritionPlanForWeight } from '../utils';
@@ -36,6 +36,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState(state.memberFilter || "Tous");
   const [selectedProfile, setSelectedProfile] = useState<User | null>(state.selectedMember || null);
+  const [memberTab, setMemberTab] = useState<'overview' | 'training' | 'billing' | 'documents'>('overview');
   const [selectedLog, setSelectedLog] = useState<SessionLog | null>(null);
   const [selectedEvolutionPhoto, setSelectedEvolutionPhoto] = useState<string | null>(null);
 
@@ -48,8 +49,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   useEffect(() => {
     if (state.selectedMember) {
       setSelectedProfile(state.selectedMember);
+      setMemberTab('overview');
     }
   }, [state.selectedMember]);
+
+  useEffect(() => {
+    if (selectedProfile) {
+      setMemberTab('overview');
+    }
+  }, [selectedProfile?.id]);
 
   const closeProfile = () => {
     setSelectedProfile(null);
@@ -88,6 +96,107 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [isUploadingDriveFile, setIsUploadingDriveFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [confirmDeleteFileId, setConfirmDeleteFileId] = useState<string | null>(null);
+
+  const [isCsvImportModalOpen, setIsCsvImportModalOpen] = useState(false);
+  const [isParsingCsv, setIsParsingCsv] = useState(false);
+  const [parsedClients, setParsedClients] = useState<any[]>([]);
+  const [selectedClientsToImport, setSelectedClientsToImport] = useState<number[]>([]);
+  const [isImportingClients, setIsImportingClients] = useState(false);
+  const [importSearch, setImportSearch] = useState("");
+  const [isConfirmingImport, setIsConfirmingImport] = useState(false);
+
+  const handleParseCsvFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsParsingCsv(true);
+    setParsedClients([]);
+    setSelectedClientsToImport([]);
+    setImportSearch("");
+    setIsConfirmingImport(false);
+    setIsCsvImportModalOpen(true);
+
+    try {
+      const text = await file.text();
+      const { parseClientsCSV } = await import('../services/aiService');
+      const clients = await parseClientsCSV(text);
+      if (Array.isArray(clients) && clients.length > 0) {
+        setParsedClients(clients);
+        setSelectedClientsToImport(clients.map((_, i) => i)); // Select all by default
+      } else {
+        showToast("Aucun client trouvé dans le fichier.", "error");
+        setIsCsvImportModalOpen(false);
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || "Erreur de lecture du fichier CSV.", "error");
+      setIsCsvImportModalOpen(false);
+    } finally {
+      setIsParsingCsv(false);
+      e.target.value = ''; // Reset file input
+    }
+  };
+
+  const handleImportSelectedClients = async () => {
+    if (selectedClientsToImport.length === 0) return;
+    setIsImportingClients(true);
+
+    let successCount = 0;
+    let duplicateCount = 0;
+    
+    // Process sequentially to not hammer Firebase too hard
+    for (const index of selectedClientsToImport) {
+      const client = parsedClients[index];
+      if (!client || !client.email) continue;
+      
+      try {
+        const dummyPwd = Math.random().toString(36).slice(-8) + "Velatra123!";
+        const userCred = await createUserWithEmailAndPassword(secondaryAuth, client.email, dummyPwd);
+        
+        const newUser: User = {
+          id: Date.now() + Math.floor(Math.random() * 1000), // Fake sequential ID for now
+          clubId: state.currentUser?.clubId || 1,
+          role: 'member',
+          firebaseUid: userCred.user.uid,
+          name: client.name || "Nouveau Membre",
+          email: client.email,
+          phone: client.phone || undefined,
+          address: client.address || undefined,
+          gender: client.gender?.toUpperCase() === 'F' ? 'F' : 'M',
+          age: client.age || 30,
+          birthDate: client.birthDate || undefined,
+          weight: client.weight || 70,
+          height: client.height || 175,
+          objectifs: client.objectifs || [],
+          notes: client.notes || "",
+          status: 'active'
+        };
+
+        // Create doc in users
+        await setDoc(doc(db, "users", userCred.user.uid), newUser);
+        
+        // Immediately send reset email via primary auth so they can set their password
+        await sendPasswordResetEmail(auth, client.email);
+        
+        successCount++;
+      } catch (err: any) {
+        console.error("Error creating user from CSV:", client.email, err);
+        if (err.code === 'auth/email-already-in-use') {
+          duplicateCount++;
+        }
+      }
+    }
+
+    setIsImportingClients(false);
+    setIsCsvImportModalOpen(false);
+    setIsConfirmingImport(false);
+    
+    if (duplicateCount > 0) {
+      showToast(`${successCount} comptes créés. ${duplicateCount} ignorés (email déjà utilisé).`, successCount > 0 ? "success" : "error");
+    } else {
+      showToast(`${successCount} comptes clients créés avec envoi d'emails de réinitialisation !`, "success");
+    }
+  };
 
   const members = state.users.filter(u => {
     if (u.role !== 'member') return false;
@@ -226,6 +335,20 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     const uid = selectedProfile.firebaseUid || selectedProfile.id?.toString();
     if (!uid) return;
     setConfirmDeleteMemberId(uid);
+  };
+
+  const handleResetMemberPassword = async () => {
+    if (!selectedProfile?.email) {
+      showToast("L'adresse email du membre est introuvable.", "error");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, selectedProfile.email);
+      showToast("Email de réinitialisation envoyé avec succès à " + selectedProfile.email, "success");
+    } catch (err: any) {
+      console.error("Error sending reset email:", err);
+      showToast("Erreur lors de l'envoi de l'email.", "error");
+    }
   };
 
   const handleTogglePauseMember = async () => {
@@ -737,12 +860,23 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       if (selectedProfile.firebaseUid && (plan.credits || plan.sessionCredits)) {
         const updates: any = {};
         if (plan.credits) {
-          updates.credits = (selectedProfile.credits || 0) + plan.credits;
+          let multiplier = 1;
+          if (plan.billingCycle === 'monthly' && plan.creditsInterval === 'weekly') multiplier = 4;
+          if (plan.billingCycle === 'yearly' && plan.creditsInterval === 'monthly') multiplier = 12;
+          if (plan.billingCycle === 'yearly' && plan.creditsInterval === 'weekly') multiplier = 52;
+          
+          updates.credits = (selectedProfile.credits || 0) + (plan.credits * multiplier);
         }
         if (plan.sessionCredits) {
           Object.entries(plan.sessionCredits).forEach(([typeId, amount]) => {
             if (amount) {
-              updates[`sessionCredits.${typeId}`] = (selectedProfile.sessionCredits?.[typeId] || 0) + amount;
+              const interval = plan.sessionCreditsIntervals?.[typeId] || 'cycle';
+              let multiplier = 1;
+              if (plan.billingCycle === 'monthly' && interval === 'weekly') multiplier = 4;
+              if (plan.billingCycle === 'yearly' && interval === 'monthly') multiplier = 12;
+              if (plan.billingCycle === 'yearly' && interval === 'weekly') multiplier = 52;
+              
+              updates[`sessionCredits.${typeId}`] = (selectedProfile.sessionCredits?.[typeId] || 0) + (amount * multiplier);
             }
           });
         }
@@ -1020,7 +1154,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       }
 
       const data = await res.json();
-      navigator.clipboard.writeText(data.url);
+      const url = new URL(data.link);
+      url.searchParams.append('client_reference_id', selectedProfile.id.toString());
+      if (selectedProfile.email) {
+        url.searchParams.append('prefilled_email', selectedProfile.email);
+      }
+      navigator.clipboard.writeText(url.toString());
       showToast("Lien de paiement Stripe généré et copié dans le presse-papier !", "success");
     } catch (error: any) {
       console.error("Error generating payment link:", error);
@@ -1072,7 +1211,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       if (!resLink.ok) throw new Error("Erreur lors de la génération du lien");
       const linkData = await resLink.json();
 
-      navigator.clipboard.writeText(linkData.url);
+      const url = new URL(linkData.link);
+      url.searchParams.append('client_reference_id', selectedProfile.id.toString());
+      if (selectedProfile.email) {
+        url.searchParams.append('prefilled_email', selectedProfile.email);
+      }
+
+      navigator.clipboard.writeText(url.toString());
       showToast("Lien de paiement copié dans le presse-papier !", "success");
     } catch (error: any) {
       console.error("Error generating payment link:", error);
@@ -1246,7 +1391,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             accept=".csv" 
             className="hidden" 
             id="import-clients-csv" 
-            onChange={handleImportClients} 
+            onChange={handleParseCsvFile} 
           />
           <label 
             htmlFor="import-clients-csv" 
@@ -1914,8 +2059,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
                 {/* MAIN GRAPHS & AI */}
                 <div className="lg:col-span-8 p-6 md:p-12 space-y-12">
+                  <div className="flex gap-2 overflow-x-auto pb-4 hide-scrollbar border-b border-zinc-200 sticky top-0 bg-zinc-100 z-20 pt-4 -mt-4">
+                    <button onClick={() => setMemberTab('overview')} className={`shrink-0 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 ${memberTab === 'overview' ? 'text-zinc-900 border-emerald-500' : 'text-zinc-400 border-transparent hover:text-zinc-600'}`}>Vue d'ensemble</button>
+                    <button onClick={() => setMemberTab('training')} className={`shrink-0 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 ${memberTab === 'training' ? 'text-zinc-900 border-emerald-500' : 'text-zinc-400 border-transparent hover:text-zinc-600'}`}>Entraînement</button>
+                    <button onClick={() => setMemberTab('billing')} className={`shrink-0 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 ${memberTab === 'billing' ? 'text-zinc-900 border-emerald-500' : 'text-zinc-400 border-transparent hover:text-zinc-600'}`}>Facturation</button>
+                    <button onClick={() => setMemberTab('documents')} className={`shrink-0 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 ${memberTab === 'documents' ? 'text-zinc-900 border-emerald-500' : 'text-zinc-400 border-transparent hover:text-zinc-600'}`}>Documents</button>
+                  </div>
                   
                   {/* VELATRA AI ENGINE SECTION */}
+                  {memberTab === 'overview' && (
                   <section className="space-y-8">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-gradient-to-br from-emerald-500 to-purple-600 rounded-2xl text-zinc-900 shadow-[0_0_20px_rgba(99,102,241,0.4)]"><BotIcon size={24} /></div>
@@ -2046,8 +2198,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
                     </div>
                   </section>
+                  )}
 
                   {/* DOCUMENTS PARTAGÉS (DRIVE) */}
+                  {memberTab === 'documents' && (
                   <section className="space-y-8">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500"><FolderIcon size={24} /></div>
@@ -2113,8 +2267,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
                     </div>
                   </section>
+                  )}
 
                   {/* FINANCES & FACTURATION */}
+                  {memberTab === 'billing' && (
                   <section className="space-y-8">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CreditCardIcon size={24} /></div>
@@ -2273,8 +2429,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       )}
                     </div>
                   </section>
+                  )}
 
                   {/* COACHING HISTORY */}
+                  {memberTab === 'training' && (
                   <section className="space-y-8">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CalendarIcon size={24} /></div>
@@ -2320,7 +2478,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         )}
                       </div>
                   </section>
+                  )}
 
+                  {memberTab === 'overview' && (
                   <section className="space-y-8">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                       <div className="flex items-center gap-4">
@@ -2430,7 +2590,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       )}
                     </div>
                   </section>
+                  )}
 
+                  {memberTab === 'training' && (
                   <section className="space-y-8">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><DumbbellIcon size={24} /></div>
@@ -2456,7 +2618,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       )}
                     </div>
                   </section>
+                  )}
 
+                  {memberTab === 'overview' && (
                   <section className="space-y-8 pb-12">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CheckIcon size={24} /></div>
@@ -2492,6 +2656,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                        )}
                     </div>
                   </section>
+                  )}
                 </div>
               </div>
               </ErrorBoundary>
@@ -2665,6 +2830,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </Button>
             </div>
             <div className="pt-2 shrink-0 flex flex-col gap-2">
+              <Button 
+                variant="secondary" 
+                fullWidth 
+                onClick={handleResetMemberPassword} 
+                className="!bg-blue-500/10 !text-blue-600 hover:!bg-blue-500/20"
+              >
+                RÉINITIALISER LE MOT DE PASSE
+              </Button>
               <Button 
                 variant="secondary" 
                 fullWidth 
@@ -3364,6 +3537,188 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 <SparklesIcon size={16} className="mr-2 inline" /> LANCER LA GÉNÉRATION
               </Button>
             </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* CSV IMPORT MODAL */}
+      {isCsvImportModalOpen && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-2xl shadow-2xl relative max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-zinc-900 uppercase italic">Importer des clients</h3>
+                <p className="text-xs text-zinc-500 font-medium">L'IA a extrait ces informations de votre fichier.</p>
+              </div>
+              <button 
+                onClick={() => !isImportingClients && setIsCsvImportModalOpen(false)} 
+                className={`text-zinc-400 hover:text-zinc-900 ${isImportingClients ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isImportingClients}
+              >
+                <XIcon size={24} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar pr-2 mb-6">
+              {!isConfirmingImport ? (
+                <>
+                  {parsedClients.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center bg-zinc-50 p-3 rounded-xl border border-zinc-200 sticky top-0 z-10 gap-3">
+                        <div className="flex-1 w-full relative">
+                          <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                          <input 
+                            className="w-full bg-white border border-zinc-200 rounded-lg pl-9 pr-3 py-2 text-xs font-medium focus:border-emerald-500 outline-none"
+                            placeholder="Rechercher par nom ou email..."
+                            value={importSearch}
+                            onChange={(e) => setImportSearch(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex justify-between items-center w-full sm:w-auto gap-4">
+                          <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest shrink-0">
+                            ({selectedClientsToImport.length}/{parsedClients.length})
+                          </span>
+                          <button 
+                            onClick={() => {
+                              if (selectedClientsToImport.length === parsedClients.length) {
+                                setSelectedClientsToImport([]);
+                              } else {
+                                setSelectedClientsToImport(parsedClients.map((_, i) => i));
+                              }
+                            }}
+                            className="text-[10px] font-bold text-emerald-500 hover:text-emerald-600 underline uppercase shrink-0"
+                          >
+                            {selectedClientsToImport.length === parsedClients.length ? 'Tout décocher' : 'Tout cocher'}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {parsedClients
+                        .map((client, index) => ({ client, index }))
+                        .filter(item => 
+                          !importSearch || 
+                          item.client.name?.toLowerCase().includes(importSearch.toLowerCase()) || 
+                          item.client.email?.toLowerCase().includes(importSearch.toLowerCase())
+                        )
+                        .slice(0, 100).map(({ client, index }) => {
+                        const isSelected = selectedClientsToImport.includes(index);
+                        const hasEmail = !!client.email;
+                        
+                        return (
+                          <div 
+                            key={index} 
+                            className={`p-4 rounded-2xl border transition-all flex items-start gap-4 ${isSelected ? 'border-emerald-500 bg-emerald-500/5' : 'border-zinc-200 bg-white opacity-60'} ${!hasEmail ? 'opacity-50 border-red-200 bg-red-50' : 'cursor-pointer hover:border-emerald-500/40'}`}
+                            onClick={() => {
+                              if (!hasEmail) return;
+                              setSelectedClientsToImport(prev => 
+                                prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+                              );
+                            }}
+                          >
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-1 shrink-0 transition-colors ${isSelected ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-zinc-300'}`}>
+                              {isSelected && <CheckIcon size={14} />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-bold text-zinc-900 truncate">{client.name || 'Nom inconnu'}</span>
+                                {client.gender && <span className="text-[10px] px-2 py-0.5 bg-zinc-100 rounded-lg text-zinc-500 font-bold uppercase">{client.gender}</span>}
+                              </div>
+                              <div className={`text-xs ${hasEmail ? 'text-zinc-500 truncate' : 'text-red-500 font-bold'}`}>
+                                {hasEmail ? client.email : '⚠️ Email manquant - Import impossible'}
+                              </div>
+                              
+                              {(client.age || client.weight || client.height || client.phone || client.address || (client.objectifs && client.objectifs.length > 0)) && (
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                  {client.age && <Badge variant="dark" className="!bg-zinc-100 !text-zinc-500 !border-none !text-[9px]">{client.birthDate ? `${client.birthDate} ` : ''}({client.age} ans)</Badge>}
+                                  {client.phone && <Badge variant="dark" className="!bg-zinc-100 !text-zinc-500 !border-none !text-[9px]">📞 {client.phone}</Badge>}
+                                  {client.address && <Badge variant="dark" className="!bg-zinc-100 !text-zinc-500 !border-none !text-[9px] max-w-[200px] truncate">🏠 {client.address}</Badge>}
+                                  {client.weight && <Badge variant="dark" className="!bg-zinc-100 !text-zinc-500 !border-none !text-[9px]">{client.weight} kg</Badge>}
+                                  {client.height && <Badge variant="dark" className="!bg-zinc-100 !text-zinc-500 !border-none !text-[9px]">{client.height} cm</Badge>}
+                                  {(client.objectifs || []).map((o: string, idx: number) => (
+                                    <Badge key={idx} variant="orange" className="!text-[9px]">{o}</Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {parsedClients.length > 100 && (
+                        <div className="p-4 text-center rounded-2xl border border-zinc-200 bg-zinc-50">
+                          <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                            + {parsedClients.length - 100} autres clients masqués pour la fluidité (mais bien sélectionnés pour l'import)
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-10">
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-zinc-100 mb-4 animate-pulse">
+                        <SparklesIcon size={24} className="text-zinc-400" />
+                      </div>
+                      <h4 className="text-lg font-bold text-zinc-900">Analyse IA en cours...</h4>
+                      <p className="text-sm text-zinc-500 mt-2">Nous lisons votre fichier pour identifier les clients.</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800">
+                    <p className="text-sm font-medium">Vous êtes sur le point de créer un compte et d'envoyer un email de configuration de mot de passe aux {selectedClientsToImport.length} membres ci-dessous :</p>
+                  </div>
+                  <div className="space-y-2">
+                    {selectedClientsToImport.map(index => {
+                      const client = parsedClients[index];
+                      return (
+                        <div key={index} className="flex items-center justify-between p-3 rounded-xl border border-zinc-200 bg-white">
+                          <span className="font-bold text-sm text-zinc-900">{client.name}</span>
+                          <span className="text-xs text-zinc-500">{client.email}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {parsedClients.length > 0 && !isConfirmingImport && (
+              <div className="pt-4 border-t border-zinc-100 shrink-0">
+                <Button 
+                  variant="primary" 
+                  fullWidth 
+                  onClick={() => setIsConfirmingImport(true)}
+                  disabled={selectedClientsToImport.length === 0}
+                  className="!py-4 shadow-xl"
+                >
+                  SUIVANT ({selectedClientsToImport.length} SÉLECTIONNÉS)
+                </Button>
+              </div>
+            )}
+
+            {isConfirmingImport && (
+              <div className="pt-4 border-t border-zinc-100 shrink-0 flex gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsConfirmingImport(false)}
+                  disabled={isImportingClients}
+                  className="!py-4"
+                >
+                  RETOUR
+                </Button>
+                <Button 
+                  variant="success" 
+                  className="flex-1 !py-4 shadow-xl" 
+                  onClick={handleImportSelectedClients}
+                  disabled={isImportingClients}
+                >
+                  {isImportingClients 
+                    ? `IMPORTATION EN COURS...` 
+                    : `VALIDER ET ENVOYER LES EMAILS`}
+                </Button>
+              </div>
+            )}
           </div>
         </div>,
         document.body

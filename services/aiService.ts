@@ -17,6 +17,176 @@ export interface AIGenerationParams {
   timeConstraint?: string;
 }
 
+import Papa from 'papaparse';
+
+export const parseClientsCSV = async (csvText: string) => {
+  const rawApiKey = getApiKey();
+  const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
+  if (!apiKey) {
+    throw new Error("Clé API Gemini introuvable. Veuillez configurer GEMINI_API_KEY.");
+  }
+
+  // 1. Parser le CSV de façon classique pour séparer les lignes et colonnes
+  const parsed = Papa.parse(csvText.trim(), {
+    skipEmptyLines: true,
+  });
+  
+  if (!parsed.data || parsed.data.length === 0) {
+    throw new Error("Le fichier CSV semble vide.");
+  }
+
+  const rows = parsed.data as string[][];
+  
+  // Prendre les 5 premières lignes comme échantillon pour l'IA
+  const sampleData = rows.slice(0, Math.min(5, rows.length));
+  const sampleText = sampleData.map(row => row.join(" | ")).join("\n");
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  // 2. Demander à l'IA d'identifier les rôles des colonnes (par index) d'après l'échantillon
+  const prompt = `Voici un échantillon (les 5 premières lignes) d'un fichier CSV client avec les séparateurs transformés en " | ".
+Chaque ligne contient des valeurs séparées par " | ", correspondant à des colonnes indexées de 0 à N.
+
+Échantillon :
+${sampleText}
+
+Analyse cet échantillon. Détermine à quel index (0, 1, 2, etc.) correspond chaque information cible.
+Les informations cibles sont :
+- name (Nom complet. Renvoie TOUJOURS un tableau d'entiers, ex: [0, 1] ou [0] s'il n'y a qu'une colonne pour le nom)
+- email (Adresse email)
+- gender (Genre, optionnel)
+- age (Âge ou date de naissance, optionnel)
+- phone (Numéro de téléphone, optionnel)
+- address (Adresse postale complète. Si séparée en plusieurs colonnes ex: Rue, Code Postal, Ville, renvoie un tableau d'entiers ex: [3, 4, 5]. Sinon un entier. null si absent.)
+- weight (Poids, optionnel)
+- height (Taille, optionnel)
+- objectifs (Objectifs, optionnel)
+- notes (Notes ou autre info pertinente, optionnel)
+
+Réponds UNIQUEMENT avec un objet JSON strict. Pas de texte avant, pas de texte après, pas de markdown.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            name: { type: Type.ARRAY, items: { type: Type.INTEGER }, description: "Indices pour reconstruire le nom. Ex: [0, 1] ou [0]." },
+            email: { type: Type.INTEGER, description: "Index de l'email" },
+            gender: { type: Type.INTEGER, description: "Index du genre, null si absent" },
+            age: { type: Type.INTEGER, nullable: true },
+            phone: { type: Type.INTEGER, nullable: true },
+            address: { type: Type.ARRAY, items: { type: Type.INTEGER }, description: "Indices pour adresse, ou null" },
+            weight: { type: Type.INTEGER, nullable: true },
+            height: { type: Type.INTEGER, nullable: true },
+            objectifs: { type: Type.INTEGER, nullable: true },
+            notes: { type: Type.INTEGER, nullable: true },
+            hasHeadersRow: { type: Type.BOOLEAN, description: "true si la toute première ligne est composée d'en-têtes" }
+          },
+          required: ["email", "hasHeadersRow"]
+        }
+      }
+    });
+
+    const textPayload = typeof response.text === 'function' ? response.text() : response.text;
+    const mapping = JSON.parse(textPayload || "{}");
+    
+    // 3. Appliquer le mapping à toutes les lignes (ce qui est instantané, même sur 10 000 lignes)
+    const resultClients: any[] = [];
+    
+    const startIndex = mapping.hasHeadersRow ? 1 : 0;
+    
+    for (let i = startIndex; i < rows.length; i++) {
+        const row = rows[i];
+        
+        let clientEmail = "";
+        if (mapping.email !== null && mapping.email !== undefined && row[mapping.email]) {
+            clientEmail = row[mapping.email].toString().trim();
+        }
+        
+        // Skip si pas d'email et pas de nom pour éviter les lignes parasites
+        if (!clientEmail) continue;
+
+        let clientName = "";
+        if (Array.isArray(mapping.name)) {
+            clientName = mapping.name.map((idx: number) => row[idx]).filter(Boolean).join(" ").trim();
+        } else if (mapping.name !== null && mapping.name !== undefined) {
+            clientName = row[mapping.name]?.toString().trim() || "";
+        }
+
+        const fallbackName = clientEmail.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ');
+
+        let parsedAge = 30;
+        let birthDateStr = undefined;
+        if (mapping.age != null && row[mapping.age]) {
+            const rawAge = row[mapping.age].toString().trim();
+            // Garder la valeur originale dans la birthDate au cas où
+            if (rawAge.includes("/") || rawAge.includes("-")) {
+                birthDateStr = rawAge;
+            }
+            let num = parseInt(rawAge, 10);
+            if (!isNaN(num)) {
+                const currentYear = new Date().getFullYear();
+                if (num > 1900 && num <= currentYear) {
+                    num = currentYear - num;
+                    if (!birthDateStr) birthDateStr = rawAge;
+                } else if (rawAge.includes("/") || rawAge.includes("-")) {
+                    const parts = rawAge.split(/[-/]/);
+                    const yearPart = parts.find(p => p.length === 4) || parts[2]; // fallback index 2 pour JJ/MM/AA
+                    if (yearPart) {
+                        let yearNum = parseInt(yearPart, 10);
+                        if (yearNum < 100) yearNum += (yearNum > 50 ? 1900 : 2000); // 99 -> 1999, 23 -> 2023
+                        if (yearNum > 1900 && yearNum <= currentYear) {
+                            num = currentYear - yearNum;
+                        }
+                    }
+                }
+                if (num > 0 && num < 120) {
+                    parsedAge = num;
+                }
+            }
+        }
+
+        let phoneStr = undefined;
+        if (mapping.phone != null && row[mapping.phone]) {
+             phoneStr = row[mapping.phone].toString().trim();
+        }
+
+        let addressStr = undefined;
+        if (Array.isArray(mapping.address)) {
+             addressStr = mapping.address.map((idx: number) => row[idx]).filter(Boolean).join(" ").trim();
+        } else if (mapping.address !== null && mapping.address !== undefined) {
+             addressStr = row[mapping.address]?.toString().trim();
+        }
+
+        const client: any = {
+            name: clientName || fallbackName,
+            email: clientEmail,
+            gender: mapping.gender != null ? row[mapping.gender]?.toString().trim() : 'M',
+            age: parsedAge,
+            birthDate: birthDateStr,
+            phone: phoneStr,
+            address: addressStr,
+            weight: mapping.weight != null ? parseFloat(row[mapping.weight]?.toString().replace(',','.') || "70") : 70,
+            height: mapping.height != null ? parseFloat(row[mapping.height]?.toString() || "175") : 175,
+            objectifs: mapping.objectifs != null ? [row[mapping.objectifs]?.toString().trim()] : [],
+            notes: mapping.notes != null ? row[mapping.notes]?.toString().trim() : ""
+        };
+
+        resultClients.push(client);
+    }
+
+    return resultClients;
+  } catch (error) {
+    console.error("AI CSV Parsing Error:", error);
+    throw new Error("L'analyse du fichier a échoué. Assurez-vous que le CSV contient au moins les emails.");
+  }
+};
+
 export const generateSportsProgram = async (user: User, availableExercises: any[], params?: AIGenerationParams) => {
   const rawApiKey = getApiKey();
   const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';

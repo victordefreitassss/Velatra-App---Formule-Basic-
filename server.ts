@@ -2,13 +2,12 @@ import express from "express";
 import path from "path";
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
+import Stripe from "stripe";
 
 const app = express();
 const PORT = parseInt(process.env.PORT as string) || 3000;
 
-app.use(express.json());
-
-// Initialize Firebase Admin
+// Initialize Firebase Admin first because webhook will need it
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   try {
     // Handle potential escaping issues with Vercel environment variables
@@ -34,9 +33,191 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
   console.warn("FIREBASE_SERVICE_ACCOUNT environment variable is missing. Admin features will not work.");
 }
 
+// ==========================================
+// Stripe Webhook (MUST be before express.json)
+// ==========================================
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    let event;
+    // For a multi-tenant system, we can't easily verify the signature before knowing
+    // which club this belongs to. For now, we will parse the raw body.
+    // In production, you would look up the club's specific webhook secret from the DB.
+    try {
+      event = req.body;
+      if (Buffer.isBuffer(event)) {
+          event = JSON.parse(event.toString('utf8'));
+      }
+    } catch (err: any) {
+      console.error('Error parsing webhook payload', err);
+      return res.status(400).send(`Webhook Error: Invalid payload`);
+    }
+
+    // Process the event
+    if (!admin.apps.length) throw new Error("Firebase Admin non initialisé");
+    const db = admin.firestore();
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as any;
+      const memberId = session.client_reference_id;
+      const stripeCustomerId = session.customer as string;
+      const stripeSubscriptionId = session.subscription as string;
+      
+      console.log(`[Stripe Webhook] Checkout Completed: memberId=${memberId}, subId=${stripeSubscriptionId}`);
+
+      if (memberId) {
+        // Find subscription for this member that is "pending" or "active"
+        const subsSnapshot = await db.collection("subscriptions")
+          .where("memberId", "==", Number(memberId))
+          .get();
+
+        if (!subsSnapshot.empty) {
+          // Identify the most recent or relevant one, or just update the pending one.
+          const subDoc = subsSnapshot.docs[0]; // simplistic assumption
+          await subDoc.ref.update({
+            status: 'active',
+            stripeSubscriptionId: stripeSubscriptionId,
+            startDate: new Date().toISOString()
+          });
+          console.log(`Updated subscription ${subDoc.id} with status active`);
+        }
+      }
+    }
+
+    if (event.type === 'invoice.paid' || event.type === 'invoice.payment_succeeded') {
+      const invoice = event.data.object as any;
+      const stripeSubscriptionId = invoice.subscription as string;
+      console.log(`[Stripe Webhook] Invoice Paid: subId=${stripeSubscriptionId}`);
+
+      if (stripeSubscriptionId) {
+        const subsSnapshot = await db.collection("subscriptions")
+          .where("stripeSubscriptionId", "==", stripeSubscriptionId)
+          .get();
+
+        if (!subsSnapshot.empty) {
+          const subDoc = subsSnapshot.docs[0];
+          const subData = subDoc.data();
+          const clubId = subData.clubId;
+          const memberId = subData.memberId;
+          
+          await db.collection("payments").add({
+            id: Date.now().toString(),
+            clubId: clubId,
+            memberId: memberId,
+            amount: invoice.amount_paid / 100, // Stripe returns cents
+            date: new Date(invoice.created * 1000).toISOString(),
+            status: 'paid',
+            method: 'card',
+            category: 'subscription',
+            stripeChargeId: invoice.charge
+          });
+          console.log(`Logged payment for subscription ${stripeSubscriptionId}`);
+        }
+      }
+    }
+
+    res.json({received: true});
+  } catch (err: any) {
+    console.error(`Webhook Error: ${err.message}`);
+    res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+});
+
+app.use(express.json());
+
 // API routes FIRST
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
+});
+
+// Endpoint to create a Stripe Price/Plan
+app.post("/api/stripe/create-plan", async (req, res) => {
+  try {
+    const { stripeSecretKey, name, amount, price, currency, unit, billingCycle, limit } = req.body;
+    if (!stripeSecretKey) return res.status(400).json({ error: "Clé secrète Stripe manquante." });
+    
+    // Support both amount/price
+    let finalAmount = amount !== undefined ? amount : price;
+    if (finalAmount === undefined || isNaN(finalAmount)) {
+       return res.status(400).json({ error: "Le montant (amount ou price) est invalide ou manquant." });
+    }
+
+    const stripe = new Stripe(stripeSecretKey);
+    
+    // 1. Create a product
+    const product = await stripe.products.create({ name });
+    
+    // 2. Create the price
+    const priceData: any = {
+      product: product.id,
+      unit_amount: Math.round(Number(finalAmount) * 100),
+      currency: currency || 'eur',
+    };
+    
+    // Support both unit/billingCycle
+    const finalUnit = unit || billingCycle;
+    
+    if (finalUnit && finalUnit !== 'once') {
+      // Map 'monthly' to 'month', 'yearly' to 'year', etc if needed.
+      let stripeInterval = finalUnit;
+      if (finalUnit === 'monthly') stripeInterval = 'month';
+      if (finalUnit === 'yearly') stripeInterval = 'year';
+      if (finalUnit === 'weekly') stripeInterval = 'week';
+      
+      priceData.recurring = { interval: stripeInterval };
+    }
+    
+    const stripePrice = await stripe.prices.create(priceData);
+    
+    res.json({ priceId: stripePrice.id, productId: product.id });
+  } catch (err: any) {
+    console.error("Erreur Stripe lors de la création du plan:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to generate a payment link
+app.post("/api/stripe/payment-link", async (req, res) => {
+  try {
+    const { stripeSecretKey, priceId } = req.body;
+    if (!stripeSecretKey || !priceId) return res.status(400).json({ error: "Missing required parameters." });
+
+    const stripe = new Stripe(stripeSecretKey);
+
+    const paymentLink = await stripe.paymentLinks.create({
+      line_items: [{ price: priceId, quantity: 1 }],
+      after_completion: { type: 'hosted_confirmation' },
+    });
+
+    res.json({ link: paymentLink.url, linkId: paymentLink.id });
+  } catch (err: any) {
+    console.error("Erreur gération de lien de paiement Stripe:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to charge an existing customer directly
+app.post("/api/stripe/charge-customer", async (req, res) => {
+  try {
+    const { stripeSecretKey, customerId, amount, currency, description } = req.body;
+    if (!stripeSecretKey || !customerId || !amount) return res.status(400).json({ error: "Missing required parameters." });
+
+    const stripe = new Stripe(stripeSecretKey);
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency: currency || 'eur',
+      customer: customerId,
+      description: description || "Facturation manuelle Velatra",
+      confirm: true,
+      off_session: true,
+      automatic_payment_methods: { enabled: true, allow_redirects: 'never' }
+    });
+
+    res.json({ success: true, paymentIntentId: paymentIntent.id });
+  } catch (err: any) {
+    console.error("Erreur facturation Stripe:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Endpoint to send onboarding email (Contract & Payment)
