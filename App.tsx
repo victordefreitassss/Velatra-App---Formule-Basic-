@@ -844,7 +844,7 @@ export default function App() {
         case 'settings': return <SettingsPage state={state} setState={setState} showToast={showToast} />;
         case 'chat': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
         case 'crm_pipeline': return <ProspectFlowPage state={state} setState={setState} showToast={showToast} />;
-        case 'crm_tasks': return <TasksPage state={state} />;
+        case 'crm_tasks': return <TasksPage state={state} showToast={showToast} />;
         case 'crm_finances': return <FinancesPage state={state} setState={setState} showToast={showToast} />;
         case 'calendar': return <PlanningPage state={state} setState={setState} showToast={showToast} />;
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;

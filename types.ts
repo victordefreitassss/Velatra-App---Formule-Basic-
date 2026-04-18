@@ -323,6 +323,12 @@ export interface FeedItem {
   date: string;
 }
 
+export interface ProspectNote {
+  id: string;
+  date: string; // ISO format
+  content: string;
+}
+
 export interface Prospect {
   id: number;
   firebaseUid?: string;
@@ -331,9 +337,11 @@ export interface Prospect {
   email: string;
   phone: string;
   date: string;
-  status: 'lead' | 'contacted' | 'trial' | 'won' | 'lost';
+  status: 'lead' | 'contacted' | 'trial' | 'call_pending' | 'won' | 'lost';
   answers: Record<string, string>;
   notes?: string;
+  notesHistory?: ProspectNote[];
+  nextReminderDate?: string; // ISO format
 }
 
 export interface Task {
@@ -546,12 +554,13 @@ export interface PendingProspect {
 export interface Booking {
   id: string;
   clubId: string;
-  memberId: number;
+  memberId?: number;
+  prospectId?: number;
   coachId: string; // The coach's ID
   startTime: string; // ISO string
   endTime: string; // ISO string
   status: 'confirmed' | 'cancelled' | 'completed';
-  type: 'coaching';
+  type: 'coaching' | 'trial';
   sessionTypeId?: string;
 }
 
