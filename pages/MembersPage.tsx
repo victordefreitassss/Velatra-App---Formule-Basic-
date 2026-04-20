@@ -104,6 +104,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [isImportingClients, setIsImportingClients] = useState(false);
   const [importSearch, setImportSearch] = useState("");
   const [isConfirmingImport, setIsConfirmingImport] = useState(false);
+  const [visibleCoachingLogs, setVisibleCoachingLogs] = useState(5);
+
+  useEffect(() => {
+    if (selectedProfile) {
+      setVisibleCoachingLogs(5);
+    }
+  }, [selectedProfile?.id]);
 
   const handleParseCsvFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2440,11 +2447,18 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     </div>
                     
                       <div className="bg-zinc-50 border border-zinc-200 rounded-[40px] p-8 shadow-sm">
-                        {(state.logs || []).filter(log => log.memberId === Number(selectedProfile.id) && log.isCoaching).length > 0 ? (
+                        {(() => {
+                          const coachingLogs = (state.logs || []).filter(log => log.memberId === Number(selectedProfile.id) && log.isCoaching).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                          if (coachingLogs.length === 0) {
+                            return (
+                              <div className="text-center py-8 text-zinc-500 text-sm italic">
+                                Aucune séance de coaching enregistrée pour ce membre.
+                              </div>
+                            );
+                          }
+                          return (
                           <div className="space-y-4">
-                            {(state.logs || []).filter(log => log.memberId === Number(selectedProfile.id) && log.isCoaching)
-                              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                              .map(log => (
+                            {coachingLogs.slice(0, visibleCoachingLogs).map(log => (
                               <div key={log.id} className="flex flex-col gap-3 p-4 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-2xl shadow-sm">
                                 <div className="flex items-center justify-between">
                                   <div>
@@ -2470,12 +2484,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                 )}
                               </div>
                             ))}
+                            {coachingLogs.length > visibleCoachingLogs && (
+                              <Button variant="secondary" fullWidth onClick={() => setVisibleCoachingLogs(prev => prev + 5)} className="!mt-4 !py-3 !text-[10px] !rounded-xl">
+                                VOIR PLUS DE SÉANCES
+                              </Button>
+                            )}
                           </div>
-                        ) : (
-                          <div className="text-center py-8 text-zinc-500 text-sm italic">
-                            Aucune séance de coaching enregistrée pour ce membre.
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
                   </section>
                   )}
