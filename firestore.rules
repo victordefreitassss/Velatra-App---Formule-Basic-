@@ -77,12 +77,7 @@ service cloud.firestore {
 
     // Default rule for all other collections
     match /{document=**} {
-      allow read: if isAuthenticated() && (
-        isSameClub(resource.data.clubId) || 
-        resource.data.clubId == 'global' || 
-        isSuperAdmin() ||
-        isSuperAdminEmail()
-      );
+      allow read: if isAuthenticated();
       allow create, update: if isAuthenticated() && (
         isSameClub(request.resource.data.clubId) || 
         isSuperAdmin() ||

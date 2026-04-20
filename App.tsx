@@ -12,9 +12,17 @@ import {
 import { 
   auth, db, messaging,
   onAuthStateChanged, signOut, 
-  doc, getDoc, getDocFromServer, setDoc, onSnapshot, updateDoc, collection, deleteDoc, query, where, getDocs,
+  doc, getDoc, getDocFromServer, setDoc, onSnapshot as originalOnSnapshot, updateDoc, collection, deleteDoc, query, where, getDocs,
   getToken, onMessage
 } from './firebase';
+
+const onSnapshot = (ref: any, callback: any) => {
+  return originalOnSnapshot(ref, callback, (error: any) => {
+    if (error.code !== 'permission-denied') {
+      console.error("Firestore onSnapshot error:", error);
+    }
+  });
+};
 
 // Layout & UI
 import { Layout } from './components/Layout';
