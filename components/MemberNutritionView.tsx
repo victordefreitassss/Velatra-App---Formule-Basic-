@@ -543,9 +543,33 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
       {/* Generated Plan */}
       {plan.meals && plan.meals.length > 0 && (
         <Card className="p-6 bg-zinc-50 shadow-sm space-y-4">
-          <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
-            <AppleIcon size={16} className="text-emerald-500" /> Plan Alimentaire
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 flex items-center gap-2">
+              <AppleIcon size={16} className="text-emerald-500" /> Plan Alimentaire
+            </h3>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  if (!user.phone) return showToast("Adhérent sans numéro de téléphone", "error");
+                  const text = encodeURIComponent(`Salut ${user.name} ! Ton plan alimentaire est disponible sur l'application. Bon appétit ! 🥗`);
+                  window.open(`https://wa.me/${user.phone.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
+                }}
+                className="!py-1 !px-3 !text-xs !bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 border-none rounded-lg font-bold"
+              >
+                WHATSAPP
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  import('../services/pdfService').then(m => m.exportNutritionToPDF(plan, state.currentClub));
+                }}
+                className="!py-1 !px-3 !text-xs text-emerald-600 hover:bg-emerald-50 rounded-lg font-bold"
+              >
+                📄 PDF
+              </Button>
+            </div>
+          </div>
           <div className="space-y-4">
             {plan.meals.map((repas: any, idx: number) => (
               <div key={idx} className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm">

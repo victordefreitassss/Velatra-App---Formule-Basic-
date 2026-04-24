@@ -14,8 +14,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   const [acceptedMethods, setAcceptedMethods] = useState<string[]>(state.currentClub?.settings?.payment?.acceptedMethods || ['card', 'cash']);
 
   const [planningEnabled, setPlanningEnabled] = useState(state.currentClub?.settings?.booking?.enabled ?? true);
-  const [sessionTypes, setSessionTypes] = useState<{id: string, name: string, duration: number}[]>(state.currentClub?.settings?.booking?.sessionTypes || [
-    { id: 'default', name: 'Séance Standard', duration: 60 }
+  const [sessionTypes, setSessionTypes] = useState<{id: string, name: string, duration: number, maxParticipants?: number}[]>(state.currentClub?.settings?.booking?.sessionTypes || [
+    { id: 'default', name: 'Séance Standard', duration: 60, maxParticipants: 1 }
   ]);
   const [sessionDuration, setSessionDuration] = useState(state.currentClub?.settings?.booking?.sessionDuration || 60);
   const [minAdvanceBookingHours, setMinAdvanceBookingHours] = useState(state.currentClub?.settings?.booking?.minAdvanceBookingHours || 0);
@@ -31,6 +31,10 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     { day: 0, slots: [] },
   ]);
 
+  const clubCoaches = React.useMemo(() => {
+    return state.users.filter(u => u.clubId === state.currentClub?.id && ['coach', 'owner', 'superadmin'].includes(u.role));
+  }, [state.users, state.currentClub?.id]);
+
   useEffect(() => {
     if (state.currentClub?.settings) {
       setDefaultDuration(state.currentClub.settings.defaultProgramDuration || 7);
@@ -40,7 +44,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
       
       if (state.currentClub.settings.booking) {
         setPlanningEnabled(state.currentClub.settings.booking.enabled ?? true);
-        setSessionTypes(state.currentClub.settings.booking.sessionTypes || [{ id: 'default', name: 'Séance Standard', duration: 60 }]);
+        setSessionTypes(state.currentClub.settings.booking.sessionTypes || [{ id: 'default', name: 'Séance Standard', duration: 60, maxParticipants: 1 }]);
         setSessionDuration(state.currentClub.settings.booking.sessionDuration || 60);
         setMinAdvanceBookingHours(state.currentClub.settings.booking.minAdvanceBookingHours || 0);
         setMinCancellationHours(state.currentClub.settings.booking.minCancellationHours || 0);
@@ -140,6 +144,47 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
 
   const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState<string | null>(null);
+
+  const [newStaffEmail, setNewStaffEmail] = useState("");
+  const [newStaffName, setNewStaffName] = useState("");
+  const [newStaffPassword, setNewStaffPassword] = useState("");
+  const [isAddingStaff, setIsAddingStaff] = useState(false);
+
+  const handleAddStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStaffEmail || !newStaffName || !newStaffPassword || !state.user?.clubId) {
+       showToast("Veuillez remplir tous les champs", "error");
+       return;
+    }
+    setIsAddingStaff(true);
+    try {
+      const res = await fetch("/api/create-staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: newStaffEmail,
+          password: newStaffPassword,
+          name: newStaffName,
+          clubId: state.user.clubId,
+          requestorUid: state.user.firebaseUid
+        })
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        showToast("Erreur lors de l'ajout: " + text, "error");
+      } else {
+        showToast("Staff ajouté avec succès !", "success");
+        setNewStaffEmail("");
+        setNewStaffName("");
+        setNewStaffPassword("");
+      }
+    } catch (err: any) {
+      showToast("Erreur réseau: " + err.message, "error");
+    } finally {
+      setIsAddingStaff(false);
+    }
+  };
 
   const handleDisconnectStripe = async () => {
     setIsDisconnectModalOpen(true);
@@ -364,6 +409,74 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
       <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
+            <TargetIcon size={24} />
+          </div>
+          <h2 className="text-xl font-black uppercase">Gestion du Staff</h2>
+        </div>
+
+        <div className="space-y-6 max-w-md">
+          {state.currentClub?.canAddStaff || state.user?.role === 'superadmin' ? (
+            <>
+              <p className="text-xs text-zinc-500 mb-4">Ajoutez un coach/membre du staff à votre club. Il ou elle se connectera en tant que coach pour gérer les mêmes adhérents que vous.</p>
+              <form onSubmit={handleAddStaff} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-zinc-900/70 tracking-widest ml-1">Nom du Coach</label>
+                  <Input 
+                    type="text" 
+                    placeholder="Ex: Emma" 
+                    value={newStaffName} 
+                    onChange={(e) => setNewStaffName(e.target.value)} 
+                    required 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-zinc-900/70 tracking-widest ml-1">Email</label>
+                  <Input 
+                    type="email" 
+                    placeholder="emma@monclub.com" 
+                    value={newStaffEmail} 
+                    onChange={(e) => setNewStaffEmail(e.target.value)} 
+                    required 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase text-zinc-900/70 tracking-widest ml-1">Mot de passe temporaire</label>
+                  <Input 
+                    type="password" 
+                    placeholder="••••••••" 
+                    value={newStaffPassword} 
+                    onChange={(e) => setNewStaffPassword(e.target.value)} 
+                    required 
+                    minLength={6}
+                  />
+                </div>
+                <Button type="submit" disabled={isAddingStaff} className="w-full !py-4 mt-2">
+                  <PlusIcon size={18} className="mr-2" />
+                  {isAddingStaff ? "AJOUT EN COURS..." : "AJOUTER LE STAFF"}
+                </Button>
+              </form>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-zinc-600">
+                La création de comptes staff n'est pas encore activée pour votre club. Veuillez faire une demande à l'administrateur pour débloquer cette fonctionnalité.
+              </p>
+              <a 
+                href={`https://wa.me/33600000000?text=${encodeURIComponent(`Bonjour, je souhaiterais activer l'ajout de staff pour mon club ${state.currentClub?.name || ''} (ID: ${state.currentClub?.id || ''}).`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full px-4 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors text-sm uppercase tracking-wider"
+              >
+                Faire une demande sur WhatsApp
+              </a>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card className="p-8 border-zinc-200 bg-white">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
             <SettingsIcon size={24} />
           </div>
           <h2 className="text-xl font-black uppercase">Programmation</h2>
@@ -532,7 +645,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                       placeholder="Nom (ex: Séance 45 min)"
                     />
                   </div>
-                  <div className="w-32">
+                  <div className="w-24">
                     <Input
                       type="number"
                       value={type.duration}
@@ -542,6 +655,19 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                         setSessionTypes(newTypes);
                       }}
                       placeholder="Durée (min)"
+                    />
+                  </div>
+                  <div className="w-32">
+                    <Input
+                      type="number"
+                      value={type.maxParticipants || 1}
+                      onChange={(e) => {
+                        const newTypes = [...sessionTypes];
+                        newTypes[idx].maxParticipants = Number(e.target.value);
+                        setSessionTypes(newTypes);
+                      }}
+                      placeholder="Max places"
+                      title="Nombre maximum de participants"
                     />
                   </div>
                   <Button
@@ -652,15 +778,34 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                                 setSchedule(newSchedule);
                               }
                             }}
-                            className="w-full px-4 py-3 rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all !py-1 !px-2 w-48"
+                            className="px-4 py-3 rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all !py-1 !px-2 w-40"
                           >
                             <option value="">Séance Standard</option>
                             {sessionTypes.map(t => (
                               <option key={t.id} value={t.id}>{t.name}</option>
                             ))}
                           </select>
+                          {clubCoaches.length > 1 && (
+                            <select
+                              value={slot.coachId || ''}
+                              onChange={(e) => {
+                                const newSchedule = [...schedule];
+                                const dayIdx = newSchedule.findIndex(s => s.day === index);
+                                if (dayIdx >= 0) {
+                                  newSchedule[dayIdx].slots[slotIndex].coachId = e.target.value || undefined;
+                                  setSchedule(newSchedule);
+                                }
+                              }}
+                              className="px-4 py-3 rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all !py-1 !px-2 w-40"
+                            >
+                              <option value="">Tous les coachs</option>
+                              {clubCoaches.map(c => (
+                                <option key={c.id} value={String(c.id)}>{c.name}</option>
+                              ))}
+                            </select>
+                          )}
                           <Button 
-                            variant="secondary" 
+                            variant="secondary"  
                             className="!p-1 !h-8 !w-8 flex items-center justify-center text-red-400 border-red-500/20 hover:bg-red-500/10"
                             onClick={() => {
                               const newSchedule = [...schedule];

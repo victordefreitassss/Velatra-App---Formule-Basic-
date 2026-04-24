@@ -781,6 +781,21 @@ export default function App() {
   };
 
   const renderActivePageContent = (user: User) => {
+    if (state.viewingProg) {
+      return (
+        <ProgramEditor 
+          program={state.viewingProg}
+          preset={null}
+          exercises={state.exercises}
+          clubId={user.clubId}
+          member={(state.users || []).find(u => Number(u.id) === state.viewingProg!.memberId)}
+          readOnly={true}
+          onSave={() => {}}
+          onCancel={() => setState(s => ({ ...s, viewingProg: null }))}
+        />
+      );
+    }
+    
     if (state.editingProg || state.editingPreset) {
       return (
         <ProgramEditor 
