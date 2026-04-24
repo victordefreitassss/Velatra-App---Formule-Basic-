@@ -105,6 +105,7 @@ interface ProgramEditorProps {
   onCancel: () => void;
   allPresets?: Preset[]; 
   member?: any;
+  readOnly?: boolean;
 }
 
 export const ProgramEditor: React.FC<ProgramEditorProps> = ({ 
@@ -115,7 +116,8 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   onSave, 
   onCancel,
   allPresets = [],
-  member
+  member,
+  readOnly = false
 }) => {
   const isEditingProgram = !!program;
   const initialData = program || preset || {
@@ -374,22 +376,32 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                 {showPresets ? "X" : "APPLIQUER MODÈLE"}
              </Button>
           )}
-          {isSingleSession ? (
-            <>
-              <Button onClick={() => onSave(formData, 'plan')} variant="secondary" className="shadow-sm px-6 py-3 !rounded-full font-black italic">
-                <CalendarIcon size={18} className="mr-2" />
-                PRÉVOIR
-              </Button>
-              <Button onClick={() => onSave(formData, 'start')} variant="primary" className="shadow-lg px-6 py-3 !rounded-full font-black italic !bg-blue-500 hover:!bg-blue-600">
-                <PlayIcon size={18} className="mr-2" />
-                COMMENCER MTN
-              </Button>
-            </>
-          ) : (
-            <Button onClick={() => onSave(formData)} variant="success" className="shadow-lg px-8 py-3 !rounded-full font-black italic">
-              <SaveIcon size={18} className="mr-2" />
-              VALIDER
+          {!isSingleSession && (
+            <Button onClick={() => {
+              import('../services/pdfService').then(m => m.exportProgramToPDF(formData, exercises, null, member?.name));
+            }} variant="ghost" className="shadow-sm px-4 py-3 !rounded-full font-black italic">
+              <span className="mr-2">📄</span>
+              EXPORT PDF
             </Button>
+          )}
+          {!readOnly && (
+            isSingleSession ? (
+              <>
+                <Button onClick={() => onSave(formData, 'plan')} variant="secondary" className="shadow-sm px-6 py-3 !rounded-full font-black italic">
+                  <CalendarIcon size={18} className="mr-2" />
+                  PRÉVOIR
+                </Button>
+                <Button onClick={() => onSave(formData, 'start')} variant="primary" className="shadow-lg px-6 py-3 !rounded-full font-black italic !bg-blue-500 hover:!bg-blue-600">
+                  <PlayIcon size={18} className="mr-2" />
+                  COMMENCER MTN
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => onSave(formData)} variant="success" className="shadow-lg px-8 py-3 !rounded-full font-black italic">
+                <SaveIcon size={18} className="mr-2" />
+                VALIDER
+              </Button>
+            )
           )}
         </div>
       </header>

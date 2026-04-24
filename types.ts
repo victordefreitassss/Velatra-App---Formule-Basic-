@@ -41,16 +41,17 @@ export interface Club {
       acceptedMethods: string[];
       autoCollection: boolean;
     };
+    canAddStaff?: boolean;
     booking?: {
       enabled?: boolean;
-      sessionTypes?: { id: string; name: string; duration: number }[];
+      sessionTypes?: { id: string; name: string; duration: number; maxParticipants?: number }[];
       sessionDuration: number; // in minutes (legacy/default)
       minAdvanceBookingHours?: number; // e.g., 24 for no same-day booking
       minCancellationHours?: number; // e.g., 24 for no last-minute cancellation
       maxBookingsPerWeek?: number; // e.g., 3
       schedule: {
         day: number; // 0 = Sunday, 1 = Monday, etc.
-        slots: { start: string; end: string; sessionTypeId?: string }[]; // e.g., { start: "09:00", end: "12:00" }
+        slots: { start: string; end: string; sessionTypeId?: string; coachId?: string }[]; // e.g., { start: "09:00", end: "12:00" }
       }[];
     };
   };
@@ -66,6 +67,15 @@ export interface Notification {
   read: boolean;
   createdAt: string;
   link?: string; // Optional link to navigate to
+}
+
+export interface UserDocument {
+  id: string;
+  name: string;
+  category: 'Certificat médical' | 'Formulaire d\'inscription' | 'Consentement parent' | 'Pièce d\'identité' | 'Autre';
+  url: string;
+  type: string; // e.g., 'application/pdf', 'image/jpeg'
+  uploadDate: string;
 }
 
 export interface User {
@@ -115,6 +125,7 @@ export interface User {
     arms?: number;
     thighs?: number;
   };
+  documents?: UserDocument[];
 }
 
 export interface SupplementProduct {
@@ -661,6 +672,7 @@ export interface AppState {
   selectedDay: number;
   editingProg: Program | null;
   editingPreset: Preset | null;
+  viewingProg?: Program | null;
   workout: Program | null;
   workoutIsProgramSession?: boolean;
   workoutData: Record<string, string>;

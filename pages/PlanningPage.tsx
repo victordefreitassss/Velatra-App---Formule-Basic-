@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Booking, User, Program } from '../types';
 import { Card, Button, Badge } from '../components/UI';
@@ -25,9 +25,22 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<{ start: Date, end: Date, sessionTypeId?: string } | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<{ start: Date, end: Date, sessionTypeId?: string, coachId?: string } | null>(null);
+  const [selectedCoachId, setSelectedCoachId] = useState<string>('');
+  const [filterCoachId, setFilterCoachId] = useState<string>('all');
 
   const isCoach = state.user?.role === 'coach' || state.user?.role === 'owner' || state.user?.role === 'superadmin';
+
+  // Get available coaches
+  const clubCoaches = useMemo(() => {
+    return state.users.filter(u => u.clubId === state.currentClub?.id && ['coach', 'owner', 'superadmin'].includes(u.role));
+  }, [state.users, state.currentClub?.id]);
+
+  useEffect(() => {
+    if (!selectedCoachId && clubCoaches.length > 0) {
+      setSelectedCoachId(String(clubCoaches[0].id));
+    }
+  }, [clubCoaches, selectedCoachId]);
 
   // Get booking settings
   const bookingSettings = state.currentClub?.settings?.booking || {
@@ -56,7 +69,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   const getAvailableSlots = (date: Date) => {
     const dayOfWeek = date.getDay();
     const daySchedule = bookingSettings.schedule.find(s => s.day === dayOfWeek);
-    const slots: { start: Date, end: Date, sessionTypeId?: string }[] = [];
+    const slots: { start: Date, end: Date, sessionTypeId?: string, coachId?: string }[] = [];
 
     if (daySchedule) {
       daySchedule.slots.forEach(timeSlot => {
@@ -74,7 +87,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
 
         while (currentStart.getTime() + durationMs <= periodEnd.getTime()) {
           const currentEnd = new Date(currentStart.getTime() + durationMs);
-          slots.push({ start: new Date(currentStart), end: new Date(currentEnd), sessionTypeId: timeSlot.sessionTypeId });
+          slots.push({ start: new Date(currentStart), end: new Date(currentEnd), sessionTypeId: timeSlot.sessionTypeId, coachId: timeSlot.coachId });
           currentStart = new Date(currentStart.getTime() + durationMs);
         }
       });
@@ -85,14 +98,28 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
     dayBookings.forEach(b => {
       const bStart = new Date(b.startTime);
       const bEnd = new Date(b.endTime);
-      const exists = slots.some(s => s.start.getTime() === bStart.getTime());
+      const exists = slots.some(s => s.start.getTime() === bStart.getTime() && s.coachId === b.coachId);
       if (!exists) {
-        slots.push({ start: bStart, end: bEnd });
+        slots.push({ start: bStart, end: bEnd, coachId: b.coachId });
       }
     });
 
-    // Sort slots by start time
-    return slots.sort((a, b) => a.start.getTime() - b.start.getTime());
+    let finalSlots = slots.sort((a, b) => a.start.getTime() - b.start.getTime());
+    
+    if (filterCoachId !== 'all') {
+      finalSlots = finalSlots.filter(s => {
+        // If slot has a specific coach, check it
+        if (s.coachId) return s.coachId === filterCoachId;
+        // If slot is generic (no specific coach), we can either hide it or show it. 
+        // For generic slots, let's include them in all coach views so they can be booked.
+        // Or actually, let's keep it clean: if filter is applied, only show explicitly scheduled.
+        return true; // We'll let generic slots (no coach assigned) show up so they aren't lost, or return false to hide them. Let's return true if no coachId.
+      });
+      // Filter out bookings mismatching coach.
+      finalSlots = finalSlots.filter(s => s.coachId ? s.coachId === filterCoachId : true);
+    }
+
+    return finalSlots;
   };
 
   const handleBookSlot = async () => {
@@ -149,7 +176,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
       const newBooking: Omit<Booking, 'id'> = {
         clubId: state.user.clubId,
         memberId: Number(state.user.id),
-        coachId: state.currentClub?.ownerId || '', // Assuming owner is the coach for now
+        coachId: selectedSlot.coachId || selectedCoachId || state.currentClub?.ownerId || '',
         startTime: selectedSlot.start.toISOString(),
         endTime: selectedSlot.end.toISOString(),
         status: 'confirmed',
@@ -161,10 +188,10 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
 
       // Create notification for the coach
       if (!isCoach) {
-        if (state.currentClub?.ownerId) {
+        if (newBooking.coachId) {
           await addDoc(collection(db, 'notifications'), {
             clubId: state.currentClub?.id,
-            userId: state.currentClub.ownerId,
+            userId: newBooking.coachId,
             title: 'Nouvelle réservation',
             message: `${state.user?.name} a réservé une séance le ${new Date(newBooking.startTime).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}.`,
             type: 'info',
@@ -278,15 +305,32 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
           <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Planning</h1>
           <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">Réservation de Séances</p>
         </div>
-        {!isCoach && (
-          <div className="bg-emerald-500/10 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-sm">
-            <TargetIcon size={20} className="text-emerald-500" />
-            <div>
-              <div className="text-[10px] uppercase font-bold text-emerald-500 tracking-widest">Crédits restants</div>
-              <div className="text-xl font-black text-zinc-900 leading-none">{state.user?.credits || 0}</div>
+        <div className="flex items-center gap-3">
+          {clubCoaches.length > 1 && (
+            <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm px-3 py-2 flex items-center gap-2">
+              <UserIcon size={16} className="text-zinc-500" />
+              <select 
+                value={filterCoachId}
+                onChange={e => setFilterCoachId(e.target.value)}
+                className="bg-transparent border-none focus:ring-0 text-sm font-bold text-zinc-700 outline-none cursor-pointer"
+              >
+                <option value="all">Tous les coachs</option>
+                {clubCoaches.map(c => (
+                  <option key={c.id} value={String(c.id)}>{c.name}</option>
+                ))}
+              </select>
             </div>
-          </div>
-        )}
+          )}
+          {!isCoach && (
+            <div className="bg-emerald-500/10 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-sm">
+              <TargetIcon size={20} className="text-emerald-500" />
+              <div>
+                <div className="text-[10px] uppercase font-bold text-emerald-500 tracking-widest">Crédits restants</div>
+                <div className="text-xl font-black text-zinc-900 leading-none">{state.user?.credits || 0}</div>
+              </div>
+            </div>
+          )}
+        </div>
       </motion.div>
 
       <motion.div variants={itemVariants} className="flex items-center justify-between bg-white p-4 rounded-3xl border border-zinc-200 shadow-sm">
@@ -354,127 +398,79 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
             }
 
             return slots.map((slot, sIdx) => {
-              const bookingForSlot = dayBookings.find(b => new Date(b.startTime).getTime() === slot.start.getTime());
+              const bookingsForSlot = dayBookings.filter(b => new Date(b.startTime).getTime() === slot.start.getTime() && b.status !== 'cancelled' && b.status !== 'rejected');
               const isPast = slot.start.getTime() < new Date().getTime();
               const sessionType = bookingSettings.sessionTypes?.find(t => t.id === slot.sessionTypeId);
+              const maxParticipants = sessionType?.maxParticipants || 1;
+              const isFull = bookingsForSlot.length >= maxParticipants;
+              const myBooking = bookingsForSlot.find(b => b.memberId === Number(state.user?.id));
 
-              if (bookingForSlot) {
-                const isMyBooking = bookingForSlot.memberId === Number(state.user?.id);
-                const isProspectTrial = bookingForSlot.type === 'trial';
-                const member = state.users.find(u => Number(u.id) === bookingForSlot.memberId);
-                const prospect = isProspectTrial && bookingForSlot.prospectId ? state.prospects?.find(p => p.id === bookingForSlot.prospectId) : null;
-                
-                const bgColor = isCoach ? (isProspectTrial ? 'bg-orange-50 text-orange-900 border border-orange-200' : 'bg-zinc-50 text-zinc-900 shadow-lg') : (isMyBooking ? 'bg-emerald-500 text-zinc-900 shadow-lg shadow-emerald-500/20' : 'bg-white text-zinc-500 border border-zinc-200 shadow-sm');
-                
+              if (bookingsForSlot.length > 0 && isCoach) {
+                // Coach View (Shows all participants)
                 return (
-                  <motion.div key={sIdx} variants={itemVariants} className={`${bgColor} p-4 rounded-2xl flex flex-col justify-between min-h-[100px] transition-all ${isPast ? 'opacity-50' : 'hover:scale-[1.02]'}`}>
+                  <motion.div key={sIdx} variants={itemVariants} className="bg-zinc-50 p-4 rounded-2xl flex flex-col justify-between min-h-[100px] transition-all border border-zinc-200 shadow-sm relative">
                     <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <div className="font-black text-lg text-zinc-900">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
-                        <div className="text-xs opacity-70 font-medium uppercase tracking-wider">{isProspectTrial ? "SÉANCE D'ESSAI" : (sessionType ? sessionType.name : "COACHING")}</div>
-                      </div>
-                      {bookingForSlot.status === 'completed' ? (
-                        <Badge variant="success" className="!bg-emerald-100 !text-emerald-700 !border-none shadow-sm">Terminé</Badge>
-                      ) : isProspectTrial ? (
-                        <Badge variant="success" className="!bg-orange-100 !text-orange-700 !border-none shadow-sm">Prospect</Badge>
-                      ) : isMyBooking && !isCoach ? (
-                        <Badge variant="dark" className="!bg-zinc-100 !text-zinc-900 !border-none shadow-sm">Ma séance</Badge>
-                      ) : null}
-                    </div>
-                    
-                    {isCoach ? (
-                      <div className={`flex items-center gap-2 text-sm mb-3 p-2 rounded-xl backdrop-blur-sm ${isProspectTrial ? 'bg-orange-100/50 text-orange-800' : 'bg-zinc-50 text-zinc-600'}`}>
-                        <UserIcon size={14} /> <span className="font-bold">{isProspectTrial ? (prospect?.name || 'Prospect inconnu') : (member?.name || 'Inconnu')}</span>
-                      </div>
-                    ) : (
-                      <div className="text-[10px] uppercase tracking-widest opacity-80 mb-3 font-bold">
-                        {bookingForSlot.status === 'completed' ? 'Terminé' : (isMyBooking ? 'Réservé' : 'Indisponible')}
-                      </div>
-                    )}
-                    
-                    {(isCoach || isMyBooking) && !isPast && bookingForSlot.status !== 'completed' && (
-                      <div className="flex flex-col gap-2 mt-2">
-                        {isCoach && isProspectTrial && (
-                          <Button variant="secondary" className="w-full !py-2 !text-xs !bg-orange-200/50 hover:!bg-orange-200 text-orange-900 border-none" onClick={() => setConfirmCancelBookingId(bookingForSlot.id)}>
-                            Annuler ce créneau d'essai
-                          </Button>
-                        )}
-                        {isCoach && member && !isProspectTrial && (
-                          <div className="flex flex-col gap-2">
-                            {state.programs.filter(p => p.memberId === Number(member.id) && p.isPlannedSession && p.bookingId === bookingForSlot.id).map(plannedSession => (
-                              <Button 
-                                key={plannedSession.id}
-                                variant="primary" 
-                                onClick={() => setState((s: AppState) => ({ ...s, workout: plannedSession, workoutMember: member, workoutIsProgramSession: false }))} 
-                                className="w-full !py-2 !text-xs !bg-blue-500 hover:!bg-blue-600"
-                              >
-                                <PlayIcon size={14} className="mr-1.5" /> Lancer {plannedSession.name}
-                              </Button>
-                            ))}
-                            <div className="flex gap-2">
-                              <Button variant="secondary" className="flex-1 !py-2 !text-xs hover:bg-white text-zinc-900" onClick={() => {
-                                const dummyProgram: Program = {
-                                  id: Date.now(),
-                                  clubId: member.clubId,
-                                  memberId: Number(member.id),
-                                  name: `Séance du ${new Date(bookingForSlot.startTime).toLocaleDateString('fr-FR')}`,
-                                  presetId: null,
-                                  nbDays: 1,
-                                  durationWeeks: 1,
-                                  currentDayIndex: 0,
-                                  startDate: new Date().toISOString(),
-                                  completedWeeks: [],
-                                  days: [{ name: "Séance Libre", exercises: [], isCoaching: true }],
-                                  isPlannedSession: true,
-                                  bookingId: bookingForSlot.id
-                                };
-                                setState((s: AppState) => ({ ...s, editingProg: dummyProgram }));
-                              }}>
-                                Libre
-                              </Button>
-                              
-                              <Button 
-                                variant={state.programs.some(p => p.memberId === Number(member.id) && !p.isPlannedSession) ? "primary" : "secondary"}
-                                className="flex-1 !py-2 !text-xs" 
-                                disabled={!state.programs.some(p => p.memberId === Number(member.id) && !p.isPlannedSession)}
-                                onClick={() => {
-                                  const program = state.programs.find(p => p.memberId === Number(member.id) && !p.isPlannedSession);
-                                  if (program) {
-                                    const dayIndex = program.currentDayIndex % program.nbDays;
-                                    const nextSession = program.days[dayIndex];
-                                    
-                                    const singleSessionProgram: Program = {
-                                      id: Date.now(),
-                                      clubId: member.clubId,
-                                      memberId: Number(member.id),
-                                      name: nextSession.name || "Séance du programme",
-                                      presetId: null,
-                                      nbDays: 1,
-                                      durationWeeks: 1,
-                                      currentDayIndex: 0,
-                                      startDate: new Date().toISOString(),
-                                      completedWeeks: [],
-                                      days: [JSON.parse(JSON.stringify(nextSession))],
-                                      isPlannedSession: true,
-                                      originalProgramId: program.id,
-                                      bookingId: bookingForSlot.id
-                                    };
-                                    setState((s: AppState) => ({ ...s, editingProg: singleSessionProgram }));
-                                  }
-                                }}
-                              >
-                                Prog.
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                        <Button variant="secondary" className={`w-full !py-2 !text-xs transition-colors ${isCoach ? ' hover:bg-white text-zinc-900' : 'border-zinc-400 hover:bg-zinc-100 text-zinc-900'}`} onClick={() => handleCancelBooking(bookingForSlot)}>
-                          Annuler la réservation
-                        </Button>
-                      </div>
-                    )}
+                       <div>
+                         <div className="font-black text-lg text-zinc-900">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
+                         <div className="text-xs opacity-70 font-medium uppercase tracking-wider">{sessionType ? sessionType.name : "COACHING"}</div>
+                         {slot.coachId && (
+                           <div className="text-[10px] text-zinc-500 flex items-center gap-1 mt-1">
+                             <UserIcon size={10} />
+                             {state.users.find(u => String(u.id) === slot.coachId)?.name || 'Coach'}
+                           </div>
+                         )}
+                       </div>
+                       <Badge variant="success" className="!bg-blue-100 !text-blue-700 !border-none shadow-sm">{bookingsForSlot.length}/{maxParticipants} Résa</Badge>
+                     </div>
+                     <div className="flex flex-col gap-1 mb-3">
+                       {bookingsForSlot.map(b => {
+                         const m = state.users.find(u => Number(u.id) === b.memberId);
+                         const p = b.type === 'trial' ? state.prospects?.find(pros => pros.id === b.prospectId) : null;
+                         return (
+                           <div key={b.id} className="flex items-center justify-between text-xs p-1.5 rounded-lg bg-white border border-zinc-100">
+                             <span className="font-bold flex items-center gap-1.5"><UserIcon size={12}/> {b.type === 'trial' ? (p?.name || 'Prospect') : (m?.name || 'Inconnu')} {b.status === 'completed' && '(Terminé)'}</span>
+                             {b.status !== 'completed' && <button onClick={() => setConfirmCancelBookingId(b.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2Icon size={12}/></button>}
+                           </div>
+                         )
+                       })}
+                     </div>
                   </motion.div>
                 );
+              }
+
+              if (myBooking && !isCoach) {
+                // Member View - Already Booked
+                return (
+                  <motion.div key={sIdx} variants={itemVariants} className="bg-emerald-50 text-zinc-900 p-4 rounded-2xl flex flex-col justify-between min-h-[100px] transition-all border-emerald-500 shadow-lg shadow-emerald-500/20 relative">
+                     <div className="flex justify-between items-start mb-2">
+                       <div>
+                         <div className="font-black text-lg text-zinc-900">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
+                         <div className="text-xs opacity-70 font-medium uppercase tracking-wider">{sessionType ? sessionType.name : "COACHING"}</div>
+                         {slot.coachId && (
+                           <div className="text-[10px] text-emerald-900/50 flex items-center gap-1 mt-1 font-bold">
+                             <UserIcon size={10} />
+                             {state.users.find(u => String(u.id) === slot.coachId)?.name || 'Coach'}
+                           </div>
+                         )}
+                       </div>
+                       {myBooking.status === 'completed' ? (
+                         <Badge variant="success" className="!bg-emerald-100 !text-emerald-700 !border-none shadow-sm">Terminé</Badge>
+                       ) : (
+                         <Badge variant="dark" className="!bg-zinc-100 !text-zinc-900 !border-none shadow-sm">Ma séance</Badge>
+                       )}
+                     </div>
+                     
+                     <div className="text-[10px] uppercase tracking-widest opacity-80 mb-3 font-bold">
+                       {myBooking.status === 'completed' ? 'Terminé' : 'Réservé'}
+                     </div>
+
+                     {!isPast && myBooking.status !== 'completed' && (
+                       <Button variant="secondary" className="w-full !py-2 !text-xs border-emerald-500/30 text-emerald-900 hover:bg-emerald-100 transition-colors" onClick={() => handleCancelBooking(myBooking)}>
+                         Annuler ma réservation
+                       </Button>
+                     )}
+                  </motion.div>
+                )
               }
 
               if (isPast) {
@@ -487,12 +483,28 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                 );
               }
 
+              if (isFull) {
+                return (
+                  <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-2xl border border-dashed  text-zinc-500 bg-zinc-50 flex flex-col justify-center min-h-[100px] shadow-sm">
+                    <div className="font-black text-lg mb-1 opacity-50">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
+                    {sessionType && <div className="text-xs opacity-50 font-medium uppercase tracking-wider mb-1">{sessionType.name}</div>}
+                    <div className="text-[10px] uppercase tracking-widest font-bold text-red-500">Complet</div>
+                  </motion.div>
+                );
+              }
+
               if (isCoach) {
                 return (
-                  <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-2xl border border-dashed  text-zinc-500 bg-white flex flex-col justify-center min-h-[100px] shadow-sm">
+                  <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-2xl border border-dashed  text-zinc-500 bg-white flex flex-col justify-center min-h-[100px] shadow-sm relative">
                     <div className="font-black text-lg mb-1">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
                     {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider mb-1">{sessionType.name}</div>}
-                    <div className="text-[10px] uppercase tracking-widest font-bold">Créneau libre</div>
+                    {slot.coachId && (
+                      <div className="text-[10px] text-zinc-400 flex items-center gap-1 mb-1">
+                        <UserIcon size={10} />
+                        {state.users.find(u => String(u.id) === slot.coachId)?.name || 'Coach'}
+                      </div>
+                    )}
+                    <div className="text-[10px] uppercase tracking-widest font-bold">Créneau libre ({bookingsForSlot.length}/{maxParticipants})</div>
                   </motion.div>
                 );
               }
@@ -507,10 +519,21 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                     setSelectedSlot(slot);
                     setIsBookingModalOpen(true);
                   }}
-                  className="p-4 rounded-2xl border border-zinc-200 hover:border-emerald-500 hover:bg-zinc-50 transition-all text-zinc-900 bg-white flex flex-col justify-center items-center group min-h-[100px] shadow-sm hover:shadow-md"
+                  className="p-4 rounded-2xl border border-zinc-200 hover:border-emerald-500 hover:bg-zinc-50 transition-all text-zinc-900 bg-white flex flex-col justify-center items-center group min-h-[100px] shadow-sm hover:shadow-md relative"
                 >
                   <div className="font-black text-xl mb-1 group-hover:text-emerald-500 transition-colors">{formatTime(slot.start)}</div>
                   {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider mb-1 group-hover:text-emerald-500/70">{sessionType.name}</div>}
+                  {slot.coachId && (
+                    <div className="text-[10px] text-zinc-500 flex items-center justify-center gap-1 mb-2">
+                      <UserIcon size={10} />
+                      {state.users.find(u => String(u.id) === slot.coachId)?.name || 'Coach'}
+                    </div>
+                  )}
+                  {maxParticipants > 1 && (
+                    <div className="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-lg font-bold shadow-sm">
+                      {bookingsForSlot.length}/{maxParticipants} places
+                    </div>
+                  )}
                   <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 group-hover:text-emerald-500/70">Réserver</div>
                 </motion.button>
               );
@@ -554,6 +577,22 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                     <div className="text-sm text-zinc-500">{formatTime(selectedSlot.start)} - {formatTime(selectedSlot.end)}</div>
                   </div>
                 </div>
+
+                {!selectedSlot.coachId && clubCoaches.length > 1 && (
+                  <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 shadow-sm">
+                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Choisir le coach</div>
+                    <select
+                      value={selectedCoachId}
+                      onChange={(e) => setSelectedCoachId(e.target.value)}
+                      className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 font-bold focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
+                    >
+                      <option value="" disabled>Sélectionner un coach</option>
+                      {clubCoaches.map(c => (
+                        <option key={c.id} value={String(c.id)}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 flex items-center justify-between shadow-sm">
                   <div>

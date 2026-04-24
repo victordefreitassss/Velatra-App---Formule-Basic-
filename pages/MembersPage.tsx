@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { AppState, User, Performance, BodyData, Program, Gender, Goal, Subscription, Plan, NutritionPlan, Payment, Invoice, SessionLog, DriveFile } from '../types';
+import { AppState, User, UserDocument, Performance, BodyData, Program, Gender, Goal, Subscription, Plan, NutritionPlan, Payment, Invoice, SessionLog, DriveFile } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { 
   SearchIcon, InfoIcon, 
@@ -461,6 +461,80 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     } catch (err) {
       console.error("Error adding payment:", err);
       showToast("Erreur lors de l'ajout du paiement", "error");
+    }
+  };
+
+  const [isUploadingOfficialDocument, setIsUploadingOfficialDocument] = useState(false);
+  const [officialDocumentCategory, setOfficialDocumentCategory] = useState<'Certificat médical' | 'Formulaire d\'inscription' | 'Consentement parent' | 'Pièce d\'identité' | 'Autre'>('Certificat médical');
+
+  const handleOfficialDocumentUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !selectedProfile || !selectedProfile.firebaseUid) return;
+
+    setIsUploadingOfficialDocument(true);
+    const file = files[0]; // Only handle one at a time for explicit categorization
+
+    try {
+      const fileId = Math.random().toString(36).substring(2, 15);
+      const storageRef = ref(storage, `users/${selectedProfile.firebaseUid}/documents/${fileId}_${file.name}`);
+      
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          // progress could be tracked
+        }, 
+        (error) => {
+          console.error("Error uploading official document:", error);
+          showToast("Erreur lors de l'upload.", "error");
+          setIsUploadingOfficialDocument(false);
+        }, 
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          
+          const newDoc: UserDocument = {
+            id: fileId,
+            name: file.name,
+            category: officialDocumentCategory,
+            url: downloadURL,
+            type: file.type || 'application/octet-stream',
+            uploadDate: new Date().toISOString()
+          };
+
+          const updatedDocs = [...(selectedProfile.documents || []), newDoc];
+          const userRef = doc(db, 'users', selectedProfile.firebaseUid!);
+          await updateDoc(userRef, { documents: updatedDocs });
+          
+          setSelectedProfile({ ...selectedProfile, documents: updatedDocs });
+          showToast("Document administratif ajouté avec succès");
+          setIsUploadingOfficialDocument(false);
+        }
+      );
+    } catch (error) {
+      console.error("Error initiating official doc upload:", error);
+      showToast("Erreur lors de l'upload.", "error");
+      setIsUploadingOfficialDocument(false);
+    }
+  };
+
+  const handleDeleteOfficialDocument = async (docId: string) => {
+    if (!selectedProfile || !selectedProfile.firebaseUid) return;
+    
+    try {
+      const docToDelete = selectedProfile.documents?.find(d => d.id === docId);
+      if (docToDelete) {
+        // Optionnel : Supprimer le fichier de Storage si on a sauvegardé le chemin complet (ici on a juste l'URL)
+        // Mais pour simplifier, on supprime juste la référence du profil.
+      }
+      
+      const updatedDocs = selectedProfile.documents?.filter(d => d.id !== docId) || [];
+      const userRef = doc(db, 'users', selectedProfile.firebaseUid);
+      await updateDoc(userRef, { documents: updatedDocs });
+      
+      setSelectedProfile({ ...selectedProfile, documents: updatedDocs });
+      showToast("Document supprimé.");
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      showToast("Erreur lors de la suppression.", "error");
     }
   };
 
@@ -1614,7 +1688,20 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       {selectedProfile.name}
                       {selectedProfile.status === 'paused' && <Badge variant="dark" className="!bg-zinc-800 !text-white !border-zinc-800 !px-2 !py-0.5 !text-[10px] not-italic">EN PAUSE</Badge>}
                     </h2>
-                    <Badge variant="accent" className="mt-3 !px-4 !py-1.5">ÉVOLUTION</Badge>
+                    {(() => {
+                      const lastAutonomousSession = state.logs
+                        ?.filter(log => log.memberId === Number(selectedProfile.id) && !log.isCoaching)
+                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                      
+                      return lastAutonomousSession ? (
+                        <div className="text-[10px] font-bold text-emerald-600/80 uppercase tracking-widest mt-2 flex items-center justify-center gap-1.5 bg-emerald-50 inline-flex px-3 py-1.5 rounded-full border border-emerald-100">
+                          Dernière séance en autonomie : {new Date(lastAutonomousSession.date).toLocaleDateString('fr-FR')}
+                        </div>
+                      ) : null;
+                    })()}
+                    <div className="mt-3">
+                      <Badge variant="accent" className="!px-4 !py-1.5">ÉVOLUTION</Badge>
+                    </div>
                   </div>
 
                   <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
@@ -2028,10 +2115,22 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           onClick={() => {
                             setState(s => ({ ...s, workout: stats.program, workoutMember: selectedProfile }));
                           }} 
-                          className="!py-3 !text-[10px] w-full mt-4 !rounded-xl shadow-xl shadow-emerald-500/20"
+                          className="!py-3 !text-[10px] w-full mt-4 !rounded-xl shadow-xl shadow-emerald-500/20 mb-2"
                         >
                           LANCER SÉANCE COACHING
                         </Button>
+                        <div className="flex gap-2">
+                           <Button variant="secondary" onClick={() => setState({...state, viewingProg: stats.program})} className="!py-2 !text-[10px] flex-1 !bg-white">
+                             CONSULTER
+                           </Button>
+                           <Button variant="secondary" onClick={() => {
+                             if (!selectedProfile.phone) return showToast("Adhérent sans numéro de téléphone", "error");
+                             const text = encodeURIComponent(`Salut ${selectedProfile.name} ! Ton nouveau programme ${stats.program?.name} est disponible sur l'application. Bon entraînement ! 💪`);
+                             window.open(`https://wa.me/${selectedProfile.phone.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
+                           }} className="!py-2 !text-[10px] w-auto px-4 !bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 border-none font-bold">
+                             WHATSAPP
+                           </Button>
+                        </div>
                       </div>
                     ) : (
                       <div className="bg-zinc-50 rounded-3xl p-8 border border-dashed  text-center">
@@ -2207,17 +2306,97 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </section>
                   )}
 
-                  {/* DOCUMENTS PARTAGÉS (DRIVE) */}
+                  {/* DOCUMENTS (OFFICIELS & DRIVE) */}
                   {memberTab === 'documents' && (
                   <section className="space-y-8">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500"><FolderIcon size={24} /></div>
-                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Documents Partagés</h3>
+                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Documents</h3>
+                    </div>
+
+                    {/* DOCUMENTS ADMINISTRATIFS */}
+                    <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-[40px] p-8 shadow-sm">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                        <div>
+                          <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Documents Administratifs</h4>
+                          <p className="text-[10px] text-zinc-500 mt-1">Certificats médicaux, formulaires d'inscription...</p>
+                        </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <select 
+                            value={officialDocumentCategory}
+                            onChange={(e) => setOfficialDocumentCategory(e.target.value as any)}
+                            className="bg-white border border-zinc-200 rounded-xl px-3 py-2 text-xs text-zinc-900 focus:outline-none focus:border-emerald-500 shrink-0"
+                          >
+                            <option value="Certificat médical">Certificat médical</option>
+                            <option value="Formulaire d'inscription">Formulaire d'inscription</option>
+                            <option value="Consentement parent">Consentement parent</option>
+                            <option value="Pièce d'identité">Pièce d'identité</option>
+                            <option value="Autre">Autre</option>
+                          </select>
+                          <label className="cursor-pointer shrink-0">
+                            <input 
+                              type="file" 
+                              className="hidden" 
+                              onChange={(e) => handleOfficialDocumentUpload(e.target.files)}
+                              disabled={isUploadingOfficialDocument}
+                              accept="image/*,.pdf"
+                            />
+                            <Button variant="secondary" className="!py-2 !px-4 !text-[10px] !rounded-xl pointer-events-none" disabled={isUploadingOfficialDocument}>
+                              {isUploadingOfficialDocument ? (
+                                <span>...</span>
+                              ) : (
+                                <>
+                                  <UploadIcon size={14} className="mr-2 inline" />
+                                  IMPORTER
+                                </>
+                              )}
+                            </Button>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        {selectedProfile.documents && selectedProfile.documents.length > 0 ? (
+                          selectedProfile.documents
+                            .sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())
+                            .map(doc => (
+                              <div key={doc.id} className="flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-2xl hover:border-emerald-500/30 transition-colors shadow-sm">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500 shadow-sm border border-emerald-500/20">
+                                    <FileTextIcon size={20} />
+                                  </div>
+                                  <div>
+                                    <div className="text-sm font-bold text-zinc-900">{doc.category}</div>
+                                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
+                                      {doc.name} • {new Date(doc.uploadDate).toLocaleDateString('fr-FR')}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <a href={doc.url} target="_blank" rel="noopener noreferrer" className="p-2 text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-colors">
+                                    <EyeIcon size={18} />
+                                  </a>
+                                  <button onClick={() => handleDeleteOfficialDocument(doc.id)} className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-colors">
+                                    <Trash2Icon size={18} />
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                        ) : (
+                          <div className="text-center py-8 text-zinc-500 text-sm">
+                            Aucun document administratif pour le moment.
+                          </div>
+                        )}
+                      </div>
                     </div>
                     
+                    {/* DOCUMENTS PARTAGÉS GÉNÉRIQUES */}
                     <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-[40px] p-8 shadow-sm">
                       <div className="flex justify-between items-center mb-6">
-                        <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Fichiers du client</h4>
+                        <div>
+                          <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Fichiers partagés</h4>
+                          <p className="text-[10px] text-zinc-500 mt-1">Vidéos, bilans PDF, historiques partagés...</p>
+                        </div>
                         <label className="cursor-pointer">
                           <input 
                             type="file" 
@@ -2443,48 +2622,57 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   <section className="space-y-8">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CalendarIcon size={24} /></div>
-                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Historique Coaching</h3>
+                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Historique des Séances</h3>
                     </div>
                     
                       <div className="bg-zinc-50 border border-zinc-200 rounded-[40px] p-8 shadow-sm">
                         {(() => {
-                          const coachingLogs = (state.logs || []).filter(log => log.memberId === Number(selectedProfile.id) && log.isCoaching).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                          if (coachingLogs.length === 0) {
+                          const allLogs = (state.logs || []).filter(log => log.memberId === Number(selectedProfile.id)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                          if (allLogs.length === 0) {
                             return (
                               <div className="text-center py-8 text-zinc-500 text-sm italic">
-                                Aucune séance de coaching enregistrée pour ce membre.
+                                Aucune séance enregistrée pour ce membre.
                               </div>
                             );
                           }
                           return (
                           <div className="space-y-4">
-                            {coachingLogs.slice(0, visibleCoachingLogs).map(log => (
-                              <div key={log.id} className="flex flex-col gap-3 p-4 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-2xl shadow-sm">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <div className="text-sm font-bold text-zinc-900">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">{log.dayName} • Semaine {log.week}</div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="px-3 py-1 bg-emerald-500/20 text-emerald-500 rounded-full text-[10px] font-black uppercase tracking-widest">
-                                      Terminée
-                                    </span>
-                                    <Button variant="secondary" className="!py-1 !px-2 !text-[10px] !rounded-lg" onClick={() => setSelectedLog(log)}>
-                                      VOIR RÉCAP
-                                    </Button>
-                                  </div>
-                                </div>
-                                {log.notes && (
-                                  <div className="mt-2 p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/10">
-                                    <div className="flex items-start gap-2">
-                                      <MessageCircleIcon size={14} className="text-emerald-500 mt-0.5 shrink-0" />
-                                      <p className="text-xs text-zinc-600 leading-relaxed italic line-clamp-2">"{log.notes}"</p>
+                            {allLogs.slice(0, visibleCoachingLogs).map(log => {
+                              const isAutonomous = !log.isCoaching;
+                              const colorTheme = isAutonomous ? 'blue' : 'emerald';
+                              const bgColorClass = isAutonomous ? 'bg-blue-50 border-blue-200' : 'bg-emerald-50 border-emerald-200';
+                              const labelColors = isAutonomous ? 'bg-blue-500/20 text-blue-600' : 'bg-emerald-500/20 text-emerald-600';
+                              
+                              return (
+                                <div key={log.id} className={`flex flex-col gap-3 p-4 backdrop-blur-xl border rounded-2xl shadow-sm ${bgColorClass}`}>
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="text-sm font-bold text-zinc-900">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                                      <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
+                                        {isAutonomous ? 'Séance en Autonomie' : 'Séance Coaching'} • {log.dayName || 'Jour libre'} • Semaine {log.week}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${labelColors}`}>
+                                        Terminée
+                                      </span>
+                                      <Button variant="secondary" className="!py-1 !px-2 !text-[10px] !rounded-lg bg-white/50 hover:bg-white" onClick={() => setSelectedLog(log)}>
+                                        VOIR RÉCAP
+                                      </Button>
                                     </div>
                                   </div>
-                                )}
-                              </div>
-                            ))}
-                            {coachingLogs.length > visibleCoachingLogs && (
+                                  {log.notes && (
+                                    <div className="mt-2 p-3 bg-white/50 rounded-lg border border-black/5">
+                                      <div className="flex items-start gap-2">
+                                        <MessageCircleIcon size={14} className={`mt-0.5 shrink-0 text-${colorTheme}-500`} />
+                                        <p className="text-xs text-zinc-600 leading-relaxed italic line-clamp-2">"{log.notes}"</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {allLogs.length > visibleCoachingLogs && (
                               <Button variant="secondary" fullWidth onClick={() => setVisibleCoachingLogs(prev => prev + 5)} className="!mt-4 !py-3 !text-[10px] !rounded-xl">
                                 VOIR PLUS DE SÉANCES
                               </Button>

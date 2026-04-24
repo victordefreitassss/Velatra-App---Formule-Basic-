@@ -129,6 +129,74 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
+// Endpoint to create a staff member (coach) without logging out the current user
+app.post("/api/create-staff", async (req, res) => {
+  try {
+    if (!admin.apps.length) {
+      return res.status(500).json({ error: "Firebase Admin is not configured" });
+    }
+
+    const { email, password, name, clubId, requestorUid } = req.body;
+    
+    if (!email || !password || !name || !clubId || !requestorUid) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const db = admin.firestore();
+    
+    // Security check: Verify requestor is owner or superadmin of the club
+    const requestorDoc = await db.collection("users").doc(requestorUid).get();
+    if (!requestorDoc.exists) {
+      return res.status(403).json({ error: "Unauthorized" });
+    }
+    
+    const requestorData = requestorDoc.data();
+    if (requestorData?.clubId !== clubId && requestorData?.role !== 'superadmin') {
+      return res.status(403).json({ error: "Unauthorized: Club mismatch" });
+    }
+    if (requestorData?.role !== 'superadmin' && requestorData?.role !== 'owner' && requestorData?.role !== 'coach') {
+      return res.status(403).json({ error: "Unauthorized: Must be owner, admin or coach to add staff" });
+    }
+
+    // Create user in Auth
+    const userRecord = await admin.auth().createUser({
+      email,
+      password,
+      displayName: name,
+    });
+
+    // Create user in Firestore
+    await db.collection("users").doc(userRecord.uid).set({
+      id: Date.now(),
+      clubId: clubId,
+      code: email.split("@")[0].substring(0, 8),
+      pwd: "", // Standard procedure, hide actual pwd
+      name: name,
+      email: email,
+      role: "coach",
+      avatar: name.substring(0, 2).toUpperCase(),
+      createdAt: new Date().toISOString(),
+      firebaseUid: userRecord.uid,
+      // Minimal defaults:
+      gender: "M",
+      age: 25,
+      weight: 70,
+      height: 175,
+      xp: 0,
+      streak: 0,
+      pointsFidelite: 0,
+      objectifs: [],
+      notes: ""
+    });
+
+    res.json({ success: true, uid: userRecord.uid });
+
+  } catch (err: any) {
+    console.error("Error creating staff:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Endpoint to create a Stripe Price/Plan
 app.post("/api/stripe/create-plan", async (req, res) => {
   try {
