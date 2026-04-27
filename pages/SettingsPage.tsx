@@ -347,7 +347,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                 <span className="text-3xl font-bold text-zinc-500">{state.currentClub?.name.charAt(0)}</span>
               )}
               <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                <span className="text-white text-[10px] font-bold uppercase tracking-widest">Logo</span>
+                <span className="text-white text-xs font-medium uppercase tracking-wider">Logo</span>
                 <input 
                   type="file" 
                   accept="image/*" 
@@ -383,7 +383,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase text-zinc-900/70 tracking-widest ml-1">
+            <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900/70 tracking-widest ml-1">
               Code d'accès du club
             </label>
             <div className="p-4 bg-white border border-zinc-200 rounded-xl flex justify-between items-center">
@@ -420,7 +420,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               <p className="text-xs text-zinc-500 mb-4">Ajoutez un coach/membre du staff à votre club. Il ou elle se connectera en tant que coach pour gérer les mêmes adhérents que vous.</p>
               <form onSubmit={handleAddStaff} className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-900/70 tracking-widest ml-1">Nom du Coach</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900/70 tracking-widest ml-1">Nom du Coach</label>
                   <Input 
                     type="text" 
                     placeholder="Ex: Emma" 
@@ -430,7 +430,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-900/70 tracking-widest ml-1">Email</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900/70 tracking-widest ml-1">Email</label>
                   <Input 
                     type="email" 
                     placeholder="emma@monclub.com" 
@@ -440,7 +440,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase text-zinc-900/70 tracking-widest ml-1">Mot de passe temporaire</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900/70 tracking-widest ml-1">Mot de passe temporaire</label>
                   <Input 
                     type="password" 
                     placeholder="••••••••" 
@@ -484,7 +484,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
 
         <div className="space-y-6 max-w-md">
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase text-zinc-900/70 tracking-widest ml-1">
+            <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900/70 tracking-widest ml-1">
               Durée par défaut d'un programme (semaines)
             </label>
             <Input 

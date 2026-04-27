@@ -215,8 +215,8 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     >
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Accueil</h1>
-          <p className="text-zinc-500 text-[10px] uppercase tracking-[3px] font-bold">Votre Centre de Contrôle</p>
+          <h1 className="text-4xl font-display font-black tracking-tight leading-none mb-2 text-zinc-900">Accueil</h1>
+          <p className="text-zinc-500 text-[10px] uppercase tracking-[3px] font-black">Votre Centre de Contrôle</p>
         </div>
       </motion.div>
 

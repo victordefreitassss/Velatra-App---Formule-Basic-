@@ -22,7 +22,7 @@ const AppLogo = () => (
       </div>
       <div className="font-display font-bold text-5xl tracking-tight leading-none text-zinc-900">VELA<span className="text-emerald-500">TRA</span></div>
     </div>
-    <div className="text-[10px] tracking-[6px] text-zinc-500 font-bold uppercase mt-3 opacity-80 pl-2">PERFORMANCE SaaS</div>
+    <div className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase mt-3 opacity-80 pl-2">PERFORMANCE SaaS</div>
   </div>
 );
 
@@ -107,7 +107,7 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
         <div className="w-full max-w-[380px] space-y-10 py-12 animate-in fade-in duration-1000 relative z-10">
           <div className="text-center">
             <AppLogo />
-            <p className="text-[10px] uppercase tracking-[6px] text-zinc-500 font-bold mt-8 opacity-90">
+            <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold mt-8 opacity-90">
               MOT DE PASSE OUBLIÉ
             </p>
           </div>
@@ -146,7 +146,7 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
       <div className="w-full max-w-[380px] space-y-10 py-12 animate-in fade-in duration-1000 relative z-10">
         <div className="text-center">
           <AppLogo />
-          <p className="text-[10px] uppercase tracking-[6px] text-emerald-500 font-bold mt-8 opacity-90">
+          <p className="text-[10px] uppercase tracking-widest text-emerald-500 font-bold mt-8 opacity-90">
             {isCoachMode ? "ESPACE COACHING PRIVÉ" : "AUTHENTIFICATION ATHLÈTE"}
           </p>
         </div>
@@ -191,7 +191,7 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
                 </button>
               </>
             )}
-            <button onClick={() => setIsCoachMode(!isCoachMode)} className="text-[10px] font-bold tracking-[4px] py-3 px-6 rounded-full border border-zinc-200 text-zinc-500 hover:text-emerald-500 hover:border-emerald-500/30 transition-all uppercase mx-auto">
+            <button onClick={() => setIsCoachMode(!isCoachMode)} className="text-[10px] font-bold tracking-widest py-3 px-6 rounded-full border border-zinc-200 text-zinc-500 hover:text-emerald-500 hover:border-emerald-500/30 transition-all uppercase mx-auto">
               {isCoachMode ? "Retour Membre" : "Accès Coach"}
             </button>
           </div>

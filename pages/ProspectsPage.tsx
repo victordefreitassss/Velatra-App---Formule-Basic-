@@ -243,7 +243,7 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
 
             <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Email</label>
+                <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Email</label>
                 <input 
                   type="email"
                   value={convertData.email}
@@ -253,7 +253,7 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Mot de passe provisoire</label>
+                <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Mot de passe provisoire</label>
                 <input 
                   type="text"
                   value={convertData.password}
@@ -282,7 +282,7 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
           animate={{ opacity: 1, y: 0 }}
           className="bg-zinc-50 border border-zinc-200 rounded-xl p-6"
         >
-          <h2 className="text-xl font-semibold text-zinc-900 mb-4">Ajouter un Prospect</h2>
+          <h2 className="text-xl font-black text-zinc-900 mb-4">Ajouter un Prospect</h2>
           <form onSubmit={handleAddProspect} className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm text-zinc-500 mb-1">Nom complet</label>
@@ -320,7 +320,7 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
               onDrop={(e) => handleDrop(e, col.id)}
             >
               <div className={`p-3 border-b  flex justify-between items-center rounded-t-xl ${col.color.split(' ')[0]}`}>
-                <h3 className={`font-semibold ${col.color.split(' ')[1]}`}>{col.title}</h3>
+                <h3 className={`font-black ${col.color.split(' ')[1]}`}>{col.title}</h3>
                 <span className="bg-zinc-50 px-2 py-0.5 rounded-full text-xs font-medium">{colProspects.length}</span>
               </div>
               

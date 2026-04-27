@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { AppState, User, UserDocument, Performance, BodyData, Program, Gender, Goal, Subscription, Plan, NutritionPlan, Payment, Invoice, SessionLog, DriveFile } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { 
-  SearchIcon, InfoIcon, 
+  SearchIcon, InfoIcon, UserIcon, ActivityIcon, DollarSignIcon,
   XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon, MailIcon, ImageIcon, SparklesIcon
 } from '../components/Icons';
 import { db, doc, setDoc, updateDoc, deleteDoc, auth, secondaryAuth, createUserWithEmailAndPassword, sendPasswordResetEmail, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage, addDoc } from '../firebase';
@@ -36,7 +36,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState(state.memberFilter || "Tous");
   const [selectedProfile, setSelectedProfile] = useState<User | null>(state.selectedMember || null);
-  const [memberTab, setMemberTab] = useState<'overview' | 'training' | 'billing' | 'documents'>('overview');
+  const [memberTab, setMemberTab] = useState<'overview' | 'profile' | 'measurements' | 'training' | 'billing' | 'documents'>('overview');
   const [selectedLog, setSelectedLog] = useState<SessionLog | null>(null);
   const [selectedEvolutionPhoto, setSelectedEvolutionPhoto] = useState<string | null>(null);
 
@@ -1464,7 +1464,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       <div className="flex justify-between items-center px-1">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900">Fiches Athlètes</h1>
-          <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-[3px]">{members.length} Profils Actifs</p>
+          <p className="text-xs font-medium uppercase text-emerald-600 tracking-wider">{members.length} Profils Actifs</p>
         </div>
         <div className="flex items-center gap-3">
           <input 
@@ -1557,10 +1557,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   <div className="flex-1">
                     <div className="font-black text-lg text-zinc-900 leading-none mb-2 uppercase tracking-tight">{u.name}</div>
                     <div className="flex flex-wrap gap-2">
-                      {u.status === 'paused' && <Badge variant="dark" className="!bg-zinc-800 !text-white !border-zinc-800 !p-1 !text-[8px]">EN PAUSE</Badge>}
-                      <Badge variant="dark" className="!bg-zinc-50 !backdrop-blur-xl \!text-zinc-500 \!border-zinc-200 !p-1 !text-[8px]">{stats.perfs.length} PR</Badge>
-                      {hasFeedback && <Badge variant="orange" className="!bg-orange-500/10 !text-orange-500 !border-orange-500/20 !p-1 !text-[8px] animate-pulse">FEEDBACK</Badge>}
-                      {u.planRequested && <Badge variant="orange" className="!bg-orange-500/10 !text-orange-500 !border-orange-500/20 !p-1 !text-[8px] animate-pulse">DEMANDE PLAN</Badge>}
+                      {u.status === 'paused' && <Badge variant="dark" className="!bg-zinc-800 !text-white !border-zinc-800 !p-1 !text-[10px]">EN PAUSE</Badge>}
+                      <Badge variant="dark" className="!bg-zinc-50 !backdrop-blur-xl \!text-zinc-500 \!border-zinc-200 !p-1 !text-[10px]">{stats.perfs.length} PR</Badge>
+                      {hasFeedback && <Badge variant="orange" className="!bg-orange-500/10 !text-orange-500 !border-orange-500/20 !p-1 !text-[10px] animate-pulse">FEEDBACK</Badge>}
+                      {u.planRequested && <Badge variant="orange" className="!bg-orange-500/10 !text-orange-500 !border-orange-500/20 !p-1 !text-[10px] animate-pulse">DEMANDE PLAN</Badge>}
                     </div>
                   </div>
                 </div>
@@ -1597,7 +1597,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 <p className="text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2">{label}</p>
                 {payload.map((entry: any, index: number) => (
                   <div key={index} className="flex items-center justify-between gap-4">
-                    <span className="text-[10px] font-black uppercase" style={{ color: entry.color }}>{entry.name}</span>
+                    <span className="text-xs font-black uppercase text-zinc-500" style={{ color: entry.color }}>{entry.name}</span>
                     <span className="text-sm font-black text-zinc-900">{entry.value}{entry.name === 'Poids' || entry.name === 'Muscle' ? 'kg' : '%'}</span>
                   </div>
                 ))}
@@ -1653,9 +1653,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-12">
+                <div className="flex flex-col md:flex-row h-full min-h-[85vh]">
                   {/* SIDEBAR */}
-                  <div className="lg:col-span-4 bg-zinc-50 backdrop-blur-xl border-r  p-6 md:p-10 space-y-8 md:space-y-10 pt-20 md:pt-10">
+                  <div className="w-full md:w-72 lg:w-80 bg-zinc-50 border-r border-zinc-200 p-6 flex flex-col gap-6 shrink-0 md:h-[calc(100vh)] md:sticky top-0 overflow-y-auto hide-scrollbar pt-20 md:pt-10">
                   <div className="text-center relative">
                     <div className="w-24 h-24 rounded-[32px] bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-4xl font-black mx-auto mb-6 shadow-2xl overflow-hidden">
                       {selectedProfile.avatar?.startsWith('http') ? (
@@ -1703,474 +1703,36 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       <Badge variant="accent" className="!px-4 !py-1.5">ÉVOLUTION</Badge>
                     </div>
                   </div>
+                  <nav className="flex flex-col gap-1 mt-4">
+                    {[
+                      { id: 'overview', label: "Vue d'ensemble", icon: <LayersIcon size={16} /> },
+                      { id: 'profile', label: "Profil", icon: <UserIcon size={16} /> },
+                      { id: 'measurements', label: "Mensurations", icon: <ActivityIcon size={16} /> },
+                      { id: 'training', label: "Entraînement", icon: <DumbbellIcon size={16} /> },
+                      { id: 'billing', label: "Facturation", icon: <DollarSignIcon size={16} /> },
+                      { id: 'documents', label: "Documents", icon: <FolderIcon size={16} /> }
+                    ].map(tab => (
+                      <button 
+                        key={tab.id}
+                        onClick={() => setMemberTab(tab.id as any)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${memberTab === tab.id ? 'bg-emerald-500 text-zinc-900 shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50'}`}
+                      >
+                        {tab.icon}
+                        {tab.label}
+                      </button>
+                    ))}
+                  </nav>
 
-                  <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-[10px] font-black uppercase tracking-[4px] text-emerald-500">Crédits Coaching</h3>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between bg-zinc-50 backdrop-blur-xl p-3 rounded-2xl border border-zinc-200 shadow-sm">
-                        <div>
-                          <div className="text-xl font-black text-zinc-900">{selectedProfile.credits || 0}</div>
-                          <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">Standard</div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center \!bg-zinc-50 \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" onClick={() => handleUpdateCredits(selectedProfile, -1)}>-</Button>
-                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center \!bg-zinc-50 \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" onClick={() => handleUpdateCredits(selectedProfile, 1)}>+</Button>
-                        </div>
-                      </div>
+                  
 
-                      {state.currentClub?.settings?.booking?.sessionTypes?.map(type => (
-                        <div key={type.id} className="flex items-center justify-between bg-zinc-50 backdrop-blur-xl p-3 rounded-2xl border border-zinc-200 shadow-sm">
-                          <div>
-                            <div className="text-xl font-black text-zinc-900">{selectedProfile.sessionCredits?.[type.id] || 0}</div>
-                            <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">{type.name}</div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, -1)}>-</Button>
-                            <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, 1)}>+</Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  
 
-                  <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
-                    <h3 className="text-[10px] font-black uppercase tracking-[4px] text-emerald-500">Fidélité & Achats</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center">
-                        <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Points</div>
-                        <div className="text-xl font-black text-zinc-900">{selectedProfile.pointsFidelite || 0}</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total Achats</div>
-                        <div className="text-xl font-black text-emerald-500">{stats.totalSpent}€</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
-                    <h3 className="text-[10px] font-black uppercase tracking-[4px] text-emerald-500">Profil & Objectifs</h3>
-                    
-                    {(selectedProfile.email || selectedProfile.phone) && (
-                      <div className="space-y-3 mb-6 pb-4 border-b ">
-                        {selectedProfile.email && (
-                          <div>
-                            <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Email</div>
-                            <div className="text-sm font-bold text-zinc-900">{selectedProfile.email}</div>
-                          </div>
-                        )}
-                        {selectedProfile.phone && (
-                          <div>
-                            <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Téléphone</div>
-                            <div className="text-sm font-bold text-zinc-900">{selectedProfile.phone}</div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Âge</div>
-                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.age} ans</div>
-                      </div>
-                      {selectedProfile.birthDate && (
-                        <div>
-                          <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Date de naissance</div>
-                          <div className="text-sm font-bold text-zinc-900">{new Date(selectedProfile.birthDate).toLocaleDateString()}</div>
-                        </div>
-                      )}
-                      <div>
-                        <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Sexe</div>
-                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.gender === 'M' ? 'Homme' : selectedProfile.gender === 'F' ? 'Femme' : 'Autre'}</div>
-                      </div>
-                      <div>
-                        <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Taille</div>
-                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.height} cm</div>
-                      </div>
-                      <div>
-                        <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-1">Poids Initial</div>
-                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.weight} kg</div>
-                      </div>
-                    </div>
-                    {selectedProfile.objectifs && selectedProfile.objectifs.length > 0 && (
-                      <div>
-                        <div className="text-[8px] font-black text-zinc-500 uppercase tracking-widest mb-2">Objectifs</div>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedProfile.objectifs.map((obj, idx) => (
-                            <span key={idx} className="px-2 py-1 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-full text-[9px] font-bold text-zinc-900 uppercase tracking-wider shadow-sm">
-                              {obj}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {selectedProfile.notes && (
-                    <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-2 shadow-sm">
-                      <h3 className="text-[10px] font-black uppercase tracking-[4px] text-emerald-500">Notes d'Inscription</h3>
-                      <p className="text-xs text-zinc-500 leading-relaxed italic">"{selectedProfile.notes}"</p>
-                    </div>
-                  )}
-
-                  {/* Remarks Display */}
-                  {stats.program?.memberRemarks && (
-                    <div className="bg-orange-500/10 border border-orange-500/20 p-6 rounded-3xl space-y-3">
-                       <div className="flex items-center gap-2 text-orange-500">
-                          <MessageCircleIcon size={18} />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Feedback Adhérent</span>
-                       </div>
-                       <p className="text-sm font-bold text-zinc-900 italic leading-relaxed">"{stats.program.memberRemarks}"</p>
-                       <div className="flex flex-col sm:flex-row gap-2">
-                         <Button variant="secondary" className="flex-1 !py-2 !text-[9px] !rounded-xl !bg-zinc-50 \!backdrop-blur-xl \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" onClick={async () => {
-                           if (stats.program) {
-                             try {
-                               await updateDoc(doc(db, "programs", stats.program.id.toString()), { memberRemarks: "" });
-                               // No need to update local state manually as onSnapshot will handle it, 
-                               // but for immediate UI feedback we might want to refresh stats if they are derived from state
-                             } catch (err) {
-                               console.error("Error clearing memberRemarks:", err);
-                             }
-                           }
-                         }}>
-                            MARQUER COMME TRAITÉ
-                         </Button>
-                         <Button variant="primary" className="flex-1 !py-2 !text-[9px] !rounded-xl" onClick={() => handleEditProgram(selectedProfile)}>
-                            ADAPTER LE PLAN
-                         </Button>
-                       </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between px-1">
-                       <h3 className="text-[10px] font-black uppercase tracking-[4px] text-emerald-500">Abonnement</h3>
-                    </div>
-                    {stats.subscription ? (
-                      <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 shadow-sm space-y-4">
-                        <div className="flex justify-between items-start">
-                          <span className="font-black text-zinc-900 text-lg uppercase italic">{stats.subscription.planName}</span>
-                          <span className="text-[10px] px-2 py-1 bg-green-500/20 text-green-600 rounded-full font-black uppercase tracking-widest">Actif</span>
-                        </div>
-                        <div className="text-[10px] font-bold text-zinc-900 uppercase tracking-widest">
-                          {stats.subscription.price}€ / {stats.subscription.billingCycle === 'monthly' ? 'mois' : stats.subscription.billingCycle === 'yearly' ? 'an' : 'fois'}
-                        </div>
-                        
-                        <div className="pt-4 border-t  space-y-2">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-zinc-500">Début :</span>
-                            <span className="font-bold text-zinc-900">{new Date(stats.subscription.startDate).toLocaleDateString()}</span>
-                          </div>
-                          {stats.subscription.commitmentEndDate && (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-zinc-500">Fin d'engagement :</span>
-                              <span className={`font-bold ${new Date(stats.subscription.commitmentEndDate) < new Date() ? 'text-red-500' : 'text-zinc-900'}`}>
-                                {new Date(stats.subscription.commitmentEndDate).toLocaleDateString()}
-                              </span>
-                            </div>
-                          )}
-                          {stats.subscription.contractUrl && (
-                            <div className="flex justify-between text-xs pt-2">
-                              <a href={stats.subscription.contractUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-500 font-bold flex items-center gap-1 hover:underline">
-                                <LinkIcon size={12} /> Voir le contrat
-                              </a>
-                            </div>
-                          )}
-                        </div>
-
-                        {isEditingSub ? (
-                          <div className="space-y-3 pt-4 border-t  max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Date de début</label>
-                              <Input type="date" value={subStartDate} onChange={e => setSubStartDate(e.target.value)} />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Fin d'engagement (optionnel)</label>
-                              <Input type="date" value={subCommitmentDate} onChange={e => setSubCommitmentDate(e.target.value)} />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Importer un contrat (PDF, Image)</label>
-                              <input 
-                                type="file" 
-                                accept=".pdf,image/*" 
-                                onChange={handleFileUpload}
-                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-emerald-500/10 file:text-emerald-500 hover:file:bg-emerald-500/20 transition-colors"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Ou lien du contrat (optionnel)</label>
-                              <Input type="url" placeholder="https://..." value={subContractUrl} onChange={e => setSubContractUrl(e.target.value)} />
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-2 pt-2 sticky bottom-0 bg-white pb-2 z-10">
-                              <button onClick={() => setIsEditingSub(false)} className="flex-1 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
-                              <button onClick={handleUpdateSubscription} className="flex-1 bg-emerald-500 text-zinc-900 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">Enregistrer</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button onClick={() => {
-                            setSubStartDate(stats.subscription!.startDate.split('T')[0]);
-                            setSubCommitmentDate(stats.subscription!.commitmentEndDate ? stats.subscription!.commitmentEndDate.split('T')[0] : '');
-                            setSubContractUrl(stats.subscription!.contractUrl || '');
-                            setIsEditingSub(true);
-                          }} className="w-full mt-4 border border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-300 rounded-xl py-2 text-[10px] font-black uppercase tracking-widest transition-colors">
-                            Modifier l'abonnement
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <p className="text-xs text-zinc-500 font-medium px-1">Aucun abonnement actif.</p>
-                        {isAssigningPlan ? (
-                          <div className="space-y-3 bg-zinc-50 p-4 rounded-3xl border border-zinc-200 shadow-sm max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-                            <select 
-                              value={selectedPlanId} 
-                              onChange={e => {
-                                const planId = e.target.value;
-                                setSelectedPlanId(planId);
-                                const plan = state.plans.find(p => p.id === planId);
-                                if (plan && plan.hasCommitment && plan.commitmentMonths) {
-                                  const start = new Date(subStartDate);
-                                  if (!isNaN(start.getTime())) {
-                                    start.setMonth(start.getMonth() + plan.commitmentMonths);
-                                    setSubCommitmentDate(start.toISOString().split('T')[0]);
-                                  }
-                                } else {
-                                  setSubCommitmentDate('');
-                                }
-                              }}
-                              className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-3 text-zinc-900 text-xs font-medium focus:outline-none focus:border-emerald-500 shadow-sm"
-                            >
-                              <option value="">Sélectionner une formule</option>
-                              {state.plans.map(p => <option key={p.id} value={p.id}>{p.name} - {p.price}€</option>)}
-                            </select>
-                            
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Date de début</label>
-                              <Input type="date" value={subStartDate} onChange={e => {
-                                const newDate = e.target.value;
-                                setSubStartDate(newDate);
-                                const plan = state.plans.find(p => p.id === selectedPlanId);
-                                if (plan && plan.hasCommitment && plan.commitmentMonths) {
-                                  const start = new Date(newDate);
-                                  if (!isNaN(start.getTime())) {
-                                    start.setMonth(start.getMonth() + plan.commitmentMonths);
-                                    setSubCommitmentDate(start.toISOString().split('T')[0]);
-                                  }
-                                }
-                              }} />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Fin d'engagement (optionnel)</label>
-                              <Input type="date" value={subCommitmentDate} onChange={e => setSubCommitmentDate(e.target.value)} />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Importer un contrat (PDF, Image)</label>
-                              <input 
-                                type="file" 
-                                accept=".pdf,image/*" 
-                                onChange={handleFileUpload}
-                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-emerald-500/10 file:text-emerald-500 hover:file:bg-emerald-500/20 transition-colors"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Ou lien du contrat (optionnel)</label>
-                              <Input type="url" placeholder="https://..." value={subContractUrl} onChange={e => setSubContractUrl(e.target.value)} />
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row gap-2 pt-2 sticky bottom-0 bg-zinc-50 pb-2 z-10">
-                              <button onClick={() => setIsAssigningPlan(false)} className="flex-1 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
-                              <button onClick={handleAssignSubscription} disabled={!selectedPlanId} className="flex-1 bg-emerald-500 text-zinc-900 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50">Confirmer</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <button onClick={() => setIsAssigningPlan(true)} className="w-full border border-dashed  text-zinc-500 hover:text-zinc-900 hover:border-zinc-300 rounded-3xl py-4 text-[10px] font-black uppercase tracking-widest transition-colors">
-                              + Assigner une formule
-                            </button>
-                            <button onClick={() => setShowOnboardingEmailModal(true)} className="w-full bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 rounded-3xl py-4 text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2">
-                              <MailIcon size={14} /> ENVOYER CONTRAT & PAIEMENT
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between px-1">
-                       <h3 className="text-[10px] font-black uppercase tracking-[4px] text-emerald-500">Évolution</h3>
-                    </div>
-                    {(() => {
-                      const memberPhotos = state.progressPhotos?.filter(p => p.memberId === Number(selectedProfile.id) && p.visibility === 'coach') || [];
-                      const photosByDate = memberPhotos.reduce((acc, photo) => {
-                        const date = photo.date.split('T')[0];
-                        if (!acc[date]) acc[date] = photo;
-                        return acc;
-                      }, {} as Record<string, import('../types').ProgressPhoto>);
-                      const sortedDates = Object.keys(photosByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-                      const latestDate = sortedDates[0];
-                      const latestPhoto = latestDate ? photosByDate[latestDate] : null;
-
-                      if (!latestPhoto) {
-                        return (
-                          <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm text-center">
-                            <ImageIcon size={24} className="mx-auto text-zinc-300 mb-2" />
-                            <p className="text-xs text-zinc-500 font-medium">Aucune photo partagée.</p>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm space-y-4">
-                          <div className="flex justify-between items-center mb-4">
-                            <span className="font-black text-zinc-900 text-sm uppercase">Dernières photos</span>
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase">{new Date(latestDate).toLocaleDateString()}</span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 mb-4">
-                            {['frontUrl', 'sideUrl', 'backUrl'].map((type) => {
-                              const url = (latestPhoto as any)[type];
-                              return (
-                                <div key={type} className="aspect-[3/4] bg-zinc-200 rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity" onClick={() => url && setSelectedEvolutionPhoto(url)}>
-                                  {url ? (
-                                    <img src={url} alt={type} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-zinc-400">
-                                      <ImageIcon size={16} />
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                          
-                          {latestPhoto.measurements && Object.keys(latestPhoto.measurements).length > 0 && (
-                            <div className="bg-white rounded-2xl p-4 border border-zinc-200">
-                              <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">Mensurations (cm)</h4>
-                              <div className="grid grid-cols-3 gap-y-3 gap-x-2">
-                                {[
-                                  { key: 'chest', label: 'Poitrine' },
-                                  { key: 'waist', label: 'Taille' },
-                                  { key: 'hips', label: 'Hanches' },
-                                  { key: 'arm', label: 'Bras' },
-                                  { key: 'thigh', label: 'Cuisse' },
-                                  { key: 'calf', label: 'Mollet' }
-                                ].map(m => latestPhoto.measurements?.[m.key as keyof NonNullable<ProgressPhoto['measurements']>] ? (
-                                  <div key={m.key}>
-                                    <div className="text-[8px] font-bold text-zinc-400 uppercase tracking-wider">{m.label}</div>
-                                    <div className="text-sm font-black text-zinc-900">{latestPhoto.measurements[m.key as keyof NonNullable<ProgressPhoto['measurements']>] || '--'}</div>
-                                  </div>
-                                ) : null)}
-                              </div>
-                            </div>
-                          )}
-
-                          {sortedDates.length > 1 && (
-                            <div className="text-center pt-2">
-                              <span className="text-[10px] font-bold text-zinc-500 uppercase">{sortedDates.length} dates disponibles</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between px-1">
-                       <h3 className="text-[10px] font-black uppercase tracking-[4px] text-emerald-500">Plan Actif</h3>
-                       <div className="flex gap-2">
-                         <button onClick={openAIGeneratorModal} disabled={isGeneratingProgram} className={`text-emerald-500 hover:text-emerald-600 transition-colors ${isGeneratingProgram ? 'animate-pulse cursor-not-allowed' : ''}`} title="Générer avec l'IA">
-                            <SparklesIcon size={14} />
-                         </button>
-                         <button onClick={() => handleEditProgram(selectedProfile)} className="text-zinc-500 hover:text-zinc-900 transition-colors" title="Créer / Modifier">
-                            <LayersIcon size={14} />
-                         </button>
-                       </div>
-                    </div>
-                    {stats.program ? (
-                      <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 shadow-sm relative overflow-hidden">
-                        <div className="font-black text-zinc-900 text-lg mb-1 uppercase italic">{stats.program.name}</div>
-                        <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase mb-4 tracking-widest">
-                           <span>Cycle complété</span>
-                           <span className="text-zinc-900">{progCompletion}%</span>
-                        </div>
-                        <div className="h-2 bg-zinc-50 backdrop-blur-xl rounded-full overflow-hidden mb-4 border ">
-                          <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-1000" style={{ width: `${progCompletion}%` }} />
-                        </div>
-                        
-                        {/* Feature 2: Auto Progression Toggle */}
-                        <div className="mt-4 pt-4 border-t  flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-4 bg-emerald-500 rounded-full relative cursor-pointer" onClick={() => showToast("Progression automatique activée", "success")}>
-                              <div className="absolute right-1 top-0.5 w-3 h-3 bg-white rounded-full shadow-sm"></div>
-                            </div>
-                            <span className="text-[9px] font-black text-zinc-900 uppercase tracking-widest">Surcharge Progressive IA</span>
-                          </div>
-                          <span className="text-[8px] text-zinc-500 uppercase tracking-widest">+2.5kg auto</span>
-                        </div>
-
-                        <Button 
-                          variant="primary" 
-                          onClick={() => {
-                            setState(s => ({ ...s, workout: stats.program, workoutMember: selectedProfile }));
-                          }} 
-                          className="!py-3 !text-[10px] w-full mt-4 !rounded-xl shadow-xl shadow-emerald-500/20 mb-2"
-                        >
-                          LANCER SÉANCE COACHING
-                        </Button>
-                        <div className="flex gap-2">
-                           <Button variant="secondary" onClick={() => setState({...state, viewingProg: stats.program})} className="!py-2 !text-[10px] flex-1 !bg-white">
-                             CONSULTER
-                           </Button>
-                           <Button variant="secondary" onClick={() => {
-                             if (!selectedProfile.phone) return showToast("Adhérent sans numéro de téléphone", "error");
-                             const text = encodeURIComponent(`Salut ${selectedProfile.name} ! Ton nouveau programme ${stats.program?.name} est disponible sur l'application. Bon entraînement ! 💪`);
-                             window.open(`https://wa.me/${selectedProfile.phone.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
-                           }} className="!py-2 !text-[10px] w-auto px-4 !bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 border-none font-bold">
-                             WHATSAPP
-                           </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="bg-zinc-50 rounded-3xl p-8 border border-dashed  text-center">
-                         <p className="text-xs italic text-zinc-900 mb-4">Aucun cycle en cours</p>
-                         <div className="flex flex-col gap-2">
-                           <Button variant="primary" fullWidth onClick={() => handleEditProgram(selectedProfile)} className="!py-3 !text-[10px]">
-                              CRÉER MANUELLEMENT
-                           </Button>
-                           <Button variant="secondary" fullWidth onClick={openAIGeneratorModal} disabled={isGeneratingProgram} className={`!py-3 !text-[10px] bg-gradient-to-r from-emerald-500/10 to-emerald-600/10 text-emerald-600 hover:from-emerald-500/20 hover:to-emerald-600/20 shadow-sm border-none transition-all ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                             <SparklesIcon size={14} className="mr-2 inline" />
-                             {isGeneratingProgram ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER VIA IA'}
-                           </Button>
-                         </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-6 bg-zinc-50 p-8 rounded-3xl border ">
-                    <h3 className="text-[10px] font-black uppercase tracking-[4px] text-emerald-500">Nouveau Scan</h3>
-                    <div className="space-y-4">
-                      <Input placeholder="Poids (kg)" type="number" className="!bg-zinc-50" value={newScan.weight || ''} onChange={e => setNewScan({...newScan, weight: e.target.value})} />
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input placeholder="Gras (%)" type="number" className="!bg-zinc-50" value={newScan.fat || ''} onChange={e => setNewScan({...newScan, fat: e.target.value})} />
-                        <Input placeholder="Muscle (kg)" type="number" className="!bg-zinc-50" value={newScan.muscle || ''} onChange={e => setNewScan({...newScan, muscle: e.target.value})} />
-                      </div>
-                      <Button variant="success" fullWidth onClick={handleSaveScan} className="!py-4 shadow-xl shadow-emerald-500/10">
-                        <SaveIcon size={16} className="mr-2" /> ENREGISTRER SCAN
-                      </Button>
-                    </div>
-                  </div>
+                  
                 </div>
 
                 {/* MAIN GRAPHS & AI */}
-                <div className="lg:col-span-8 p-6 md:p-12 space-y-12">
-                  <div className="flex gap-2 overflow-x-auto pb-4 hide-scrollbar border-b border-zinc-200 sticky top-0 bg-zinc-100 z-20 pt-4 -mt-4">
-                    <button onClick={() => setMemberTab('overview')} className={`shrink-0 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 ${memberTab === 'overview' ? 'text-zinc-900 border-emerald-500' : 'text-zinc-400 border-transparent hover:text-zinc-600'}`}>Vue d'ensemble</button>
-                    <button onClick={() => setMemberTab('training')} className={`shrink-0 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 ${memberTab === 'training' ? 'text-zinc-900 border-emerald-500' : 'text-zinc-400 border-transparent hover:text-zinc-600'}`}>Entraînement</button>
-                    <button onClick={() => setMemberTab('billing')} className={`shrink-0 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 ${memberTab === 'billing' ? 'text-zinc-900 border-emerald-500' : 'text-zinc-400 border-transparent hover:text-zinc-600'}`}>Facturation</button>
-                    <button onClick={() => setMemberTab('documents')} className={`shrink-0 px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all border-b-2 ${memberTab === 'documents' ? 'text-zinc-900 border-emerald-500' : 'text-zinc-400 border-transparent hover:text-zinc-600'}`}>Documents</button>
-                  </div>
+                <div className="flex-1 bg-white p-6 md:p-12 overflow-y-auto space-y-12 custom-scrollbar md:h-[calc(100vh)]">
+                  
                   
                   {/* VELATRA AI ENGINE SECTION */}
                   {memberTab === 'overview' && (
@@ -2279,7 +1841,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         
                         {stagnationResult ? (
                           <div className={`border rounded-xl p-3 flex flex-col gap-2 ${stagnationResult.hasStagnation ? 'bg-red-500/10 border-red-500/20' : 'bg-green-500/10 border-green-500/20'}`}>
-                            <span className={`text-[10px] font-bold uppercase tracking-widest ${stagnationResult.hasStagnation ? 'text-red-500' : 'text-green-500'}`}>
+                            <span className={`text-xs font-medium uppercase tracking-wider ${stagnationResult.hasStagnation ? 'text-red-500' : 'text-green-500'}`}>
                               {stagnationResult.hasStagnation ? 'Stagnation détectée' : 'Progression OK'}
                             </span>
                             <p className="text-[10px] text-zinc-600">{stagnationResult.advice}</p>
@@ -2457,6 +2019,209 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
                   {/* FINANCES & FACTURATION */}
                   {memberTab === 'billing' && (
+<div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
+    <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Crédits Coaching</h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between bg-zinc-50 backdrop-blur-xl p-3 rounded-2xl border border-zinc-200 shadow-sm">
+                        <div>
+                          <div className="text-xl font-black text-zinc-900">{selectedProfile.credits || 0}</div>
+                          <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Standard</div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center \!bg-zinc-50 \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" onClick={() => handleUpdateCredits(selectedProfile, -1)}>-</Button>
+                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center \!bg-zinc-50 \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" onClick={() => handleUpdateCredits(selectedProfile, 1)}>+</Button>
+                        </div>
+                      </div>
+
+                      {state.currentClub?.settings?.booking?.sessionTypes?.map(type => (
+                        <div key={type.id} className="flex items-center justify-between bg-zinc-50 backdrop-blur-xl p-3 rounded-2xl border border-zinc-200 shadow-sm">
+                          <div>
+                            <div className="text-xl font-black text-zinc-900">{selectedProfile.sessionCredits?.[type.id] || 0}</div>
+                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{type.name}</div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, -1)}>-</Button>
+                            <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, 1)}>+</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+    <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
+                    <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Fidélité & Achats</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Points</div>
+                        <div className="text-xl font-black text-zinc-900">{selectedProfile.pointsFidelite || 0}</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total Achats</div>
+                        <div className="text-xl font-black text-emerald-500">{stats.totalSpent}€</div>
+                      </div>
+                    </div>
+                  </div>
+                      <div className="space-y-4">
+                    <div className="flex items-center justify-between px-1">
+                       <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Abonnement</h3>
+                    </div>
+                    {stats.subscription ? (
+                      <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 shadow-sm space-y-4">
+                        <div className="flex justify-between items-start">
+                          <span className="font-black text-zinc-900 text-lg uppercase italic">{stats.subscription.planName}</span>
+                          <span className="text-[10px] px-2 py-1 bg-green-500/20 text-green-600 rounded-full font-black uppercase tracking-widest">Actif</span>
+                        </div>
+                        <div className="text-[10px] font-bold text-zinc-900 uppercase tracking-widest">
+                          {stats.subscription.price}€ / {stats.subscription.billingCycle === 'monthly' ? 'mois' : stats.subscription.billingCycle === 'yearly' ? 'an' : 'fois'}
+                        </div>
+                        
+                        <div className="pt-4 border-t  space-y-2">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-zinc-500">Début :</span>
+                            <span className="font-bold text-zinc-900">{new Date(stats.subscription.startDate).toLocaleDateString()}</span>
+                          </div>
+                          {stats.subscription.commitmentEndDate && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-zinc-500">Fin d'engagement :</span>
+                              <span className={`font-bold ${new Date(stats.subscription.commitmentEndDate) < new Date() ? 'text-red-500' : 'text-zinc-900'}`}>
+                                {new Date(stats.subscription.commitmentEndDate).toLocaleDateString()}
+                              </span>
+                            </div>
+                          )}
+                          {stats.subscription.contractUrl && (
+                            <div className="flex justify-between text-xs pt-2">
+                              <a href={stats.subscription.contractUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-500 font-bold flex items-center gap-1 hover:underline">
+                                <LinkIcon size={12} /> Voir le contrat
+                              </a>
+                            </div>
+                          )}
+                        </div>
+
+                        {isEditingSub ? (
+                          <div className="space-y-3 pt-4 border-t  max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                            <div className="space-y-1">
+                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Date de début</label>
+                              <Input type="date" value={subStartDate} onChange={e => setSubStartDate(e.target.value)} />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Fin d'engagement (optionnel)</label>
+                              <Input type="date" value={subCommitmentDate} onChange={e => setSubCommitmentDate(e.target.value)} />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Importer un contrat (PDF, Image)</label>
+                              <input 
+                                type="file" 
+                                accept=".pdf,image/*" 
+                                onChange={handleFileUpload}
+                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-emerald-500/10 file:text-emerald-500 hover:file:bg-emerald-500/20 transition-colors"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Ou lien du contrat (optionnel)</label>
+                              <Input type="url" placeholder="https://..." value={subContractUrl} onChange={e => setSubContractUrl(e.target.value)} />
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-2 pt-2 sticky bottom-0 bg-white pb-2 z-10">
+                              <button onClick={() => setIsEditingSub(false)} className="flex-1 px-3 py-2 text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
+                              <button onClick={handleUpdateSubscription} className="flex-1 bg-emerald-500 text-zinc-900 px-3 py-2 rounded-xl text-xs font-black uppercase text-zinc-500 tracking-wider">Enregistrer</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button onClick={() => {
+                            setSubStartDate(stats.subscription!.startDate.split('T')[0]);
+                            setSubCommitmentDate(stats.subscription!.commitmentEndDate ? stats.subscription!.commitmentEndDate.split('T')[0] : '');
+                            setSubContractUrl(stats.subscription!.contractUrl || '');
+                            setIsEditingSub(true);
+                          }} className="w-full mt-4 border border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-300 rounded-xl py-2 text-xs font-black uppercase text-zinc-500 tracking-wider transition-colors">
+                            Modifier l'abonnement
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-xs text-zinc-500 font-medium px-1">Aucun abonnement actif.</p>
+                        {isAssigningPlan ? (
+                          <div className="space-y-3 bg-zinc-50 p-4 rounded-3xl border border-zinc-200 shadow-sm max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                            <select 
+                              value={selectedPlanId} 
+                              onChange={e => {
+                                const planId = e.target.value;
+                                setSelectedPlanId(planId);
+                                const plan = state.plans.find(p => p.id === planId);
+                                if (plan && plan.hasCommitment && plan.commitmentMonths) {
+                                  const start = new Date(subStartDate);
+                                  if (!isNaN(start.getTime())) {
+                                    start.setMonth(start.getMonth() + plan.commitmentMonths);
+                                    setSubCommitmentDate(start.toISOString().split('T')[0]);
+                                  }
+                                } else {
+                                  setSubCommitmentDate('');
+                                }
+                              }}
+                              className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-3 text-zinc-900 text-xs font-medium focus:outline-none focus:border-emerald-500 shadow-sm"
+                            >
+                              <option value="">Sélectionner une formule</option>
+                              {state.plans.map(p => <option key={p.id} value={p.id}>{p.name} - {p.price}€</option>)}
+                            </select>
+                            
+                            <div className="space-y-1">
+                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Date de début</label>
+                              <Input type="date" value={subStartDate} onChange={e => {
+                                const newDate = e.target.value;
+                                setSubStartDate(newDate);
+                                const plan = state.plans.find(p => p.id === selectedPlanId);
+                                if (plan && plan.hasCommitment && plan.commitmentMonths) {
+                                  const start = new Date(newDate);
+                                  if (!isNaN(start.getTime())) {
+                                    start.setMonth(start.getMonth() + plan.commitmentMonths);
+                                    setSubCommitmentDate(start.toISOString().split('T')[0]);
+                                  }
+                                }
+                              }} />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Fin d'engagement (optionnel)</label>
+                              <Input type="date" value={subCommitmentDate} onChange={e => setSubCommitmentDate(e.target.value)} />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Importer un contrat (PDF, Image)</label>
+                              <input 
+                                type="file" 
+                                accept=".pdf,image/*" 
+                                onChange={handleFileUpload}
+                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-emerald-500/10 file:text-emerald-500 hover:file:bg-emerald-500/20 transition-colors"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Ou lien du contrat (optionnel)</label>
+                              <Input type="url" placeholder="https://..." value={subContractUrl} onChange={e => setSubContractUrl(e.target.value)} />
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-2 pt-2 sticky bottom-0 bg-zinc-50 pb-2 z-10">
+                              <button onClick={() => setIsAssigningPlan(false)} className="flex-1 px-3 py-2 text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
+                              <button onClick={handleAssignSubscription} disabled={!selectedPlanId} className="flex-1 bg-emerald-500 text-zinc-900 px-3 py-2 rounded-xl text-xs font-black uppercase text-zinc-500 tracking-wider disabled:opacity-50">Confirmer</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <button onClick={() => setIsAssigningPlan(true)} className="w-full border border-dashed  text-zinc-500 hover:text-zinc-900 hover:border-zinc-300 rounded-3xl py-4 text-xs font-black uppercase text-zinc-500 tracking-wider transition-colors">
+                              + Assigner une formule
+                            </button>
+                            <button onClick={() => setShowOnboardingEmailModal(true)} className="w-full bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 rounded-3xl py-4 text-xs font-black uppercase text-zinc-500 tracking-wider transition-colors flex items-center justify-center gap-2">
+                              <MailIcon size={14} /> ENVOYER CONTRAT & PAIEMENT
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+    
+  </div>
+  {/* The rest of billing was already here...? Oh wait, let's keep the existing stuff if there was any... wait, billing was only containing payments list actually. */}
+
                   <section className="space-y-8">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CreditCardIcon size={24} /></div>
@@ -2615,11 +2380,287 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       )}
                     </div>
                   </section>
+</div>
                   )}
 
                   {/* COACHING HISTORY */}
-                  {memberTab === 'training' && (
-                  <section className="space-y-8">
+                  {memberTab === 'profile' && (
+<section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+  <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Profil Adhérent</h3>
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    {/* Profile & Notes */}
+    <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
+                    <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Profil & Objectifs</h3>
+                    
+                    {(selectedProfile.email || selectedProfile.phone) && (
+                      <div className="space-y-3 mb-6 pb-4 border-b ">
+                        {selectedProfile.email && (
+                          <div>
+                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Email</div>
+                            <div className="text-sm font-bold text-zinc-900">{selectedProfile.email}</div>
+                          </div>
+                        )}
+                        {selectedProfile.phone && (
+                          <div>
+                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Téléphone</div>
+                            <div className="text-sm font-bold text-zinc-900">{selectedProfile.phone}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Âge</div>
+                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.age} ans</div>
+                      </div>
+                      {selectedProfile.birthDate && (
+                        <div>
+                          <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Date de naissance</div>
+                          <div className="text-sm font-bold text-zinc-900">{new Date(selectedProfile.birthDate).toLocaleDateString()}</div>
+                        </div>
+                      )}
+                      <div>
+                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Sexe</div>
+                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.gender === 'M' ? 'Homme' : selectedProfile.gender === 'F' ? 'Femme' : 'Autre'}</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Taille</div>
+                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.height} cm</div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Poids Initial</div>
+                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.weight} kg</div>
+                      </div>
+                    </div>
+                    {selectedProfile.objectifs && selectedProfile.objectifs.length > 0 && (
+                      <div>
+                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Objectifs</div>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedProfile.objectifs.map((obj, idx) => (
+                            <span key={idx} className="px-2 py-1 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-full text-[9px] font-bold text-zinc-900 uppercase tracking-wider shadow-sm">
+                              {obj}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedProfile.notes && (
+                    <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-2 shadow-sm">
+                      <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Notes d'Inscription</h3>
+                      <p className="text-xs text-zinc-500 leading-relaxed italic">"{selectedProfile.notes}"</p>
+                    </div>
+                  )}
+
+                  {/* Remarks Display */}
+                  {stats.program?.memberRemarks && (
+                    <div className="bg-orange-500/10 border border-orange-500/20 p-6 rounded-3xl space-y-3">
+                       <div className="flex items-center gap-2 text-orange-500">
+                          <MessageCircleIcon size={18} />
+                          <span className="text-xs font-black uppercase text-zinc-500 tracking-wider">Feedback Adhérent</span>
+                       </div>
+                       <p className="text-sm font-bold text-zinc-900 italic leading-relaxed">"{stats.program.memberRemarks}"</p>
+                       <div className="flex flex-col sm:flex-row gap-2">
+                         <Button variant="secondary" className="flex-1 !py-2 !text-[9px] !rounded-xl !bg-zinc-50 \!backdrop-blur-xl \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" onClick={async () => {
+                           if (stats.program) {
+                             try {
+                               await updateDoc(doc(db, "programs", stats.program.id.toString()), { memberRemarks: "" });
+                               // No need to update local state manually as onSnapshot will handle it, 
+                               // but for immediate UI feedback we might want to refresh stats if they are derived from state
+                             } catch (err) {
+                               console.error("Error clearing memberRemarks:", err);
+                             }
+                           }
+                         }}>
+                            MARQUER COMME TRAITÉ
+                         </Button>
+                         <Button variant="primary" className="flex-1 !py-2 !text-[9px] !rounded-xl" onClick={() => handleEditProgram(selectedProfile)}>
+                            ADAPTER LE PLAN
+                         </Button>
+                       </div>
+                    </div>
+                  )}
+
+    
+  </div>
+</section>
+)}
+{memberTab === 'measurements' && (
+<section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+  <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Suivi & Mensurations</h3>
+  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                      <div className="space-y-6 bg-zinc-50 p-8 rounded-3xl border ">
+                    <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Nouveau Scan</h3>
+                    <div className="space-y-4">
+                      <Input placeholder="Poids (kg)" type="number" className="!bg-zinc-50" value={newScan.weight || ''} onChange={e => setNewScan({...newScan, weight: e.target.value})} />
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input placeholder="Gras (%)" type="number" className="!bg-zinc-50" value={newScan.fat || ''} onChange={e => setNewScan({...newScan, fat: e.target.value})} />
+                        <Input placeholder="Muscle (kg)" type="number" className="!bg-zinc-50" value={newScan.muscle || ''} onChange={e => setNewScan({...newScan, muscle: e.target.value})} />
+                      </div>
+                      <Button variant="success" fullWidth onClick={handleSaveScan} className="!py-4 shadow-xl shadow-emerald-500/10">
+                        <SaveIcon size={16} className="mr-2" /> ENREGISTRER SCAN
+                      </Button>
+                    </div>
+                  </div>
+                      <div className="space-y-4">
+                    <div className="flex items-center justify-between px-1">
+                       <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Évolution</h3>
+                    </div>
+                    {(() => {
+                      const memberPhotos = state.progressPhotos?.filter(p => p.memberId === Number(selectedProfile.id) && p.visibility === 'coach') || [];
+                      const photosByDate = memberPhotos.reduce((acc, photo) => {
+                        const date = photo.date.split('T')[0];
+                        if (!acc[date]) acc[date] = photo;
+                        return acc;
+                      }, {} as Record<string, import('../types').ProgressPhoto>);
+                      const sortedDates = Object.keys(photosByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+                      const latestDate = sortedDates[0];
+                      const latestPhoto = latestDate ? photosByDate[latestDate] : null;
+
+                      if (!latestPhoto) {
+                        return (
+                          <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm text-center">
+                            <ImageIcon size={24} className="mx-auto text-zinc-300 mb-2" />
+                            <p className="text-xs text-zinc-500 font-medium">Aucune photo partagée.</p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm space-y-4">
+                          <div className="flex justify-between items-center mb-4">
+                            <span className="font-black text-zinc-900 text-sm uppercase">Dernières photos</span>
+                            <span className="text-[10px] font-bold text-zinc-500 uppercase">{new Date(latestDate).toLocaleDateString()}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 mb-4">
+                            {['frontUrl', 'sideUrl', 'backUrl'].map((type) => {
+                              const url = (latestPhoto as any)[type];
+                              return (
+                                <div key={type} className="aspect-[3/4] bg-zinc-200 rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity" onClick={() => url && setSelectedEvolutionPhoto(url)}>
+                                  {url ? (
+                                    <img src={url} alt={type} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-zinc-400">
+                                      <ImageIcon size={16} />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          
+                          {latestPhoto.measurements && Object.keys(latestPhoto.measurements).length > 0 && (
+                            <div className="bg-white rounded-2xl p-4 border border-zinc-200">
+                              <h4 className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-3">Mensurations (cm)</h4>
+                              <div className="grid grid-cols-3 gap-y-3 gap-x-2">
+                                {[
+                                  { key: 'chest', label: 'Poitrine' },
+                                  { key: 'waist', label: 'Taille' },
+                                  { key: 'hips', label: 'Hanches' },
+                                  { key: 'arm', label: 'Bras' },
+                                  { key: 'thigh', label: 'Cuisse' },
+                                  { key: 'calf', label: 'Mollet' }
+                                ].map(m => latestPhoto.measurements?.[m.key as keyof NonNullable<ProgressPhoto['measurements']>] ? (
+                                  <div key={m.key}>
+                                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{m.label}</div>
+                                    <div className="text-sm font-black text-zinc-900">{latestPhoto.measurements[m.key as keyof NonNullable<ProgressPhoto['measurements']>] || '--'}</div>
+                                  </div>
+                                ) : null)}
+                              </div>
+                            </div>
+                          )}
+
+                          {sortedDates.length > 1 && (
+                            <div className="text-center pt-2">
+                              <span className="text-[10px] font-bold text-zinc-500 uppercase">{sortedDates.length} dates disponibles</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+    
+    
+  </div>
+</section>
+)}
+{memberTab === 'training' && (
+                  <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+                                        <div className="space-y-4">
+                    <div className="flex items-center justify-between px-1">
+                       <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Plan Actif</h3>
+                       <div className="flex gap-2">
+                         <button onClick={openAIGeneratorModal} disabled={isGeneratingProgram} className={`text-emerald-500 hover:text-emerald-600 transition-colors ${isGeneratingProgram ? 'animate-pulse cursor-not-allowed' : ''}`} title="Générer avec l'IA">
+                            <SparklesIcon size={14} />
+                         </button>
+                         <button onClick={() => handleEditProgram(selectedProfile)} className="text-zinc-500 hover:text-zinc-900 transition-colors" title="Créer / Modifier">
+                            <LayersIcon size={14} />
+                         </button>
+                       </div>
+                    </div>
+                    {stats.program ? (
+                      <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 shadow-sm relative overflow-hidden">
+                        <div className="font-black text-zinc-900 text-lg mb-1 uppercase italic">{stats.program.name}</div>
+                        <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase mb-4 tracking-widest">
+                           <span>Cycle complété</span>
+                           <span className="text-zinc-900">{progCompletion}%</span>
+                        </div>
+                        <div className="h-2 bg-zinc-50 backdrop-blur-xl rounded-full overflow-hidden mb-4 border ">
+                          <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-1000" style={{ width: `${progCompletion}%` }} />
+                        </div>
+                        
+                        {/* Feature 2: Auto Progression Toggle */}
+                        <div className="mt-4 pt-4 border-t  flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-4 bg-emerald-500 rounded-full relative cursor-pointer" onClick={() => showToast("Progression automatique activée", "success")}>
+                              <div className="absolute right-1 top-0.5 w-3 h-3 bg-white rounded-full shadow-sm"></div>
+                            </div>
+                            <span className="text-[9px] font-black text-zinc-900 uppercase tracking-widest">Surcharge Progressive IA</span>
+                          </div>
+                          <span className="text-[10px] text-zinc-500 uppercase tracking-widest">+2.5kg auto</span>
+                        </div>
+
+                        <Button 
+                          variant="primary" 
+                          onClick={() => {
+                            setState(s => ({ ...s, workout: stats.program, workoutMember: selectedProfile }));
+                          }} 
+                          className="!py-3 !text-[10px] w-full mt-4 !rounded-xl shadow-xl shadow-emerald-500/20 mb-2"
+                        >
+                          LANCER SÉANCE COACHING
+                        </Button>
+                        <div className="flex gap-2">
+                           <Button variant="secondary" onClick={() => setState({...state, viewingProg: stats.program})} className="!py-2 !text-[10px] flex-1 !bg-white">
+                             CONSULTER
+                           </Button>
+                           <Button variant="secondary" onClick={() => {
+                             if (!selectedProfile.phone) return showToast("Adhérent sans numéro de téléphone", "error");
+                             const text = encodeURIComponent(`Salut ${selectedProfile.name} ! Ton nouveau programme ${stats.program?.name} est disponible sur l'application. Bon entraînement ! 💪`);
+                             window.open(`https://wa.me/${selectedProfile.phone.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
+                           }} className="!py-2 !text-[10px] w-auto px-4 !bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 border-none font-bold">
+                             WHATSAPP
+                           </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-zinc-50 rounded-3xl p-8 border border-dashed  text-center">
+                         <p className="text-xs italic text-zinc-900 mb-4">Aucun cycle en cours</p>
+                         <div className="flex flex-col gap-2">
+                           <Button variant="primary" fullWidth onClick={() => handleEditProgram(selectedProfile)} className="!py-3 !text-[10px]">
+                              CRÉER MANUELLEMENT
+                           </Button>
+                           <Button variant="secondary" fullWidth onClick={openAIGeneratorModal} disabled={isGeneratingProgram} className={`!py-3 !text-[10px] bg-gradient-to-r from-emerald-500/10 to-emerald-600/10 text-emerald-600 hover:from-emerald-500/20 hover:to-emerald-600/20 shadow-sm border-none transition-all ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                             <SparklesIcon size={14} className="mr-2 inline" />
+                             {isGeneratingProgram ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER VIA IA'}
+                           </Button>
+                         </div>
+                      </div>
+                    )}
+                  </div>
+                    </div>
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CalendarIcon size={24} /></div>
                        <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Historique des Séances</h3>
@@ -2653,7 +2694,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${labelColors}`}>
+                                      <span className={`px-3 py-1 rounded-full text-xs font-black uppercase text-zinc-500 tracking-wider ${labelColors}`}>
                                         Terminée
                                       </span>
                                       <Button variant="secondary" className="!py-1 !px-2 !text-[10px] !rounded-lg bg-white/50 hover:bg-white" onClick={() => setSelectedLog(log)}>
@@ -2684,7 +2725,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </section>
                   )}
 
-                  {memberTab === 'overview' && (
+                  {memberTab === 'profile' && (
                   <section className="space-y-8">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                       <div className="flex items-center gap-4">
@@ -2818,13 +2859,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           </div>
                         );
                       }) : (
-                        <div className="col-span-full py-12 text-center bg-zinc-50 backdrop-blur-xl border border-dashed  rounded-[32px] text-[10px] uppercase font-black text-zinc-500 tracking-[4px] italic shadow-sm">Aucun PR enregistré</div>
+                        <div className="col-span-full py-12 text-center bg-zinc-50 backdrop-blur-xl border border-dashed  rounded-[32px] text-[10px] uppercase font-black text-zinc-500 tracking-widest italic shadow-sm">Aucun PR enregistré</div>
                       )}
                     </div>
                   </section>
                   )}
 
-                  {memberTab === 'overview' && (
+                  {memberTab === 'profile' && (
                   <section className="space-y-8 pb-12">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CheckIcon size={24} /></div>
@@ -2836,27 +2877,27 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             <div className="flex flex-col">
                               <span className="text-zinc-900 font-black text-sm uppercase tracking-widest italic">{new Date(b.date).toLocaleDateString('fr-FR', {month:'long', day:'numeric', year:'numeric'})}</span>
                               <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[8px] text-zinc-900 font-black uppercase tracking-widest">Scan effectué en club</span>
-                                <button onClick={() => handleDeleteScan(b.id)} className="text-[8px] text-red-500/40 hover:text-red-500 font-black uppercase tracking-widest transition-colors opacity-0 group-hover:opacity-100">Supprimer</button>
+                                <span className="text-[10px] text-zinc-900 font-black uppercase tracking-widest">Scan effectué en club</span>
+                                <button onClick={() => handleDeleteScan(b.id)} className="text-[10px] text-red-500/40 hover:text-red-500 font-black uppercase tracking-widest transition-colors opacity-0 group-hover:opacity-100">Supprimer</button>
                               </div>
                             </div>
                             <div className="flex gap-10">
                                <div className="text-center group-hover:scale-110 transition-transform">
-                                  <div className="text-[8px] font-black uppercase text-zinc-900 tracking-widest mb-1">POIDS</div>
+                                  <div className="text-[10px] font-black uppercase text-zinc-900 tracking-widest mb-1">POIDS</div>
                                   <div className="text-xl font-black text-zinc-900">{b.weight}<span className="text-xs ml-0.5 opacity-50">KG</span></div>
                                </div>
                                <div className="text-center group-hover:scale-110 transition-transform">
-                                  <div className="text-[8px] font-black uppercase text-zinc-900 tracking-widest mb-1">GRAS</div>
+                                  <div className="text-[10px] font-black uppercase text-zinc-900 tracking-widest mb-1">GRAS</div>
                                   <div className="text-xl font-black text-emerald-500">{b.fat}<span className="text-xs ml-0.5 opacity-50">%</span></div>
                                </div>
                                <div className="text-center group-hover:scale-110 transition-transform">
-                                  <div className="text-[8px] font-black uppercase text-zinc-900 tracking-widest mb-1">MUSCLE</div>
+                                  <div className="text-[10px] font-black uppercase text-zinc-900 tracking-widest mb-1">MUSCLE</div>
                                   <div className="text-xl font-black text-emerald-500">{b.muscle}<span className="text-xs ml-0.5 opacity-50">KG</span></div>
                                </div>
                             </div>
                          </div>
                        )) : (
-                         <div className="py-12 text-center bg-zinc-50 backdrop-blur-xl border border-dashed  rounded-[32px] text-[10px] uppercase font-black text-zinc-500 tracking-[4px] italic shadow-sm">Aucun historique biométrique</div>
+                         <div className="py-12 text-center bg-zinc-50 backdrop-blur-xl border border-dashed  rounded-[32px] text-[10px] uppercase font-black text-zinc-500 tracking-widest italic shadow-sm">Aucun historique biométrique</div>
                        )}
                     </div>
                   </section>
@@ -2908,7 +2949,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     editInfoData.avatar || editInfoData.name?.substring(0, 2).toUpperCase()
                   )}
                   <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                    <span className="text-white text-[10px] font-bold uppercase tracking-widest">Photo</span>
+                    <span className="text-white text-xs font-medium uppercase tracking-wider">Photo</span>
                     <input 
                       type="file" 
                       accept="image/*" 
@@ -2936,14 +2977,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Nom Complet</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Nom Complet</label>
                   <Input 
                     value={editInfoData.name}
                     onChange={e => setEditInfoData({...editInfoData, name: e.target.value})}
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Genre</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Genre</label>
                   <select 
                     className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-emerald-500 outline-none appearance-none shadow-sm"
                     value={editInfoData.gender}
@@ -2957,7 +2998,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Âge</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Âge</label>
                   <Input 
                     type="number"
                     value={editInfoData.age || ''}
@@ -2965,7 +3006,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Date de naissance</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Date de naissance</label>
                   <Input 
                     type="date"
                     value={editInfoData.birthDate || ''}
@@ -2975,7 +3016,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Poids (kg)</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Poids (kg)</label>
                   <Input 
                     type="number"
                     value={editInfoData.weight || ''}
@@ -2983,7 +3024,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Taille (cm)</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Taille (cm)</label>
                   <Input 
                     type="number"
                     value={editInfoData.height || ''}
@@ -2993,7 +3034,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Objectifs</label>
+                <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Objectifs</label>
                 <div className="flex flex-wrap gap-2 p-3 bg-zinc-50 backdrop-blur-xl rounded-xl border border-zinc-200 max-h-32 overflow-y-auto no-scrollbar shadow-sm">
                   {GOALS.map(g => {
                     const isSelected = editInfoData.objectifs?.includes(g);
@@ -3007,7 +3048,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             : [...current, g];
                           setEditInfoData({...editInfoData, objectifs: next});
                         }}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all border ${isSelected ? 'bg-emerald-500 border-emerald-500 text-zinc-900' : 'bg-zinc-50 backdrop-blur-xl  text-zinc-900 hover:border-emerald-500/50 shadow-sm'}`}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase text-zinc-500 transition-all border ${isSelected ? 'bg-emerald-500 border-emerald-500 text-zinc-900' : 'bg-zinc-50 backdrop-blur-xl  text-zinc-900 hover:border-emerald-500/50 shadow-sm'}`}
                       >
                         {g}
                       </button>
@@ -3017,7 +3058,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Notes d'Inscription</label>
+                <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Notes d'Inscription</label>
                 <textarea 
                   className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-emerald-500 outline-none h-24 resize-none shadow-sm"
                   value={editInfoData.notes || ""}
@@ -3088,7 +3129,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
             <div className="space-y-5">
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Calories Totales (kcal)</label>
+                <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Calories Totales (kcal)</label>
                 <Input 
                   type="number"
                   value={nutritionTargets.calories || ''}
@@ -3098,7 +3139,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Protéines (g)</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Protéines (g)</label>
                   <Input 
                     type="number"
                     value={nutritionTargets.protein || ''}
@@ -3106,7 +3147,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Glucides (g)</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Glucides (g)</label>
                   <Input 
                     type="number"
                     value={nutritionTargets.carbs || ''}
@@ -3114,7 +3155,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Lipides (g)</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Lipides (g)</label>
                   <Input 
                     type="number"
                     value={nutritionTargets.fat || ''}
@@ -3206,7 +3247,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             <div className="space-y-5 overflow-y-auto custom-scrollbar pr-2 flex-1 min-h-0 pb-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Nom Complet</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Nom Complet</label>
                   <Input 
                     value={newMemberData.name}
                     onChange={e => setNewMemberData({...newMemberData, name: e.target.value})}
@@ -3214,7 +3255,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Email</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Email</label>
                   <Input 
                     type="email"
                     value={newMemberData.email}
@@ -3225,7 +3266,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Mot de passe provisoire</label>
+                <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Mot de passe provisoire</label>
                 <Input 
                   type="text"
                   value={newMemberData.password}
@@ -3236,7 +3277,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Âge</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Âge</label>
                   <Input 
                     type="number"
                     value={newMemberData.age || ''}
@@ -3244,7 +3285,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Date de naissance</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Date de naissance</label>
                   <Input 
                     type="date"
                     value={newMemberData.birthDate || ''}
@@ -3255,7 +3296,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Poids (kg)</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Poids (kg)</label>
                   <Input 
                     type="number"
                     value={newMemberData.weight || ''}
@@ -3263,7 +3304,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Taille (cm)</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Taille (cm)</label>
                   <Input 
                     type="number"
                     value={newMemberData.height || ''}
@@ -3274,7 +3315,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Expérience</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Expérience</label>
                   <select 
                     className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-emerald-500 shadow-sm"
                     value={newMemberData.experienceLevel || 'Débutant'}
@@ -3286,7 +3327,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Équipement</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Équipement</label>
                   <select 
                     className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-emerald-500 shadow-sm"
                     value={newMemberData.equipment || 'Salle complète'}
@@ -3302,7 +3343,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Jours / Semaine</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Jours / Semaine</label>
                   <Input 
                     type="number" min="1" max="7"
                     value={newMemberData.trainingDays || ''}
@@ -3310,7 +3351,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Durée (min)</label>
+                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Durée (min)</label>
                   <Input 
                     type="number" step="15"
                     value={newMemberData.sessionDuration || ''}
@@ -3320,7 +3361,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Blessures / Douleurs</label>
+                <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Blessures / Douleurs</label>
                 <Input 
                   value={newMemberData.injuries || ''}
                   onChange={e => setNewMemberData({...newMemberData, injuries: e.target.value})}
@@ -3454,7 +3495,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Lien de paiement (Stripe)</label>
+                <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Lien de paiement (Stripe)</label>
                 <Input 
                   type="url" 
                   placeholder="https://buy.stripe.com/..." 
@@ -3464,7 +3505,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 ml-1">Lien du contrat (DocuSign, Yousign...)</label>
+                <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Lien du contrat (DocuSign, Yousign...)</label>
                 <Input 
                   type="url" 
                   placeholder="https://..." 
@@ -3535,14 +3576,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             
             <div className="space-y-6">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Séance</div>
+                <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Séance</div>
                 <div className="font-bold text-zinc-900">{selectedLog.dayName}</div>
                 <div className="text-sm text-zinc-500">Semaine {selectedLog.week}</div>
               </div>
 
               {selectedLog.exercises && selectedLog.exercises.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Exercices réalisés</div>
+                  <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Exercices réalisés</div>
                   <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
                     {selectedLog.exercises.map((ex, i) => (
                       <div key={i} className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-3 shadow-sm">
@@ -3567,7 +3608,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               {selectedLog.notes && (
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Notes du Coach</div>
+                  <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Notes du Coach</div>
                   <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
                     <p className="text-sm text-zinc-600 leading-relaxed italic">"{selectedLog.notes}"</p>
                   </div>
@@ -3576,7 +3617,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
               {selectedLog.rpe && (
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Difficulté ressentie (RPE)</div>
+                  <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Difficulté ressentie (RPE)</div>
                   <div className="flex items-center gap-2">
                     <div className="text-2xl font-black text-emerald-500">{selectedLog.rpe}</div>
                     <div className="text-sm text-zinc-500">/ 10</div>
@@ -3662,15 +3703,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             
             <div className="space-y-4 relative z-10">
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1 ml-1">Jours d'entraînement / sem</label>
+                <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1 ml-1">Jours d'entraînement / sem</label>
                 <Input type="number" min="1" max="7" value={aiGeneratorParams.nbDays} onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, nbDays: Number(e.target.value)})} />
               </div>
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1 ml-1">Objectifs (séparés par des virgules)</label>
+                <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1 ml-1">Objectifs (séparés par des virgules)</label>
                 <Input type="text" value={aiGeneratorParams.goals} onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, goals: e.target.value})} />
               </div>
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1 ml-1">Intensité de la programmation</label>
+                <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1 ml-1">Intensité de la programmation</label>
                 <select 
                   className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-medium"
                   value={aiGeneratorParams.intensity} 
@@ -3684,7 +3725,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1 ml-1">Instructions supplémentaires</label>
+                <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1 ml-1">Instructions supplémentaires</label>
                 <textarea 
                   placeholder="Ex: Éviter les mouvements avec haltères lourds, accent sur les fessiers..."
                   className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-medium min-h-[80px]"
@@ -3694,7 +3735,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
 
               <div className="pt-2">
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 ml-1">Options supplémentaires</label>
+                <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2 ml-1">Options supplémentaires</label>
                 <div className="grid grid-cols-2 gap-2">
                   <label className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${aiGeneratorParams.includeWarmup ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100'}`}>
                     <input type="checkbox" className="hidden" checked={aiGeneratorParams.includeWarmup} onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, includeWarmup: e.target.checked})} />
@@ -3723,7 +3764,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1 ml-1">Durée cible de la séance</label>
+                <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1 ml-1">Durée cible de la séance</label>
                 <select 
                   className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-medium"
                   value={aiGeneratorParams.timeConstraint} 
@@ -3780,7 +3821,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           />
                         </div>
                         <div className="flex justify-between items-center w-full sm:w-auto gap-4">
-                          <span className="text-[10px] font-black uppercase text-zinc-500 tracking-widest shrink-0">
+                          <span className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest shrink-0">
                             ({selectedClientsToImport.length}/{parsedClients.length})
                           </span>
                           <button 

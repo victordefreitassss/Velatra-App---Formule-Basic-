@@ -18,13 +18,13 @@ export const StatBox: React.FC<{ label: string, value: string | number, classNam
     className={`bg-white border border-zinc-200 rounded-3xl p-5 flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${onClick ? 'cursor-pointer hover:bg-zinc-50 hover:border-emerald-500/40 hover:-translate-y-1' : ''} ${className}`}
   >
     {locked && (
-      <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-10 flex items-center justify-center">
+       <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-10 flex items-center justify-center">
         <LockIcon size={20} className="text-emerald-500 opacity-80" />
       </div>
     )}
     {icon && <div className="text-emerald-500 mb-3 opacity-90">{icon}</div>}
-    <span className="text-[10px] uppercase tracking-[3px] font-bold text-zinc-500 mb-1">{label}</span>
-    <span className={`text-3xl font-display font-bold text-zinc-900 tracking-tight ${locked ? 'opacity-20 blur-[2px]' : ''}`}>{value}</span>
+    <span className="text-[10px] uppercase tracking-[3px] font-black text-zinc-500 mb-1">{label}</span>
+    <span className={`text-3xl font-display font-black text-zinc-900 tracking-tight ${locked ? 'opacity-20 blur-[2px]' : ''}`}>{value}</span>
   </div>
 );
 
@@ -46,7 +46,7 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
     <button 
       {...props}
       className={`
-        px-3 sm:px-6 py-3 sm:py-4 rounded-2xl font-semibold text-[10px] sm:text-[13px] tracking-wider sm:tracking-widest uppercase
+        px-3 sm:px-6 py-3 sm:py-4 rounded-2xl font-black text-[10px] sm:text-[13px] tracking-wider sm:tracking-widest uppercase
         flex items-center justify-center text-center transition-all duration-300 ease-out
         disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.99]
         ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className}
@@ -90,7 +90,7 @@ export const Badge: React.FC<{ children: React.ReactNode, variant?: 'accent' | '
     dark: 'bg-zinc-100 text-zinc-600 border-zinc-200'
   };
   return (
-    <span className={`inline-block px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-[2px] border backdrop-blur-md ${colors[variant]} ${className}`}>
+    <span className={`inline-block px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[2px] border backdrop-blur-md ${colors[variant]} ${className}`}>
       {children}
     </span>
   );

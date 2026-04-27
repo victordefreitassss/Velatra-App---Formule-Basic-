@@ -266,7 +266,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
           </div>
           <div>
             <h1 className="text-3xl font-display font-bold tracking-tight text-zinc-900 leading-none">Plan Nutritionnel</h1>
-            <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-[3px] mt-2">{selectedMember.name}</p>
+            <p className="text-xs font-medium uppercase text-emerald-600 tracking-wider mt-2">{selectedMember.name}</p>
           </div>
           <div className="ml-auto">
             <Button variant="success" onClick={handleSavePlan} disabled={isSaving} className="!rounded-full !py-2 !px-4 shadow-md hover:shadow-lg transition-shadow">

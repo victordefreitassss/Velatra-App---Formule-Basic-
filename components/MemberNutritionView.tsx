@@ -398,7 +398,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                       </button>
                     </div>
                     <div>
-                      <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Aliment / Repas</label>
+                      <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 ml-1">Aliment / Repas</label>
                       <div className="flex gap-2">
                         <Input 
                           type="text" 
@@ -444,7 +444,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Quantité</label>
+                        <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 ml-1">Quantité</label>
                         <Input 
                           type="number" 
                           value={newFood.quantity || ''} 
@@ -453,7 +453,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Unité</label>
+                        <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 ml-1">Unité</label>
                         <select 
                           value={newFood.unit} 
                           onChange={e => setNewFood({...newFood, unit: e.target.value})}
@@ -469,19 +469,19 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div>
-                        <label className="text-[10px] font-black uppercase text-zinc-500 ml-1">Kcal</label>
+                        <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 ml-1">Kcal</label>
                         <Input type="number" value={newFood.calories || ''} onChange={e => setNewFood({...newFood, calories: Number(e.target.value)})} className="!text-center" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black uppercase text-blue-400 ml-1">Prot (g)</label>
+                        <label className="text-xs font-black uppercase text-zinc-500 text-blue-400 ml-1">Prot (g)</label>
                         <Input type="number" value={newFood.protein || ''} onChange={e => setNewFood({...newFood, protein: Number(e.target.value)})} className="!text-center" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black uppercase text-green-400 ml-1">Gluc (g)</label>
+                        <label className="text-xs font-black uppercase text-zinc-500 text-green-400 ml-1">Gluc (g)</label>
                         <Input type="number" value={newFood.carbs || ''} onChange={e => setNewFood({...newFood, carbs: Number(e.target.value)})} className="!text-center" />
                       </div>
                       <div>
-                        <label className="text-[10px] font-black uppercase text-yellow-500 ml-1">Lip (g)</label>
+                        <label className="text-xs font-black uppercase text-zinc-500 text-yellow-500 ml-1">Lip (g)</label>
                         <Input type="number" value={newFood.fat || ''} onChange={e => setNewFood({...newFood, fat: Number(e.target.value)})} className="!text-center" />
                       </div>
                     </div>
@@ -584,7 +584,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                   {repas.description}
                 </div>
                 
-                <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest">
+                <div className="flex gap-4 text-xs font-medium uppercase tracking-wider">
                   <div className="text-blue-400">Prot: {repas.protein || 0}g</div>
                   <div className="text-emerald-400">Gluc: {repas.carbs || 0}g</div>
                   <div className="text-orange-400">Lip: {repas.fat || 0}g</div>

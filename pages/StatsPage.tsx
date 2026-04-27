@@ -126,7 +126,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
           <p className="text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex items-center justify-between gap-4">
-              <span className="text-[10px] font-black uppercase" style={{ color: entry.color }}>{entry.name}</span>
+              <span className="text-xs font-black uppercase text-zinc-500" style={{ color: entry.color }}>{entry.name}</span>
               <span className="text-sm font-black text-zinc-900">{entry.value}{entry.name === 'Poids' || entry.name === 'Muscle' ? 'kg' : '%'}</span>
             </div>
           ))}
@@ -248,7 +248,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-4 opacity-30">
                 <DatabaseIcon size={48} />
-                <div className="text-[10px] text-zinc-900 uppercase font-black tracking-[6px] italic">Aucun scan enregistré</div>
+                <div className="text-[10px] text-zinc-900 uppercase font-black tracking-widest italic">Aucun scan enregistré</div>
               </div>
             )}
           </div>
@@ -296,7 +296,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-4 opacity-30">
                 <DatabaseIcon size={48} />
-                <div className="text-[10px] text-zinc-900 uppercase font-black tracking-[6px] italic">Aucune donnée</div>
+                <div className="text-[10px] text-zinc-900 uppercase font-black tracking-widest italic">Aucune donnée</div>
               </div>
             )}
           </div>
@@ -337,7 +337,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-4 opacity-30">
                 <DatabaseIcon size={48} />
-                <div className="text-[10px] text-zinc-900 uppercase font-black tracking-[6px] italic">Aucune donnée de force</div>
+                <div className="text-[10px] text-zinc-900 uppercase font-black tracking-widest italic">Aucune donnée de force</div>
               </div>
             )}
           </div>
@@ -398,22 +398,22 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
                    {ex?.cat === 'Cardio' ? (
                      <>
                        <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
-                          <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Durée</div>
+                          <div className="text-[10px] uppercase text-zinc-900 font-black tracking-widest mb-1">Durée</div>
                           <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.duration || 'N/A'}</div>
                        </div>
                        <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
-                          <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Calories (Est.)</div>
+                          <div className="text-[10px] uppercase text-zinc-900 font-black tracking-widest mb-1">Calories (Est.)</div>
                           <div className="font-black text-lg md:text-xl text-zinc-900 italic">{parseDuration(p.duration) * 10}<span className="text-[10px] ml-0.5 opacity-50">kcal</span></div>
                        </div>
                      </>
                    ) : (
                      <>
                        <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
-                          <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Charge</div>
+                          <div className="text-[10px] uppercase text-zinc-900 font-black tracking-widest mb-1">Charge</div>
                           <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.weight}<span className="text-[10px] ml-0.5 opacity-50">kg</span></div>
                        </div>
                        <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
-                          <div className="text-[8px] uppercase text-zinc-900 font-black tracking-widest mb-1">Reps</div>
+                          <div className="text-[10px] uppercase text-zinc-900 font-black tracking-widest mb-1">Reps</div>
                           <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.reps}</div>
                        </div>
                      </>
@@ -424,7 +424,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
                   <div className="text-[9px] text-zinc-900 font-black uppercase tracking-widest flex items-center gap-2">
                      <TargetIcon size={12} /> {new Date(p.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
                   </div>
-                  <Badge variant="dark" className="!bg-zinc-50 !text-[8px] shadow-sm">{ex?.cat}</Badge>
+                  <Badge variant="dark" className="!bg-zinc-50 !text-[10px] shadow-sm">{ex?.cat}</Badge>
                 </div>
               </Card>
             </motion.div>

@@ -367,7 +367,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                   className={`w-full p-4 rounded-2xl border text-left transition-all ${currentExIndex === idx ? 'bg-white border-emerald-500' : 'bg-zinc-50  opacity-50'}`}
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Ex {idx + 1}/{sessionExercises.length}</span>
+                    <span className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500">Ex {idx + 1}/{sessionExercises.length}</span>
                     {isCompleted && <CheckIcon size={14} className="text-emerald-500" />}
                   </div>
                   <h3 className="font-bold truncate pr-6">{bEx?.name || 'Exercice'}</h3>
@@ -440,7 +440,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
 
             {/* Sets Tracker */}
             <div className="bg-zinc-50 rounded-3xl p-4 border ">
-              <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-4 mb-4 px-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+              <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-4 mb-4 px-2 text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500">
                 <div>Série</div>
                 {baseEx?.cat === 'Cardio' ? (
                   <div className="col-span-2 text-center">Temps / Distance</div>
@@ -515,7 +515,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
 
             {/* Coach Notes & Tags */}
             <div className="bg-zinc-50 rounded-3xl p-4 border ">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">Notes du Coach (Exercice)</h3>
+              <h3 className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-3">Notes du Coach (Exercice)</h3>
               <div className="flex flex-wrap gap-2 mb-4">
                 {AVAILABLE_TAGS.map(tag => {
                   const isActive = (exerciseTags[currentExIndex] || []).includes(tag);
@@ -566,7 +566,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
         <div className="max-w-md mx-auto space-y-4">
           <div className="flex items-center gap-4">
             <div className="flex-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-2">RPE (Ressenti) : {rpe}/10</label>
+              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 block mb-2">RPE (Ressenti) : {rpe}/10</label>
               <input 
                 type="range" 
                 min="1" max="10" 
@@ -576,7 +576,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
               />
             </div>
             <div className="text-right">
-              <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Volume</div>
+              <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500">Volume</div>
               <div className="text-xl font-black text-emerald-400">{calculateVolume()} kg</div>
             </div>
           </div>
@@ -610,25 +610,25 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
 
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-white border border-zinc-200 rounded-2xl p-4 text-center">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Volume Total</div>
+                  <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">Volume Total</div>
                   <div className="text-2xl font-black text-emerald-400">{calculateVolume()} kg</div>
                 </div>
                 <div className="bg-white border border-zinc-200 rounded-2xl p-4 text-center">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Score Séance</div>
+                  <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">Score Séance</div>
                   <div className="text-2xl font-black text-emerald-500">{calculateScore()}/100</div>
                 </div>
                 <div className="bg-white border border-zinc-200 rounded-2xl p-4 text-center">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Durée</div>
+                  <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">Durée</div>
                   <div className="text-2xl font-black">{formatTime(sessionTime)}</div>
                 </div>
                 <div className="bg-white border border-zinc-200 rounded-2xl p-4 text-center">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">RPE</div>
+                  <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">RPE</div>
                   <div className="text-2xl font-black text-amber-400">{rpe}/10</div>
                 </div>
               </div>
 
               <div className="mb-6">
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 block mb-2">Note Globale (Coach)</label>
+                <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 block mb-2">Note Globale (Coach)</label>
                 <textarea 
                   placeholder="Bilan général, état de forme, points à revoir..."
                   value={sessionNote}

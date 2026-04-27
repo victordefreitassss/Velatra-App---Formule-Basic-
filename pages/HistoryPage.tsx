@@ -173,7 +173,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
                     </div>
                     <div className="flex items-center gap-4">
                        <Badge variant="success" className="!bg-emerald-500/10 !text-emerald-500 !border-emerald-500/20 italic shadow-sm">CYCLE 7 SEM. VALIDÉ</Badge>
-                       <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 transition-colors">Détails</motion.button>
+                       <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 hover:text-zinc-900 transition-colors">Détails</motion.button>
                     </div>
                   </Card>
                 </motion.div>

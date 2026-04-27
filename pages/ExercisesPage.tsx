@@ -106,7 +106,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
       <motion.div variants={itemVariants} className="flex justify-between items-center px-1">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">BIBLIOTHÈQUE</h1>
-          <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-[3px] mt-2">{state.exercises.length} Exercices dispos</p>
+          <p className="text-xs font-medium uppercase text-emerald-600 tracking-wider mt-2">{state.exercises.length} Exercices dispos</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setShowAddModal(true)} variant="primary" className="!py-3 !rounded-2xl shadow-xl shadow-emerald-500/20">
@@ -189,7 +189,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                   
                   {isSquatBarre && needsPhoto && (
                     <div className="absolute top-2 left-2 z-10">
-                      <Badge variant="accent" className="!text-[8px] animate-bounce shadow-sm">SUGGESTION IA</Badge>
+                      <Badge variant="accent" className="!text-[10px] animate-bounce shadow-sm">SUGGESTION IA</Badge>
                     </div>
                   )}
                   
@@ -234,7 +234,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 <div className="font-black text-sm truncate group-hover:text-emerald-500 transition-colors tracking-tight pr-8">{ex.name}</div>
                 <div className="flex justify-between items-center mt-2">
                   <Badge variant="dark" className="!bg-white !p-0 !border-none !text-zinc-900">{ex.cat}</Badge>
-                  <div className="text-[8px] text-zinc-500 font-black uppercase tracking-widest">{ex.equip}</div>
+                  <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">{ex.equip}</div>
                 </div>
               </div>
             </Card>
@@ -272,7 +272,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
 
               <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Nom du mouvement</label>
+                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Nom du mouvement</label>
                    <Input 
                     placeholder="Ex: Leg Press Incliné"
                     value={newEx.name}
@@ -282,7 +282,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Catégorie</label>
+                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Catégorie</label>
                    <select 
                      className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-emerald-500 outline-none appearance-none shadow-sm"
                      value={newEx.cat}
@@ -293,7 +293,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Équipement requis</label>
+                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Équipement requis</label>
                    <Input 
                     placeholder="Ex: Machine, Barre, Haltères..."
                     value={newEx.equip}
@@ -303,7 +303,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Photo (URL ou Fichier)</label>
+                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Photo (URL ou Fichier)</label>
                    {newEx.photo?.startsWith('data:image') ? (
                      <div className="flex items-center gap-3 p-2 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl shadow-sm">
                        <img src={newEx.photo} alt="Preview" className="w-10 h-10 object-cover rounded-lg" />
@@ -323,7 +323,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Vidéo (Lien ou Fichier)</label>
+                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Vidéo (Lien ou Fichier)</label>
                    <Input 
                     placeholder="https://www.youtube.com/watch?v=..."
                     value={newEx.videoUrl || ""}
@@ -362,7 +362,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Ou charger un fichier</label>
+                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Ou charger un fichier</label>
                    <input 
                      type="file" 
                      accept="image/*"
@@ -450,7 +450,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
 
               <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Nom du mouvement</label>
+                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Nom du mouvement</label>
                    <Input 
                     placeholder="Ex: Leg Press Incliné"
                     value={editingEx.name}
@@ -460,7 +460,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Catégorie</label>
+                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Catégorie</label>
                    <select 
                      className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-emerald-500 outline-none appearance-none shadow-sm"
                      value={editingEx.cat}
@@ -471,7 +471,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Équipement requis</label>
+                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Équipement requis</label>
                    <Input 
                     placeholder="Ex: Machine, Barre, Haltères..."
                     value={editingEx.equip}
@@ -481,7 +481,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Photo (URL ou Fichier)</label>
+                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Photo (URL ou Fichier)</label>
                    {editingEx.photo?.startsWith('data:image') ? (
                      <div className="flex items-center gap-3 p-2 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl shadow-sm">
                        <img src={editingEx.photo} alt="Preview" className="w-10 h-10 object-cover rounded-lg" />
@@ -501,7 +501,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Vidéo (Lien ou Fichier)</label>
+                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Vidéo (Lien ou Fichier)</label>
                    <Input 
                     placeholder="https://www.youtube.com/watch?v=..."
                     value={editingEx.videoUrl || ""}
@@ -540,7 +540,7 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                 </div>
 
                 <div className="space-y-1">
-                   <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Ou charger un fichier</label>
+                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Ou charger un fichier</label>
                    <input 
                      type="file" 
                      accept="image/*"

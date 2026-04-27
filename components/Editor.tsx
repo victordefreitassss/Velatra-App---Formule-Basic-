@@ -70,7 +70,7 @@ const SearchableExerciseSelect: React.FC<{
                 if (catExs.length === 0) return null;
                 return (
                   <div key={cat} className="mb-2">
-                    <div className="px-3 py-1.5 text-[10px] font-black uppercase text-emerald-500 tracking-widest bg-white/80">{cat}</div>
+                    <div className="px-3 py-1.5 text-xs font-black uppercase text-emerald-600 tracking-widest bg-white/80">{cat}</div>
                     {catExs.map(e => (
                       <div 
                         key={e.id}
@@ -367,7 +367,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
             <h1 className="text-2xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">
               {isSingleSession ? "PRÉPARER LA SÉANCE" : (isEditingProgram ? "ADAPTER LE PLAN" : "ÉDITION MODÈLE")}
             </h1>
-            <p className="text-emerald-500 text-[10px] uppercase tracking-[3px] font-bold mt-1">Expert Coaching <span className="text-zinc-900">VELATRA</span></p>
+            <p className="text-emerald-500 text-xs font-medium uppercase text-zinc-500 tracking-wider mt-1">Expert Coaching <span className="text-zinc-900">VELATRA</span></p>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2">
@@ -408,7 +408,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
 
       {showPresets && allPresets.length > 0 && (
         <Card className="!bg-emerald-500/5 border-emerald-500/20 animate-in slide-in-from-top-4 duration-300">
-           <h3 className="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-4">Choisir un modèle (Preset)</h3>
+           <h3 className="text-xs font-black uppercase text-zinc-500 tracking-wider text-emerald-500 mb-4">Choisir un modèle (Preset)</h3>
            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {allPresets.map(p => (
                 <button 
@@ -417,7 +417,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                   className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-left hover:border-emerald-500 transition-all"
                 >
                   <div className="text-xs font-black text-zinc-900 uppercase">{p.name}</div>
-                  <div className="text-[8px] text-zinc-900 font-black mt-1 uppercase">{p.nbDays} JOURS</div>
+                  <div className="text-[10px] text-zinc-900 font-black mt-1 uppercase">{p.nbDays} JOURS</div>
                 </button>
               ))}
               {allPresets.length === 0 && <p className="text-[10px] text-zinc-900 italic">Aucun modèle disponible.</p>}
@@ -429,7 +429,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
       <Card className="space-y-6 !p-8 bg-zinc-50 border-zinc-200 ring-1 ring-zinc-200">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">
+            <label className="text-xs font-black uppercase text-emerald-600 tracking-widest ml-1">
               {isSingleSession ? "Titre de la séance" : "Titre du Programme"}
             </label>
             <Input 
@@ -441,7 +441,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
           
           {!isSingleSession && (
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Durée (Semaines)</label>
+              <label className="text-xs font-black uppercase text-emerald-600 tracking-widest ml-1">Durée (Semaines)</label>
               <select 
                 value={formData.durationWeeks || ''} 
                 onChange={e => setFormData({...formData, durationWeeks: e.target.value ? parseInt(e.target.value) : null})}
@@ -458,7 +458,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
           {isEditingProgram ? (
             <>
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Date de début</label>
+                <label className="text-xs font-black uppercase text-emerald-600 tracking-widest ml-1">Date de début</label>
                 <Input 
                   type="date"
                   value={formData.startDate} 
@@ -469,12 +469,12 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                 <div className="space-y-2 col-span-1 md:col-span-2 mt-2 p-4 bg-zinc-100/50 rounded-2xl border border-zinc-200/50">
                   <div className="flex items-center gap-2 text-zinc-900 mb-2">
                     <InfoIcon size={16} className="text-emerald-500" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Profil de {member.name}</span>
+                    <span className="text-xs font-black uppercase text-zinc-500 tracking-wider">Profil de {member.name}</span>
                   </div>
                   {member.objectifs && member.objectifs.length > 0 && (
                     <div className="flex flex-wrap gap-2 mb-3">
                       {member.objectifs.map((o: string) => (
-                        <Badge key={o} variant="dark" className="!bg-white !text-zinc-500 !border-zinc-200 !text-[8px]">{o}</Badge>
+                        <Badge key={o} variant="dark" className="!bg-white !text-zinc-500 !border-zinc-200 !text-[10px]">{o}</Badge>
                       ))}
                     </div>
                   )}
@@ -486,7 +486,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
             </>
           ) : (
             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Objectifs du Modèle</label>
+              <label className="text-xs font-black uppercase text-emerald-600 tracking-widest ml-1">Objectifs du Modèle</label>
               <div className="flex flex-wrap gap-2 p-2 bg-zinc-50 border border-zinc-200 rounded-2xl min-h-[48px]">
                 {GOALS.map(g => {
                   const isSelected = formData.objectifs?.includes(g);
@@ -578,7 +578,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {!isSingleSession && (
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Titre de la séance</label>
+                        <label className="text-xs font-black uppercase text-emerald-600 tracking-widest ml-1">Titre de la séance</label>
                         <Input 
                           className="!text-xl font-black italic !bg-white"
                           value={formData.days[selectedDayIdx]?.name || ''} 
@@ -593,7 +593,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                       </div>
                     )}
                     <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase text-emerald-500 tracking-widest ml-1">Durée estimée (minutes)</label>
+                      <label className="text-xs font-black uppercase text-emerald-600 tracking-widest ml-1">Durée estimée (minutes)</label>
                       <Input 
                         type="number"
                         className="!text-xl font-black italic !bg-white"
@@ -623,7 +623,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                         title="Importer un modèle sur ce jour"
                       >
                         <LayersIcon size={16} />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Importer Modèle</span>
+                        <span className="text-xs font-black uppercase text-zinc-500 tracking-wider">Importer Modèle</span>
                       </button>
                     )}
                     {!isSingleSession && (
@@ -688,7 +688,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
 
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black uppercase tracking-[3px] text-zinc-900">PROGRAMMATION ({formData.days[selectedDayIdx]?.exercises?.length || 0} MOUVEMENTS)</span>
+                  <span className="text-xs font-black uppercase text-zinc-500 tracking-[3px] text-zinc-900">PROGRAMMATION ({formData.days[selectedDayIdx]?.exercises?.length || 0} MOUVEMENTS)</span>
                 </div>
                 
                 {(() => {
@@ -745,7 +745,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                             <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-emerald-500 to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
                             
                             <div className="absolute -top-8 left-0 bg-emerald-500 text-zinc-900 px-4 py-2 rounded-r-2xl rounded-tl-2xl shadow-lg z-10 flex flex-col gap-1">
-                              <div className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                              <div className="text-xs font-black uppercase text-zinc-500 tracking-wider flex items-center gap-2">
                                 <LinkIcon size={12} /> {group.groupName || 'SUPERSET'} {group.exercises[0]?.entry.setGroup}
                               </div>
                               <div className="text-[9px] font-bold opacity-80 leading-tight max-w-[200px]">
@@ -873,7 +873,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                           <PlusIcon size={18} />
                                         </button>
                                         <div className="absolute right-0 bottom-full mb-2 bg-white border border-zinc-200 rounded-xl shadow-xl p-2 hidden group-hover/copy:block z-50 w-32">
-                                          <div className="text-[8px] font-black uppercase text-zinc-400 mb-1 px-2">Copier vers :</div>
+                                          <div className="text-[10px] font-black uppercase text-zinc-400 mb-1 px-2">Copier vers :</div>
                                           {formData.days.map((d: any, dIdx: number) => dIdx !== selectedDayIdx && (
                                             <button 
                                               key={dIdx}
@@ -910,7 +910,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, baseEx?.cat === 'Cardio' ? 'duration' : 'reps', e.target.value)}
                                     />
                                     {baseEx?.cat !== 'Cardio' && (
-                                      <div className="text-[8px] text-zinc-500 text-center leading-tight mt-1">
+                                      <div className="text-[10px] text-zinc-500 text-center leading-tight mt-1">
                                         Séparez par des virgules pour des valeurs différentes (ex: 12,10,8 ou 30,45,60)
                                       </div>
                                     )}
@@ -989,7 +989,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
 
                 <button 
                   onClick={() => handleAddExercise(selectedDayIdx)}
-                  className="w-full py-6 border-2 border-dashed border-zinc-200 rounded-3xl text-zinc-900 hover:border-emerald-500 hover:text-emerald-500 transition-all font-black text-xs uppercase tracking-[4px] flex items-center justify-center gap-3 bg-zinc-50"
+                  className="w-full py-6 border-2 border-dashed border-zinc-200 rounded-3xl text-zinc-900 hover:border-emerald-500 hover:text-emerald-500 transition-all font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 bg-zinc-50"
                 >
                   <PlusIcon size={20} /> AJOUTER UN MOUVEMENT
                 </button>
