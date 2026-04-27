@@ -65,7 +65,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
         <div className="text-center sm:text-left">
           <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">INFOS CLUB</h1>
-          <p className="text-emerald-500 text-[10px] uppercase tracking-[3px] font-bold">VELATRA Application numéro 1</p>
+          <p className="text-emerald-500 text-xs font-medium uppercase text-zinc-500 tracking-wider">VELATRA Application numéro 1</p>
         </div>
         
         {isCoach && !isEditing && (
@@ -250,7 +250,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                         />
                       )}
                       <div className="flex flex-col gap-1">
-                        <label className="text-[8px] font-black uppercase text-zinc-900 tracking-widest ml-1">Ou charger un fichier</label>
+                        <label className="text-[10px] font-black uppercase text-zinc-900 tracking-widest ml-1">Ou charger un fichier</label>
                         <input 
                           type="file" 
                           accept="image/*"
@@ -296,7 +296,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
 
           {!isEditing && (
             <Card className="bg-zinc-50 border-dashed  text-center !p-8">
-               <p className="text-[9px] uppercase tracking-[4px] font-black text-zinc-900 mb-3">Besoin d'aide technique ?</p>
+               <p className="text-[9px] uppercase tracking-widest font-black text-zinc-900 mb-3">Besoin d'aide technique ?</p>
                <div className="text-sm font-bold text-zinc-900 opacity-80">{aboutInfo.email}</div>
             </Card>
           )}

@@ -714,7 +714,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-zinc-900 mb-6">Revenus vs Dépenses (6 derniers mois)</h3>
+              <h3 className="text-lg font-black text-zinc-900 mb-6">Revenus vs Dépenses (6 derniers mois)</h3>
               <div className="h-72 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
@@ -734,7 +734,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             </div>
 
             <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-zinc-900 mb-6">Répartition des Revenus</h3>
+              <h3 className="text-lg font-black text-zinc-900 mb-6">Répartition des Revenus</h3>
               <div className="h-72 w-full flex items-center justify-center">
                 {pieChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -771,7 +771,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
       {activeTab === 'payments' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-zinc-900">Historique des paiements</h2>
+            <h2 className="text-xl font-black text-zinc-900">Historique des paiements</h2>
           </div>
 
           <div className="bg-zinc-50 border border-zinc-200 rounded-2xl overflow-hidden">
@@ -855,7 +855,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
       {activeTab === 'expenses' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-zinc-900">Dépenses du club</h2>
+            <h2 className="text-xl font-black text-zinc-900">Dépenses du club</h2>
             <button 
               onClick={() => setIsAddingExpense(true)}
               className="bg-emerald-500 hover:bg-emerald-600 text-zinc-900 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"
@@ -949,7 +949,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
           <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 mt-8">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="text-lg font-semibold text-zinc-900">Charges Fixes Mensuelles</h3>
+                <h3 className="text-lg font-black text-zinc-900">Charges Fixes Mensuelles</h3>
                 <p className="text-sm text-zinc-500">Ces charges sont automatiquement prises en compte dans vos prévisions.</p>
               </div>
               <button 
@@ -1008,7 +1008,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
       {activeTab === 'plans' && (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-zinc-900">Vos formules d'abonnement</h2>
+            <h2 className="text-xl font-black text-zinc-900">Vos formules d'abonnement</h2>
             <button 
               onClick={() => setIsAddingPlan(true)}
               className="bg-emerald-500 hover:bg-emerald-600 text-zinc-900 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"

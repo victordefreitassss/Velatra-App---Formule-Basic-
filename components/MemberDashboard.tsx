@@ -224,7 +224,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
               user.avatar || user.name.substring(0, 2).toUpperCase()
             )}
           </div>
-          <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-zinc-900 text-[8px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-[#050505] shadow-lg">
+          <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-zinc-900 text-[10px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-[#050505] shadow-lg">
             LVL {Math.floor(user.xp / 1000) + 1}
           </div>
         </motion.div>
@@ -387,7 +387,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
             <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
               <FlameIcon size={16} className="text-orange-500" /> État Musculaire
             </h3>
-            <div className="flex gap-2 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            <div className="flex gap-2 text-xs font-medium uppercase tracking-wider text-zinc-500">
               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-red-400"></div>Fatigué</div>
               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-amber-400"></div>En récup</div>
               <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-400"></div>Frais</div>

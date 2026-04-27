@@ -29,15 +29,15 @@ const AppLogo: React.FC<{ club: Club | null, user: User }> = ({ club, user }) =>
         VELA<span className="text-emerald-500">TRA</span>
       </div>
     </div>
-    <div className="text-[8px] tracking-[2px] text-zinc-500 font-bold uppercase mt-1 pl-12 opacity-80">
+    <div className="text-[10px] tracking-[2px] text-zinc-500 font-bold uppercase mt-1 pl-12 opacity-80">
       APPLICATION NUMÉRO 1
     </div>
     {club && (user.role === 'coach' || user.role === 'owner') && (
       <div className="mt-4 p-3 bg-white border border-zinc-200 rounded-xl backdrop-blur-sm">
         <div className="flex items-center gap-2 mb-1">
-          <div className="text-[8px] uppercase tracking-widest text-zinc-500 font-black">Code d'accès Club</div>
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-black">Code d'accès Club</div>
           <div className="relative group flex items-center">
-            <div className="w-3.5 h-3.5 rounded-full bg-zinc-200 text-zinc-500 flex items-center justify-center text-[8px] font-black cursor-help hover:bg-emerald-500 hover:text-white transition-colors">i</div>
+            <div className="w-3.5 h-3.5 rounded-full bg-zinc-200 text-zinc-500 flex items-center justify-center text-[10px] font-black cursor-help hover:bg-emerald-500 hover:text-white transition-colors">i</div>
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-zinc-900 text-white text-[10px] rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-center shadow-xl pointer-events-none">
               Partagez ce code avec vos membres pour qu'ils puissent rejoindre votre club lors de leur inscription.
               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900"></div>
@@ -120,7 +120,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
         <nav className="flex-1 space-y-6 overflow-y-auto no-scrollbar px-2">
           {Object.entries(groupedItems).map(([category, items]) => (
             <div key={category} className="space-y-1">
-              <div className="px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">
+              <div className="px-4 text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">
                 {category}
               </div>
               {items.map(item => (
@@ -141,7 +141,7 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
                   )}
                   <div className="flex items-center gap-3 relative z-10">
                     <item.icon size={18} strokeWidth={activePage === item.id ? 2.5 : 2} className={`${activePage === item.id ? '' : 'group-hover:scale-110 transition-transform duration-300'}`} />
-                    <span className="text-[11px] font-bold uppercase tracking-[1.5px]">{item.label}</span>
+                    <span className="text-[11px] font-black uppercase tracking-[1.5px]">{item.label}</span>
                     {item.id === 'chat' && unreadMessagesCount > 0 && (
                       <span className="absolute -top-1 -right-3 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                     )}

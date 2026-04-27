@@ -370,7 +370,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
                         <span className="text-2xl font-bold text-zinc-500">{club.name.charAt(0)}</span>
                       )}
                       <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                        <span className="text-white text-[10px] font-bold uppercase tracking-widest">Logo</span>
+                        <span className="text-white text-xs font-medium uppercase tracking-wider">Logo</span>
                         <input 
                           type="file" 
                           accept="image/*" 

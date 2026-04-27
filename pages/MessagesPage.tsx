@@ -123,7 +123,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
       >
         <motion.div variants={itemVariants} className="px-1">
           <h1 className="text-3xl font-display font-black tracking-tight text-zinc-900 leading-none mb-2">Discussion</h1>
-          <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-[3px]">Messagerie avec vos membres</p>
+          <p className="text-xs font-medium uppercase text-emerald-600 tracking-wider">Messagerie avec vos membres</p>
         </motion.div>
         
         <motion.div variants={itemVariants} className="relative">

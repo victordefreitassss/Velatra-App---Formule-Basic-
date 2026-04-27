@@ -78,18 +78,18 @@ export const Timer: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <TimerIcon size={18} className="text-emerald-500" />
-          <span className="text-[10px] font-black uppercase tracking-[3px] text-zinc-900 italic">Timer</span>
+          <span className="text-xs font-black uppercase text-zinc-500 tracking-[3px] text-zinc-900 italic">Timer</span>
         </div>
         <div className="flex bg-white rounded-lg p-1">
           <button 
             onClick={() => { setMode('countdown'); setTime(initialTime); setIsActive(false); }}
-            className={`px-3 py-1 rounded-md text-[8px] font-black uppercase transition-all ${mode === 'countdown' ? 'bg-emerald-500 text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
+            className={`px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all ${mode === 'countdown' ? 'bg-emerald-500 text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
           >
             Timer
           </button>
           <button 
             onClick={() => { setMode('stopwatch'); setTime(0); setIsActive(false); }}
-            className={`px-3 py-1 rounded-md text-[8px] font-black uppercase transition-all ${mode === 'stopwatch' ? 'bg-emerald-500 text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
+            className={`px-3 py-1 rounded-md text-[10px] font-black uppercase transition-all ${mode === 'stopwatch' ? 'bg-emerald-500 text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
           >
             Chrono
           </button>

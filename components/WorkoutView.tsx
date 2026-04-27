@@ -345,7 +345,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
                {currentDay.duration && (
-                 <Badge variant="dark" className="!text-[8px] !px-1.5 !py-0.5 italic">
+                 <Badge variant="dark" className="!text-[10px] !px-1.5 !py-0.5 italic">
                    ~{currentDay.duration} MIN
                  </Badge>
                )}
@@ -381,7 +381,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
       >
         <motion.div variants={itemVariants} className="flex justify-between items-center bg-white p-6 rounded-[32px] border ">
            <div className="space-y-1">
-              <span className="text-[10px] font-black uppercase tracking-[4px] text-zinc-900">Progression Cycle</span>
+              <span className="text-xs font-black uppercase text-zinc-500 tracking-widest text-zinc-900">Progression Cycle</span>
               <div className="text-sm font-black text-zinc-900 italic">
                 SEMAINE {Math.floor(program.currentDayIndex / program.nbDays) + 1} {program.durationWeeks ? `/ ${program.durationWeeks}` : ''} • JOUR {(program.currentDayIndex % program.nbDays) + 1}
               </div>
@@ -425,7 +425,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                     transition={{ delay: 0.4 }}
                     className="absolute -top-8 left-0 bg-emerald-500 text-zinc-900 px-4 py-2 rounded-r-2xl rounded-tl-2xl shadow-lg z-10 flex flex-col gap-1"
                   >
-                    <div className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                    <div className="text-xs font-black uppercase text-zinc-500 tracking-wider flex items-center gap-2">
                       <LinkIcon size={12} /> {group.groupName || 'SUPERSET'}
                     </div>
                     <div className="text-[9px] font-bold opacity-80 leading-tight max-w-[200px]">

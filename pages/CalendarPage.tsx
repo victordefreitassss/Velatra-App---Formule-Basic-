@@ -68,11 +68,11 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
       <motion.div variants={itemVariants} className="bg-white backdrop-blur-xl p-6 rounded-3xl border border-zinc-200 shadow-sm">
         <div className="flex justify-between items-end mb-4">
           <div>
-            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Progression Globale</div>
+            <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">Progression Globale</div>
             <div className="text-2xl font-black italic text-zinc-900">{progressPercent}%</div>
           </div>
           <div className="text-right">
-            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Semaine</div>
+            <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">Semaine</div>
             <div className="text-sm font-black italic text-emerald-500">{currentWeek} / {totalWeeks}</div>
           </div>
         </div>

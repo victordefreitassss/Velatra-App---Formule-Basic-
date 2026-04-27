@@ -175,7 +175,7 @@ export const ProfilePage: React.FC<{
               )}
               {isEditing && (
                 <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <span className="text-white text-[10px] font-bold uppercase tracking-widest">Photo</span>
+                  <span className="text-white text-xs font-medium uppercase tracking-wider">Photo</span>
                   <input 
                     type="file" 
                     accept="image/*" 
@@ -214,7 +214,7 @@ export const ProfilePage: React.FC<{
                 {isEditing ? (
                   <div className="space-y-3 mt-4">
                     <div>
-                      <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Email</label>
+                      <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">Email</label>
                       <input 
                         type="email" 
                         value={formData.email}
@@ -223,7 +223,7 @@ export const ProfilePage: React.FC<{
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Téléphone</label>
+                      <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">Téléphone</label>
                       <input 
                         type="tel" 
                         value={formData.phone}
@@ -274,7 +274,7 @@ export const ProfilePage: React.FC<{
             
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Date de naissance</label>
+                <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Date de naissance</label>
                 {isEditing ? (
                   <input 
                     type="date" 
@@ -288,7 +288,7 @@ export const ProfilePage: React.FC<{
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Taille (cm)</label>
+                <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Taille (cm)</label>
                 {isEditing ? (
                   <input 
                     type="number" 
@@ -302,7 +302,7 @@ export const ProfilePage: React.FC<{
               </div>
               
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Poids (kg)</label>
+                <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Poids (kg)</label>
                 {isEditing ? (
                   <input 
                     type="number" 
@@ -329,7 +329,7 @@ export const ProfilePage: React.FC<{
             
             <div className="space-y-4">
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Niveau</label>
+                <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Niveau</label>
                 {isEditing ? (
                   <select 
                     value={formData.experienceLevel}
@@ -346,7 +346,7 @@ export const ProfilePage: React.FC<{
               </div>
               
               <div>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Équipement</label>
+                <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Équipement</label>
                 {isEditing ? (
                   <select 
                     value={formData.equipment}
@@ -408,7 +408,7 @@ export const ProfilePage: React.FC<{
               { label: 'Cuisses', key: 'thighs' }
             ].map(measurement => (
               <div key={measurement.key}>
-                <label className="block text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">{measurement.label}</label>
+                <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">{measurement.label}</label>
                 {isEditing ? (
                   <input 
                     type="number" 
@@ -552,14 +552,14 @@ export const ProfilePage: React.FC<{
             
             <div className="space-y-6">
               <div>
-                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Séance</div>
+                <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Séance</div>
                 <div className="font-bold text-zinc-900">{selectedLog.dayName}</div>
                 <div className="text-sm text-zinc-500">Semaine {selectedLog.week}</div>
               </div>
 
               {selectedLog.exercises && selectedLog.exercises.length > 0 && (
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Exercices réalisés</div>
+                  <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Exercices réalisés</div>
                   <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
                     {selectedLog.exercises.map((ex, i) => (
                       <div key={i} className="bg-zinc-50 border border-zinc-200 rounded-xl p-3">
@@ -584,7 +584,7 @@ export const ProfilePage: React.FC<{
 
               {selectedLog.notes && (
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Notes du Coach</div>
+                  <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Notes du Coach</div>
                   <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
                     <p className="text-sm text-zinc-600 leading-relaxed italic">"{selectedLog.notes}"</p>
                   </div>
@@ -593,7 +593,7 @@ export const ProfilePage: React.FC<{
 
               {selectedLog.rpe && (
                 <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Difficulté ressentie (RPE)</div>
+                  <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Difficulté ressentie (RPE)</div>
                   <div className="flex items-center gap-2">
                     <div className="text-2xl font-black text-emerald-500">{selectedLog.rpe}</div>
                     <div className="text-sm text-zinc-500">/ 10</div>

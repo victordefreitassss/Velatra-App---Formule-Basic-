@@ -171,7 +171,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
                 
                 <div className="flex flex-wrap gap-2">
                   {p.objectifs.map(o => (
-                    <Badge key={o} variant="dark" className="!bg-zinc-50 !text-[8px]">{o}</Badge>
+                    <Badge key={o} variant="dark" className="!bg-zinc-50 !text-[10px]">{o}</Badge>
                   ))}
                 </div>
               </div>

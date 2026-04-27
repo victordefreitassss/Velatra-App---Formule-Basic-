@@ -128,7 +128,7 @@ RÈGLES DE REDIRECTION IMPORTANTES :
       <motion.div variants={itemVariants} className="flex items-center justify-between px-1 shrink-0">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Discussions</h1>
-          <p className="text-zinc-900 text-[10px] uppercase tracking-[3px] font-bold">Échange avec ton coach</p>
+          <p className="text-zinc-900 text-xs font-medium uppercase text-zinc-500 tracking-wider">Échange avec ton coach</p>
         </div>
         <div className="p-4 bg-emerald-500/10 rounded-2xl text-emerald-500 shadow-inner backdrop-blur-md">
           <MessageCircleIcon size={32} />
