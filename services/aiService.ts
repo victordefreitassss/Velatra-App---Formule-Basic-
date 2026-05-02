@@ -1,9 +1,62 @@
 /// <reference types="vite/client" />
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import { User, BodyData } from "../types";
 
+export class GoogleGenAI {
+  models = {
+    generateContent: async (params: any) => {
+      const res = await fetch("/api/gemini/generateContent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params)
+      });
+      if (!res.ok) {
+        let err;
+        try { err = await res.json(); } catch(e) {}
+        throw new Error((err && err.error) || "Failed to call Gemini via server");
+      }
+      const data = await res.json();
+      return { text: data.text };
+    }
+  };
+  chats = {
+    create: (options: any) => {
+      let history: any[] = [];
+      return {
+        sendMessage: async (params: any) => {
+          const msg = typeof params === 'string' ? params : params.message;
+          let textMsg = msg;
+          if (Array.isArray(msg) && msg[0]?.text) {
+             textMsg = msg[0].text;
+          }
+          const newHistory = [...history, { role: "user", parts: [{ text: textMsg }] }];
+          const res = await fetch("/api/gemini/generateContent", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: options.model || "gemini-3.1-pro-preview",
+              config: options.config,
+              contents: newHistory
+            })
+          });
+          if (!res.ok) {
+            let err;
+            try { err = await res.json(); } catch(e) {}
+            throw new Error((err && err.error) || "Failed to call Gemini via server");
+          }
+          const data = await res.json();
+          const responseText = data.text;
+          history = [...newHistory, { role: "model", parts: [{ text: responseText }] }];
+          return { text: responseText };
+        }
+      };
+    }
+  };
+  constructor(config: any) {}
+}
+
 const getApiKey = () => {
-  return process.env.GEMINI_API_KEY || '';
+  return 'PROXY_MODE';
 };
 
 export interface AIGenerationParams {

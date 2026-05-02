@@ -1579,8 +1579,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         <AnimatePresence>
         {selectedProfile && (() => {
         const stats = getMemberStats(selectedProfile.id);
-        const progDays = stats.program ? stats.program.nbDays * 7 : 0;
-        const progCompletion = stats.program ? Math.round(((stats.program.currentDayIndex + 1) / (progDays || 1)) * 100) : 0;
+        const hasDuration = stats.program && stats.program.durationWeeks;
+        const totalSessions = hasDuration ? (stats.program?.nbDays || 1) * (stats.program?.durationWeeks || 1) : 0;
+        const progCompletion = hasDuration && totalSessions > 0 ? Math.min(100, Math.round(((stats.program?.currentDayIndex || 0) / totalSessions) * 100)) : 0;
+        const currentWeek = stats.program ? Math.floor((stats.program.currentDayIndex || 0) / (stats.program.nbDays || 1)) + 1 : 1;
+        const currentSession = stats.program ? ((stats.program.currentDayIndex || 0) % (stats.program.nbDays || 1)) + 1 : 1;
 
         const weightHistory = [...stats.body].reverse();
         const chartData = weightHistory.map(b => ({
@@ -2605,12 +2608,18 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 shadow-sm relative overflow-hidden">
                         <div className="font-black text-zinc-900 text-lg mb-1 uppercase italic">{stats.program.name}</div>
                         <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase mb-4 tracking-widest">
-                           <span>Cycle complété</span>
-                           <span className="text-zinc-900">{progCompletion}%</span>
+                           <span>{hasDuration ? 'Cycle complété' : 'Progression'}</span>
+                           <span className="text-zinc-900">{hasDuration ? `${progCompletion}%` : `S${currentWeek} - J${currentSession}`}</span>
                         </div>
-                        <div className="h-2 bg-zinc-50 backdrop-blur-xl rounded-full overflow-hidden mb-4 border ">
-                          <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-1000" style={{ width: `${progCompletion}%` }} />
-                        </div>
+                        {hasDuration ? (
+                          <div className="h-2 bg-zinc-50 backdrop-blur-xl rounded-full overflow-hidden mb-4 border ">
+                            <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-1000" style={{ width: `${progCompletion}%` }} />
+                          </div>
+                        ) : (
+                          <div className="h-2 bg-zinc-50 backdrop-blur-xl rounded-full overflow-hidden mb-4 border flex">
+                             <div className="h-full bg-emerald-500/80 w-full rounded-full" />
+                          </div>
+                        )}
                         
                         {/* Feature 2: Auto Progression Toggle */}
                         <div className="mt-4 pt-4 border-t  flex items-center justify-between">

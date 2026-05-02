@@ -3,6 +3,7 @@ import path from "path";
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
 import Stripe from "stripe";
+import { GoogleGenAI } from "@google/genai";
 
 const app = express();
 const PORT = parseInt(process.env.PORT as string) || 3000;
@@ -373,6 +374,30 @@ app.post("/api/delete-user", async (req, res) => {
   } catch (error: any) {
     console.error("Error deleting user:", error);
     res.status(500).json({ error: error.message || "Failed to delete user" });
+  }
+});
+
+// Secure Proxy for Gemini API
+app.post("/api/gemini/generateContent", async (req, res) => {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "Clé API Gemini côté serveur manquante." });
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+    const { model, contents, config } = req.body;
+
+    const response = await ai.models.generateContent({
+      model: model || "gemini-2.5-flash",
+      contents,
+      config
+    });
+
+    res.json({ text: response.text });
+  } catch (error: any) {
+    console.error("Error proxying Gemini request:", error);
+    res.status(500).json({ error: error.message || "Failed to call Gemini" });
   }
 });
 
