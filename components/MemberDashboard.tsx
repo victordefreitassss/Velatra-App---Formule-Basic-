@@ -5,14 +5,10 @@ import { Card, StatBox, Button, Badge, Input } from './UI';
 import { getLevel, formatDate } from '../utils';
 import { CalendarIcon, RefreshCwIcon, TargetIcon, BarChartIcon, TrophyIcon, FlameIcon, SparklesIcon, MessageCircleIcon, ShoppingCartIcon, GiftIcon, MegaphoneIcon, BotIcon, SendIcon } from './Icons';
 import { BodyHeatmap } from './BodyHeatmap';
-import { GoogleGenAI } from "@google/genai";
 import { db, doc, updateDoc, setDoc } from '../firebase';
 import Markdown from 'react-markdown';
 import { motion } from 'framer-motion';
-
-const getApiKey = () => {
-  return process.env.GEMINI_API_KEY || '';
-};
+import { GoogleGenAI } from '../services/aiService';
 
 interface MemberDashboardProps {
   state: AppState;
@@ -91,9 +87,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
   const getAiAdvice = async () => {
     setAiLoading(true);
     try {
-      const rawApiKey = getApiKey();
-      const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: 'PROXY' });
       const recentPerfs = state.performances
         .filter(p => Number(p.memberId) === Number(user.id))
         .slice(-5)
@@ -249,7 +243,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
               <div className="flex justify-between items-start">
                 <div className="flex-1 pr-4">
                   <Badge className="bg-zinc-100 text-zinc-900 border-zinc-300 backdrop-blur-md mb-4 font-bold tracking-widest text-[10px]">
-                    S{Math.floor(program.currentDayIndex / program.nbDays) + 1} • J{(program.currentDayIndex % program.nbDays) + 1}
+                    S{Math.floor((program.currentDayIndex || 0) / (program.nbDays || 1)) + 1} {program.durationWeeks ? `/ ${program.durationWeeks}` : ''} • J{((program.currentDayIndex || 0) % (program.nbDays || 1)) + 1}
                   </Badge>
                   <h2 className="text-4xl font-display font-bold text-zinc-900 leading-tight mb-2">
                     {program.days[program.currentDayIndex % program.nbDays]?.name || 'Séance du jour'}

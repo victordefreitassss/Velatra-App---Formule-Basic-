@@ -2,15 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppState } from '../types';
 import { Card, Input, Textarea } from '../components/UI';
 import { SendIcon, BotIcon, UserIcon, MessageCircleIcon } from '../components/Icons';
-import { GoogleGenAI } from "@google/genai";
 import { CLUB_INFO, COACHES, INIT_SUPPLEMENTS } from '../constants';
 import Markdown from 'react-markdown';
 import { MessagesPage } from './MessagesPage';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const getApiKey = () => {
-  return process.env.GEMINI_API_KEY || '';
-};
+import { GoogleGenAI } from '../services/aiService';
 
 export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [activeTab, setActiveTab] = useState<'ai' | 'human'>('ai');
@@ -29,16 +25,7 @@ export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   useEffect(() => {
     try {
-      const rawApiKey = getApiKey();
-      // Remove any hidden characters, newlines, or spaces that could cause header errors
-      const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
-      
-      if (!apiKey) {
-        setInitError("La clé API Gemini (GEMINI_API_KEY) est manquante ou invalide sur Vercel.");
-        return;
-      }
-      
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: 'PROXY' });
       
       const systemInstruction = `Tu es l'assistant IA virtuel de l'application numéro 1 "VELATRA".
 Tu t'adresses à l'adhérent nommé ${state.user?.name}.

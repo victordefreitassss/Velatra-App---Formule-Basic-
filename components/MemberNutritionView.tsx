@@ -4,13 +4,8 @@ import { Card, Button, Input } from './UI';
 import { AppleIcon, PlusIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, CameraIcon } from './Icons';
 import { db, doc, setDoc } from '../firebase';
 import { SparklesIcon, RefreshCwIcon, Wand2Icon, ChefHatIcon } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
-import { estimateFoodMacros, analyzeMealImage, generateRecipeFromFridge } from '../services/aiService';
+import { estimateFoodMacros, analyzeMealImage, generateRecipeFromFridge, GoogleGenAI } from '../services/aiService';
 import Markdown from 'react-markdown';
-
-const getApiKey = () => {
-  return process.env.GEMINI_API_KEY || '';
-};
 
 export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: string, type?: 'success' | 'error') => void, memberId?: number, readOnly?: boolean }> = ({ state, showToast, memberId, readOnly }) => {
   const user = memberId ? state.users.find(u => Number(u.id) === memberId) : state.user!;
@@ -193,9 +188,7 @@ export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: s
 
     setIsGenerating(true);
     try {
-      const rawApiKey = getApiKey();
-      const apiKey = rawApiKey ? rawApiKey.replace(/[^\x20-\x7E]/g, '').trim() : '';
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: 'PROXY' });
       
       const prompt = `Propose un repas (juste le nom et les ingrédients principaux) qui correspond EXACTEMENT à ces macros :
 - Calories : ${newFood.calories} kcal

@@ -100,6 +100,17 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
     return ex.name.toLowerCase().includes(searchPR.toLowerCase());
   });
 
+  const groupedRecords = useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    bestsArray.forEach((p: any) => {
+      const ex = state.exercises.find(e => e.perfId === p.exId);
+      const cat = ex?.cat || 'Autre';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push({ p, ex });
+    });
+    return grouped;
+  }, [bestsArray, state.exercises]);
+
   // Prepare 1RM data for top exercises
   const top1RMData = useMemo(() => {
     const rmData: any[] = [];
@@ -371,66 +382,85 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
         </Card>
       </motion.div>
 
-      <motion.div variants={containerVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {bestsArray.length === 0 ? (
+      <div className="space-y-12">
+        {Object.keys(groupedRecords).length === 0 ? (
           <motion.div variants={itemVariants} className="col-span-full">
             <Card className="py-20 text-center bg-zinc-50 backdrop-blur-xl border border-dashed  rounded-[40px] shadow-sm">
               <TrophyIcon size={48} className="mx-auto mb-4 text-zinc-900/10" />
               <p className="text-zinc-900 italic font-black uppercase tracking-widest text-xs">Aucune performance trouvée.</p>
             </Card>
           </motion.div>
-        ) : bestsArray.map((p: any) => {
-          const ex = state.exercises.find(e => e.perfId === p.exId);
-          return (
-            <motion.div variants={itemVariants} key={p.exId}>
-              <Card className="group border-none ring-1  hover:ring-emerald-500/30 transition-all !p-8 bg-zinc-50 backdrop-blur-xl shadow-lg h-full">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <div className="text-[10px] text-emerald-500 font-black uppercase tracking-[3px] mb-1 italic">Record Personnel</div>
-                    <div className="font-black text-2xl text-zinc-900 uppercase italic tracking-tighter group-hover:text-emerald-500 transition-colors">{ex?.name || p.exId}</div>
-                  </div>
-                  <div className="w-12 h-12 rounded-2xl bg-zinc-50 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-zinc-900 transition-all shadow-sm">
-                    <TrophyIcon size={24} />
-                  </div>
-                </div>
+        ) : (
+          Object.entries(groupedRecords).map(([category, records]) => (
+            <motion.div variants={containerVariants} key={category} className="mb-12">
+              <div className="flex items-center gap-4 mb-6">
+                <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tighter">{category}</h3>
+                <div className="flex-1 h-px bg-zinc-200"></div>
+                <Badge variant="dark" className="!bg-zinc-100 !text-zinc-900 !text-[10px] uppercase font-black tracking-widest">
+                  {records.length} {records.length === 1 ? 'RECORD' : 'RECORDS'}
+                </Badge>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {records.map(({ p, ex }: any) => (
+                  <motion.div variants={itemVariants} key={p.exId}>
+                    <Card className="group border-none ring-1 ring-zinc-200 hover:ring-emerald-500/50 transition-all !p-8 bg-white shadow-xl hover:shadow-2xl h-full relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl -mr-16 -mt-16 transition-all group-hover:bg-emerald-500/10"></div>
+                      
+                      <div className="flex justify-between items-start mb-6 relative z-10">
+                        <div>
+                          <div className="text-[10px] text-emerald-500 font-black uppercase tracking-[3px] mb-1 italic">Record {category === 'Cardio' ? 'Cardio' : 'Personnel'}</div>
+                          <div className="font-black text-2xl text-zinc-900 uppercase italic tracking-tighter group-hover:text-emerald-500 transition-colors line-clamp-1" title={ex?.name || p.exId}>{ex?.name || p.exId}</div>
+                        </div>
+                        <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-zinc-900 transition-all shadow-sm shrink-0">
+                          <TrophyIcon size={24} />
+                        </div>
+                      </div>
 
-                <div className="grid grid-cols-2 gap-2 md:gap-4">
-                   {ex?.cat === 'Cardio' ? (
-                     <>
-                       <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
-                          <div className="text-[10px] uppercase text-zinc-900 font-black tracking-widest mb-1">Durée</div>
-                          <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.duration || 'N/A'}</div>
-                       </div>
-                       <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
-                          <div className="text-[10px] uppercase text-zinc-900 font-black tracking-widest mb-1">Calories (Est.)</div>
-                          <div className="font-black text-lg md:text-xl text-zinc-900 italic">{parseDuration(p.duration) * 10}<span className="text-[10px] ml-0.5 opacity-50">kcal</span></div>
-                       </div>
-                     </>
-                   ) : (
-                     <>
-                       <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
-                          <div className="text-[10px] uppercase text-zinc-900 font-black tracking-widest mb-1">Charge</div>
-                          <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.weight}<span className="text-[10px] ml-0.5 opacity-50">kg</span></div>
-                       </div>
-                       <div className="bg-zinc-50 border border-zinc-200 p-3 md:p-4 rounded-2xl text-center group-hover:border-zinc-300 transition-all shadow-sm">
-                          <div className="text-[10px] uppercase text-zinc-900 font-black tracking-widest mb-1">Reps</div>
-                          <div className="font-black text-lg md:text-xl text-zinc-900 italic">{p.reps}</div>
-                       </div>
-                     </>
-                   )}
-                </div>
-                
-                <div className="mt-6 pt-6 border-t  flex justify-between items-center">
-                  <div className="text-[9px] text-zinc-900 font-black uppercase tracking-widest flex items-center gap-2">
-                     <TargetIcon size={12} /> {new Date(p.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                  </div>
-                  <Badge variant="dark" className="!bg-zinc-50 !text-[10px] shadow-sm">{ex?.cat}</Badge>
-                </div>
-              </Card>
+                      <div className="grid grid-cols-2 gap-2 md:gap-4 relative z-10">
+                         {ex?.cat === 'Cardio' ? (
+                           <>
+                             <div className="bg-zinc-50 border border-zinc-100 p-4 rounded-2xl text-center group-hover:border-emerald-200 transition-all shadow-sm">
+                                <div className="text-[10px] uppercase text-zinc-500 font-black tracking-widest mb-1 group-hover:text-emerald-600 transition-colors">Durée Max</div>
+                                <div className="font-black text-xl text-zinc-900 italic">{p.duration || 'N/A'}</div>
+                             </div>
+                             <div className="bg-zinc-50 border border-zinc-100 p-4 rounded-2xl text-center group-hover:border-emerald-200 transition-all shadow-sm">
+                                <div className="text-[10px] uppercase text-zinc-500 font-black tracking-widest mb-1 group-hover:text-emerald-600 transition-colors">Calories</div>
+                                <div className="font-black text-xl text-zinc-900 italic">{parseDuration(p.duration) * 10}<span className="text-[10px] ml-0.5 opacity-50">kcal</span></div>
+                             </div>
+                           </>
+                         ) : (
+                           <>
+                             <div className="bg-zinc-50 border border-zinc-100 p-4 rounded-2xl text-center group-hover:border-emerald-200 transition-all shadow-sm">
+                                <div className="text-[10px] uppercase text-zinc-500 font-black tracking-widest mb-1 group-hover:text-emerald-600 transition-colors">Charge Max</div>
+                                <div className="font-black text-xl text-zinc-900 italic">{p.weight}<span className="text-[10px] ml-0.5 opacity-50">kg</span></div>
+                                <div className="text-[9px] font-bold text-zinc-400 mt-1 uppercase tracking-widest">({p.reps} reps)</div>
+                             </div>
+                             <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl text-center group-hover:bg-emerald-500 group-hover:border-emerald-500 transition-all shadow-sm group">
+                                <div className="text-[10px] uppercase text-emerald-600 font-black tracking-widest mb-1 group-hover:text-emerald-900 transition-colors">1RM Estimé</div>
+                                <div className="font-black text-xl text-emerald-600 italic group-hover:text-zinc-900 transition-colors">
+                                  {p.weight && p.reps ? calculate1RM(parseInt(p.weight), parseInt(p.reps)) : 'N/A'}
+                                  <span className="text-[10px] ml-0.5 opacity-70">kg</span>
+                                </div>
+                                <div className="text-[9px] font-bold text-emerald-400 mt-1 uppercase tracking-widest group-hover:text-emerald-900/50 transition-colors">Brzycki</div>
+                             </div>
+                           </>
+                         )}
+                      </div>
+                      
+                      <div className="mt-6 pt-5 border-t border-zinc-100 flex justify-between items-center relative z-10">
+                        <div className="text-[9px] text-zinc-500 font-black uppercase tracking-widest flex items-center gap-2">
+                           Le {new Date(p.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
             </motion.div>
-          );
-        })}
-      </motion.div>
+          ))
+        )}
+      </div>
     </motion.div>
   );
 };
