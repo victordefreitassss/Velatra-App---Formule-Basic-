@@ -28,7 +28,7 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
       return;
     }
 
-    if (inviteCode.toLowerCase() !== "velatra2026") {
+    if (inviteCode.toLowerCase().replace(/\s/g, '') !== "velatra2026") {
       setError("Code d'invitation invalide. L'inscription est actuellement sur invitation uniquement.");
       return;
     }
