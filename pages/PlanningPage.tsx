@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Booking, User, Program } from '../types';
 import { Card, Button, Badge } from '../components/UI';
-import { CalendarIcon, PlusIcon, ClockIcon, UserIcon, CheckIcon, XIcon, TargetIcon, PlayIcon } from '../components/Icons';
+import { CalendarIcon, PlusIcon, ClockIcon, UserIcon, CheckIcon, XIcon, TargetIcon, PlayIcon, Trash2Icon } from '../components/Icons';
 import { db, collection, addDoc, updateDoc, doc, deleteDoc, query, where, getDocs } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 

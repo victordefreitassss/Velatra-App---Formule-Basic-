@@ -4,7 +4,6 @@ import { Card, Button, Input, Badge } from '../components/UI';
 import { AppleIcon, PlusIcon, SearchIcon, SaveIcon, UserIcon, TargetIcon, FlameIcon, ChevronLeftIcon, Trash2Icon } from '../components/Icons';
 import { db, doc, setDoc } from '../firebase';
 import { SparklesIcon, RefreshCwIcon } from 'lucide-react';
-import { GoogleGenAI } from '@google/genai';
 import { MemberNutritionView } from '../components/MemberNutritionView';
 import { motion, AnimatePresence } from 'framer-motion';
 

@@ -6,7 +6,6 @@ import { getLevel, formatDate } from '../utils';
 import { CalendarIcon, RefreshCwIcon, TargetIcon, BarChartIcon, TrophyIcon, FlameIcon, SparklesIcon, MessageCircleIcon, ShoppingCartIcon, GiftIcon, MegaphoneIcon, BotIcon, SendIcon } from './Icons';
 import { BodyHeatmap } from './BodyHeatmap';
 import { db, doc, updateDoc, setDoc } from '../firebase';
-import Markdown from 'react-markdown';
 import { motion } from 'framer-motion';
 import { GoogleGenAI } from '../services/aiService';
 
@@ -29,7 +28,7 @@ const containerVariants: any = {
 
 const itemVariants: any = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } as any }
 };
 
 export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setState, showToast, onToggleTimer }) => {

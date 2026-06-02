@@ -164,7 +164,7 @@ RÈGLES DE REDIRECTION IMPORTANTES :
                   <div className={`max-w-[85%] p-4 rounded-2xl ${msg.role === 'user' ? 'bg-emerald-500 text-zinc-900 rounded-br-sm shadow-md shadow-emerald-500/20' : 'bg-white text-zinc-700 rounded-bl-sm border border-zinc-200/50 shadow-sm'}`}>
                     {msg.role === 'model' ? (
                       <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-display prose-a:text-emerald-500">
-                        <Markdown>{msg.text}</Markdown>
+                        <Markdown urlTransform={(value: string | undefined | null) => typeof value === 'string' ? value : ''}>{String(msg.text || '')}</Markdown>
                       </div>
                     ) : (
                       <p className="text-[15px] leading-relaxed">{msg.text}</p>

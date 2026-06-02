@@ -5,11 +5,7 @@ import { Button, Input, Card } from './UI';
 import { CheckIcon, ArrowRightIcon, ArrowLeftIcon, FileTextIcon, CreditCardIcon } from './Icons';
 import { db, doc, updateDoc } from '../firebase';
 import SignatureCanvas from 'react-signature-canvas';
-import { loadStripe } from '@stripe/stripe-js';
 import { GOALS } from '../constants';
-
-// Initialize Stripe (replace with your actual publishable key)
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || '');
 
 interface OnboardingProps {
   user: User;
@@ -112,14 +108,14 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
                 <label className="block text-sm font-bold text-zinc-700 mb-1">Sexe</label>
                 <div className="flex gap-2">
                   <Button 
-                    variant={profile.gender === 'M' ? 'primary' : 'outline'} 
+                    variant={profile.gender === 'M' ? 'primary' : 'secondary'} 
                     onClick={() => setProfile({...profile, gender: 'M'})} 
                     className="flex-1"
                   >
                     Homme
                   </Button>
                   <Button 
-                    variant={profile.gender === 'F' ? 'primary' : 'outline'} 
+                    variant={profile.gender === 'F' ? 'primary' : 'secondary'} 
                     onClick={() => setProfile({...profile, gender: 'F'})} 
                     className="flex-1"
                   >
