@@ -99,8 +99,16 @@ const INITIAL_STATE: AppState = {
   driveFolders: [],
   progressPhotos: [],
   notifications: [],
-  aboutInfo: CLUB_INFO,
-  coaches: COACHES,
+  aboutInfo: {
+    phone: '',
+    email: '',
+    googleReview: '',
+    description: '',
+    horaires: '',
+    adresse: '',
+    mapsLink: ''
+  },
+  coaches: [],
   page: 'home',
   selectedMember: null,
   selectedDay: 0,
@@ -262,14 +270,14 @@ export default function App() {
         setState(prev => ({
           ...prev,
           currentClub: clubData,
-          coaches: clubData.coaches || COACHES,
+          coaches: clubData.coaches || [],
           aboutInfo: {
-            phone: clubData.phone,
-            email: clubData.email,
+            phone: clubData.phone || "",
+            email: clubData.email || "",
             googleReview: clubData.googleReview || "",
-            description: clubData.description,
-            horaires: clubData.horaires,
-            adresse: clubData.address,
+            description: clubData.description || "",
+            horaires: clubData.horaires || "",
+            adresse: clubData.address || "",
             mapsLink: clubData.mapsLink || ""
           }
         }));

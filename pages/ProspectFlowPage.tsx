@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Prospect, ProspectNote, User } from '../types';
-import { db, doc, updateDoc, setDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword } from '../firebase';
+import { db, doc, updateDoc, setDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from '../firebase';
 import { Plus, Search, Trash2, Mail, Phone, Clock, CheckCircle, XCircle, UserPlus, Users, X, Calendar, AlertCircle, MessageSquare } from 'lucide-react';
 import { format, isToday, isPast, isSameDay, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -180,18 +180,19 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   // --- Conversion ---
   const confirmConversion = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!convertingProspect || !convertData.email || !convertData.password || !convertingProspect.firebaseUid) return;
+    if (!convertingProspect || !convertData.email || !convertingProspect.firebaseUid) return;
 
     showToast("Création du membre...", "info");
     try {
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, convertData.password);
+      const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase() + "1!";
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, randomPassword);
       const firebaseUid = userCredential.user.uid;
 
       const newUser: User = {
         id: Date.now(),
         clubId: state.user!.clubId,
         code: "",
-        pwd: convertData.password, // purely for legacy display if needed
+        pwd: randomPassword, // purely for legacy display if needed
         name: convertingProspect.name || 'Sans nom',
         email: convertData.email,
         phone: convertingProspect.phone || '',
@@ -212,10 +213,11 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
       
       await setDoc(doc(db, "users", firebaseUid), newUser);
       await updateDoc(doc(db, "prospects", convertingProspect.firebaseUid), { status: 'won' });
+      await sendPasswordResetEmail(secondaryAuth, convertData.email);
       
       setConvertingProspect(null);
       if (selectedProspect?.id === convertingProspect.id) setSelectedProspect(null);
-      showToast(`Membre créé avec succès !`, "success");
+      showToast(`Membre créé. L'email de création de compte a été envoyé à ${convertData.email}.`, "success");
     } catch (err: any) {
       console.error(err);
       showToast(err.message || "Erreur lors de la conversion", "error");
@@ -519,6 +521,36 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                 </div>
               </section>
 
+              {/* Questionnaire Formulaire */}
+              {activeSelectedProspect.answers && Object.keys(activeSelectedProspect.answers).length > 0 && (
+                <section className="space-y-3">
+                  <h3 className="text-sm border-b border-zinc-100 pb-2 font-bold text-zinc-900 uppercase tracking-wider">Questionnaire Découverte</h3>
+                  <div className="grid grid-cols-1 gap-2 bg-zinc-50 border border-zinc-200 rounded-xl p-4">
+                    {Object.entries(activeSelectedProspect.answers).map(([key, val]) => {
+                      if (!val || (Array.isArray(val) && val.length === 0) || (typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length === 0)) return null;
+                      
+                      let displayVal = val;
+                      if (Array.isArray(val)) displayVal = val.join(', ');
+                      else if (typeof val === 'object') displayVal = Object.entries(val).filter(([k,v]) => v).map(([k]) => k.replace('-', ' ')).join(', ');
+                      
+                      const keyNames: Record<string, string> = {
+                        age: "Âge", gender: "Sexe", profession: "Profession", condition: "Condition physique", weight: "Poids", height: "Taille", ailments: "Antécédents", medicalTreatments: "Traitements", goals: "Objectifs", obj1: "Objectif n°1", obj2: "Objectif n°2", whenResults: "Résultats attendus", trigger: "Déclic", vision6Months: "Vision dans 6 mois", determination: "Détermination (/10)", supporter: "Soutien", sleep: "Sommeil", stress: "Stress (/10)", water: "Eau (L/J)", habits: "Habitudes (Tabac, Alcool..)", currentSport: "Sport actuel", diet: "Alimentation", dietConstraints: "Contraintes alimentaires", frequency: "Fréquence souhaitée (s/sem)", whenStart: "Date de commencement", availability: "Disponibilités", source: "A connu le club via"
+                      };
+                      
+                      const niceKey = keyNames[key] || key;
+                      if (['name', 'email', 'phone', 'address'].includes(key)) return null;
+                      
+                      return (
+                        <div key={key} className="flex flex-col border-b border-zinc-200 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
+                          <span className="text-[10px] text-zinc-500 uppercase font-bold">{niceKey}</span>
+                          <span className="text-sm font-medium text-zinc-900">{typeof displayVal === 'string' || typeof displayVal === 'number' ? displayVal : JSON.stringify(displayVal)}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </section>
+              )}
+
               {/* CRM Actions */}
               <section className="space-y-4">
                 <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
@@ -665,16 +697,12 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
             </div>
             <h2 className="text-xl font-bold mb-2">Deal Gagné ! 🎉</h2>
             <p className="text-zinc-500 mb-6 text-sm">
-              Convertissons <b>{convertingProspect.name}</b> en membre officiel. Définissez son mot de passe initial.
+              Convertissons <b>{convertingProspect.name}</b> en membre officiel. L'utilisateur recevra un mail pour définir son mot de passe.
             </p>
             <div className="space-y-4 text-left">
               <div>
                 <label className="block text-xs font-bold text-zinc-500 mb-1">Adresse Email</label>
                 <Input value={convertData.email} onChange={e => setConvertData({...convertData, email: e.target.value})} required />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 mb-1">Mot de passe temporaire</label>
-                <Input type="password" value={convertData.password} onChange={e => setConvertData({...convertData, password: e.target.value})} required minLength={6} placeholder="Ex: Velatra2026" />
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">

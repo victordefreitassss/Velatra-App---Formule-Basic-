@@ -1,5 +1,4 @@
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { Program, NutritionPlan, Exercise, ClubInfo } from '../types';
 
 const getBase64ImageFromUrl = async (imageUrl: string): Promise<string | null> => {
@@ -19,154 +18,173 @@ const getBase64ImageFromUrl = async (imageUrl: string): Promise<string | null> =
 
 export const exportProgramToPDF = async (program: Program, exercises: Exercise[], club?: ClubInfo | null, memberName?: string) => {
   const doc = new jsPDF();
-  let y = 20;
+  let pageNumber = 1;
 
-  // Modern Header Box
-  doc.setFillColor(20, 20, 20); // Dark sleek background
-  doc.rect(0, 0, 210, 45, 'F');
-  
-  doc.setFontSize(26);
-  doc.setTextColor(255, 255, 255);
-  doc.text(club?.name?.toUpperCase() || 'VELATRA', 14, 25);
-  
-  doc.setFontSize(14);
-  doc.setTextColor(16, 185, 129); // emerald-500 accents
-  doc.text(`PROGRAMME D'ENTRAÎNEMENT`, 14, 35);
-  
-  y = 60;
+  for (let dIndex = 0; dIndex < program.days.length; dIndex++) {
+    const day = program.days[dIndex];
+    if (dIndex > 0) doc.addPage();
+    let y = 0;
 
-  doc.setFontSize(20);
-  doc.setTextColor(20, 20, 20);
-  doc.text(program.name.toUpperCase(), 14, y);
-  
-  if (memberName) {
-     y += 8;
-     doc.setFontSize(12);
-     doc.setTextColor(100, 100, 100);
-     doc.text(`Athlète: ${memberName}`, 14, y);
+    // --- DAY HEADER (Black Box at top) ---
+    doc.setFillColor(15, 15, 15);
+    doc.rect(0, 0, 210, 80, 'F');
+    
+    // Add an image for the header if we have one from the first exercise
+    let headerImageBase64 = null;
+    const firstExEntry = day.exercises && day.exercises[0];
+    if (firstExEntry) {
+      const firstEx = exercises.find(e => e.id === firstExEntry.exId);
+      if (firstEx && firstEx.photo) {
+         if (firstEx.photo.startsWith('http')) {
+           headerImageBase64 = await getBase64ImageFromUrl(firstEx.photo);
+         } else if (firstEx.photo.startsWith('data:image')) {
+           headerImageBase64 = firstEx.photo;
+         }
+      }
+    }
+    
+    y = 35; // Top alignment for title within the black box
+    const startXOffset = headerImageBase64 ? 90 : 14;
+
+    if (headerImageBase64) {
+      // Draw image on left side spanning part of the header
+      // Keep ratio 16:9 approx
+      doc.addImage(headerImageBase64, 'JPEG', 0, 0, 80, 80);
+    }
+    
+    // Day title e.g., SEANCE 1 : PECTORAUX
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('', 'bold');
+    const dayTitle = `SÉANCE ${dIndex + 1} : ${day.name ? day.name.toUpperCase() : 'ENTRAÎNEMENT'}`;
+    doc.text(dayTitle, startXOffset, y);
+
+    // Green underline for title
+    y += 4;
+    doc.setFillColor(132, 204, 22); // Lime/emerald green typical of Velatra? Or matching the image #84cc16 approx
+    doc.rect(startXOffset, y, 60, 1.5, 'F');
+    
+    // Warmup text placeholder (or get from notes/day.duration if we had)
+    y += 10;
+    doc.setFontSize(10);
+    doc.setTextColor(132, 204, 22); // Green
+    doc.setFont('', 'bold');
+    doc.text(`ÉCHAUFFEMENT : 5 MIN DE CARDIO`.toUpperCase(), startXOffset, y);
+    y += 6;
+    doc.text(`2 MIN ENTRE CHAQUE EXERCICE`.toUpperCase(), startXOffset, y);
+    
+    y = 80;
+
+    // --- INSTRUCTIONS ---
+    doc.setFillColor(15, 15, 15); // Continuing black background for a bit
+    doc.rect(0, 80, 210, 30, 'F');
+    
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('', 'normal');
+    const introText = "Avant de commencer votre séance, veillez à regarder la vidéo de l'exercice en cliquant\nsur l'image pour visualiser les mouvements ou les techniques d'intensification.\n\nBonne séance";
+    doc.text(introText, 14, y + 10);
+    
+    y += 35;
+
+    // Set white background for the rest
+    if (day.exercises && day.exercises.length > 0) {
+      for (let eIndex = 0; eIndex < day.exercises.length; eIndex++) {
+        const exEntry = day.exercises[eIndex];
+        const exDef = exercises.find(e => e.id === exEntry.exId);
+        
+        // Page break logic inside a day if many exercises
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+
+        const orderText = eIndex === 0 ? "1ER" : `${eIndex + 1}ÈME`;
+        const startX = 14;
+        
+        const imageWidth = 25;
+        const imageHeight = 15;
+        const imageStartX = startX;
+        const orderStartX = startX + imageWidth + 6;
+        
+        // 1. Exercise image (if available)
+        if (exDef && exDef.photo) {
+           let b64 = null;
+           if (exDef.photo.startsWith('http')) {
+             b64 = await getBase64ImageFromUrl(exDef.photo);
+           } else if (exDef.photo.startsWith('data:image')) {
+             b64 = exDef.photo;
+           }
+           
+           if (b64) {
+             doc.addImage(b64, 'JPEG', imageStartX, y, imageWidth, imageHeight);
+           }
+        }
+        
+        // 2. Order bar and text
+        doc.setFillColor(100, 116, 139); // slate gray for the small top bar
+        doc.rect(orderStartX + 1, y, 12, 1.5, 'F');
+        doc.setFontSize(12);
+        doc.setTextColor(100, 116, 139);
+        doc.setFont('', 'bold');
+        doc.text(orderText, orderStartX, y + 10);
+        
+        const detailsStartX = orderStartX + 16;
+        
+        // 3. Exercise Name
+        doc.setFontSize(11);
+        doc.setTextColor(71, 85, 105); // slate-600
+        doc.setFont('', 'bold');
+        let exName = exDef?.name || 'Exercice inconnu';
+        if (exEntry.notes) exName += " (TECHNIQUE)";
+        doc.text(exName.toUpperCase(), detailsStartX, y + 4);
+        
+        // 4. Notes/Technique specs
+        let notesY = y + 8;
+        if (exEntry.notes) {
+          doc.setFontSize(9);
+          doc.setTextColor(148, 163, 184); // slate-400
+          doc.setFont('', 'italic');
+          doc.text(exEntry.notes, detailsStartX, notesY);
+          notesY += 4;
+        }
+        
+        // 5. Sets | Reps | Rest structure
+        // E.g., "3 séries | 15 réps | 1min30 de repos"
+        doc.setFontSize(9.5);
+        doc.setTextColor(15, 15, 15);
+        doc.setFont('', 'bold');
+        
+        let detailsText = '';
+        if (exEntry.sets) detailsText += `${exEntry.sets} séries`;
+        if (exEntry.reps) detailsText += (detailsText ? ' | ' : '') + `${exEntry.reps} réps`;
+        if (exEntry.rest) detailsText += (detailsText ? ' | ' : '') + `${exEntry.rest} de repos`;
+        
+        if (!detailsText) detailsText = '-';
+        doc.text(detailsText, detailsStartX, notesY + 1);
+
+        // Thin separator line
+        y += 22; // Next item y
+        doc.setDrawColor(132, 204, 22); // Greenish line
+        doc.line(detailsStartX, y - 4, 196, y - 4);
+      }
+    } else {
+      doc.setFontSize(12);
+      doc.setTextColor(150, 150, 150);
+      doc.text("Jour de repos", 14, y + 20);
+    }
   }
 
-  y += 15;
-
-  program.days.forEach((day, index) => {
-    // Check if we need a new page
-    if (y > 260) {
-      doc.addPage();
-      y = 20;
-    }
-
-    // Day Header
-    doc.setFillColor(245, 245, 245);
-    doc.rect(14, y - 6, 182, 12, 'F');
-    doc.setFontSize(12);
-    doc.setTextColor(16, 185, 129);
-    doc.setFont('', 'bold');
-    doc.text((day.name || `Jour ${index + 1}`).toUpperCase(), 16, y+2);
-    doc.setFont('', 'normal');
-    y += 15;
-
-    if (day.exercises && day.exercises.length > 0) {
-      const tableData = day.exercises.map(ex => {
-        const exerciseDef = exercises.find(e => e.id === ex.exId);
-        return [
-          exerciseDef?.name || 'Exercice inconnu',
-          ex.sets ? `${ex.sets}` : '-',
-          ex.reps ? `${ex.reps}` : '-',
-          ex.rest ? `${ex.rest}s` : '-',
-          ex.notes || '-'
-        ];
-      });
-
-      autoTable(doc, {
-        startY: y,
-        head: [['EXERCICE', 'SÉRIES', 'RÉPÉTITIONS', 'REPOS', 'NOTES']],
-        body: tableData,
-        theme: 'plain',
-        headStyles: { fillColor: [255, 255, 255], textColor: [100,100,100], fontStyle: 'bold', fontSize: 8 },
-        bodyStyles: { textColor: [40,40,40], fontSize: 10 },
-        alternateRowStyles: { fillColor: [250,250,250] },
-        margin: { top: 10, left: 14, right: 14 },
-      });
-      
-      // Update Y Position after table
-      y = (doc as any).lastAutoTable.finalY + 20;
-    } else {
-      doc.setFontSize(10);
-      doc.setTextColor(150, 150, 150);
-      doc.text("Jour de repos", 16, y);
-      y += 20;
-    }
-  });
-
-  // Unique Exercises Appendix
-  const usedExerciseIds = [
-    ...new Set(
-      program.days.flatMap(day => (day.exercises || []).map(ex => ex.exId))
-    )
-  ];
-  const usedExercises = usedExerciseIds.map(id => exercises.find(e => e.id === id)).filter(Boolean) as Exercise[];
-
-  if (usedExercises.length > 0) {
-    doc.addPage();
-    y = 20;
-    
-    doc.setFillColor(20, 20, 20);
-    doc.rect(0, 0, 210, 30, 'F');
-    doc.setFontSize(18);
+  // Footer for all pages
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFillColor(0, 0, 0); // Black bottom bar
+    doc.rect(0, 287, 210, 10, 'F');
+    doc.setFontSize(6);
     doc.setTextColor(255, 255, 255);
-    doc.text('DÉTAIL DES EXERCICES & CONSEILS', 14, 20);
-    
-    y = 40;
-
-    for (const ex of usedExercises) {
-      if (y > 240) {
-        doc.addPage();
-        y = 20;
-      }
-      
-      const relatedEntries = program.days.flatMap(d => d.exercises || []).filter(e => e.exId === ex.id);
-      const allNotes = [...new Set(relatedEntries.map(e => e.notes).filter(Boolean))];
-
-      doc.setFontSize(14);
-      doc.setTextColor(16, 185, 129);
-      doc.setFont('', 'bold');
-      doc.text(ex.name.toUpperCase(), 14, y);
-      doc.setFont('', 'normal');
-      y += 6;
-
-      if (ex.photo && ex.photo.startsWith('http')) {
-        const base64 = await getBase64ImageFromUrl(ex.photo);
-        if (base64) {
-          doc.addImage(base64, 'JPEG', 14, y, 40, 40);
-        }
-      }
-      
-      let textX = 60;
-      doc.setFontSize(10);
-      doc.setTextColor(40, 40, 40);
-      doc.text(`Catégorie : ${ex.cat}`, textX, y + 4);
-      doc.text(`Équipement : ${ex.equip}`, textX, y + 10);
-      
-      if (allNotes.length > 0) {
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.text("Conseils du coach :", textX, y + 20);
-        doc.setTextColor(40, 40, 40);
-        doc.setFont('', 'italic');
-        
-        let noteY = y + 25;
-        for (const note of allNotes) {
-           const splitNote = doc.splitTextToSize(`• ${note}`, 130);
-           doc.text(splitNote, textX, noteY);
-           noteY += splitNote.length * 5;
-        }
-        doc.setFont('', 'normal');
-      }
-
-      y += 50; 
-      doc.setDrawColor(230, 230, 230);
-      doc.line(14, y - 5, 196, y - 5);
-    }
+    doc.setFont('', 'normal');
+    doc.text("Tous droits réservés. Toute reproduction est interdite sans l'autorisation de l'auteur", 105, 292, { align: 'center' });
   }
 
   doc.save(`Programme-${program.name.replace(/\s+/g, '_')}.pdf`);
@@ -174,115 +192,148 @@ export const exportProgramToPDF = async (program: Program, exercises: Exercise[]
 
 export const exportNutritionToPDF = (plan: NutritionPlan, club?: ClubInfo | null) => {
   const doc = new jsPDF();
-  let y = 20;
+  let y = 0;
 
-  // Modern Header Box
-  doc.setFillColor(20, 20, 20);
-  doc.rect(0, 0, 210, 45, 'F');
+  // --- NUTRITION HEADER (Black Box at top) ---
+  doc.setFillColor(15, 15, 15);
+  doc.rect(0, 0, 210, 80, 'F');
   
-  doc.setFontSize(26);
+  y = 35; // Top alignment for title within the black box
+  const startXOffset = 14;
+
+  doc.setFontSize(22);
   doc.setTextColor(255, 255, 255);
-  doc.text(club?.name?.toUpperCase() || 'VELATRA', 14, 25);
-  
-  doc.setFontSize(14);
-  doc.setTextColor(16, 185, 129);
-  doc.text(`PLAN ALIMENTAIRE`, 14, 35);
-  
-  y = 60;
+  doc.setFont('', 'bold');
+  const planTitle = `PLAN ALIMENTAIRE`;
+  doc.text(planTitle, startXOffset, y);
 
-  // Summary Metrics Board
-  doc.setFillColor(245, 245, 245);
-  doc.rect(14, y, 182, 35, 'F');
+  // Green underline for title
+  y += 4;
+  doc.setFillColor(132, 204, 22);
+  doc.rect(startXOffset, y, 60, 1.5, 'F');
+  
+  // Macros text
+  y += 10;
+  doc.setFontSize(10);
+  doc.setTextColor(132, 204, 22);
+  doc.setFont('', 'bold');
+  doc.text(`OBJECTIF : ${plan.goal.toUpperCase()}`, startXOffset, y);
+  y += 6;
+  doc.text(`${plan.targetCalories} KCAL | PROT: ${plan.protein}g | GLU: ${plan.carbs}g | LIP: ${plan.fat}g`, startXOffset, y);
+  
+  y = 80;
+
+  // --- INSTRUCTIONS ---
+  doc.setFillColor(15, 15, 15);
+  doc.rect(0, 80, 210, 30, 'F');
   
   doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.text("OBJECTIF", 20, y + 10);
-  doc.setFontSize(12);
-  doc.setTextColor(20, 20, 20);
-  doc.setFont('', 'bold');
-  doc.text(plan.goal.toUpperCase(), 20, y + 18);
-  
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
+  doc.setTextColor(255, 255, 255);
   doc.setFont('', 'normal');
-  doc.text("CALORIES", 70, y + 10);
-  doc.setFontSize(18);
-  doc.setTextColor(16, 185, 129);
-  doc.setFont('', 'bold');
-  doc.text(`${plan.targetCalories} kcal`, 70, y + 20);
+  const introText = "Veuillez respecter les quantités indiquées. Vous pouvez intervertir l'ordre des repas\nsi besoin, mais essayez de garder la répartition des macronutriments sur la journée.\n\nBon appétit";
+  doc.text(introText, 14, y + 10);
   
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.setFont('', 'normal');
-  doc.text("MACROS (P / G / L)", 130, y + 10);
-  doc.setFontSize(12);
-  doc.setTextColor(20, 20, 20);
-  doc.setFont('', 'bold');
-  doc.text(`${plan.protein}g / ${plan.carbs}g / ${plan.fat}g`, 130, y + 18);
-  
-  doc.setFont('', 'normal');
-  y += 55;
+  y += 35;
 
   if (plan.meals && plan.meals.length > 0) {
-    plan.meals.forEach((meal) => {
+    for (let mIndex = 0; mIndex < plan.meals.length; mIndex++) {
+      const meal = plan.meals[mIndex];
+      
+      // Page break logic
       if (y > 250) {
         doc.addPage();
         y = 20;
       }
 
-      doc.setFontSize(14);
-      doc.setTextColor(20, 20, 20);
+      const orderText = `REPAS ${mIndex + 1}`;
+      const startX = 14;
+      
+      // 1. Order bar and text
+      doc.setFillColor(100, 116, 139); // slate gray for the small top bar
+      doc.rect(startX + 1, y, 12, 1.5, 'F');
+      doc.setFontSize(12);
+      doc.setTextColor(100, 116, 139);
       doc.setFont('', 'bold');
-      doc.text(meal.name.toUpperCase(), 14, y);
+      doc.text(orderText, startX, y + 10);
       
-      const metricsText = `${meal.calories || 0} kcal | P: ${meal.protein || 0}g | G: ${meal.carbs || 0}g | L: ${meal.fat || 0}g`;
-      doc.setFontSize(10);
-      doc.setTextColor(16, 185, 129);
-      doc.text(metricsText, 14, y + 6);
-      doc.setFont('', 'normal');
+      const detailsStartX = startX + 24; // Align without image
       
-      y += 12;
-
+      // 2. Meal Name
+      doc.setFontSize(11);
+      doc.setTextColor(71, 85, 105);
+      doc.setFont('', 'bold');
+      doc.text(meal.name.toUpperCase(), detailsStartX, y + 4);
+      
+      // 3. Macros specs
+      let notesY = y + 8;
+      doc.setFontSize(9);
+      doc.setTextColor(148, 163, 184); // slate-400
+      doc.setFont('', 'italic');
+      doc.text(`${meal.calories || 0} kcal | P: ${meal.protein || 0}g | G: ${meal.carbs || 0}g | L: ${meal.fat || 0}g`, detailsStartX, notesY);
+      notesY += 4;
+      
+      // 4. Description
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 15, 15);
+      doc.setFont('', 'bold');
+      
       if (meal.description) {
-        doc.setFontSize(10);
-        doc.setTextColor(80, 80, 80);
-        const splitText = doc.splitTextToSize(meal.description, 182);
-        doc.text(splitText, 14, y);
-        y += (splitText.length * 5) + 12;
+         const splitText = doc.splitTextToSize(meal.description, 160);
+         doc.text(splitText, detailsStartX, notesY + 1);
+         notesY += splitText.length * 4;
       } else {
-        y += 6;
+         doc.text("-", detailsStartX, notesY + 1);
       }
-    });
+
+      // Thin separator line
+      y = notesY + 12; 
+      doc.setDrawColor(132, 204, 22); // Greenish line
+      doc.line(detailsStartX, y - 4, 196, y - 4);
+    }
   }
 
   // Shopping List
   if (plan.liste_courses && plan.liste_courses.length > 0) {
-    if (y > 200) {
+    if (y > 220) {
       doc.addPage();
-      y = 30;
+      y = 20;
     } else {
-      y += 15;
+      y += 10;
     }
     
-    // Day Header
-    doc.setFillColor(16, 185, 129);
-    doc.rect(14, y - 6, 182, 10, 'F');
-    doc.setFontSize(12);
+    // Header
+    doc.setFillColor(132, 204, 22);
+    doc.rect(14, y, 182, 8, 'F');
+    doc.setFontSize(11);
     doc.setTextColor(255, 255, 255);
     doc.setFont('', 'bold');
-    doc.text('LISTE DE COURSES', 16, y + 1);
+    doc.text('LISTE DE COURSES', 18, y + 6);
     doc.setFont('', 'normal');
     
-    y += 10;
+    y += 16;
+    doc.setFontSize(10);
+    doc.setTextColor(71, 85, 105);
+    
+    for (const item of plan.liste_courses) {
+       if (y > 280) {
+          doc.addPage();
+          y = 20;
+       }
+       doc.text(`• ${item.name}`, 18, y);
+       y += 6;
+    }
+  }
 
-    const listData = plan.liste_courses.map(item => [`• ${item.name}`]);
-    autoTable(doc, {
-      startY: y,
-      body: listData,
-      theme: 'plain',
-      styles: { fontSize: 10, cellPadding: 2, textColor: [80, 80, 80] },
-      margin: { left: 14 }
-    });
+  // Footer for all pages
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFillColor(0, 0, 0); // Black bottom bar
+    doc.rect(0, 287, 210, 10, 'F');
+    doc.setFontSize(6);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('', 'normal');
+    doc.text("Tous droits réservés. Toute reproduction est interdite sans l'autorisation de l'auteur", 105, 292, { align: 'center' });
   }
 
   doc.save(`Nutrition-${plan.goal.replace(/\s+/g, '_')}.pdf`);
