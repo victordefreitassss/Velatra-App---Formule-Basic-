@@ -185,7 +185,34 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     showToast("Création du membre...", "info");
     try {
       const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase() + "1!";
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, randomPassword);
+      // Create Firebase Auth user with potential orphaned account cleanup/retry
+      let userCredential;
+      try {
+        userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, randomPassword);
+      } catch (authErr: any) {
+        if (authErr.code === 'auth/email-already-in-use') {
+          try {
+            console.log("Email already in use, attempting cleanup of orphaned auth account:", convertData.email);
+            const cleanupResponse = await fetch('/api/delete-user', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email: convertData.email }),
+            });
+            if (cleanupResponse.ok) {
+              console.log("Cleanup succeeded, retrying user creation...");
+              userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, randomPassword);
+            } else {
+              throw authErr;
+            }
+          } catch (cleanupErr) {
+            throw authErr;
+          }
+        } else {
+          throw authErr;
+        }
+      }
       const firebaseUid = userCredential.user.uid;
 
       const newUser: User = {
