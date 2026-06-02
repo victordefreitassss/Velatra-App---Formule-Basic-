@@ -76,6 +76,11 @@ service cloud.firestore {
       allow write: if isSuperAdmin() || isSuperAdminEmail() || (isAdmin() && isSameClub(resource.data.clubId));
     }
 
+    match /prospects/{prospectId} {
+      allow create: if true;
+      allow read, update, delete: if isAuthenticated() && (isSameClub(resource.data.clubId) || isSuperAdminEmail());
+    }
+
     // Default rule for all other collections
     match /{document=**} {
       allow read: if isAuthenticated();
