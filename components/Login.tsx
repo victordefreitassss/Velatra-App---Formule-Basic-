@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Card, Input, Button } from './UI';
 import { RegistrationForm } from './RegistrationForm';
 import { ClubRegistration } from './ClubRegistration';
+import { DiscoverySessionForm } from './DiscoverySessionForm';
 import { 
   auth, 
   db,
@@ -27,7 +28,7 @@ const AppLogo = () => (
 );
 
 export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_register' }> = ({ initialMode = 'login' }) => {
-  const [mode, setMode] = useState<'login' | 'register' | 'club_register' | 'forgot_password'>(initialMode);
+  const [mode, setMode] = useState<'login' | 'register' | 'club_register' | 'forgot_password' | 'discovery'>(initialMode);
   const [isCoachMode, setIsCoachMode] = useState(false);
   const [email, setEmail] = useState("");
   const [pwd, setPwd] = useState("");
@@ -93,6 +94,10 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
 
   if (mode === 'register') {
     return <RegistrationForm onRegister={() => setMode('login')} onCancel={() => setMode('login')} />;
+  }
+
+  if (mode === 'discovery') {
+    return <DiscoverySessionForm onSuccess={() => setMode('login')} onCancel={() => setMode('login')} />;
   }
 
   if (mode === 'club_register') {
@@ -183,11 +188,12 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
           <div className="flex flex-col gap-5 text-center pt-4">
             {!isCoachMode && (
               <>
-                <button onClick={() => setMode('register')} className="text-[10px] font-bold text-zinc-500 hover:text-zinc-900 transition-colors tracking-widest uppercase">
-                  Pas encore membre ? <span className="text-zinc-900 underline ml-1">S'inscrire</span>
-                </button>
-                <button onClick={() => setMode('club_register')} className="text-[10px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors tracking-widest uppercase mt-2">
-                  Vous êtes un coach ou gérant ? <span className="text-emerald-600 underline ml-1">Créer un club</span>
+                <div className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase">
+                  Pas encore membre ? <button onClick={() => setMode('discovery')} className="text-emerald-600 hover:text-emerald-700 transition-colors underline ml-2">Séance découverte / Inscription</button>
+                </div>
+                <div className="w-full h-[1px] bg-zinc-200/50 my-2"></div>
+                <button onClick={() => setMode('club_register')} className="text-[8px] font-bold text-emerald-500/80 hover:text-emerald-600 transition-colors tracking-widest uppercase mt-2">
+                  (Réservé aux coachs) <span className="underline ml-1">Créer un club</span>
                 </button>
               </>
             )}

@@ -53,7 +53,8 @@ service cloud.firestore {
     match /clubs/{clubId} {
       allow get: if true;
       allow list: if isAuthenticated();
-      allow write: if isSuperAdmin() || isSuperAdminEmail() || (isAdmin() && isSameClub(clubId));
+      allow create: if isAuthenticated();
+      allow update, delete: if isSuperAdmin() || isSuperAdminEmail() || (isAdmin() && isSameClub(clubId));
     }
 
     match /driveFiles/{fileId} {

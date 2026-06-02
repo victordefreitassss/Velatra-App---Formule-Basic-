@@ -37,6 +37,17 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, 
       alert("Veuillez remplir tous les champs, y compris le code du club.");
       return;
     }
+
+    if (formData.clubId.toLowerCase().replace(/\s/g, '') === "velatra2026") {
+      alert("Vous avez saisi le code d'invitation BETA pour les coachs ! Pour vous inscrire en tant qu'adhérent, vous devez saisir le code d'accès à 6 chiffres de votre club (votre coach doit vous le fournir).");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(formData.clubId)) {
+      alert("Le code du club doit contenir exactement 6 chiffres.");
+      return;
+    }
+
     setLoading(true);
     try {
       // 1. Check if club exists
@@ -80,7 +91,11 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, 
       await setDoc(doc(db, "users", user.uid), newUser);
       onRegister();
     } catch (error: any) {
-      alert("Erreur lors de la création : " + error.message);
+      if (error.code === 'auth/email-already-in-use') {
+        alert("Cette adresse email est déjà utilisée par un autre compte.");
+      } else {
+        alert("Erreur lors de la création : " + error.message);
+      }
     } finally {
       setLoading(false);
     }

@@ -93,7 +93,11 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
       setCreatedClubId(clubId);
     } catch (err: any) {
       console.error("Registration Error:", err);
-      setError(err.message || "Une erreur est survenue lors de l'inscription.");
+      if (err.code === 'auth/email-already-in-use') {
+        setError("Cette adresse email est déjà utilisée par un autre compte.");
+      } else {
+        setError(err.message || "Une erreur est survenue lors de l'inscription.");
+      }
     } finally {
       setLoading(false);
     }
@@ -129,6 +133,9 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
         <div className="text-center">
           <h2 className="text-3xl font-black text-zinc-900 italic tracking-tighter">CRÉER VOTRE <span className="text-emerald-500">CLUB</span></h2>
           <p className="text-zinc-500 text-xs mt-2 uppercase tracking-widest font-bold">Lancez votre plateforme SaaS Fitness</p>
+          <div className="bg-red-500/10 text-red-500 p-2 text-[10px] uppercase font-bold mt-4 rounded-xl border border-red-500/20">
+            Réservé aux coachs. Ne pas utiliser si vous êtes adhérent.
+          </div>
         </div>
 
         <Card className="p-8 space-y-6  ring-1  bg-zinc-50/60 backdrop-blur-3xl">

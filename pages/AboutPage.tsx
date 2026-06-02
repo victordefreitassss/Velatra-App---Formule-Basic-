@@ -162,22 +162,29 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                </div>
              ) : (
                <>
-                 <Button 
-                  variant="primary" 
-                  fullWidth 
-                  className="!py-4 shadow-xl shadow-emerald-500/20"
-                  onClick={() => window.open(`tel:${aboutInfo.phone}`, '_self')}
-                 >
-                   APPELER LE CLUB
-                 </Button>
-                 <Button 
-                  variant="secondary" 
-                  fullWidth 
-                  className="!py-4"
-                  onClick={() => window.open(aboutInfo.googleReview, '_blank')}
-                 >
-                   LAISSER UN AVIS GOOGLE
-                 </Button>
+                 {aboutInfo.phone && (
+                   <Button 
+                    variant="primary" 
+                    fullWidth 
+                    className="!py-4 shadow-xl shadow-emerald-500/20"
+                    onClick={() => window.open(`tel:${aboutInfo.phone}`, '_self')}
+                   >
+                     APPELER LE CLUB
+                   </Button>
+                 )}
+                 {aboutInfo.googleReview && (
+                   <Button 
+                    variant="secondary" 
+                    fullWidth 
+                    className="!py-4"
+                    onClick={() => window.open(aboutInfo.googleReview, '_blank')}
+                   >
+                     LAISSER UN AVIS GOOGLE
+                   </Button>
+                 )}
+                 {!aboutInfo.phone && !aboutInfo.googleReview && (
+                    <p className="text-zinc-500 text-xs italic text-center p-2">Coordonnées non renseignées.</p>
+                 )}
                </>
              )}
           </div>
@@ -203,7 +210,9 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
           </div>
           
           <div className="grid grid-cols-1 gap-4">
-            {(isEditing ? tempCoaches : coaches).map(coach => (
+            {((isEditing ? tempCoaches : coaches) || []).length === 0 && !isEditing ? (
+               <p className="text-zinc-500 text-sm italic p-4 text-center border border-dashed border-zinc-200 rounded-xl">L'équipe n'a pas encore été renseignée.</p>
+            ) : (isEditing ? tempCoaches : coaches).map(coach => (
               <Card key={coach.id} className="flex items-center gap-5 !p-5 group hover:ring-emerald-500/30 transition-all relative">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-zinc-100 border border-zinc-200 flex items-center justify-center font-black text-2xl text-emerald-500 shrink-0 shadow-lg overflow-hidden">
                   {coach.photo ? (
