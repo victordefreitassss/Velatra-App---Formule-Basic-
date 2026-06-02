@@ -107,7 +107,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Historique <span className="text-emerald-500">VELATRA</span></h1>
           <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">
-            {activeTab === 'programs' ? `${archives.length} Cycles archivés` : `${filteredBookings.length} Séances passées`}
+            {activeTab === 'programs' ? `${archives.length} Cycles archivés` : `${filteredSessions.length} Séances passées`}
           </p>
         </div>
         
@@ -226,7 +226,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
-                         <Badge variant={isConfirmedOrCompleted ? "success" : "neutral"} className={`italic shadow-sm ${isConfirmedOrCompleted ? '!bg-emerald-500/10 !text-emerald-500 !border-emerald-500/20' : '!bg-zinc-100 !text-zinc-500 !border-zinc-200'}`}>
+                         <Badge variant={isConfirmedOrCompleted ? "success" : "dark"} className={`italic shadow-sm ${isConfirmedOrCompleted ? '!bg-emerald-500/10 !text-emerald-500 !border-emerald-500/20' : '!bg-zinc-100 !text-zinc-500 !border-zinc-200'}`}>
                            {booking.status === 'completed' ? 'TERMINÉ' : (booking.status === 'cancelled' ? 'ANNULÉ' : 'PASSÉ')}
                          </Badge>
                       </div>

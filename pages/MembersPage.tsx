@@ -162,7 +162,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         
         const newUser: User = {
           id: Date.now() + Math.floor(Math.random() * 1000), // Fake sequential ID for now
-          clubId: state.currentUser?.clubId || 1,
+          clubId: state.user?.clubId || '1',
+          code: Math.random().toString(36).slice(-6).toUpperCase(),
+          pwd: '',
+          avatar: '',
+          xp: 0,
+          streak: 0,
+          pointsFidelite: 0,
+          createdAt: new Date().toISOString(),
           role: 'member',
           firebaseUid: userCred.user.uid,
           name: client.name || "Nouveau Membre",
@@ -1111,11 +1118,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             clubId: state.user?.clubId || '',
             code: "",
             pwd: "", // Handled by Firebase Auth
+            avatar: "",
+            xp: 0,
+            streak: 0,
+            pointsFidelite: 0,
             name: name,
             email: email,
             phone: phone || '',
             role: 'member',
-            avatar: '',
             gender: 'M',
             age: 30,
             weight: 70,
@@ -1124,10 +1134,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             experienceLevel: 'Débutant',
             trainingDays: 3,
             createdAt: new Date().toISOString(),
-            notes: '',
-            xp: 0,
-            streak: 0,
-            pointsFidelite: 0
+            notes: ''
           };
 
           await setDoc(doc(db, "users", firebaseUid), newUser);
@@ -1162,11 +1169,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         clubId: state.user.clubId,
         code: "", // Not used anymore
         pwd: "", // We use Firebase Auth
+        avatar: "",
+        xp: 0,
+        streak: 0,
+        pointsFidelite: 0,
         name: newMemberData.name,
         email: newMemberData.email,
         phone: newMemberData.phone || '',
         role: 'member',
-        avatar: newMemberData.name.substring(0, 2).toUpperCase(),
         gender: newMemberData.gender as Gender || 'M',
         age: newMemberData.age || 30,
         birthDate: newMemberData.birthDate || '',
@@ -1175,9 +1185,6 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         objectifs: newMemberData.objectifs || [],
         notes: newMemberData.notes || '',
         createdAt: new Date().toISOString(),
-        xp: 0,
-        streak: 0,
-        pointsFidelite: 0,
         firebaseUid: firebaseUid
       };
 
@@ -2565,10 +2572,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                   { key: 'arm', label: 'Bras' },
                                   { key: 'thigh', label: 'Cuisse' },
                                   { key: 'calf', label: 'Mollet' }
-                                ].map(m => latestPhoto.measurements?.[m.key as keyof NonNullable<ProgressPhoto['measurements']>] ? (
+                                ].map(m => latestPhoto.measurements?.[m.key as any] ? (
                                   <div key={m.key}>
                                     <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{m.label}</div>
-                                    <div className="text-sm font-black text-zinc-900">{latestPhoto.measurements[m.key as keyof NonNullable<ProgressPhoto['measurements']>] || '--'}</div>
+                                    <div className="text-sm font-black text-zinc-900">{latestPhoto.measurements[m.key as any] || '--'}</div>
                                   </div>
                                 ) : null)}
                               </div>
@@ -3954,7 +3961,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             {isConfirmingImport && (
               <div className="pt-4 border-t border-zinc-100 shrink-0 flex gap-3">
                 <Button 
-                  variant="outline" 
+                  variant="secondary" 
                   onClick={() => setIsConfirmingImport(false)}
                   disabled={isImportingClients}
                   className="!py-4"

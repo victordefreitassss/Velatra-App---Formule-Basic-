@@ -19,6 +19,7 @@ export interface Club {
   createdAt: string;
   plan?: 'basic' | 'classic' | 'premium';
   isActive?: boolean;
+  canAddStaff?: boolean;
   coaches?: CoachInfo[];
   settings?: {
     defaultProgramDuration?: number;
@@ -570,7 +571,7 @@ export interface Booking {
   coachId: string; // The coach's ID
   startTime: string; // ISO string
   endTime: string; // ISO string
-  status: 'confirmed' | 'cancelled' | 'completed';
+  status: 'confirmed' | 'cancelled' | 'completed' | 'rejected' | 'pending';
   type: 'coaching' | 'trial';
   sessionTypeId?: string;
 }

@@ -380,10 +380,11 @@ app.post("/api/delete-user", async (req, res) => {
 // Secure Proxy for Gemini API
 app.post("/api/gemini/generateContent", async (req, res) => {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
+    const rawApiKey = process.env.GEMINI_API_KEY;
+    if (!rawApiKey) {
       return res.status(500).json({ error: "Clé API Gemini côté serveur manquante." });
     }
+    const apiKey = rawApiKey.replace(/[^\x20-\x7E]/g, '').trim();
 
     const ai = new GoogleGenAI({ apiKey });
     const { model, contents, config } = req.body;
@@ -397,7 +398,20 @@ app.post("/api/gemini/generateContent", async (req, res) => {
     res.json({ text: response.text });
   } catch (error: any) {
     console.error("Error proxying Gemini request:", error);
-    res.status(500).json({ error: error.message || "Failed to call Gemini" });
+    let errorMsg = "Failed to call Gemini";
+    if (error.status === 429 || (error.message && error.message.includes("quota"))) {
+      errorMsg = "Quota dépassé ou clé API invalide.";
+    } else if (error.message) {
+      errorMsg = error.message;
+    }
+    // Prevent sending massive JSON strings if error.message is stringified JSON
+    if (errorMsg.startsWith("{")) {
+       try {
+         const parsed = JSON.parse(errorMsg);
+         if (parsed.error && parsed.error.message) errorMsg = parsed.error.message;
+       } catch(e) {}
+    }
+    res.status(500).json({ error: errorMsg });
   }
 });
 

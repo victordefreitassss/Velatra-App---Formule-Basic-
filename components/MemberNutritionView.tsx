@@ -341,7 +341,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
             <h2 className="text-xl font-display font-bold text-zinc-900">Votre Recette IA</h2>
           </div>
           <div className="prose prose-sm max-w-none prose-headings:font-display prose-a:text-emerald-500 prose-p:leading-relaxed">
-            <Markdown>{recipeResult}</Markdown>
+            <Markdown urlTransform={(value: string | undefined | null) => typeof value === 'string' ? value : ''}>{String(recipeResult || '')}</Markdown>
           </div>
         </Card>
       )}
@@ -555,7 +555,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
               <Button
                 variant="ghost"
                 onClick={() => {
-                  import('../services/pdfService').then(m => m.exportNutritionToPDF(plan, state.currentClub));
+                  import('../services/pdfService').then(m => m.exportNutritionToPDF(plan, { ...state.currentClub, adresse: state.currentClub?.address || '' } as any));
                 }}
                 className="!py-1 !px-3 !text-xs text-emerald-600 hover:bg-emerald-50 rounded-lg font-bold"
               >

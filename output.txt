@@ -1,112 +1,183 @@
-24:export const CATEGORY_MEDIA: Record<string, { photo: string, videoUrl: string }> = {
-25:  "Jambes": { photo: "", videoUrl: "https://www.youtube.com/watch?v=1oed-UmAxFs" },
-26:  "Poitrine": { photo: "", videoUrl: "https://www.youtube.com/watch?v=rT7DgCr-3pg" },
-27:  "Dos": { photo: "", videoUrl: "https://www.youtube.com/watch?v=op9kVnSso6Q" },
-28:  "Épaules": { photo: "", videoUrl: "https://www.youtube.com/watch?v=qEwKCR5JCog" },
-29:  "Bras": { photo: "", videoUrl: "https://www.youtube.com/watch?v=ykJmrZ5v0Oo" },
-30:  "Abdos": { photo: "", videoUrl: "https://www.youtube.com/watch?v=2pLT-olgUJs" },
-31:  "Cardio": { photo: "", videoUrl: "https://www.youtube.com/watch?v=8i3ilQzE-IQ" },
-32:  "Mobilité": { photo: "", videoUrl: "https://www.youtube.com/watch?v=qULTwquOuT4" },
-33:  "Circuit Training": { photo: "", videoUrl: "https://www.youtube.com/watch?v=TU8QYVW0gDU" },
-34:  "Full Body": { photo: "", videoUrl: "https://www.youtube.com/watch?v=TU8QYVW0gDU" },
-35:  "Remise en forme": { photo: "", videoUrl: "https://www.youtube.com/watch?v=U1K2z0xOQ5Q" },
-36:  "Stretching": { photo: "", videoUrl: "https://www.youtube.com/watch?v=qULTwquOuT4" }
-39:export const KEYWORD_MEDIA: { keywords: string[], photo: string, videoUrl: string }[] = [
-42:    photo: '',
-47:    photo: '',
-52:    photo: '',
-57:    photo: '',
-62:    photo: '',
-67:    photo: '',
-72:    photo: '',
-77:    photo: '',
-82:    photo: '',
-87:    photo: '',
-92:    photo: '',
-97:    photo: '',
-102:    photo: '',
-107:    photo: '',
-117:      return { photo: item.photo, videoUrl: item.videoUrl };
-121:  return CATEGORY_MEDIA[cat || "Autre"] || { photo: "", videoUrl: "" };
-126:  { id: 1, clubId: "global", name: "Squat barre", cat: "Jambes", equip: "Barre", photo: "", videoUrl: "", perfId: "squat" },
-127:  { id: 2, clubId: "global", name: "Presse à cuisses", cat: "Jambes", equip: "Machine", photo: "", videoUrl: "", perfId: "presse" },
-128:  { id: 3, clubId: "global", name: "Fentes marchées", cat: "Jambes", equip: "Haltères", photo: "", videoUrl: "", perfId: "fentes" },
-129:  { id: 4, clubId: "global", name: "Leg Extension", cat: "Jambes", equip: "Machine", photo: "", videoUrl: "", perfId: "leg_ext" },
-130:  { id: 5, clubId: "global", name: "Leg Curl", cat: "Jambes", equip: "Machine", photo: "", videoUrl: "", perfId: "leg_curl" },
-131:  { id: 6, clubId: "global", name: "Soulevé de terre roumain", cat: "Jambes", equip: "Barre", photo: "", videoUrl: "", perfId: "sdt_roumain" },
-132:  { id: 7, clubId: "global", name: "Hip Thrust", cat: "Jambes", equip: "Barre", photo: "", videoUrl: "", perfId: "hip_thrust" },
-133:  { id: 8, clubId: "global", name: "Mollets debout", cat: "Jambes", equip: "Machine", photo: "", videoUrl: "", perfId: "mollets" },
-134:  { id: 9, clubId: "global", name: "Fentes bulgares", cat: "Jambes", equip: "Haltères", photo: "", videoUrl: "", perfId: "fentes_bulgares" },
-135:  { id: 10, clubId: "global", name: "Goblet Squat", cat: "Jambes", equip: "Kettlebell", photo: "", videoUrl: "", perfId: "goblet_squat" },
-138:  { id: 11, clubId: "global", name: "Développé couché", cat: "Poitrine", equip: "Barre", photo: "", videoUrl: "", perfId: "dc_barre" },
-139:  { id: 12, clubId: "global", name: "Développé incliné", cat: "Poitrine", equip: "Haltères", photo: "", videoUrl: "", perfId: "di_halteres" },
-140:  { id: 13, clubId: "global", name: "Écartés couché", cat: "Poitrine", equip: "Haltères", photo: "", videoUrl: "", perfId: "ecartes" },
-141:  { id: 14, clubId: "global", name: "Dips (Pectoraux)", cat: "Poitrine", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "dips_pecs" },
-142:  { id: 15, clubId: "global", name: "Pompes", cat: "Poitrine", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "pompes" },
-143:  { id: 16, clubId: "global", name: "Poulie vis-à-vis", cat: "Poitrine", equip: "Poulie", photo: "", videoUrl: "", perfId: "poulie_vis" },
-144:  { id: 17, clubId: "global", name: "Pompes sur genoux", cat: "Poitrine", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "pompes_genoux" },
-145:  { id: 18, clubId: "global", name: "Développé machine", cat: "Poitrine", equip: "Machine", photo: "", videoUrl: "", perfId: "dev_machine_pecs" },
-146:  { id: 19, clubId: "global", name: "Pec Deck", cat: "Poitrine", equip: "Machine", photo: "", videoUrl: "", perfId: "pec_deck" },
-149:  { id: 21, clubId: "global", name: "Tractions", cat: "Dos", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "tractions" },
-150:  { id: 22, clubId: "global", name: "Tirage poitrine", cat: "Dos", equip: "Machine", photo: "", videoUrl: "", perfId: "tirage_poitrine" },
-151:  { id: 23, clubId: "global", name: "Tirage horizontal", cat: "Dos", equip: "Machine", photo: "", videoUrl: "", perfId: "tirage_horiz" },
-152:  { id: 24, clubId: "global", name: "Rowing barre", cat: "Dos", equip: "Barre", photo: "", videoUrl: "", perfId: "rowing_barre" },
-153:  { id: 25, clubId: "global", name: "Rowing haltère (bûcheron)", cat: "Dos", equip: "Haltère", photo: "", videoUrl: "", perfId: "rowing_haltere" },
-154:  { id: 26, clubId: "global", name: "Soulevé de terre", cat: "Dos", equip: "Barre", photo: "", videoUrl: "", perfId: "sdt" },
-155:  { id: 27, clubId: "global", name: "Pull-over poulie haute", cat: "Dos", equip: "Poulie", photo: "", videoUrl: "", perfId: "pullover_poulie" },
-156:  { id: 28, clubId: "global", name: "Tirage vertical prise serrée", cat: "Dos", equip: "Machine", photo: "", videoUrl: "", perfId: "tirage_serre" },
-157:  { id: 29, clubId: "global", name: "Rowing machine", cat: "Dos", equip: "Machine", photo: "", videoUrl: "", perfId: "rowing_machine" },
-160:  { id: 31, clubId: "global", name: "Développé militaire", cat: "Épaules", equip: "Barre", photo: "", videoUrl: "", perfId: "dm" },
-161:  { id: 32, clubId: "global", name: "Développé assis", cat: "Épaules", equip: "Haltères", photo: "", videoUrl: "", perfId: "dev_assis" },
-162:  { id: 33, clubId: "global", name: "Élévations latérales", cat: "Épaules", equip: "Haltères", photo: "", videoUrl: "", perfId: "elev_lat" },
-163:  { id: 34, clubId: "global", name: "Oiseau (Arrière d'épaule)", cat: "Épaules", equip: "Haltères", photo: "", videoUrl: "", perfId: "oiseau" },
-164:  { id: 35, clubId: "global", name: "Face Pull", cat: "Épaules", equip: "Poulie", photo: "", videoUrl: "", perfId: "face_pull" },
-165:  { id: 36, clubId: "global", name: "Haussements d'épaules (Shrugs)", cat: "Épaules", equip: "Haltères", photo: "", videoUrl: "", perfId: "shrugs" },
-166:  { id: 37, clubId: "global", name: "Élévations frontales", cat: "Épaules", equip: "Haltères", photo: "", videoUrl: "", perfId: "elev_front" },
-167:  { id: 38, clubId: "global", name: "Développé machine (Épaules)", cat: "Épaules", equip: "Machine", photo: "", videoUrl: "", perfId: "dev_machine_epaules" },
-170:  { id: 41, clubId: "global", name: "Curl barre EZ", cat: "Bras", equip: "Barre", photo: "", videoUrl: "", perfId: "curl" },
-171:  { id: 42, clubId: "global", name: "Curl haltères alterné", cat: "Bras", equip: "Haltères", photo: "", videoUrl: "", perfId: "curl_halteres" },
-172:  { id: 43, clubId: "global", name: "Curl marteau", cat: "Bras", equip: "Haltères", photo: "", videoUrl: "", perfId: "curl_marteau" },
-173:  { id: 44, clubId: "global", name: "Extension triceps poulie", cat: "Bras", equip: "Poulie", photo: "", videoUrl: "", perfId: "ext_triceps" },
-174:  { id: 45, clubId: "global", name: "Barre au front", cat: "Bras", equip: "Barre EZ", photo: "", videoUrl: "", perfId: "barre_front" },
-175:  { id: 46, clubId: "global", name: "Dips (Triceps)", cat: "Bras", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "dips_tri" },
-176:  { id: 47, clubId: "global", name: "Curl pupitre", cat: "Bras", equip: "Machine", photo: "", videoUrl: "", perfId: "curl_pupitre" },
-177:  { id: 48, clubId: "global", name: "Extension triceps corde", cat: "Bras", equip: "Poulie", photo: "", videoUrl: "", perfId: "ext_tri_corde" },
-180:  { id: 51, clubId: "global", name: "Crunch au sol", cat: "Abdos", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "crunch" },
-181:  { id: 52, clubId: "global", name: "Gainage (Planche)", cat: "Abdos", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "gainage" },
-182:  { id: 53, clubId: "global", name: "Relevé de jambes suspendu", cat: "Abdos", equip: "Barre fixe", photo: "", videoUrl: "", perfId: "releve_jambes" },
-183:  { id: 54, clubId: "global", name: "Russian Twist", cat: "Abdos", equip: "Poids", photo: "", videoUrl: "", perfId: "russian_twist" },
-184:  { id: 55, clubId: "global", name: "Ab Wheel (Roulette)", cat: "Abdos", equip: "Accessoire", photo: "", videoUrl: "", perfId: "ab_wheel" },
-185:  { id: 56, clubId: "global", name: "Gainage latéral", cat: "Abdos", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "gainage_lat" },
-186:  { id: 57, clubId: "global", name: "Relevé de bassin", cat: "Abdos", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "releve_bassin" },
-189:  { id: 61, clubId: "global", name: "Tapis de course", cat: "Cardio", equip: "Machine", photo: "", videoUrl: "", perfId: "tapis" },
-190:  { id: 62, clubId: "global", name: "Vélo elliptique", cat: "Cardio", equip: "Machine", photo: "", videoUrl: "", perfId: "elliptique" },
-191:  { id: 63, clubId: "global", name: "Rameur", cat: "Cardio", equip: "Machine", photo: "", videoUrl: "", perfId: "rameur" },
-192:  { id: 64, clubId: "global", name: "Vélo de biking", cat: "Cardio", equip: "Machine", photo: "", videoUrl: "", perfId: "biking" },
-193:  { id: 65, clubId: "global", name: "Corde à sauter", cat: "Cardio", equip: "Accessoire", photo: "", videoUrl: "", perfId: "corde" },
-194:  { id: 66, clubId: "global", name: "Assault Bike", cat: "Cardio", equip: "Machine", photo: "", videoUrl: "", perfId: "assault_bike" },
-195:  { id: 67, clubId: "global", name: "SkiErg", cat: "Cardio", equip: "Machine", photo: "", videoUrl: "", perfId: "skierg" },
-196:  { id: 68, clubId: "global", name: "Marche rapide", cat: "Cardio", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "marche" },
-197:  { id: 69, clubId: "global", name: "Vélo droit", cat: "Cardio", equip: "Machine", photo: "", videoUrl: "", perfId: "velo_droit" },
-198:  { id: 70, clubId: "global", name: "Vélo allongé", cat: "Cardio", equip: "Machine", photo: "", videoUrl: "", perfId: "velo_allonge" },
-201:  { id: 71, clubId: "global", name: "Burpees", cat: "Circuit Training", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "burpees" },
-202:  { id: 72, clubId: "global", name: "Kettlebell Swing", cat: "Circuit Training", equip: "Kettlebell", photo: "", videoUrl: "", perfId: "kb_swing" },
-203:  { id: 73, clubId: "global", name: "Box Jump", cat: "Circuit Training", equip: "Box", photo: "", videoUrl: "", perfId: "box_jump" },
-204:  { id: 74, clubId: "global", name: "Wall Ball", cat: "Circuit Training", equip: "Medecine Ball", photo: "", videoUrl: "", perfId: "wall_ball" },
-205:  { id: 75, clubId: "global", name: "Battle Rope", cat: "Circuit Training", equip: "Corde", photo: "", videoUrl: "", perfId: "battle_rope" },
-206:  { id: 76, clubId: "global", name: "Thruster", cat: "Circuit Training", equip: "Barre/Haltères", photo: "", videoUrl: "", perfId: "thruster" },
-207:  { id: 77, clubId: "global", name: "Mountain Climbers", cat: "Circuit Training", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "mountain_climbers" },
-208:  { id: 78, clubId: "global", name: "Jumping Jacks", cat: "Circuit Training", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "jumping_jacks" },
-211:  { id: 81, clubId: "global", name: "Montée de genoux", cat: "Remise en forme", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "montee_genoux" },
-212:  { id: 82, clubId: "global", name: "Talons fesses", cat: "Remise en forme", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "talons_fesses" },
-213:  { id: 83, clubId: "global", name: "Squat poids du corps", cat: "Remise en forme", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "squat_pdc" },
-214:  { id: 84, clubId: "global", name: "Fentes alternées", cat: "Remise en forme", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "fentes_pdc" },
-215:  { id: 85, clubId: "global", name: "Step-ups (Montée sur banc)", cat: "Remise en forme", equip: "Banc", photo: "", videoUrl: "", perfId: "step_ups" },
-216:  { id: 86, clubId: "global", name: "Tirage élastique", cat: "Remise en forme", equip: "Élastique", photo: "", videoUrl: "", perfId: "tirage_elastique" },
-219:  { id: 91, clubId: "global", name: "Étirement ischio-jambiers", cat: "Stretching", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "etirement_ischios" },
-220:  { id: 92, clubId: "global", name: "Étirement quadriceps", cat: "Stretching", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "etirement_quads" },
-221:  { id: 93, clubId: "global", name: "Étirement pectoraux", cat: "Stretching", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "etirement_pecs" },
-222:  { id: 94, clubId: "global", name: "Étirement dos", cat: "Stretching", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "etirement_dos" },
-223:  { id: 95, clubId: "global", name: "Mobilité hanches (90/90)", cat: "Mobilité", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "mobilite_hanches" },
-224:  { id: 96, clubId: "global", name: "Rotations thoraciques", cat: "Mobilité", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "rotations_thoraciques" },
-225:  { id: 97, clubId: "global", name: "Cat-Cow (Dos rond/creux)", cat: "Mobilité", equip: "Poids du corps", photo: "", videoUrl: "", perfId: "cat_cow" }
+    at`)?" (<anonymous>)":-1<x.stack.indexOf("@")?"@unknown:0:0":""}return`
+".split(" "));function hl(u,f,x){var v=f.indexOf("--")===0;x==null||typeof x=="boolean"||x==="
+rty(v)||f!=null&&f.hasOwnProperty(v)||(v.indexOf("--")===0?u.setProperty(v,""):v==="float"?u.c
+rty(z)&&hl(u,z,f[z])}function ic(u){if(u.indexOf("-")===-1)return!1;switch(u){case"annotation
+ rs(u,f){switch(u){case"keyup":return Ni.indexOf(f.keyCode)!==-1;case"keydown":return f.keyCode!==2
+ropagation();else if(VM(u,v),f&4&&-1<_ce.indexOf(u)){for(;A!==null;){var z=As(A);if(z!==nul
+lags|=v,f=u.targetContainers,A!==null&&f.indexOf(A)===-1&&f.push(A),u)}function Nce(u,f,x,v
+ve"}function aue(){const t=Ca();return t.indexOf("MSIE ")>=0||t.indexOf("Trident/")>=0}function Q
+mponent(s)}}),e}function yy(t){const e=t.indexOf("?");if(!e)return"";const n=t.indexOf("#",e)
+uth",!0)):dhe()}function NK(t){const e=t.indexOf(":");return e<0?"":t.substr(0,e+1)}function 
+=="-")return w(h(D.substring(1),j));if(D.indexOf("-")>=0)throw Error('number format error: in
+=!1,Kn(this)))}else de(this.g),W==400&&Z.indexOf("Unknown SID")>0?(this.m=3,Mt(12)):(this.m=0,Mt(13)),n
+tocol"):null;if(rs){var et=be.h;et.g||rs.indexOf("spdy")==-1&&rs.indexOf("quic")==-1&&rs.indexOf
+or(let Z=0;Z<S.length;Z++){const be=S[Z].indexOf("=");let $e,et=null;be>=0?($e=S[Z].substring
+$e=be,$e==".."||$e==".")be="";else if($e.indexOf("./")!=-1||$e.indexOf("/.")!=-1){be=$e.lastIn
+g){var W=this.g.responseText;return S&&W.indexOf(S)==0&&(W=W.substring(S.length)),ct(W)}};f
+(...e){const n=[];for(const r of e){if(r.indexOf("//")>=0)throw new jt(ot.INVALID_ARGUMENT,`In
+0<n&&n<10,i=iY(e),s=0<i&&i<4.5;return!(e.indexOf("MSIE ")>0||e.indexOf("Trident/")>0||e.indexOf("
+he Indexed Database server";if(t.message.indexOf(n)>=0){const r=new jt("internal",`IOS_INDE
+=[];let i="";for(let s=0;s<e;){const o=t.indexOf(M_,s);switch((o<0||o>n)&&an(50515,{path:t}),t
+is.data.size}indexOf(e){return this.data.indexOf(e)}forEach(e){this.data.inorderTraversal((
+{return["<","<=",">",">=","!=","not-in"].indexOf(this.op)>=0}getFlattenedFilters(){return[this]}g
+>{const s=this.ns(i,zA),o=i.filter((l=>s.indexOf(l)===-1));return Ze.forEach(o,(l=>r.delete
+"&&["pending","acknowledged","rejected"].indexOf(i.state)!==-1&&(i.error===void 0||typeof i.error
+t"&&["not-current","current","rejected"].indexOf(r.state)!==-1&&(r.error===void 0||typeof r.error
+"object"&&["Unknown","Online","Offline"].indexOf(n.onlineState)!==-1&&typeof n.clientId=="string"?new T
+place(/_/g,"-");return Object.values(ot).indexOf(T)>=0?T:ot.UNKNOWN})(b.status);c(new jt(y,
+.keyedMap.get(e);return n?this.sortedSet.indexOf(n):-1}get size(){return this.sortedSet.siz
+st s=n.queries.get(r);if(s){const o=s.ba.indexOf(e);o>=0&&(s.ba.splice(o,1),s.ba.length===0
+D("collectionGroup","collection id",e),e.indexOf("/")>=0)throw new jt(ot.INVALID_ARGUMENT,`In
+queueAfterDelay(e,n,r){this.uc(),this.oc.indexOf(e)>-1&&(n=0);const i=DD.createAndSchedule(
+e){this.oc.push(e)}hc(e){const n=this.tc.indexOf(e);this.tc.splice(n,1)}}function X8(t){let
+(), but got a ${typeof y}`);if(!dD(o)&&y.indexOf("/")!==-1)throw new jt(ot.INVALID_ARGUMENT,`
+t it was an empty string.");if(!dD(e)&&n.indexOf("/")!==-1)throw new jt(ot.INVALID_ARGUMENT,`
+(const l of o.getFlattenedFilters())if(s.indexOf(l.op)>=0)return l.op;return null})(t.filters,
+r);let d=-1,h=-1;return l.type!==0&&(d=o.indexOf(l.doc.key),o=o.delete(l.doc.key)),l.type!==1&&(o=o
+.add(l.doc),h=o.indexOf(l.doc.key)),{type:gxe(l.type),doc:c,oldIndex:d,new
+J(t,e){const n=t>=500&&t<600,i=[408,429].indexOf(t)!==-1,s=e.indexOf(t)!==-1;return n||i||s
+ll,h));return}const d=this.successCodes_.indexOf(c)!==-1;r(!0,new Q2(d,s))})},n=(r,i)=>{con
+t,e){switch(t){case wd.BASE64:{const i=e.indexOf("-")!==-1,s=e.indexOf("_")!==-1;if(i||s)thro
+ed?");break}case wd.BASE64URL:{const i=e.indexOf("+")!==-1,s=e.indexOf("/")!==-1;if(i||s)thro
+0,r.length-7):r),this.rest=e.substring(e.indexOf(",")+1)}}function hve(t){const e=new YJ(t);r
+ch{Dh(!1)}return Dh(!!n&&(e||["active"]).indexOf(n)!==-1),n}function Ave(t,e,n,r,i){const s
+emoveObserver(e){const n=this._observers.indexOf(e);n!==-1&&this._observers.splice(n,1)}_no
+I.createContext(null);function E3(t,e){t.indexOf(e)===-1&&t.push(e)}function eN(t,e){const 
+n=t.indexOf(e);n>-1&&t.splice(n,1)}const Pd=(t,e,n)=>n
+om(t).sort((d,h)=>d.sortNodePosition(h)).indexOf(e),o=t.size,l=(o-1)*r;return typeof n=="fu
+i in t)if(Lo(t[i])||Lo(e[i])){const s=Bv.indexOf(i)!==-1?"attr"+i.charAt(0).toUpperCase()+i
+f t!="string"||t.includes("-")?!1:!!(v5e.indexOf(t)>-1||/[A-Z]/u.test(t))}function b5e(t,e,
+>t.filter((e,n,r)=>!!e&&e.trim()!==""&&r.indexOf(e)===n).join(" ").trim();/**
+ct.prototype.hasOwnProperty.call(t,r)&&e.indexOf(r)<0&&(n[r]=t[r]);if(t!=null&&typeof Objec
+etOwnPropertySymbols(t);i<r.length;i++)e.indexOf(r[i])<0&&Object.prototype.propertyIsEnumerabl
+ush(i),null}}function NSe(t,e){const n=t.indexOf(e);return n!==-1?[t.substring(0,n),e,t.sub
+(typeof E!="string"||-1<d.BAD_DELIMITERS.indexOf(E))&&(E=","),C===E)throw new Error("Commen
+(typeof C!="string"||-1<d.BAD_DELIMITERS.indexOf(C))&&(C=!1),O!==`
+e=ue=0;if(!$)return ke();if(K||K!==!1&&$.indexOf(le)===-1){for(var Se=$.split(O),ve=0;ve<Se.
+ice(0,V),ke(!0)}}return ke()}for(var X=$.indexOf(E,ue),Ce=$.indexOf(O,ue),Ke=new RegExp(w(ie)+
+w(le),"g"),Fe=$.indexOf(le,ue);;)if($[ue]===le)for(Fe=ue,ue++;;){if((F
+e=$.indexOf(le,Fe+1))===-1)return L||ne.push({type:"Quotes",
+===0||$[Fe-1]!==ie){X!==-1&&X<Fe+1&&(X=$.indexOf(E,Fe+1));var Ie=bt((Ce=Ce!==-1&&Ce<Fe+1?$.index
+ace(Ke,le)),$[ue=Fe+1+Ie+se]!==le&&(Fe=$.indexOf(le,ue)),X=$.indexOf(E,ue),Ce=$.indexOf(O,ue);b
+ue,Fe).replace(Ke,le)),He(Fe+1+Ie+Y),X=$.indexOf(E,ue),Fe=$.indexOf(le,ue),fe&&(ze(),q))return
+==C){if(Ce===-1)return ke();ue=Ce+Y,Ce=$.indexOf(O,ue),X=$.indexOf(E,ue)}else if(X!==-1&&(X<Ce
+))xe.push($.substring(ue,X)),ue=X+se,X=$.indexOf(E,ue);else{if(Ce===-1)break;if(xe.push($.subs
+}function He(we){ue=we,lt(xe),xe=[],Ce=$.indexOf(O,ue)}function ke(we){if(j.header&&!B&&he.len
+RS.filter(function(B){return E.delimiter.indexOf(B)!==-1}).length||(R=E.delimiter),typeof E
+>{for(var fe=0;fe<me.length;fe++)if(-1<Y.indexOf(me[fe]))return!0;return!1})(re,d.BAD_DELIMITERS
+)||-1<re.indexOf(R)||re.charAt(0)===" "||re.charAt(re.lengt
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}var cO
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}var Bs
+mber"&&t!=+t,Ng=t=>typeof t=="string"&&t.indexOf("%")===t.length-1,nn=t=>(typeof t=="number"|
+ s;if(Ng(e)){if(n==null)return r;var o=e.indexOf("%");s=n*parseFloat(e.slice(0,o))/100}else s
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}var bt
+){var w=(m||p||[]).map((_,T)=>{var P=r?r.indexOf(_):_,M=o.map(P);return hr(M)?{coordinate:M
+prev:n,next:r}=e.payload,i=qc(t).payload.indexOf(n);i>-1&&(t.payload[i]=r)},prepare:Ki()},r
+ayload:{reducer(t,e){var n=qc(t).payload.indexOf(e.payload);n>-1&&t.payload.splice(n,1)},prepare:Ki
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}var ck
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+5e"+t:(e=i.toExponential(),e=e.slice(0,e.indexOf("e")+1)+t),r=new c(e)):r=new c(i.toString())
++=2}}function YB(t,e){var n,r,i;for((n=e.indexOf("."))>-1&&(e=e.replace(".","")),(r=e.search(
+?t.toExponential(e-1):t.toExponential()).indexOf("e"),r=t.slice(0,n);return[r.length>1?r[0]+r
+eturn s.invertExtent=function(o){var l=e.indexOf(o);return l<0?[NaN,NaN]:[l>0?n[l-1]:t[0],l
+ce()},o.invertExtent=function(c){var d=i.indexOf(c);return d<0?[NaN,NaN]:d<1?[t,r[0]]:d>=n?
+ce()},i.invertExtent=function(s){var o=e.indexOf(s);return[t[o-1],t[o]]},i.unknown=function
+(r==="auto")return i==="category"&&n&&(n.indexOf("LineChart")>=0||n.indexOf("AreaChart")>=0||n.indexO
+ y=m||i;return y?y.map((w,_)=>{var T=o?o.indexOf(w):w,P=r.map(T);return hr(P)?{index:_,coor
+r}=e.payload,i=qc(t).tooltipItemPayloads.indexOf(n);i>-1&&(t.tooltipItemPayloads[i]=r)},pre
+cer(t,e){var n=qc(t).tooltipItemPayloads.indexOf(e.payload);n>-1&&t.tooltipItemPayloads.splice(n,1)
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}var is
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}var vz
+pe.displayName")||_g(i,"type.name");s&&r.indexOf(s)!==-1&&n.push(i)}),n}var _se=t=>t&&typeo
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+next:r}=e.payload,i=qc(t).cartesianItems.indexOf(n);i>-1&&(t.cartesianItems[i]=r)},prepare:
+{reducer(t,e){var n=qc(t).cartesianItems.indexOf(e.payload);n>-1&&t.cartesianItems.splice(n,1)},pre
+tem:{reducer(t,e){var n=qc(t).polarItems.indexOf(e.payload);n>-1&&t.polarItems.splice(n,1)},prepare
+v:n,next:r}=e.payload,i=qc(t).polarItems.indexOf(n);i>-1&&(t.polarItems[i]=r)},prepare:Ki()
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}var yL
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}var DL
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}var Hs
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}var $8
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}var ha
+mbols(t);for(r=0;r<s.length;r++)n=s[r],e.indexOf(n)===-1&&{}.propertyIsEnumerable.call(t,n)
+n t)if({}.hasOwnProperty.call(t,r)){if(e.indexOf(r)!==-1)continue;n[r]=t[r]}return n}functi
+!s.source&&typeof r=="string"){const c=r.indexOf(":");c===-1?s.ruleId=r:(s.source=r.slice(0,c
+,i=nb(r.toLowerCase()),s=t.footnoteOrder.indexOf(r);let o,l=t.footnoteCounts.get(r);l===voi
+,e,n){const r=n?n.children:void 0,s=(r?r.indexOf(e):1)===0?"th":"td",o=n&&n.type==="table"?
+,d){const h=d[d.length-1],m=h?h.children.indexOf(c):void 0;return o(c,m,h)}}const b4={}.has
+plice(m,1),m}}}function tqe(t){const e=t.indexOf(":"),n=t.indexOf("?"),r=t.indexOf("#"),i=t.i
+");for(var n in t)t.hasOwnProperty(n)&&e.indexOf(n)>=0&&(this[n]=t[n]);this.id="",this.obje
+dth","fullheight","fullpage","original"].indexOf(F)===-1)throw new Error('zoom must be Inte
+,"UseOutlines","UseThumbs","FullScreen"].indexOf(F)==-1)throw new Error('Page mode must be 
+us","single","twoleft","tworight","two"].indexOf(F)==-1)throw new Error('Layout mode must b
+tProperty=function(F){if(Object.keys(Ge).indexOf(F)===-1)throw new Error("Invalid argument 
+operty=function(F,oe){if(Object.keys(Ge).indexOf(F)===-1)throw new Error("Invalid arguments
+=S.document.createElement("iframe"),Z=Bt.indexOf("?")===-1?"?":"&";wt=this,W.id="pdfViewer",W
+guments)}catch(Ee){var F=Ee.stack||"";~F.indexOf(" at ")&&(F=F.split(" at ")[1]);var oe="Error i
+ion(F){return Array.isArray(An)===!0&&An.indexOf(F)>-1};switch(r){case"pt":Et=1;break;case"
+"D","F","DF","FD","f","f*","B","B*","n"].indexOf(F)!==-1&&(oe=!0),oe};g.__private__.setDefa
+inAnsiEncoding"];return arguments[3]&&dt.indexOf(arguments[3])!==-1?Ue=arguments[3]:arguments[3]&&dt.i
+s))return!1;var r=0;for(e in this)if(!(n.indexOf(e)>=0)){if(this.hasOwnProperty(e)&&!t.hasO
+!1;r++}for(e in t)t.hasOwnProperty(e)&&n.indexOf(e)<0&&r--;return r===0},En.API={events:[]}
+"+b+" ",i.internal.acroformPlugin.xForms.indexOf(b)>=0||i.internal.acroformPlugin.xForms.pu
+o+" "+b,i.internal.acroformPlugin.xForms.indexOf(b)>=0||i.internal.acroformPlugin.xForms.pu
+ull)return w},set:function(_){if([0,1,2].indexOf(_)===-1)throw new Error('Invalid value "'+
+,r){for(r=r||!1,n=(n=n||"").toString();e.indexOf(n)!==-1&&(e.splice(e.indexOf(n),1),r!==!1)
+tream,Q=(0,this.internal.getFilters)();Q.indexOf("FlateEncode")!==-1;)Q.splice(Q.indexOf("FlateEncode")
+c")){var V=""+C.getAttribute("src");if(V.indexOf("data:image/")===0)return w_(unescape(V).split("base64
+.startsWith("data:"))return null;var R=C.indexOf(",");return R<0?null:C.substring(0,R).trim()
+.internal.getFilters();if(ie===void 0&&$.indexOf("FlateEncode")!==-1&&(ie="SLOW"),isNaN(V)||isNaN(K))th
+abicAlfLetter=function(y){return o(y)&&i.indexOf(y.charCodeAt(0))>=0};t.__arabicParser__.arabicLetterHas
+r,i){return r+Math.abs(i)},0)});return e.indexOf(Math.min.apply(null,e))}function Uk(t,e,n){var r=e*n,i=Math.fl
+s.pos+=2,["BM","BA","CI","CP","IC","PT"].indexOf(this.flag)===-1)throw new Error("Invalid BMP File"
+et:function(X){["butt","round","square"].indexOf(X)!==-1&&(this.ctx.lineCap=X,this.pdf.setL
+et:function(X){["bevel","round","miter"].indexOf(X)!==-1&&(this.ctx.lineJoin=X,this.pdf.set
+{["right","end","center","left","start"].indexOf(X)!==-1&&(this.ctx.textAlign=X)}});var ae=
+his,Ie),mt=[],He=0;He<bt.length;He+=1)mt.indexOf(bt[He])===-1&&mt.push(bt[He]);P(mt);for(var ke=
+l(this,Se[X]),Ke=0;Ke<Ce.length;Ke+=1)ve.indexOf(Ce[Ke])===-1&&ve.push(Ce[Ke]);for(var Fe=0;Fe<v
+this,ve),Ce=[],Ke=0;Ke<X.length;Ke+=1)Ce.indexOf(X[Ke])===-1&&Ce.push(X[Ke]);P(Ce);for(var Fe=C
+Fa-f]{2})+$/);if((o=o.replace(/\s/g,"")).indexOf(">")!==-1&&(o=o.substr(0,o.indexOf(">"))),o.
+&&(c=c.bind(h));var m=Promise.toString().indexOf("[native code]")!==-1&&Promise.name==="Promise"?h:o.conv
+numcomponents:1},w=4;w<b;w+=2){if(w+=g,e.indexOf(m.charCodeAt(w+1))!==-1){p=256*m.charCodeAt(w+5)+m.charCo
+.metadata.toUnicode[l]=s.charCodeAt(m),c.indexOf(l)==-1&&(c.push(l),c.push([parseInt(o.meta
+ ue,q=0;q<te.length;q++)le[q]===1&&(ue=w.indexOf(te[q]))>=0&&(te[q]=w[ue+1])})(K,V,Q),E(2,K,R,V
+=this.file.loca,n=this.file.contents,r=s.indexOf(e),(i=s.lengthOf(e))===0?this.cache[e]=nul
+ntStyle;var d=this.getFontList()[c];d&&d.indexOf(l)===-1&&this.jsPDFDocument.setFontStyle&&
+ y=["left","right","center","justify"];y.indexOf(r.textAlign)!==-1&&(s.halign=r.textAlign),y=["middle
+","bottom","top"],y.indexOf(r.verticalAlign)!==-1&&(s.valign=r.verticalAlign);var w=
+r.fontFamily||"").toLowerCase();return t.indexOf(T)!==-1&&(s.font=T),s}function iKe(t){var 
