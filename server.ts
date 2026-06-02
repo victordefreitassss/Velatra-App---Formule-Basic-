@@ -31,7 +31,15 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT:", error);
   }
 } else {
-  console.warn("FIREBASE_SERVICE_ACCOUNT environment variable is missing. Admin features will not work.");
+  console.warn("FIREBASE_SERVICE_ACCOUNT environment variable is missing. Attempting default credentials initialization.");
+  try {
+    if (!admin.apps.length) {
+      admin.initializeApp();
+      console.log("Firebase Admin initialized with default credentials.");
+    }
+  } catch (error) {
+    console.error("Failed to initialize Firebase Admin with default credentials:", error);
+  }
 }
 
 // ==========================================
@@ -358,18 +366,39 @@ app.post("/api/send-onboarding-email", async (req, res) => {
 // Endpoint to delete a user from Firebase Auth
 app.post("/api/delete-user", async (req, res) => {
   try {
-    const { uid } = req.body;
+    const { uid, email } = req.body;
     
-    if (!uid) {
-      return res.status(400).json({ error: "UID is required" });
+    if (!uid && !email) {
+      return res.status(400).json({ error: "UID or Email is required" });
     }
 
     if (!admin.apps.length) {
       return res.status(500).json({ error: "Firebase Admin is not initialized. Missing Service Account." });
     }
 
-    await admin.auth().deleteUser(uid);
-    console.log(`Successfully deleted user ${uid} from Firebase Auth`);
+    if (uid) {
+      try {
+        await admin.auth().deleteUser(uid);
+        console.log(`Successfully deleted user by uid: ${uid} from Firebase Auth`);
+      } catch (authErr: any) {
+        if (authErr.code !== 'auth/user-not-found' || !email) {
+          throw authErr;
+        }
+      }
+    }
+
+    if (email) {
+      try {
+        const userRecord = await admin.auth().getUserByEmail(email);
+        await admin.auth().deleteUser(userRecord.uid);
+        console.log(`Successfully deleted user by email: ${email} from Firebase Auth`);
+      } catch (authErr: any) {
+        if (authErr.code !== 'auth/user-not-found') {
+          throw authErr;
+        }
+      }
+    }
+
     res.json({ success: true, message: "User deleted successfully" });
   } catch (error: any) {
     console.error("Error deleting user:", error);

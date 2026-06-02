@@ -61,8 +61,34 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
     }
 
     try {
-      // Create Firebase Auth user
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, convertData.password);
+      // Create Firebase Auth user with potential orphaned account cleanup/retry
+      let userCredential;
+      try {
+        userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, convertData.password);
+      } catch (authErr: any) {
+        if (authErr.code === 'auth/email-already-in-use') {
+          try {
+            console.log("Email already in use, attempting cleanup of orphaned auth account:", convertData.email);
+            const cleanupResponse = await fetch('/api/delete-user', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email: convertData.email }),
+            });
+            if (cleanupResponse.ok) {
+              console.log("Cleanup succeeded, retrying user creation...");
+              userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, convertData.password);
+            } else {
+              throw authErr;
+            }
+          } catch (cleanupErr) {
+            throw authErr;
+          }
+        } else {
+          throw authErr;
+        }
+      }
       const firebaseUid = userCredential.user.uid;
 
       const newUserId = Date.now();

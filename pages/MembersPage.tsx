@@ -158,7 +158,31 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       
       try {
         const dummyPwd = Math.random().toString(36).slice(-8) + "Velatra123!";
-        const userCred = await createUserWithEmailAndPassword(secondaryAuth, client.email, dummyPwd);
+        let userCred;
+        try {
+          userCred = await createUserWithEmailAndPassword(secondaryAuth, client.email, dummyPwd);
+        } catch (authErr: any) {
+          if (authErr.code === 'auth/email-already-in-use') {
+            try {
+              const cleanupResponse = await fetch('/api/delete-user', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: client.email }),
+              });
+              if (cleanupResponse.ok) {
+                userCred = await createUserWithEmailAndPassword(secondaryAuth, client.email, dummyPwd);
+              } else {
+                throw authErr;
+              }
+            } catch (cleanupErr) {
+              throw authErr;
+            }
+          } else {
+            throw authErr;
+          }
+        }
         
         const newUser: User = {
           id: Date.now() + Math.floor(Math.random() * 1000), // Fake sequential ID for now
@@ -319,7 +343,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ uid: confirmDeleteMemberId }),
+          body: JSON.stringify({ uid: confirmDeleteMemberId, email: selectedProfile?.email }),
         });
         
         const data = await response.json();
@@ -1109,7 +1133,31 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         try {
           // Create Firebase Auth user with a default password
           const defaultPassword = "VelatraUser2026!";
-          const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, defaultPassword);
+          let userCredential;
+          try {
+            userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, defaultPassword);
+          } catch (authErr: any) {
+            if (authErr.code === 'auth/email-already-in-use') {
+              try {
+                const cleanupResponse = await fetch('/api/delete-user', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ email: email }),
+                });
+                if (cleanupResponse.ok) {
+                  userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, defaultPassword);
+                } else {
+                  throw authErr;
+                }
+              } catch (cleanupErr) {
+                throw authErr;
+              }
+            } else {
+              throw authErr;
+            }
+          }
           const firebaseUid = userCredential.user.uid;
 
           const newUserId = Date.now() + i; // Ensure unique ID
@@ -1159,8 +1207,34 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
     
     try {
-      // Create Firebase Auth user
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newMemberData.email, newMemberData.password);
+      // Create Firebase Auth user with potential orphaned account cleanup/retry
+      let userCredential;
+      try {
+        userCredential = await createUserWithEmailAndPassword(secondaryAuth, newMemberData.email, newMemberData.password);
+      } catch (authErr: any) {
+        if (authErr.code === 'auth/email-already-in-use') {
+          try {
+            console.log("Email already in use, attempting cleanup of orphaned auth account:", newMemberData.email);
+            const cleanupResponse = await fetch('/api/delete-user', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ email: newMemberData.email }),
+            });
+            if (cleanupResponse.ok) {
+              console.log("Cleanup succeeded, retrying user creation...");
+              userCredential = await createUserWithEmailAndPassword(secondaryAuth, newMemberData.email, newMemberData.password);
+            } else {
+              throw authErr;
+            }
+          } catch (cleanupErr) {
+            throw authErr;
+          }
+        } else {
+          throw authErr;
+        }
+      }
       const firebaseUid = userCredential.user.uid;
 
       const newUserId = Date.now();
