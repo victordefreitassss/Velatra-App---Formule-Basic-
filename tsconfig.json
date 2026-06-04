@@ -23,7 +23,15 @@
         "./*"
       ]
     },
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": [
+    "app",
+    "app/**/*",
+    "node_modules",
+    "dist"
+  ]
 }
