@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, AppState, Program, Preset, SessionLog, Performance, BodyData, Message, FeedItem,
   SupplementProduct, SupplementOrder, FixedCost, CommissionPayment, Prospect, Newsletter, Club, Exercise,
-  Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect, Expense, Invoice, Booking, DriveFile, DriveFolder, Product
+  Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect, Expense, Invoice, Booking, DriveFile, DriveFolder, Product, ProgressPhoto
 } from './types';
 import type { Notification } from './types';
 import { 
@@ -16,10 +16,30 @@ import {
   getToken, onMessage
 } from './firebase';
 
+const isGcpBillingOrSuspendedError = (error: any): boolean => {
+  if (!error) return false;
+  const errMsg = (error?.message || String(error)).toLowerCase();
+  const errCode = error?.code || "";
+  
+  return (
+    errCode === 'failed-precondition' ||
+    errCode === 'permission-denied' ||
+    errMsg.includes('billing') || 
+    errMsg.includes('suspended') || 
+    errMsg.includes('disabled') || 
+    errMsg.includes('resource-exhausted') || 
+    errMsg.includes('bad state') ||
+    errMsg.includes('quota') ||
+    errMsg.includes('permission')
+  );
+};
+
 const onSnapshot = (ref: any, callback: any) => {
   return originalOnSnapshot(ref, callback, (error: any) => {
-    if (error.code !== 'permission-denied') {
-      console.error("Firestore onSnapshot error:", error);
+    console.error("Firestore onSnapshot error:", error);
+    if (isGcpBillingOrSuspendedError(error)) {
+      const errMsg = error?.message || String(error);
+      window.dispatchEvent(new CustomEvent('gcp-billing-error', { detail: errMsg }));
     }
   });
 };
@@ -128,15 +148,35 @@ export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [loading, setLoading] = useState(true);
   const [connectionTested, setConnectionTested] = useState(false);
+  const [gcpBillingError, setGcpBillingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleBillingError = (e: Event) => {
+      const detail = (e as CustomEvent).detail || "";
+      console.warn("Global GCP/Firebase billing or suspension error caught:", detail);
+      setGcpBillingError("suspended");
+      setLoading(false);
+    };
+    window.addEventListener('gcp-billing-error', handleBillingError);
+    return () => window.removeEventListener('gcp-billing-error', handleBillingError);
+  }, []);
 
   useEffect(() => {
     if (!connectionTested) {
       const testConnection = async () => {
         try {
           await getDocFromServer(doc(db, 'test', 'connection'));
-        } catch (error) {
-          if (error instanceof Error && error.message.includes('the client is offline')) {
+        } catch (error: any) {
+          const errMsg = error?.message || String(error);
+          console.error("Firebase connection test result:", errMsg);
+          if (errMsg.includes('the client is offline')) {
             console.error("Please check your Firebase configuration. The client is offline.");
+          } else {
+            // Any other error means either billing is suspended, or billing was reactivated
+            // but is still propagating (returns permission-denied), or rules are blocking connection.
+            const isRestoring = errMsg.toLowerCase().includes('permission') || error?.code === 'permission-denied';
+            setGcpBillingError(isRestoring ? "reactivating" : "suspended");
+            setLoading(false);
           }
         }
       };
@@ -963,20 +1003,141 @@ export default function App() {
     }
   }, [state.tasks, state.user]);
 
+  const renderBillingBanner = () => {
+    if (!gcpBillingError) return null;
+    const isReactivating = gcpBillingError === "reactivating";
+    
+    return (
+      <div className="bg-gradient-to-r from-amber-600 via-rose-600 to-red-700 text-white py-3.5 px-4 shadow-lg border-b border-red-800 relative z-[9999]">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-start md:items-center gap-3">
+            <div className="p-2 bg-white/10 rounded-lg shrink-0 mt-1 md:mt-0">
+              <svg className="w-6 h-6 text-yellow-300 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-base md:text-lg flex items-center gap-2">
+                {isReactivating 
+                  ? "🔄 Réactivation de la Facturation en Cours (Propagation)" 
+                  : "⚠️ Compte de Facturation Google Cloud / Firebase Suspendu"}
+              </p>
+              <div className="text-sm text-red-100 max-w-4xl mt-0.5">
+                {isReactivating ? (
+                  <p>
+                    Vous avez réactivé votre facturation pour le compte <code className="bg-black/30 px-1.5 py-0.5 rounded text-yellow-300 font-mono font-semibold">018FEA-1EED1E-A30FD3</code>. 
+                    <strong> S'il reste des lenteurs ou des blocages, c'est tout à fait normal :</strong> Google Cloud prend habituellement entre <strong>15 à 60 minutes</strong> pour propager l'autorisation d'accès aux serveurs de base de données.
+                  </p>
+                ) : (
+                  <p>
+                    Le compte de facturation Google Cloud associé <code className="bg-black/30 px-1.5 py-0.5 rounded text-yellow-300 font-mono font-semibold">018FEA-1EED1E-A30FD3</code> est clôturé ou inactifs. Toutes les requêtes vers la base de données Firestore et vers l'IA Gemini sont momentanément suspendues.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 w-full md:w-auto justify-end shrink-0">
+            {!isReactivating ? (
+              <a 
+                href="https://console.cloud.google.com/billing" 
+                target="_blank" 
+                rel="noreferrer"
+                className="bg-white text-red-700 hover:bg-rose-50 px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all inline-flex items-center gap-1.5"
+              >
+                Réactiver la Facturation
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            ) : (
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-sm shadow-md transition-all flex items-center gap-1.5"
+              >
+                Actualiser
+                <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 15.89M21 21v-5h-.581" />
+                </svg>
+              </button>
+            )}
+            <button 
+              onClick={() => setGcpBillingError(null)} 
+              className="bg-black/20 hover:bg-black/35 text-white active:bg-black/50 px-3 py-2 rounded-lg font-medium text-sm transition-all"
+            >
+              Masquer
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
-      <div className="animate-spin text-emerald-500">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+    <div className="min-h-screen bg-white flex flex-col justify-between">
+      {renderBillingBanner()}
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
+        <div className="animate-spin text-emerald-500 mb-4">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+        </div>
+        
+        {gcpBillingError ? (
+          <div className="max-w-md mx-auto space-y-4 px-4 text-center animate-fadeIn">
+            <p className="text-zinc-700 font-semibold text-lg">
+              {gcpBillingError === "reactivating" 
+                ? "Propagations de vos accès..." 
+                : "Base de données inaccessible"}
+            </p>
+            <p className="text-zinc-500 text-sm max-w-sm mx-auto">
+              {gcpBillingError === "reactivating"
+                ? "Votre paiement a bien été enregistré ! Cependant, Google Cloud prend habituellement entre 15 et 60 minutes pour lever les restrictions d'accès de son côté."
+                : "Un problème de facturation ou de quota Google Cloud empêche la connexion à la base de données de l'application."}
+            </p>
+            <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center items-center">
+              <button 
+                onClick={() => {
+                  setLoading(false);
+                }} 
+                className="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-medium px-4 py-2 rounded-lg text-sm shadow hover:shadow-md transition-all"
+              >
+                Forcer l'accès libre (Mode Démo)
+              </button>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-medium px-4 py-2 rounded-lg text-sm transition-all border border-zinc-200"
+              >
+                Rafraîchir la page
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-zinc-500 text-sm text-center">
+            Connexion à l'application VELATRA...
+          </p>
+        )}
       </div>
     </div>
   );
 
-  if (!state.user) return <Login />;
+  if (!state.user) return (
+    <div className="min-h-screen flex flex-col">
+      {renderBillingBanner()}
+      <div className="flex-1">
+        <Login />
+      </div>
+    </div>
+  );
 
   if (state.user.role === 'member' && !state.user.onboardingCompleted) {
-    return <Onboarding user={state.user} club={state.currentClub} subscriptions={state.subscriptions} plans={state.plans} onComplete={() => {
-      setState(prev => prev.user ? { ...prev, user: { ...prev.user, onboardingCompleted: true } } : prev);
-    }} />;
+    return (
+      <div className="min-h-screen flex flex-col">
+        {renderBillingBanner()}
+        <div className="flex-1 animate-fadeIn">
+          <Onboarding user={state.user} club={state.currentClub} subscriptions={state.subscriptions} plans={state.plans} onComplete={() => {
+            setState(prev => prev.user ? { ...prev, user: { ...prev.user, onboardingCompleted: true } } : prev);
+          }} />
+        </div>
+      </div>
+    );
   }
 
   const unreadMessagesCount = (state.messages || []).filter(m => !m.read && m.to === state.user?.id).length;
@@ -984,6 +1145,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+      {renderBillingBanner()}
       <Layout user={state.user} club={state.currentClub} activePage={state.page} onPageChange={(p) => setState(s => ({ ...s, page: p }))} onLogout={handleLogout} unreadMessagesCount={unreadMessagesCount} unreadNotificationsCount={unreadNotificationsCount}>
         {renderActivePageContent(state.user)}
       </Layout>

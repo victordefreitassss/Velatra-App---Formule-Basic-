@@ -43,6 +43,10 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
+    match /test/connection {
+      allow read: if true;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || resource.data.email == request.auth.token.email || isSameClub(resource.data.clubId) || isSuperAdmin() || isSuperAdminEmail();
       allow create: if isAuthenticated();
