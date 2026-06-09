@@ -43,6 +43,7 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
     setLoading(true);
     setError("");
     try {
+      console.log("Tentative de connexion pour :", email);
       const userCredential = await signInWithEmailAndPassword(auth, email, pwd);
       
       // Vérifier si le document utilisateur existe toujours (s'il a été supprimé par le coach)
@@ -56,14 +57,37 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
         }
       }
     } catch (err: any) {
+      console.error("Erreur d'authentification lors de la connexion :", err);
+      
+      const isProviderDisabled = err?.code === 'auth/operation-not-allowed' || err?.message?.includes('operation-not-allowed');
+      if (isProviderDisabled) {
+        setError("Le service de connexion par 'Email/Mot de passe' n'est pas activé dans votre console Firebase. Veuillez l'activer sous l'onglet 'Auth > Sign-in method' de votre projet.");
+        setLoading(false);
+        return;
+      }
+
       if (email === 'victor.defreitas.pro@gmail.com') {
         try {
+          console.log("Premier accès : tentative de création du compte d'administration par défaut...");
           await createUserWithEmailAndPassword(auth, email, pwd);
-        } catch (createErr) {
-          setError("Identifiants invalides.");
+        } catch (createErr: any) {
+          console.error("Erreur lors de la création de l'administrateur :", createErr);
+          if (createErr?.code === 'auth/operation-not-allowed' || createErr?.message?.includes('operation-not-allowed')) {
+            setError("Le service de connexion par 'Email/Mot de passe' n'est pas activé dans votre console Firebase. Veuillez l'activer sous l'onglet 'Auth > Sign-in method' de votre projet.");
+          } else if (createErr?.code === 'auth/email-already-in-use') {
+            setError("Identifiants de connexion invalides (mot de passe incorrect).");
+          } else {
+            setError(createErr?.message || "Identifiants invalides.");
+          }
         }
       } else {
-        setError("Identifiants invalides.");
+        if (err?.code === 'auth/user-not-found') {
+          setError("Ce compte n'existe pas. Veuillez d'abord vous inscrire.");
+        } else if (err?.code === 'auth/wrong-password' || err?.code === 'auth/invalid-credential') {
+          setError("Identifiants de connexion invalides (mot de passe incorrect).");
+        } else {
+          setError("Identifiants invalides.");
+        }
       }
     } finally {
       setLoading(false);
