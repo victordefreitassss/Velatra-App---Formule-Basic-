@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
     
     let firebaseConfig = {};
     try {
-      const configPath = path.resolve(__dirname, 'firebase-applet-config.json');
+      const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
       if (fs.existsSync(configPath)) {
         firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       }
@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, '.'),
+          '@': path.resolve(process.cwd(), '.'),
         }
       }
     };
