@@ -29,13 +29,17 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import firebaseAppletConfig from "./firebase-applet-config.json";
 
+const env: any = (typeof import.meta !== 'undefined' && (import.meta as any).env) 
+  ? (import.meta as any).env 
+  : (typeof process !== 'undefined' && process.env ? process.env : {});
+
 const firebaseConfig = {
-  apiKey: firebaseAppletConfig.apiKey || "AIzaSyAY7wpl0pigmWaUg4JRA_0y_dKAjnX17nA",
-  authDomain: firebaseAppletConfig.authDomain || "velatra-75daa.firebaseapp.com",
-  projectId: firebaseAppletConfig.projectId || "velatra-75daa",
-  storageBucket: firebaseAppletConfig.storageBucket || "velatra-75daa.firebasestorage.app",
-  messagingSenderId: firebaseAppletConfig.messagingSenderId || "686153399642",
-  appId: firebaseAppletConfig.appId || "1:686153399642:web:5c28ff2d0872ad4cdac763"
+  apiKey: firebaseAppletConfig.apiKey || env.VITE_FIREBASE_API_KEY || "",
+  authDomain: firebaseAppletConfig.authDomain || env.VITE_FIREBASE_AUTH_DOMAIN || "",
+  projectId: firebaseAppletConfig.projectId || env.VITE_FIREBASE_PROJECT_ID || "",
+  storageBucket: firebaseAppletConfig.storageBucket || env.VITE_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: firebaseAppletConfig.messagingSenderId || env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: firebaseAppletConfig.appId || env.VITE_FIREBASE_APP_ID || ""
 };
 
 const app = initializeApp(firebaseConfig);

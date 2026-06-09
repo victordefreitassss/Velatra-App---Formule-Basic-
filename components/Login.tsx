@@ -193,7 +193,7 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
                 </div>
                 <div className="w-full h-[1px] bg-zinc-200/50 my-2"></div>
                 <button onClick={() => setMode('club_register')} className="text-[8px] font-bold text-emerald-500/80 hover:text-emerald-600 transition-colors tracking-widest uppercase mt-2">
-                  (Réservé aux coachs) <span className="underline ml-1">Créer un club</span>
+                  Réservé au coach et club, <span className="underline ml-1">créer votre espace</span>
                 </button>
               </>
             )}
