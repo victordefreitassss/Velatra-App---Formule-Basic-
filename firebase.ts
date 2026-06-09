@@ -27,13 +27,14 @@ import {
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import firebaseAppletConfig from "./firebase-applet-config.json";
+
+declare const __FIREBASE_APPLET_CONFIG__: any;
 
 const env: any = (typeof import.meta !== 'undefined' && (import.meta as any).env) 
   ? (import.meta as any).env 
   : (typeof process !== 'undefined' && process.env ? process.env : {});
 
-const config: any = firebaseAppletConfig;
+const config: any = typeof __FIREBASE_APPLET_CONFIG__ !== 'undefined' ? __FIREBASE_APPLET_CONFIG__ : {};
 
 const firebaseConfig = {
   apiKey: config.apiKey || env.VITE_FIREBASE_API_KEY || "",
