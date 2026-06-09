@@ -13,7 +13,7 @@ dist-ssr
 *.local
 .env
 .env.*
-firebase-applet-config.json
+# firebase-applet-config.json is included for seamless client deployment
 
 # Editor directories and files
 .vscode/*
