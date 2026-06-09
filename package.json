@@ -4,9 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node -e \"const fs = require('fs'); if (!fs.existsSync('./firebase-applet-config.json')) fs.writeFileSync('./firebase-applet-config.json', '{}');\" && tsx server.ts",
+    "dev": "tsx server.ts",
     "start": "node server.ts",
-    "build": "node -e \"const fs = require('fs'); if (!fs.existsSync('./firebase-applet-config.json')) fs.writeFileSync('./firebase-applet-config.json', '{}');\" && NODE_OPTIONS=--max_old_space_size=4096 vite build",
+    "build": "NODE_OPTIONS=--max_old_space_size=4096 vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
   },
