@@ -33,18 +33,20 @@ const env: any = (typeof import.meta !== 'undefined' && (import.meta as any).env
   ? (import.meta as any).env 
   : (typeof process !== 'undefined' && process.env ? process.env : {});
 
+const config: any = firebaseAppletConfig;
+
 const firebaseConfig = {
-  apiKey: firebaseAppletConfig.apiKey || env.VITE_FIREBASE_API_KEY || "",
-  authDomain: firebaseAppletConfig.authDomain || env.VITE_FIREBASE_AUTH_DOMAIN || "",
-  projectId: firebaseAppletConfig.projectId || env.VITE_FIREBASE_PROJECT_ID || "",
-  storageBucket: firebaseAppletConfig.storageBucket || env.VITE_FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: firebaseAppletConfig.messagingSenderId || env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: firebaseAppletConfig.appId || env.VITE_FIREBASE_APP_ID || ""
+  apiKey: config.apiKey || env.VITE_FIREBASE_API_KEY || "",
+  authDomain: config.authDomain || env.VITE_FIREBASE_AUTH_DOMAIN || "",
+  projectId: config.projectId || env.VITE_FIREBASE_PROJECT_ID || "",
+  storageBucket: config.storageBucket || env.VITE_FIREBASE_STORAGE_BUCKET || "",
+  messagingSenderId: config.messagingSenderId || env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+  appId: config.appId || env.VITE_FIREBASE_APP_ID || ""
 };
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseAppletConfig.firestoreDatabaseId || undefined);
+export const db = getFirestore(app, config.firestoreDatabaseId || env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || undefined);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 
