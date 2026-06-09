@@ -1237,6 +1237,17 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       }
       const firebaseUid = userCredential.user.uid;
 
+      let calculatedAge = 30;
+      if (newMemberData.birthDate) {
+        const birthDate = new Date(newMemberData.birthDate);
+        const today = new Date();
+        calculatedAge = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          calculatedAge--;
+        }
+      }
+
       const newUserId = Date.now();
       const newUser: User = {
         id: newUserId,
@@ -1252,7 +1263,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         phone: newMemberData.phone || '',
         role: 'member',
         gender: newMemberData.gender as Gender || 'M',
-        age: newMemberData.age || 30,
+        age: calculatedAge,
         birthDate: newMemberData.birthDate || '',
         weight: newMemberData.weight || 70,
         height: newMemberData.height || 175,
@@ -1544,7 +1555,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     <div className="space-y-6 page-transition">
       <div className="flex justify-between items-center px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900">Fiches Athlètes</h1>
+          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900">Fiches Membres</h1>
           <p className="text-xs font-medium uppercase text-emerald-600 tracking-wider">{members.length} Profils Actifs</p>
         </div>
         <div className="flex items-center gap-3">
@@ -3365,23 +3376,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Âge</label>
-                  <Input 
-                    type="number"
-                    value={newMemberData.age || ''}
-                    onChange={e => setNewMemberData({...newMemberData, age: parseInt(e.target.value) || 0})}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Date de naissance</label>
-                  <Input 
-                    type="date"
-                    value={newMemberData.birthDate || ''}
-                    onChange={e => setNewMemberData({...newMemberData, birthDate: e.target.value})}
-                  />
-                </div>
+              <div className="space-y-1">
+                <label className="text-xs font-black uppercase text-zinc-500 tracking-widest ml-1">Date de naissance</label>
+                <Input 
+                  type="date"
+                  value={newMemberData.birthDate || ''}
+                  onChange={e => setNewMemberData({...newMemberData, birthDate: e.target.value})}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
