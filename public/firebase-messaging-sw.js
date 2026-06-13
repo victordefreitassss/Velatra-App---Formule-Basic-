@@ -2,12 +2,12 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyAY7wpl0pigmWaUg4JRA_0y_dKAjnX17nA",
+  authDomain: "velatra-75daa.firebaseapp.com",
+  projectId: "velatra-75daa",
+  storageBucket: "velatra-75daa.firebasestorage.app",
+  messagingSenderId: "686153399642",
+  appId: "1:686153399642:web:e9283968d105d098dac763"
 };
 
 firebase.initializeApp(firebaseConfig);

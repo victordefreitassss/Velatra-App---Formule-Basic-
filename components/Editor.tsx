@@ -7,7 +7,11 @@ import {
   ArrowUpIcon, ArrowDownIcon, CopyIcon, VideoIcon, CalendarIcon, PlayIcon
 } from './Icons';
 import { EXERCISE_CATEGORIES, GOALS } from '../constants';
-import { ChevronDownIcon, SearchIcon } from 'lucide-react';
+import { 
+  ChevronDownIcon, SearchIcon, Plus, Trash2, ArrowLeft, ArrowRight, ArrowUp, ArrowDown,
+  Copy, Link, Eye, Sparkles, MessageCircle, MoreHorizontal, Settings2, Lock,
+  Settings, Clock, Dumbbell, Play, Save, ChevronUp, RefreshCw, X
+} from 'lucide-react';
 
 const SearchableExerciseSelect: React.FC<{
   exercises: Exercise[];
@@ -139,6 +143,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   const [formData, setFormData] = useState<any>(initialData);
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
   const [showPresets, setShowPresets] = useState(false);
+  const [openActionIdx, setOpenActionIdx] = useState<number | null>(null);
   const isSingleSession = formData.isPlannedSession;
 
   const handleApplyPreset = (p: Preset) => {
@@ -537,407 +542,451 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
       </Card>
 
       {!isSingleSession && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between px-2">
-            <h2 className="text-lg font-black uppercase tracking-tight flex items-center gap-3">
-              <LayersIcon size={18} className="text-emerald-500" />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-zinc-800">
+              <LayersIcon size={16} className="text-emerald-500" />
               Planification Hebdomadaire
             </h2>
-            <button 
-              onClick={handleAddDay}
-              className="text-[11px] font-black text-emerald-500 bg-emerald-500/10 px-4 py-2 rounded-full hover:bg-emerald-500/20 transition-all flex items-center gap-2"
-            >
-              <PlusIcon size={14} /> NOUVEAU JOUR
-            </button>
+            <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              {formData.days.length} {formData.days.length > 1 ? 'séances programmées' : 'séance programmée'}
+            </div>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-            {formData.days.map((day: Day, idx: number) => (
-              <button
-                key={idx}
-                onClick={() => setSelectedDayIdx(idx)}
-                className={`
-                  px-8 py-4 rounded-[20px] text-xs font-black whitespace-nowrap transition-all border shrink-0
-                  ${selectedDayIdx === idx 
-                    ? 'bg-emerald-500 border-emerald-500 text-zinc-900 shadow-xl shadow-emerald-500/20 scale-105 italic' 
-                    : 'bg-zinc-50 border-zinc-200 text-zinc-900 hover:border-zinc-300'}
-                `}
-              >
-                J{idx + 1} - {(day.name || `Jour ${idx + 1}`).substring(0, 12)}
-              </button>
-            ))}
+          <div className="flex gap-3 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth">
+            {formData.days.map((day: Day, idx: number) => {
+              const isSelected = selectedDayIdx === idx;
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setSelectedDayIdx(idx);
+                    setOpenActionIdx(null);
+                  }}
+                  className={`
+                    relative p-5 rounded-[24px] border text-left min-w-[160px] max-w-[200px] shrink-0 transition-all cursor-pointer select-none group
+                    ${isSelected 
+                      ? 'bg-zinc-950 border-zinc-950 text-white shadow-xl shadow-zinc-950/20 scale-[1.02]' 
+                      : 'bg-white border-zinc-200/80 text-zinc-900 hover:border-zinc-300 hover:bg-zinc-50/50'
+                    }
+                  `}
+                >
+                  <div className="flex justify-between items-start mb-2.5">
+                    <span className={`text-[9px] font-black uppercase tracking-widest ${isSelected ? 'text-emerald-400' : 'text-zinc-400'}`}>
+                      Jour {idx + 1}
+                    </span>
+                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${isSelected ? 'bg-white/10 text-emerald-400' : 'bg-zinc-100 text-zinc-500'}`}>
+                      {day.exercises?.length || 0} MVTS
+                    </span>
+                  </div>
+                  <div className="font-black text-sm truncate uppercase italic tracking-tight leading-none">
+                    {day.name || `Séance ${idx + 1}`}
+                  </div>
+                </button>
+              );
+            })}
+
+            <button
+              onClick={handleAddDay}
+              type="button"
+              className="flex flex-col items-center justify-center p-5 rounded-[24px] border-2 border-dashed border-zinc-200 bg-zinc-50/30 hover:bg-emerald-500/[0.03] hover:border-emerald-500/30 text-emerald-600 font-black text-xs uppercase tracking-widest min-w-[140px] shrink-0 transition-all cursor-pointer hover:scale-[1.01]"
+            >
+              <Plus size={16} className="mb-1.5 shrink-0" />
+              Nouveau jour
+            </button>
           </div>
         </div>
       )}
 
-      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-        <Card className="border-2 border-zinc-200 !p-8 bg-white">
-          <div className="flex flex-col gap-8 mb-8">
-            <div className="flex justify-between items-start border-b border-zinc-200 pb-6">
-              <div className="flex-1 space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {!isSingleSession && (
-                      <div className="space-y-1">
-                        <label className="text-xs font-black uppercase text-emerald-600 tracking-widest ml-1">Titre de la séance</label>
-                        <Input 
-                          className="!text-xl font-black italic !bg-white"
-                          value={formData.days[selectedDayIdx]?.name || ''} 
-                          onChange={e => {
-                            const newDays = [...formData.days];
-                            if (newDays[selectedDayIdx]) {
-                              newDays[selectedDayIdx].name = e.target.value;
-                              setFormData({...formData, days: newDays});
-                            }
-                          }}
-                        />
-                      </div>
-                    )}
-                    <div className="space-y-1">
-                      <label className="text-xs font-black uppercase text-emerald-600 tracking-widest ml-1">Durée estimée (minutes)</label>
-                      <Input 
-                        type="number"
-                        className="!text-xl font-black italic !bg-white"
-                        placeholder="Ex: 60"
-                        value={formData.days[selectedDayIdx]?.duration || ''} 
-                        onChange={e => {
-                          const newDays = [...formData.days];
-                          if (newDays[selectedDayIdx]) {
-                            if (e.target.value) {
-                              newDays[selectedDayIdx].duration = parseInt(e.target.value);
-                            } else {
-                              delete newDays[selectedDayIdx].duration;
-                            }
-                            setFormData({...formData, days: newDays});
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
+      {/* Day Details Workspace */}
+      <div className="space-y-6">
+        <Card className="border border-zinc-200 !p-7 bg-white rounded-[32px] shadow-sm relative overflow-hidden">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-zinc-100">
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-5">
+              {!isSingleSession && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider ml-1">Nom de la Séance</label>
+                  <Input 
+                    className="!text-lg font-black italic !bg-zinc-50/50 border-zinc-150 !rounded-2xl"
+                    value={formData.days[selectedDayIdx]?.name || ''} 
+                    onChange={e => {
+                      const newDays = [...formData.days];
+                      if (newDays[selectedDayIdx]) {
+                        newDays[selectedDayIdx].name = e.target.value;
+                        setFormData({...formData, days: newDays});
+                      }
+                    }}
+                    placeholder="Ex: Legday Intense, Push Day..."
+                  />
                 </div>
-                <div className="flex flex-col gap-2">
-                  <div className="flex gap-2">
-                    {!isSingleSession && (
-                      <button 
-                        onClick={() => setShowPresets(!showPresets)}
-                        className="p-3 text-emerald-500 hover:text-emerald-600 transition-colors bg-emerald-50 rounded-xl hover:bg-emerald-100 flex items-center gap-2 px-4"
-                        title="Importer un modèle sur ce jour"
-                      >
-                        <LayersIcon size={16} />
-                        <span className="text-xs font-black uppercase text-zinc-500 tracking-wider">Importer Modèle</span>
-                      </button>
-                    )}
-                    {!isSingleSession && (
-                      <>
-                        <button 
-                          onClick={() => {
-                            if (selectedDayIdx > 0) {
-                              const newDays = [...formData.days];
-                              const temp = newDays[selectedDayIdx];
-                              newDays[selectedDayIdx] = newDays[selectedDayIdx - 1];
-                              newDays[selectedDayIdx - 1] = temp;
-                              setFormData({...formData, days: newDays});
-                              setSelectedDayIdx(selectedDayIdx - 1);
-                            }
-                          }}
-                          disabled={selectedDayIdx === 0}
-                          className="p-3 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
-                          title="Déplacer vers la gauche"
-                        >
-                          <ArrowUpIcon size={20} className="-rotate-90" />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            if (selectedDayIdx < formData.days.length - 1) {
-                              const newDays = [...formData.days];
-                              const temp = newDays[selectedDayIdx];
-                              newDays[selectedDayIdx] = newDays[selectedDayIdx + 1];
-                              newDays[selectedDayIdx + 1] = temp;
-                              setFormData({...formData, days: newDays});
-                              setSelectedDayIdx(selectedDayIdx + 1);
-                            }
-                          }}
-                          disabled={selectedDayIdx === formData.days.length - 1}
-                          className="p-3 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
-                          title="Déplacer vers la droite"
-                        >
-                          <ArrowDownIcon size={20} className="-rotate-90" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                  {!isSingleSession && (
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => handleDuplicateDay(selectedDayIdx)}
-                        className="p-3 text-zinc-500 hover:text-emerald-500 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10 flex-1 flex justify-center"
-                        title="Dupliquer ce jour"
-                      >
-                        <CopyIcon size={20} />
-                      </button>
-                      <button 
-                        onClick={() => handleRemoveDay(selectedDayIdx)}
-                        className="p-3 text-red-500/30 hover:text-red-500 transition-colors bg-zinc-50 rounded-xl hover:bg-red-500/10 flex-1 flex justify-center"
-                        title="Supprimer ce jour"
-                      >
-                        <Trash2Icon size={20} />
-                      </button>
-                    </div>
-                  )}
+              )}
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider ml-1">Durée Estimée (minutes)</label>
+                <div className="relative">
+                  <Input 
+                    type="number"
+                    className="!text-lg font-black italic !bg-zinc-50/50 border-zinc-150 !rounded-2xl pr-10"
+                    placeholder="Ex: 60"
+                    value={formData.days[selectedDayIdx]?.duration || ''} 
+                    onChange={e => {
+                      const newDays = [...formData.days];
+                      if (newDays[selectedDayIdx]) {
+                        if (e.target.value) {
+                          newDays[selectedDayIdx].duration = parseInt(e.target.value);
+                        } else {
+                          delete newDays[selectedDayIdx].duration;
+                        }
+                        setFormData({...formData, days: newDays});
+                      }
+                    }}
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-bold uppercase pointer-events-none">MIN</div>
                 </div>
               </div>
+            </div>
 
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase text-zinc-500 tracking-[3px] text-zinc-900">PROGRAMMATION ({formData.days[selectedDayIdx]?.exercises?.length || 0} MOUVEMENTS)</span>
-                </div>
-                
-                {(() => {
-                  const exercisesList = formData.days[selectedDayIdx]?.exercises || [];
-                  const groupedExercises: { isGroup: boolean; groupName?: string; exercises: { entry: ExerciseEntry; index: number }[] }[] = [];
-                  
-                  let currentGroup: number | null = null;
-                  let currentGroupType: string | null = null;
-                  let currentGroupItems: { entry: ExerciseEntry; index: number }[] = [];
+            {/* Compact Day actions group */}
+            {!isSingleSession && (
+              <div className="flex flex-wrap items-center gap-2 lg:self-end">
+                <button 
+                  type="button"
+                  onClick={() => setShowPresets(!showPresets)}
+                  className="px-4 py-2.5 bg-zinc-50 hover:bg-emerald-500/10 border border-zinc-200 hover:border-emerald-500/20 text-zinc-700 hover:text-emerald-700 font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  title="Importer un modèle de séance"
+                >
+                  <LayersIcon size={12} className="shrink-0" />
+                  Importer Séance
+                </button>
 
-                  exercisesList.forEach((exEntry, exIndex) => {
-                    if (exEntry.setGroup && exEntry.setGroup > 0) {
-                      if (currentGroup === exEntry.setGroup) {
-                        currentGroupItems.push({ entry: exEntry, index: exIndex });
-                      } else {
-                        if (currentGroupItems.length > 0) {
-                          groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
-                        }
-                        currentGroup = exEntry.setGroup;
-                        currentGroupType = exEntry.setType;
-                        currentGroupItems = [{ entry: exEntry, index: exIndex }];
+                <div className="flex items-center bg-zinc-50 border border-zinc-200 rounded-xl p-0.5 shadow-sm">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (selectedDayIdx > 0) {
+                        const newDays = [...formData.days];
+                        const temp = newDays[selectedDayIdx];
+                        newDays[selectedDayIdx] = newDays[selectedDayIdx - 1];
+                        newDays[selectedDayIdx - 1] = temp;
+                        setFormData({...formData, days: newDays});
+                        setSelectedDayIdx(selectedDayIdx - 1);
                       }
+                    }}
+                    disabled={selectedDayIdx === 0}
+                    className="p-2 text-zinc-400 hover:text-zinc-800 hover:bg-white rounded-lg disabled:opacity-20 transition-all cursor-pointer"
+                    title="Déplacer à gauche"
+                  >
+                    <ArrowLeft size={14} />
+                  </button>
+                  <div className="h-4 w-[1px] bg-zinc-200 mx-0.5" />
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (selectedDayIdx < formData.days.length - 1) {
+                        const newDays = [...formData.days];
+                        const temp = newDays[selectedDayIdx];
+                        newDays[selectedDayIdx] = newDays[selectedDayIdx + 1];
+                        newDays[selectedDayIdx + 1] = temp;
+                        setFormData({...formData, days: newDays});
+                        setSelectedDayIdx(selectedDayIdx + 1);
+                      }
+                    }}
+                    disabled={selectedDayIdx === formData.days.length - 1}
+                    className="p-2 text-zinc-400 hover:text-zinc-800 hover:bg-white rounded-lg disabled:opacity-20 transition-all cursor-pointer"
+                    title="Déplacer à droite"
+                  >
+                    <ArrowRight size={14} />
+                  </button>
+                </div>
+
+                <button 
+                  type="button"
+                  onClick={() => handleDuplicateDay(selectedDayIdx)}
+                  className="p-2.5 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 hover:border-zinc-300 text-zinc-600 hover:text-zinc-800 rounded-xl transition-all cursor-pointer shadow-sm"
+                  title="Dupliquer ce jour"
+                >
+                  <Copy size={14} />
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={() => handleRemoveDay(selectedDayIdx)}
+                  disabled={formData.days.length <= 1}
+                  className="p-2.5 bg-red-500/[0.03] hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/20 text-red-500 rounded-xl disabled:opacity-20 transition-all cursor-pointer shadow-sm"
+                  title="Supprimer ce jour"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* List of Exercises */}
+          <div className="pt-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">
+                Mouvements ({formData.days[selectedDayIdx]?.exercises?.length || 0})
+              </span>
+            </div>
+            
+            <div className="space-y-8">
+              {(() => {
+                const exercisesList = formData.days[selectedDayIdx]?.exercises || [];
+                const groupedExercises: { isGroup: boolean; groupName?: string; exercises: { entry: ExerciseEntry; index: number }[] }[] = [];
+                
+                let currentGroup: number | null = null;
+                let currentGroupType: string | null = null;
+                let currentGroupItems: { entry: ExerciseEntry; index: number }[] = [];
+
+                exercisesList.forEach((exEntry, exIndex) => {
+                  if (exEntry.setGroup && exEntry.setGroup > 0) {
+                    if (currentGroup === exEntry.setGroup) {
+                      currentGroupItems.push({ entry: exEntry, index: exIndex });
                     } else {
                       if (currentGroupItems.length > 0) {
                         groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
-                        currentGroupItems = [];
-                        currentGroup = null;
-                        currentGroupType = null;
                       }
-                      groupedExercises.push({ isGroup: false, exercises: [{ entry: exEntry, index: exIndex }] });
+                      currentGroup = exEntry.setGroup;
+                      currentGroupType = exEntry.setType;
+                      currentGroupItems = [{ entry: exEntry, index: exIndex }];
                     }
-                  });
-                  if (currentGroupItems.length > 0) {
-                    groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
+                  } else {
+                    if (currentGroupItems.length > 0) {
+                      groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
+                      currentGroupItems = [];
+                      currentGroup = null;
+                      currentGroupType = null;
+                    }
+                    groupedExercises.push({ isGroup: false, exercises: [{ entry: exEntry, index: exIndex }] });
                   }
+                });
+                if (currentGroupItems.length > 0) {
+                  groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
+                }
 
-                  return groupedExercises.map((group, gIndex) => {
-                    const getGroupDescription = (type: string) => {
-                      switch (type.toLowerCase()) {
-                        case 'superset': return "Enchaînez ces exercices sans temps de repos entre eux.";
-                        case 'biset': return "Enchaînez ces 2 exercices ciblant le même muscle sans repos.";
-                        case 'triset': return "Enchaînez ces 3 exercices sans temps de repos.";
-                        case 'giantset': return "Enchaînez ces 4 exercices ou plus sans temps de repos.";
-                        case 'dropset': return "Allez jusqu'à l'échec, baissez le poids de 20% et repartez sans repos.";
-                        default: return "Enchaînez ces exercices selon les indications.";
-                      }
-                    };
+                return groupedExercises.map((group, groupIndex) => {
+                  const getGroupColor = (type: string) => {
+                    switch (type?.toLowerCase()) {
+                      case 'superset': return 'from-emerald-500 to-teal-400';
+                      case 'biset': return 'from-blue-500 to-indigo-400';
+                      case 'triset': return 'from-purple-500 to-pink-400';
+                      case 'giantset': return 'from-orange-500 to-amber-400';
+                      default: return 'from-emerald-500 to-teal-400';
+                    }
+                  };
 
-                    return (
-                      <div key={gIndex} className={group.isGroup ? "relative pl-6 md:pl-10 space-y-8 mt-16" : "space-y-8"}>
-                        {group.isGroup && (
-                          <>
-                            {/* Ligne verticale de liaison */}
-                            <div className="absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b from-emerald-500 to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
-                            
-                            <div className="absolute -top-8 left-0 bg-emerald-500 text-zinc-900 px-4 py-2 rounded-r-2xl rounded-tl-2xl shadow-lg z-10 flex flex-col gap-1">
-                              <div className="text-xs font-black uppercase text-zinc-500 tracking-wider flex items-center gap-2">
-                                <LinkIcon size={12} /> {group.groupName || 'SUPERSET'} {group.exercises[0]?.entry.setGroup}
-                              </div>
-                              <div className="text-[9px] font-bold opacity-80 leading-tight max-w-[200px]">
-                                {getGroupDescription(group.groupName || 'superset')}
-                              </div>
-                            </div>
-                          </>
-                        )}
-                        {group.exercises.map(({ entry: ex, index: exIdx }, i) => {
-                          const baseEx = exercises.find(e => e.id === ex.exId);
-                          const isLastInGroup = i === group.exercises.length - 1;
-                        
+                  return (
+                    <div key={groupIndex} className={group.isGroup ? "relative pl-5 sm:pl-8 space-y-4" : "space-y-4"}>
+                      {group.isGroup && (
+                        <>
+                          {/* Beautiful solid gradient bar on the side for connected exercises */}
+                          <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${getGroupColor(group.groupName || '')} rounded-full opacity-80`} />
+                          
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1 text-white bg-gradient-to-r ${getGroupColor(group.groupName || '')} rounded-full`}>
+                              {group.groupName || 'SUPERSET'} (Groupe {group.exercises[0]?.entry.setGroup})
+                            </span>
+                            <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">
+                              Enchaînez sans temps de repos
+                            </span>
+                          </div>
+                        </>
+                      )}
+
+                      {group.exercises.map(({ entry: ex, index: exIdx }, i) => {
+                        const baseEx = exercises.find(e => e.id === ex.exId);
+                        const isLastInGroup = i === group.exercises.length - 1;
+                        const isDropdownOpen = openActionIdx === exIdx;
+
                         return (
-                          <div key={exIdx} className="relative">
-                            <div className={`bg-white p-4 sm:p-6 rounded-3xl border relative group hover:border-emerald-500/40 transition-all shadow-xl ${group.isGroup ? 'border-none ring-1 ring-zinc-200' : 'border-zinc-200'}`}>
-                              {group.isGroup && (
-                                <div className="absolute -left-6 md:-left-10 top-1/2 -translate-y-1/2 w-6 md:w-10 h-1 bg-emerald-500/30" />
-                              )}
-                              <div className="flex flex-col gap-4 sm:gap-6">
-                                <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
-                                  <div className="flex items-center gap-4 w-full">
-                                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center shrink-0 overflow-hidden relative">
-                                      {baseEx?.photo ? (
-                                        <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
-                                      ) : (
-                                        <div className="text-emerald-500">
-                                          <DumbbellIcon size={24} />
-                                        </div>
-                                      )}
-                                      {baseEx?.videoUrl && (
-                                        <div className="absolute bottom-1 right-1 bg-emerald-500 text-zinc-900 p-0.5 rounded shadow-sm">
-                                          <VideoIcon size={10} />
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="flex-1 space-y-1">
-                                      <label className="text-[9px] font-black text-emerald-500 uppercase tracking-widest ml-1">Mouvement</label>
-                                      <SearchableExerciseSelect
-                                        exercises={exercises}
-                                        value={ex.exId}
-                                        onChange={id => handleUpdateEx(selectedDayIdx, exIdx, 'exId', id)}
-                                      />
-                                    </div>
-                                    <div className="flex sm:hidden gap-1">
-                                      <button 
-                                        onClick={() => handleToggleLink(selectedDayIdx, exIdx)}
-                                        disabled={exIdx === 0}
-                                        className={`p-2 transition-colors ${ex.setGroup && ex.setGroup === formData.days[selectedDayIdx].exercises[exIdx-1]?.setGroup ? 'text-emerald-500' : 'text-zinc-500'}`}
-                                        title="Lier avec le précédent"
-                                      >
-                                        <LinkIcon size={18} />
-                                      </button>
-                                      <button 
-                                        onClick={() => handleMoveEx(selectedDayIdx, exIdx, 'up')}
-                                        disabled={exIdx === 0}
-                                        className="p-2 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors"
-                                      >
-                                        <ArrowUpIcon size={18} />
-                                      </button>
-                                      <button 
-                                        onClick={() => handleMoveEx(selectedDayIdx, exIdx, 'down')}
-                                        disabled={exIdx === formData.days[selectedDayIdx].exercises.length - 1}
-                                        className="p-2 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors"
-                                      >
-                                        <ArrowDownIcon size={18} />
-                                      </button>
-                                      <button 
-                                        onClick={() => handleDuplicateEx(selectedDayIdx, exIdx)}
-                                        className="p-2 text-zinc-500 hover:text-emerald-500 transition-colors"
-                                      >
-                                        <CopyIcon size={18} />
-                                      </button>
-                                      <button 
-                                        onClick={() => handleRemoveEx(selectedDayIdx, exIdx)}
-                                        className="p-2 text-red-500/30 hover:text-red-500 transition-colors"
-                                      >
-                                        <Trash2Icon size={18} />
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div className="hidden sm:flex gap-1">
-                                    <button 
-                                      onClick={() => handleToggleLink(selectedDayIdx, exIdx)}
-                                      disabled={exIdx === 0}
-                                      className={`p-3 transition-colors rounded-xl ${ex.setGroup && ex.setGroup === formData.days[selectedDayIdx].exercises[exIdx-1]?.setGroup ? 'bg-emerald-500 text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10'}`}
-                                      title="Lier avec le précédent (Superset)"
-                                    >
-                                      <LinkIcon size={18} />
-                                    </button>
-                                    <button 
-                                      onClick={() => handleMoveEx(selectedDayIdx, exIdx, 'up')}
-                                      disabled={exIdx === 0}
-                                      className="p-3 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
-                                      title="Monter"
-                                    >
-                                      <ArrowUpIcon size={18} />
-                                    </button>
-                                    <button 
-                                      onClick={() => handleMoveEx(selectedDayIdx, exIdx, 'down')}
-                                      disabled={exIdx === formData.days[selectedDayIdx].exercises.length - 1}
-                                      className="p-3 text-zinc-500 hover:text-emerald-500 disabled:opacity-30 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
-                                      title="Descendre"
-                                    >
-                                      <ArrowDownIcon size={18} />
-                                    </button>
-                                    <button 
-                                      onClick={() => handleDuplicateEx(selectedDayIdx, exIdx)}
-                                      className="p-3 text-zinc-500 hover:text-emerald-500 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10"
-                                      title="Dupliquer"
-                                    >
-                                      <CopyIcon size={18} />
-                                    </button>
-                                    <button 
-                                      onClick={() => handleRemoveEx(selectedDayIdx, exIdx)}
-                                      className="p-3 text-red-500/30 hover:text-red-500 transition-colors bg-zinc-50 rounded-xl hover:bg-red-500/10"
-                                      title="Supprimer"
-                                    >
-                                      <Trash2Icon size={18} />
-                                    </button>
-                                    
-                                    {/* Copy to Day Dropdown (Simple version) */}
-                                    {formData.days.length > 1 && (
-                                      <div className="relative group/copy">
-                                        <button className="p-3 text-zinc-500 hover:text-emerald-500 transition-colors bg-zinc-50 rounded-xl hover:bg-emerald-500/10">
-                                          <PlusIcon size={18} />
-                                        </button>
-                                        <div className="absolute right-0 bottom-full mb-2 bg-white border border-zinc-200 rounded-xl shadow-xl p-2 hidden group-hover/copy:block z-50 w-32">
-                                          <div className="text-[10px] font-black uppercase text-zinc-400 mb-1 px-2">Copier vers :</div>
-                                          {formData.days.map((d: any, dIdx: number) => dIdx !== selectedDayIdx && (
-                                            <button 
-                                              key={dIdx}
-                                              onClick={() => handleCopyExToDay(selectedDayIdx, exIdx, dIdx)}
-                                              className="w-full text-left px-2 py-1.5 text-[10px] font-bold text-zinc-900 hover:bg-emerald-500 hover:text-zinc-900 rounded-lg transition-colors truncate"
-                                            >
-                                              J{dIdx + 1} - {d.name}
-                                            </button>
-                                          ))}
-                                        </div>
+                          <div key={exIdx} className="relative group">
+                            <div className={`p-5 sm:p-6 bg-white rounded-[24px] border transition-all duration-300 relative ${group.isGroup ? 'border-zinc-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]' : 'border-zinc-200/80 shadow-sm hover:border-zinc-300'}`}>
+                              
+                              {/* Exercise Header Row */}
+                              <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-5">
+                                <div className="flex items-center gap-4 w-full md:max-w-2xl">
+                                  {/* Thumbnail */}
+                                  <div className="w-12 h-12 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center shrink-0 overflow-hidden relative shadow-inner">
+                                    {baseEx?.photo ? (
+                                      <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                      <div className="text-zinc-400">
+                                        <Dumbbell size={18} />
                                       </div>
                                     )}
+                                    {baseEx?.videoUrl && (
+                                      <div className="absolute top-0 right-0 bg-emerald-500 text-zinc-950 p-0.5 rounded-bl shadow-sm">
+                                        <Play size={8} fill="currentColor" />
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Dropdown Select for Exercise Name */}
+                                  <div className="flex-1 min-w-0">
+                                    <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block mb-1">Mouvement {exIdx + 1}</span>
+                                    <SearchableExerciseSelect
+                                      exercises={exercises}
+                                      value={ex.exId}
+                                      onChange={id => handleUpdateEx(selectedDayIdx, exIdx, 'exId', id)}
+                                    />
                                   </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-6 bg-zinc-50 p-4 sm:p-5 rounded-2xl border border-zinc-200">
-                                  <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">SÉRIES</label>
-                                    <Input 
-                                      type="number" 
-                                      className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
-                                      value={ex.sets || ''}
-                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'sets', parseInt(e.target.value) || 0)}
-                                    />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">
-                                      {baseEx?.cat === 'Cardio' ? 'DURÉE' : 'RÉPÉTITIONS / TEMPS'}
-                                    </label>
-                                    <Input 
-                                      className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
-                                      value={baseEx?.cat === 'Cardio' ? (ex.duration || '') : ex.reps}
-                                      placeholder={baseEx?.cat === 'Cardio' ? "Ex: 15 min" : "Ex: 10 ou 30s"}
-                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, baseEx?.cat === 'Cardio' ? 'duration' : 'reps', e.target.value)}
-                                    />
-                                    {baseEx?.cat !== 'Cardio' && (
-                                      <div className="text-[10px] text-zinc-500 text-center leading-tight mt-1">
-                                        Séparez par des virgules pour des valeurs différentes (ex: 12,10,8 ou 30,45,60)
+                                {/* Clean Actions Bar right aligned */}
+                                <div className="flex items-center gap-1.5 self-end md:self-center">
+                                  {/* Link Previous superset toggler */}
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleToggleLink(selectedDayIdx, exIdx)}
+                                    disabled={exIdx === 0}
+                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-1.5 disabled:opacity-20 cursor-pointer ${
+                                      ex.setGroup && ex.setGroup === formData.days[selectedDayIdx].exercises[exIdx-1]?.setGroup 
+                                        ? 'bg-emerald-500 border-emerald-500 text-zinc-950 shadow-sm shadow-emerald-500/10' 
+                                        : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-500 hover:text-zinc-800'
+                                    }`}
+                                    title="Lier avec le mouvement précédent (Superset)"
+                                  >
+                                    <Link size={12} />
+                                    <span>Lier</span>
+                                  </button>
+
+                                  {/* Multi-actions dropdown triggers */}
+                                  <div className="relative">
+                                    <button 
+                                      type="button"
+                                      onClick={() => setOpenActionIdx(isDropdownOpen ? null : exIdx)}
+                                      className="p-2 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl text-zinc-500 hover:text-zinc-800 transition-all cursor-pointer flex items-center gap-1 text-[10px] uppercase font-black tracking-wider"
+                                      title="Plus d'actions"
+                                    >
+                                      <Settings2 size={13} />
+                                      <span className="hidden sm:inline">Options</span>
+                                    </button>
+
+                                    {isDropdownOpen && (
+                                      <div className="absolute right-0 top-full mt-2 bg-white border border-zinc-200 rounded-[20px] shadow-xl p-2.5 z-40 w-48 animate-in fade-in slide-in-from-top-1 duration-150">
+                                        <div className="flex justify-between items-center px-2 py-1 mb-1 border-b border-zinc-100">
+                                          <span className="text-[9px] font-black uppercase text-zinc-400">Position & Modèle</span>
+                                          <button type="button" onClick={() => setOpenActionIdx(null)} className="text-zinc-400 hover:text-zinc-700">
+                                            <X size={12} />
+                                          </button>
+                                        </div>
+
+                                        <button 
+                                          type="button"
+                                          onClick={() => {
+                                            handleMoveEx(selectedDayIdx, exIdx, 'up');
+                                            setOpenActionIdx(null);
+                                          }}
+                                          disabled={exIdx === 0}
+                                          className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 rounded-lg disabled:opacity-20 transition-colors flex items-center gap-2 cursor-pointer"
+                                        >
+                                          <ArrowUp size={12} /> Monter d'un rang
+                                        </button>
+                                        <button 
+                                          type="button"
+                                          onClick={() => {
+                                            handleMoveEx(selectedDayIdx, exIdx, 'down');
+                                            setOpenActionIdx(null);
+                                          }}
+                                          disabled={exIdx === formData.days[selectedDayIdx].exercises.length - 1}
+                                          className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 rounded-lg disabled:opacity-20 transition-colors flex items-center gap-2 cursor-pointer"
+                                        >
+                                          <ArrowDown size={12} /> Descendre d'un rang
+                                        </button>
+                                        <button 
+                                          type="button"
+                                          onClick={() => {
+                                            handleDuplicateEx(selectedDayIdx, exIdx);
+                                            setOpenActionIdx(null);
+                                          }}
+                                          className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                        >
+                                          <Copy size={12} /> Dupliquer le mvt
+                                        </button>
+
+                                        {/* Copy to Day */}
+                                        {formData.days.length > 1 && (
+                                          <div className="mt-2 pt-2 border-t border-zinc-100">
+                                            <div className="text-[8px] font-black uppercase text-zinc-400 mb-1 px-2">Copier vers :</div>
+                                            <div className="space-y-0.5 max-h-24 overflow-y-auto">
+                                              {formData.days.map((d: any, dIdx: number) => dIdx !== selectedDayIdx && (
+                                                <button 
+                                                  key={dIdx}
+                                                  type="button"
+                                                  onClick={() => {
+                                                    handleCopyExToDay(selectedDayIdx, exIdx, dIdx);
+                                                    setOpenActionIdx(null);
+                                                  }}
+                                                  className="w-full text-left px-2 py-1.5 text-[9px] font-bold text-zinc-600 hover:bg-emerald-500/10 hover:text-emerald-700 rounded-md transition-colors truncate"
+                                                >
+                                                  J{dIdx + 1} - {d.name || `Jour ${dIdx+1}`}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>
-                                  <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">REPOS (SEC)</label>
-                                    <Input 
-                                      className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
-                                      value={ex.rest}
-                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'rest', e.target.value)}
-                                    />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">
-                                      {baseEx?.cat === 'Cardio' ? 'INTENSITÉ' : 'TEMPO'}
-                                    </label>
-                                    <Input 
-                                      className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
-                                      value={ex.tempo || ''}
-                                      placeholder={baseEx?.cat === 'Cardio' ? "Ex: Niv 5" : "Ex: 2010"}
-                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'tempo', e.target.value)}
-                                    />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block">TYPE</label>
+
+                                  {/* Absolute delete button */}
+                                  <button 
+                                    type="button"
+                                    onClick={() => handleRemoveEx(selectedDayIdx, exIdx)}
+                                    className="p-2 bg-red-500/[0.02] hover:bg-red-500/10 text-zinc-400 hover:text-red-500 rounded-xl transition-all cursor-pointer"
+                                    title="Supprimer ce mouvement"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Spec Dashboard Grid */}
+                              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 bg-zinc-50/70 p-4 sm:p-5 rounded-[20px] border border-zinc-100">
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider text-center block">Séries</label>
+                                  <Input 
+                                    type="number" 
+                                    className="text-center !rounded-xl !text-sm font-black !bg-white border-zinc-200/70 focus:!border-zinc-400 !py-2"
+                                    value={ex.sets || ''}
+                                    onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'sets', parseInt(e.target.value) || 0)}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider text-center block">
+                                    {baseEx?.cat === 'Cardio' ? 'Durée/Temps' : 'Répétitions'}
+                                  </label>
+                                  <Input 
+                                    className="text-center !rounded-xl !text-sm font-black !bg-white border-zinc-200/70 focus:!border-zinc-400 !py-2"
+                                    value={baseEx?.cat === 'Cardio' ? (ex.duration || '') : ex.reps}
+                                    placeholder={baseEx?.cat === 'Cardio' ? "Ex: 15 min" : "Ex: 10,12"}
+                                    onChange={e => handleUpdateEx(selectedDayIdx, exIdx, baseEx?.cat === 'Cardio' ? 'duration' : 'reps', e.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider text-center block">Repos (Sec)</label>
+                                  <Input 
+                                    className="text-center !rounded-xl !text-sm font-black !bg-white border-zinc-200/70 focus:!border-zinc-400 !py-2"
+                                    value={ex.rest}
+                                    onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'rest', e.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider text-center block">
+                                    {baseEx?.cat === 'Cardio' ? 'Intensité' : 'Tempo'}
+                                  </label>
+                                  <Input 
+                                    className="text-center !rounded-xl !text-sm font-black !bg-white border-zinc-200/70 focus:!border-zinc-400 !py-2"
+                                    value={ex.tempo || ''}
+                                    placeholder={baseEx?.cat === 'Cardio' ? "Ex: Niv 5" : "Ex: 2010"}
+                                    onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'tempo', e.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-1 col-span-1">
+                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider text-center block">Type d'effort</label>
+                                  <div className="relative">
                                     <select 
-                                      className="w-full bg-white border border-zinc-200 rounded-xl p-2 sm:p-3 text-center text-xs sm:text-sm font-black text-zinc-900 focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer"
+                                      className="w-full bg-white border border-zinc-200/70 rounded-xl px-2 py-2 text-center text-xs font-black text-zinc-900 focus:outline-none focus:border-zinc-400 appearance-none cursor-pointer"
                                       value={ex.setType || 'normal'}
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setType', e.target.value)}
                                     >
@@ -948,34 +997,40 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                       <option value="giantset">Giant-set</option>
                                       <option value="dropset">Drop-set</option>
                                     </select>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest text-center block" title="Même numéro = même groupe (Superset)">GROUPE</label>
-                                    <Input 
-                                      type="number" 
-                                      className="text-center !rounded-xl !text-sm sm:!text-base font-black !bg-white"
-                                      value={ex.setGroup || ''}
-                                      placeholder="Ex: 1"
-                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setGroup', parseInt(e.target.value) || null)}
-                                    />
+                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
+                                      <ChevronDownIcon size={12} />
+                                    </div>
                                   </div>
                                 </div>
-                                
                                 <div className="space-y-1">
-                                  <label className="text-[9px] font-black text-zinc-900 uppercase tracking-widest ml-1">NOTES / CONSIGNES (OPTIONNEL)</label>
+                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider text-center block" title="Même numéro = même groupe (Superset)">Groupe ID</label>
                                   <Input 
-                                    className="!rounded-xl !text-sm font-medium !bg-zinc-50"
-                                    value={ex.notes || ''}
-                                    placeholder="Ex: Focus sur l'excentrique, garder les coudes serrés..."
-                                    onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'notes', e.target.value)}
+                                    type="number" 
+                                    className="text-center !rounded-xl !text-sm font-black !bg-white border-zinc-200/70 focus:!border-zinc-400 !py-2"
+                                    value={ex.setGroup || ''}
+                                    placeholder="Libre"
+                                    onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setGroup', parseInt(e.target.value) || null)}
                                   />
                                 </div>
                               </div>
+                              
+                              {/* Notes Input styled like continuous conversational guidance */}
+                              <div className="mt-4 flex gap-2.5 items-center">
+                                <div className="p-2 bg-zinc-50 rounded-xl text-zinc-400 shrink-0">
+                                  <MessageCircle size={14} />
+                                </div>
+                                <Input 
+                                  className="!rounded-2xl !text-xs font-medium !bg-zinc-50 border-transparent focus:!border-zinc-200 !py-2.5"
+                                  value={ex.notes || ''}
+                                  placeholder="Consignes particulières (ex: Focus sur la phase excentrique lente, restez gainé...)"
+                                  onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'notes', e.target.value)}
+                                />
+                              </div>
                             </div>
                             {group.isGroup && !isLastInGroup && (
-                              <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center justify-center">
-                                <div className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center backdrop-blur-sm border border-emerald-500/30">
-                                  <LinkIcon size={14} />
+                              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center justify-center">
+                                <div className="w-6 h-6 rounded-full bg-zinc-150 border border-zinc-200 text-zinc-400 flex items-center justify-center shadow-sm">
+                                  <Link size={10} />
                                 </div>
                               </div>
                             )}
@@ -986,17 +1041,18 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                   );
                 });
               })()}
-
-                <button 
-                  onClick={() => handleAddExercise(selectedDayIdx)}
-                  className="w-full py-6 border-2 border-dashed border-zinc-200 rounded-3xl text-zinc-900 hover:border-emerald-500 hover:text-emerald-500 transition-all font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 bg-zinc-50"
-                >
-                  <PlusIcon size={20} /> AJOUTER UN MOUVEMENT
-                </button>
-              </div>
             </div>
-          </Card>
-        </div>
+
+            <button 
+              onClick={() => handleAddExercise(selectedDayIdx)}
+              type="button"
+              className="w-full py-6 border-2 border-dashed border-zinc-200 hover:border-emerald-500/40 rounded-[28px] text-zinc-800 hover:text-emerald-500 transition-all font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 bg-zinc-50/50 hover:bg-emerald-505/[0.01] mt-4 cursor-pointer"
+            >
+              <Plus size={16} /> Ajouter un mouvement
+            </button>
+          </div>
+        </Card>
       </div>
+    </div>
   );
 };

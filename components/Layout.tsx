@@ -17,6 +17,9 @@ interface LayoutProps {
   children: React.ReactNode;
   unreadMessagesCount?: number;
   unreadNotificationsCount?: number;
+  logs?: any[];
+  payments?: any[];
+  users?: any[];
 }
 
 const AppLogo: React.FC<{ club: Club | null, user: User }> = ({ club, user }) => (
@@ -50,40 +53,43 @@ const AppLogo: React.FC<{ club: Club | null, user: User }> = ({ club, user }) =>
   </div>
 );
 
-export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageChange, onLogout, children, unreadMessagesCount = 0, unreadNotificationsCount = 0 }) => {
+export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageChange, onLogout, children, unreadMessagesCount = 0, unreadNotificationsCount = 0, logs = [], payments = [], users = [] }) => {
   const planningEnabled = club?.settings?.booking?.enabled ?? true;
 
-  const coachItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = [
-    { id: 'home', icon: HomeIcon, label: 'Accueil', category: 'Principal' },
-    { id: 'users', icon: UsersIcon, label: 'Membres', category: 'Principal' },
-    { id: 'coaching', icon: ActivityIcon, label: 'Coaching', category: 'Principal' },
-    { id: 'chat', icon: MessageCircleIcon, label: 'Discussion', category: 'Principal' },
-    ...(planningEnabled ? [{ id: 'calendar', icon: CalendarIcon, label: 'Planning', category: 'Principal' }] : []),
-    { id: 'presets', icon: LayersIcon, label: 'Modèles', category: 'Bibliothèque' },
-    { id: 'exercises', icon: DumbbellIcon, label: 'Exos', category: 'Bibliothèque' },
-    { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Bibliothèque' },
-    { id: 'drive', icon: FolderIcon, label: 'Drive', category: 'Bibliothèque' },
-    { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances', category: 'Business' },
-    { id: 'crm_pipeline', icon: TargetIcon, label: 'Prospects', category: 'Business' },
-    { id: 'marketing', icon: MegaphoneIcon, label: 'Marketing', category: 'Business' },
-    { id: 'guide', icon: InfoIcon, label: 'Guide', category: 'Paramètres' },
-    { id: 'about', icon: InfoIcon, label: 'Club', category: 'Paramètres' },
-    { id: 'settings', icon: SettingsIcon, label: 'Paramètres', category: 'Paramètres' },
-  ];
+  const coachItems = React.useMemo(() => {
+    return [
+      { id: 'home', icon: HomeIcon, label: 'Accueil' },
+      { id: 'users', icon: UsersIcon, label: 'Membres', category: '👥 Suivi des Athlètes' },
+      { id: 'coaching', icon: ActivityIcon, label: 'Coaching', category: '🏋️ Contenus & Modèles' },
+      { id: 'chat', icon: MessageCircleIcon, label: 'Discussion', category: '👥 Suivi des Athlètes' },
+      ...(planningEnabled ? [{ id: 'calendar', icon: CalendarIcon, label: 'Planning des Cours', category: '👥 Suivi des Athlètes' }] : []),
+      { id: 'presets', icon: LayersIcon, label: "Programme", category: '🏋️ Contenus & Modèles' },
+      { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: '🏋️ Contenus & Modèles' },
+      { id: 'drive', icon: FolderIcon, label: 'Documents', category: '🏋️ Contenus & Modèles' },
+      { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances & Ventes', category: '💼 CRM & Comptabilité' },
+      { id: 'crm_pipeline', icon: TargetIcon, label: 'Tunnels de Ventes', category: '💼 CRM & Comptabilité' },
+      { id: 'marketing', icon: MegaphoneIcon, label: 'Marketing Auto', category: '💼 CRM & Comptabilité' },
+      { id: 'guide', icon: InfoIcon, label: 'Guides Vidéos', category: '⚙️ Configuration & Aide' },
+      { id: 'about', icon: InfoIcon, label: 'Fiche du Club', category: '⚙️ Configuration & Aide' },
+      { id: 'settings', icon: SettingsIcon, label: 'Paramètres Club', category: '⚙️ Configuration & Aide' },
+    ];
+  }, [planningEnabled]);
 
-  const memberItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = [
-    { id: 'home', icon: HomeIcon, label: 'Espace', category: 'Principal' },
-    { id: 'ai_coach', icon: MessageCircleIcon, label: 'Discussions', category: 'Principal' },
-    { id: 'calendar', icon: DumbbellIcon, label: 'Séance', category: 'Principal' },
-    ...(planningEnabled ? [{ id: 'planning', icon: CalendarIcon, label: 'Planning', category: 'Principal' }] : []),
-    { id: 'performances', icon: BarChartIcon, label: 'Records', category: 'Principal' },
-    { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Plus' },
-    { id: 'drive', icon: FolderIcon, label: 'Documents', category: 'Plus' },
-    { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', category: 'Plus' },
-    { id: 'evolution', icon: ImageIcon, label: 'Évolution', category: 'Plus' },
-    { id: 'profile', icon: UserIcon, label: 'Profil', category: 'Plus' },
-    { id: 'about', icon: InfoIcon, label: 'Club', category: 'Plus' },
-  ];
+  const memberItems = React.useMemo(() => {
+    return [
+      { id: 'home', icon: HomeIcon, label: 'Mon Espace' },
+      { id: 'ai_coach', icon: MessageCircleIcon, label: 'Coach Sportif IA', category: '📂 Mon Espace Personnel' },
+      { id: 'calendar', icon: DumbbellIcon, label: 'Lancer ma Séance', category: '💪 Entraînement & Logs' },
+      ...(planningEnabled ? [{ id: 'planning', icon: CalendarIcon, label: 'Réserver un cours', category: '💪 Entraînement & Logs' }] : []),
+      { id: 'performances', icon: BarChartIcon, label: 'Mes Records (PR)', category: '💪 Entraînement & Logs' },
+      { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: '🥗 Nutrition & Boutique' },
+      { id: 'drive', icon: FolderIcon, label: 'Documents', category: '📂 Mon Espace Personnel' },
+      { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique Shaker', category: '🥗 Nutrition & Boutique' },
+      { id: 'evolution', icon: ImageIcon, label: 'Photos Évolution', category: '💪 Entraînement & Logs' },
+      { id: 'profile', icon: UserIcon, label: 'Mes Objectifs', category: '📂 Mon Espace Personnel' },
+      { id: 'about', icon: InfoIcon, label: 'Infos du Club', category: '📂 Mon Espace Personnel' },
+    ];
+  }, [planningEnabled]);
 
   const hasRequiredPlan = (requiredPlan?: 'basic' | 'classic' | 'premium') => {
     if (!requiredPlan || requiredPlan === 'basic') return true;
@@ -93,69 +99,279 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
     return false;
   };
 
-  const menuItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = user.role === 'superadmin' 
-    ? [{ id: 'admin', icon: ShieldIcon, label: 'Admin', category: 'Principal' }, ...coachItems]
-    : (user.role === 'coach' || user.role === 'owner') 
-      ? coachItems 
-      : memberItems;
+  const menuItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = React.useMemo(() => {
+    return user.role === 'superadmin' 
+      ? [{ id: 'admin', icon: ShieldIcon, label: 'Super Admin' }, ...coachItems]
+      : (user.role === 'coach' || user.role === 'owner') 
+        ? coachItems 
+        : memberItems;
+  }, [user.role, coachItems, memberItems]);
 
   const [showTimer, setShowTimer] = React.useState(false);
   const [showMobileMenu, setShowMobileMenu] = React.useState(false);
+  const [showCommandPalette, setShowCommandPalette] = React.useState(false);
+  const [commandSearch, setCommandSearch] = React.useState("");
+  const [mobileSearch, setMobileSearch] = React.useState("");
 
-  // Group items by category
-  const groupedItems = menuItems.reduce((acc, item) => {
-    const cat = item.category || 'Général';
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(item);
-    return acc;
-  }, {} as Record<string, typeof menuItems>);
+  const isCoach = user.role === 'coach' || user.role === 'owner' || user.role === 'superadmin';
+
+
+  const coachPoles = React.useMemo(() => [
+    { id: 'coaching', label: 'Coaching', icon: DumbbellIcon, items: ['coaching', 'presets', 'exercises', 'nutrition', 'drive'] },
+    { id: 'members', label: 'Membres', icon: UsersIcon, items: ['users', 'chat', 'calendar'] },
+    { id: 'gestion', label: 'Gestion', icon: DollarSignIcon, items: ['home', 'crm_finances', 'crm_pipeline', 'marketing', 'settings', 'guide', 'about', 'admin'] }
+  ], []);
+
+  const memberPoles = React.useMemo(() => [
+    { id: 'sport', label: 'Sport', icon: DumbbellIcon, items: ['calendar', 'planning', 'performances', 'evolution'] },
+    { id: 'nutrition', label: 'Nutrition', icon: AppleIcon, items: ['nutrition', 'supplements'] },
+    { id: 'account', label: 'Compte', icon: UserIcon, items: ['home', 'ai_coach', 'drive', 'profile', 'about'] }
+  ], []);
+
+  const activePoles = isCoach ? coachPoles : memberPoles;
+
+  const [selectedMobilePole, setSelectedMobilePole] = React.useState<string>("");
+
+  React.useEffect(() => {
+    if (showMobileMenu) {
+      const parentPole = activePoles.find(pole => pole.items.includes(activePage));
+      if (parentPole) {
+        setSelectedMobilePole(parentPole.id);
+      } else {
+        setSelectedMobilePole(activePoles[0].id);
+      }
+    }
+  }, [showMobileMenu, activePage, activePoles]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(prev => !prev);
+      } else if (e.key === 'Escape') {
+        setShowCommandPalette(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activePage]);
+
+  const filteredCommandItems = React.useMemo(() => {
+    if (!commandSearch) return menuItems;
+    const query = commandSearch.toLowerCase().trim();
+    return menuItems.filter(item => 
+      item.label.toLowerCase().includes(query) || 
+      (item.category && item.category.toLowerCase().includes(query))
+    );
+  }, [commandSearch, menuItems]);
+
+  const handleCommandSelect = (itemId: string) => {
+    onPageChange(itemId as Page);
+    setShowCommandPalette(false);
+    setCommandSearch("");
+  };
+
+  const filteredMobileMenuItems = React.useMemo(() => {
+    if (mobileSearch) {
+      const query = mobileSearch.toLowerCase().trim();
+      return menuItems.filter(item => 
+        item.label.toLowerCase().includes(query)
+      );
+    }
+    const currentPole = activePoles.find(p => p.id === selectedMobilePole);
+    if (!currentPole) return [];
+    return menuItems.filter(item => currentPole.items.includes(item.id));
+  }, [mobileSearch, selectedMobilePole, menuItems, activePoles]);
+
+  // Group items by category (excluding empty ones)
+  const topLevelItems = React.useMemo(() => {
+    return menuItems.filter(item => !item.category);
+  }, [menuItems]);
+
+  const groupedItems = React.useMemo(() => {
+    return menuItems.reduce((acc, item) => {
+      if (!item.category) return acc;
+      const cat = item.category;
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(item);
+      return acc;
+    }, {} as Record<string, typeof menuItems>);
+  }, [menuItems]);
+
+  const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({});
+
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [cat]: !prev[cat]
+    }));
+  };
+
+  React.useEffect(() => {
+    const currentItem = menuItems.find(it => it.id === activePage);
+    if (currentItem && currentItem.category) {
+      const cat = currentItem.category;
+      setExpandedCategories(prev => {
+        if (prev[cat]) return prev;
+        return {
+          ...prev,
+          [cat]: true
+        };
+      });
+    }
+  }, [activePage, menuItems]);
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-transparent">
-      <aside className="hidden md:flex flex-col w-[280px] bg-white/80 backdrop-blur-xl border-r border-zinc-200 h-screen fixed left-0 top-0 py-12 px-6 z-40 shadow-2xl">
-        <div className="mb-12 px-4">
+      {/* Sidebar Desktop */}
+      <aside className="hidden md:flex flex-col w-[240px] lg:w-[280px] bg-white/80 backdrop-blur-xl border-r border-zinc-200 h-screen fixed left-0 top-0 py-10 lg:py-12 px-4 lg:px-6 z-40 shadow-2xl">
+        <div className="mb-6 px-4">
            <AppLogo club={club} user={user} />
         </div>
+
+        {/* Quick Search trigger button */}
+        <div className="px-4 mb-6">
+          <button 
+            type="button"
+            onClick={() => setShowCommandPalette(true)}
+            className="flex items-center justify-between w-full px-4 py-3 bg-zinc-50 border border-zinc-200 hover:border-zinc-300 rounded-2xl text-left text-zinc-400 hover:text-zinc-500 transition-all text-xs font-bold shadow-inner"
+          >
+            <span className="flex items-center gap-2 uppercase tracking-wider text-[9px] font-black">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-zinc-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              Rechercher...
+            </span>
+            <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-[8px] font-black tracking-widest text-zinc-400 bg-zinc-200 border border-zinc-350 rounded-lg">⌘K</kbd>
+          </button>
+        </div>
+
         
-        <nav className="flex-1 space-y-6 overflow-y-auto no-scrollbar px-2">
-          {Object.entries(groupedItems).map(([category, items]) => (
-            <div key={category} className="space-y-1">
-              <div className="px-4 text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">
-                {category}
-              </div>
-              {items.map(item => (
-                <button 
-                  key={item.id}
-                  onClick={() => onPageChange(item.id as Page)}
-                  className={`
-                    relative flex items-center justify-between px-4 py-3 rounded-xl w-full transition-all duration-300 group
-                    ${activePage === item.id ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}
-                  `}
-                >
-                  {activePage === item.id && (
-                    <motion.div
-                      layoutId="activeMenuIndicator"
-                      className="absolute inset-0 bg-emerald-500 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    />
-                  )}
-                  <div className="flex items-center gap-3 relative z-10">
-                    <item.icon size={18} strokeWidth={activePage === item.id ? 2.5 : 2} className={`${activePage === item.id ? '' : 'group-hover:scale-110 transition-transform duration-300'}`} />
-                    <span className="text-[11px] font-black uppercase tracking-[1.5px]">{item.label}</span>
-                    {item.id === 'chat' && unreadMessagesCount > 0 && (
-                      <span className="absolute -top-1 -right-3 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+        <nav className="flex-1 space-y-4 overflow-y-auto no-scrollbar px-2 pb-6">
+          {/* Top Level Items */}
+          {topLevelItems.length > 0 && (
+            <div className="space-y-1">
+              {topLevelItems.map(item => {
+                const isActive = activePage === item.id;
+                return (
+                  <button 
+                    key={item.id}
+                    onClick={() => onPageChange(item.id as Page)}
+                    className={`
+                      relative flex items-center justify-between px-4 py-3 rounded-xl w-full transition-all duration-300 group
+                      ${isActive ? 'text-emerald-950 font-black' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}
+                    `}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeMenuIndicator"
+                        className="absolute inset-0 bg-gradient-to-r from-emerald-50 to-emerald-100/50 border-l-4 border-emerald-500 rounded-xl"
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      />
                     )}
-                    {item.id === 'notifications' && unreadNotificationsCount > 0 && (
-                      <span className="absolute -top-1 -right-3 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                    <div className="flex items-center gap-3 relative z-10">
+                      <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-emerald-600' : 'group-hover:scale-110 transition-transform duration-300'} />
+                      <span className="text-[11px] font-black uppercase tracking-[1.5px]">{item.label}</span>
+                      {item.id === 'chat' && unreadMessagesCount > 0 && (
+                        <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
+                      )}
+                      {item.id === 'notifications' && unreadNotificationsCount > 0 && (
+                        <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
+                      )}
+                    </div>
+                    {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' && (
+                      <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity relative z-10" />
                     )}
-                  </div>
-                  {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' && (
-                    <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity relative z-10" />
-                  )}
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
-          ))}
+          )}
+
+          {/* Collapsible Categories */}
+          {Object.entries(groupedItems).map(([category, items]) => {
+            const isExpanded = !!expandedCategories[category];
+            const hasActiveItem = items.some(item => item.id === activePage);
+            return (
+              <div key={category} className="space-y-1">
+                {/* Accordion Trigger Header */}
+                <button
+                  type="button"
+                  onClick={() => toggleCategory(category)}
+                  className={`flex items-center justify-between w-full px-4 py-2.5 rounded-xl transition-all outline-none select-none ${
+                    hasActiveItem 
+                      ? 'bg-zinc-100/70 border border-zinc-200/50 text-zinc-900 font-extrabold shadow-sm' 
+                      : 'text-zinc-400 hover:text-zinc-600'
+                  }`}
+                >
+                  <span className={`text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 ${hasActiveItem ? 'text-emerald-600' : ''}`}>
+                    {category}
+                  </span>
+                  <svg 
+                    width="12" 
+                    height="12" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="3.5" 
+                    className={`transition-transform duration-200 shrink-0 opacity-70 ${isExpanded ? 'rotate-180 text-emerald-500' : 'rotate-0 text-zinc-400'}`}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+
+                {/* Collapsible Content */}
+                <AnimatePresence initial={false}>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                      className="overflow-hidden pl-1 pr-1 py-0.5 space-y-0.5"
+                    >
+                      {items.map(item => {
+                        const isActive = activePage === item.id;
+                        return (
+                          <button 
+                            key={item.id}
+                            onClick={() => onPageChange(item.id as Page)}
+                            className={`
+                              relative flex items-center justify-between px-3.5 py-2.5 rounded-xl w-full transition-all duration-300 group
+                              ${isActive ? 'text-emerald-950 font-black' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50/70'}
+                            `}
+                          >
+                            {isActive && (
+                              <motion.div
+                                layoutId="activeMenuIndicator"
+                                className="absolute inset-0 bg-gradient-to-r from-emerald-50 to-emerald-100/50 border-l-4 border-emerald-500 rounded-xl"
+                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                              />
+                            )}
+                            <div className="flex items-center gap-3 relative z-10 pl-2">
+                              <item.icon size={16} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-emerald-600' : 'group-hover:scale-110 transition-transform duration-300 text-zinc-400 group-hover:text-zinc-605'} />
+                              <span className="text-[11px] font-black uppercase tracking-[1.5px] truncate max-w-[170px]">{item.label}</span>
+                              {item.id === 'chat' && unreadMessagesCount > 0 && (
+                                <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
+                              )}
+                              {item.id === 'notifications' && unreadNotificationsCount > 0 && (
+                                <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
+                              )}
+                            </div>
+                            {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' && (
+                              <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity relative z-10" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
           
           <div className="pt-4 mt-4 border-t border-zinc-200">
             <button 
@@ -179,15 +395,16 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
         </div>
       </aside>
 
-      <main className="flex-1 md:ml-[280px] min-h-screen relative overflow-hidden">
+      {/* Main Content Area */}
+      <main className="flex-1 md:ml-[240px] lg:ml-[280px] min-h-screen relative overflow-hidden">
         <AnimatePresence mode="wait">
           <motion.div 
             key={activePage}
-            initial={{ opacity: 0, y: 10, filter: 'blur(4px)' }}
+            initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -10, filter: 'blur(4px)' }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="px-3 py-4 md:p-12 max-w-6xl mx-auto pb-32 md:pb-12"
+            exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="px-3 py-4 md:p-12 max-w-none pb-32 md:pb-12 w-full"
           >
             {children}
           </motion.div>
@@ -207,103 +424,366 @@ export const Layout: React.FC<LayoutProps> = ({ user, club, activePage, onPageCh
           </div>
         )}
 
-        <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] h-14 bg-white/90 backdrop-blur-2xl border border-zinc-200 rounded-full flex items-center justify-around z-50 px-4 shadow-2xl">
-          {menuItems.slice(0, 4).map(item => (
-            <button 
-              key={item.id}
-              onClick={() => {
-                onPageChange(item.id as Page);
-                setShowMobileMenu(false);
-              }}
-              className={`flex flex-col items-center gap-1 transition-all duration-300 relative py-1 ${activePage === item.id ? 'text-emerald-500 scale-110 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'text-zinc-500 hover:text-zinc-900'}`}
-            >
-              <div className="relative">
-                <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} />
-                {item.id === 'chat' && unreadMessagesCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+        {/* Mobile Navigation Tab Bar */}
+        <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] h-16 bg-white/85 backdrop-blur-xl border border-zinc-200 rounded-full flex items-center justify-around z-50 px-4 shadow-xl shadow-zinc-350/15">
+          {menuItems.slice(0, 4).map(item => {
+            const isActive = activePage === item.id;
+            return (
+              <button 
+                key={item.id}
+                onClick={() => {
+                  onPageChange(item.id as Page);
+                  setShowMobileMenu(false);
+                }}
+                className={`relative flex items-center justify-center w-11 h-11 rounded-full transition-all duration-300`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="mobileActiveIndicator"
+                    className="absolute inset-0 bg-emerald-500 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                  />
                 )}
-                {item.id === 'notifications' && unreadNotificationsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                )}
-              </div>
-            </button>
-          ))}
+                <div className={`relative z-10 transition-transform ${isActive ? 'text-white scale-110' : 'text-zinc-500 hover:text-zinc-900'}`}>
+                  <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                  {item.id === 'chat' && unreadMessagesCount > 0 && (
+                    <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border ${isActive ? 'border-emerald-500' : 'border-white'}`}></span>
+                  )}
+                  {item.id === 'notifications' && unreadNotificationsCount > 0 && (
+                    <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border ${isActive ? 'border-emerald-500' : 'border-white'}`}></span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+          
           <button 
             onClick={() => setShowMobileMenu(!showMobileMenu)}
-            className={`flex flex-col items-center gap-1 transition-all duration-300 relative py-1 ${showMobileMenu ? 'text-emerald-500 scale-110 drop-shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'text-zinc-500 hover:text-zinc-900'}`}
+            className={`relative flex items-center justify-center w-11 h-11 rounded-full transition-all duration-300 ${showMobileMenu ? 'text-emerald-950 scale-110' : 'text-zinc-500 hover:text-zinc-900'}`}
           >
-            <MenuIcon size={20} />
+            {showMobileMenu && (
+              <motion.div
+                layoutId="mobileActiveIndicator"
+                className="absolute inset-0 bg-zinc-100 rounded-full border border-zinc-200"
+                transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              />
+            )}
+            <div className="relative z-10">
+              <MenuIcon size={20} />
+            </div>
           </button>
         </nav>
 
-        {/* Mobile Menu Drawer */}
-        {showMobileMenu && (
-          <div 
-            className="md:hidden fixed inset-0 bg-black/20 backdrop-blur-sm z-40 animate-in fade-in duration-300"
-            onClick={() => setShowMobileMenu(false)}
-          >
-            <div 
-              className="absolute bottom-28 left-4 right-4 bg-white border border-zinc-200 rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10 duration-300 max-h-[60vh] overflow-y-auto no-scrollbar"
-              onClick={e => e.stopPropagation()}
+        {/* Mobile Menu Drawer containing interactive live filter search */}
+        <AnimatePresence>
+          {showMobileMenu && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="md:hidden fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-40"
+              onClick={() => setShowMobileMenu(false)}
             >
-              <div className="grid grid-cols-4 gap-y-6 gap-x-4">
-                {menuItems.slice(4).map(item => (
-                  <button 
-                    key={item.id}
-                    onClick={() => {
-                      onPageChange(item.id as Page);
-                      setShowMobileMenu(false);
-                    }}
-                    className={`flex flex-col items-center gap-2 transition-all duration-300 ${activePage === item.id ? 'text-emerald-500' : 'text-zinc-500 hover:text-zinc-900'}`}
-                  >
-                    <div className={`p-3 rounded-2xl relative ${activePage === item.id ? 'bg-emerald-500/10' : 'bg-zinc-50'}`}>
-                      <item.icon size={20} strokeWidth={activePage === item.id ? 2.5 : 2} />
-                      {item.id === 'chat' && unreadMessagesCount > 0 && (
-                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                      )}
-                      {item.id === 'notifications' && unreadNotificationsCount > 0 && (
-                        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-                      )}
-                      {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' && (
-                        <div className="absolute -top-1 -right-1 bg-white rounded-full p-0.5 border border-zinc-200">
-                          <LockIcon size={10} className="text-zinc-500" />
-                        </div>
+              <motion.div 
+                initial={{ opacity: 0, y: 80, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 80, scale: 0.98 }}
+                transition={{ type: "spring", damping: 25, stiffness: 350 }}
+                className="absolute bottom-24 left-4 right-4 bg-zinc-50 border border-zinc-200 rounded-[2rem] p-5 shadow-2xl max-h-[78vh] overflow-y-auto no-scrollbar space-y-6"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* 1. Header Profil Utilisateur */}
+                <div className="bg-gradient-to-br from-zinc-900 to-zinc-950 text-white rounded-3xl p-5 relative overflow-hidden shadow-lg border border-zinc-850">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
+                  <div className="flex items-center gap-4 relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-black text-lg text-emerald-400 overflow-hidden shrink-0 shadow-lg">
+                      {user.avatar?.startsWith('http') ? (
+                        <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                      ) : (
+                        user.avatar || user.name.substring(0, 2).toUpperCase()
                       )}
                     </div>
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-center">{item.label}</span>
-                  </button>
-                ))}
-                
-                <button 
-                  onClick={() => {
-                    setShowTimer(!showTimer);
-                    setShowMobileMenu(false);
-                  }}
-                  className={`flex flex-col items-center gap-2 transition-all duration-300 ${showTimer ? 'text-emerald-500' : 'text-zinc-500 hover:text-zinc-900'}`}
-                >
-                  <div className={`p-3 rounded-2xl ${showTimer ? 'bg-emerald-500/10' : 'bg-zinc-50'}`}>
-                    <TimerIcon size={20} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[9px] font-black uppercase tracking-widest text-emerald-400">
+                        {user.role === 'coach' || user.role === 'owner' ? "⚡ Coach Principal" : user.role === 'superadmin' ? "👑 Super Admin" : "🎯 Athlète Élite"}
+                      </div>
+                      <div className="text-sm font-extrabold text-white truncate leading-tight mt-0.5">
+                        {user.name}
+                      </div>
+                      <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider mt-1 flex items-center gap-1.5">
+                        <span>Niveau {Math.floor((user.xp || 0) / 1000) + 1}</span>
+                        {user.streak && user.streak > 0 ? (
+                          <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-600"></span>
+                            <span className="text-orange-400 font-extrabold flex items-center gap-0.5">🔥 {user.streak} J</span>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-center">Timer</span>
-                </button>
+                </div>
 
-                <button 
-                  onClick={() => {
-                    onLogout();
-                    setShowMobileMenu(false);
-                  }}
-                  className="flex flex-col items-center gap-2 transition-all duration-300 text-zinc-500 hover:text-red-500"
-                >
-                  <div className="p-3 rounded-2xl bg-zinc-50 hover:bg-red-500/10">
-                    <LogOutIcon size={20} />
+
+                {/* 2. Filtre par Pôles Logiques */}
+                {!mobileSearch && (
+                  <div className="bg-zinc-200/50 p-1.5 rounded-2xl flex items-center justify-between gap-1 border border-zinc-200/60 shadow-inner">
+                    {activePoles.map(pole => {
+                      const isSelected = selectedMobilePole === pole.id;
+                      const PoleIcon = pole.icon;
+                      return (
+                        <button
+                          key={pole.id}
+                          type="button"
+                          onClick={() => setSelectedMobilePole(pole.id)}
+                          className="flex-1 relative flex flex-col items-center justify-center py-2.5 rounded-xl transition-all outline-none"
+                        >
+                          {isSelected && (
+                            <motion.div
+                              layoutId="mobileActivePoleIndicator"
+                              className="absolute inset-x-0 inset-y-0 bg-white rounded-lg border border-zinc-250 shadow-sm"
+                              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                            />
+                          )}
+                          <div className="relative z-10 flex flex-col items-center justify-center">
+                            <PoleIcon size={15} strokeWidth={isSelected ? 2.5 : 2} className={isSelected ? 'text-emerald-500 animate-pulse' : 'text-zinc-500'} />
+                            <span className={`text-[9px] font-black uppercase tracking-wider mt-1 ${isSelected ? 'text-zinc-950' : 'text-zinc-500'}`}>{pole.label}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-center">Quitter</span>
+                )}
+
+                {/* 3. Recherche rapide */}
+                <div className="relative w-full">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  </span>
+                  <input 
+                    type="text" 
+                    placeholder="Filtrer ou rechercher une section..." 
+                    value={mobileSearch}
+                    onChange={e => setMobileSearch(e.target.value)}
+                    className="w-full text-xs font-bold bg-white border border-zinc-200 focus:border-emerald-500 rounded-2xl pl-10 pr-10 py-3 outline-none text-zinc-800 placeholder-zinc-400 shadow-sm transition-all"
+                  />
+                  {mobileSearch && (
+                    <button 
+                      onClick={() => setMobileSearch("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-xs font-black text-zinc-400 hover:text-zinc-650 bg-zinc-100 hover:bg-zinc-200 rounded-full"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* 4. Rubriques du pôle actif ou résultats de la recherche */}
+                <div className="space-y-3">
+                  <div className="text-[10px] font-black uppercase text-zinc-400 tracking-wider mb-2 px-1 flex items-center justify-between">
+                    <span>{mobileSearch ? `Résultats de recherche (${filteredMobileMenuItems.length})` : activePoles.find(p => p.id === selectedMobilePole)?.label}</span>
+                    {!mobileSearch && (
+                      <span className="text-[9px] bg-emerald-500/10 text-emerald-700 px-2.5 py-0.5 rounded-full font-extrabold uppercase">Pôle actif</span>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {filteredMobileMenuItems.map(item => {
+                      const isSelected = activePage === item.id;
+                      const itemDesc: Record<string, string> = {
+                        home: isCoach ? "Tableau de bord principal" : "Mon espace d'accueil principal",
+                        users: "Consulter & éditer mes athlètes",
+                        coaching: "Lancer ou guider un entraînement",
+                        chat: isCoach ? "Discussion & feedbacks directs" : "Messages avec mon coach",
+                        calendar: isCoach ? "Planning des séances & réservations" : "Planifier ma séance active",
+                        presets: "Créer des modèles d'entraînements",
+                        exercises: "Base d'exercices vidéos illustrés",
+                        nutrition: isCoach ? "Créer des structures de menus" : "Plan de repas personnalisé & recettes",
+                        drive: "Documents PDF, images & fiches club",
+                        crm_finances: "Comptabilité & abonnements membres",
+                        crm_pipeline: "Suivi acquisition & prospects",
+                        marketing: "Relances & campagnes SMS automatisées",
+                        settings: "Réglages complets & préférences",
+                        guide: "Vidéos de démonstration & tutoriels",
+                        about: "Informations générales & contact du club",
+                        admin: "Console superadmin d'administration",
+                        ai_coach: "Discuter avec l'IA de conseil sportif",
+                        planning: "Réserver mon cours collectif club",
+                        performances: "Mes charges max & records historiques",
+                        supplements: "Boutique de suppléments recommandés",
+                        evolution: "Suivi morphologique & photos",
+                        profile: "Mes objectifs & informations de compte"
+                      };
+
+                      return (
+                        <button 
+                          key={item.id}
+                          onClick={() => {
+                            onPageChange(item.id as Page);
+                            setShowMobileMenu(false);
+                          }}
+                          className={`w-full flex items-center justify-between p-3.5 rounded-2xl transition-all border ${
+                            isSelected 
+                              ? 'bg-gradient-to-r from-emerald-50 to-emerald-100/40 border-emerald-500/30 text-emerald-950 font-black shadow-sm' 
+                              : 'bg-white hover:bg-zinc-100 border-zinc-200/80 text-zinc-800 shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-xl shrink-0 ${
+                              isSelected ? 'bg-emerald-500 text-white shadow-md' : 'bg-zinc-100/70 border border-zinc-200 text-zinc-500'
+                            }`}>
+                              <item.icon size={16} strokeWidth={isSelected ? 2.5 : 2} />
+                            </div>
+                            <div className="text-left">
+                              <span className="text-xs font-black uppercase tracking-wider block leading-tight">{item.label}</span>
+                              <span className="text-[10px] text-zinc-400 font-bold block leading-tight mt-1 max-w-[210px] truncate">{itemDesc[item.id] || "Accéder à cette section"}</span>
+                            </div>
+                          </div>
+                          <div className="shrink-0 flex items-center gap-2 pl-2">
+                            {item.id === 'chat' && unreadMessagesCount > 0 && (
+                              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
+                            )}
+                            {item.id === 'notifications' && unreadNotificationsCount > 0 && (
+                              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
+                            )}
+                            {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && user.role !== 'superadmin' ? (
+                              <LockIcon size={12} className="text-zinc-400" />
+                            ) : (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-zinc-400"><path d="M9 5l7 7-7 7"/></svg>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                    {filteredMobileMenuItems.length === 0 && (
+                      <div className="text-xs text-zinc-400 font-bold uppercase tracking-widest text-center py-8 bg-white border border-zinc-200/60 rounded-2xl">
+                        Aucune rubrique ne correspond à votre recherche
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. Actions Générales de bas de tiroir */}
+                <div className="pt-4 border-t border-zinc-200 grid grid-cols-2 gap-3 pb-2">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setShowTimer(!showTimer);
+                      setShowMobileMenu(false);
+                    }}
+                    className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-black uppercase tracking-wider text-[10px] border transition-all ${
+                      showTimer 
+                        ? 'bg-emerald-500 text-white border-emerald-500 shadow-md' 
+                        : 'bg-white hover:bg-zinc-50 text-zinc-700 border-zinc-200'
+                    }`}
+                  >
+                    <TimerIcon size={14} className="shrink-0" />
+                    Chronomètre
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      onLogout();
+                      setShowMobileMenu(false);
+                    }}
+                    className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-black uppercase tracking-wider text-[10px] bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/60 transition-all cursor-pointer"
+                  >
+                    <LogOutIcon size={14} className="shrink-0" />
+                    Se déconnecter
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+
+      {/* Command Palette Modal overlay */}
+      <AnimatePresence>
+        {showCommandPalette && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-zinc-950/60 backdrop-blur-md z-[9999] flex items-start justify-center pt-[15vh] px-4"
+            onClick={() => {
+              setShowCommandPalette(false);
+              setCommandSearch("");
+            }}
+          >
+            <motion.div 
+              initial={{ opacity: 0, y: -24, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -24, scale: 0.96 }}
+              transition={{ type: "spring", damping: 25, stiffness: 350 }}
+              className="bg-white border border-zinc-200 w-full max-w-3xl rounded-3xl overflow-hidden shadow-[0_30px_60px_rgba(24,24,27,0.25)]"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-100 bg-zinc-50/50">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-zinc-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input 
+                  autoFocus
+                  type="text" 
+                  placeholder="Rechercher une page ou section... (ex: Modèles, Nutrition, Drive)" 
+                  value={commandSearch}
+                  onChange={e => setCommandSearch(e.target.value)}
+                  className="w-full bg-transparent border-none outline-none text-sm font-bold text-zinc-800 placeholder-zinc-400"
+                />
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setShowCommandPalette(false);
+                    setCommandSearch("");
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl hover:bg-zinc-100 text-[10px] font-black uppercase text-zinc-400 tracking-wider transition-colors border border-zinc-200"
+                >
+                  ESC
                 </button>
               </div>
-            </div>
-          </div>
+
+              <div className="max-h-[350px] overflow-y-auto p-3 space-y-1 no-scrollbar">
+                {filteredCommandItems.length > 0 ? (
+                  filteredCommandItems.map(item => {
+                    const isSelected = activePage === item.id;
+                    return (
+                      <button
+                        type="button"
+                        key={item.id}
+                        onClick={() => handleCommandSelect(item.id)}
+                        className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl text-left transition-all ${
+                          isSelected 
+                            ? 'bg-emerald-500 text-white font-black shadow-lg shadow-emerald-500/20' 
+                            : 'hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 font-bold'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <item.icon size={16} strokeWidth={2.5} className={isSelected ? 'text-white' : 'text-zinc-400'} />
+                          <span className="text-[11px] uppercase tracking-wider">{item.label}</span>
+                        </div>
+                        {item.category && (
+                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                            isSelected ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-500'
+                          }`}>
+                            {item.category}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="text-xs text-zinc-400 font-bold uppercase tracking-widest text-center py-8">
+                    Aucun résultat trouvé pour "{commandSearch}"
+                  </div>
+                )}
+              </div>
+              <div className="px-5 py-3.5 bg-zinc-50 border-t border-zinc-100 flex justify-between items-center text-[9px] font-black text-zinc-400 uppercase tracking-wider">
+                <span>Naviguer avec la souris ou tapez</span>
+                <span className="flex items-center gap-1">
+                  <span>Valider</span> <kbd className="px-1.5 py-0.5 bg-zinc-200 border border-zinc-350 rounded">↵</kbd>
+                </span>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
-      </main>
+      </AnimatePresence>
     </div>
   );
 };

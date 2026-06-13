@@ -428,7 +428,17 @@ app.post("/api/gemini/generateContent", async (req, res) => {
   } catch (error: any) {
     console.error("Error proxying Gemini request:", error);
     let errorMsg = "Failed to call Gemini";
-    if (error.status === 429 || (error.message && error.message.includes("quota"))) {
+    
+    const errText = error.message ? String(error.message) : "";
+    const isSuspended = error.status === 403 || 
+                        errText.includes("suspended") || 
+                        errText.includes("suspended") ||
+                        errText.includes("Consumer 'api_key") ||
+                        errText.includes("PERMISSION_DENIED");
+                        
+    if (isSuspended) {
+      errorMsg = "La clé API Gemini par défaut est actuellement inactive ou suspendue. Pour utiliser les fonctionnalités d'IA (générateur de programmes, nutrition, recettes, stagnation, etc.), veuillez configurer votre propre clé 'GEMINI_API_KEY' dans les paramètres (Settings) de votre projet Google AI Studio.";
+    } else if (error.status === 429 || errText.includes("quota")) {
       errorMsg = "Quota dépassé ou clé API invalide.";
     } else if (error.message) {
       errorMsg = error.message;

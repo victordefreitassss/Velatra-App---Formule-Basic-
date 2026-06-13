@@ -6,8 +6,10 @@ import { Card, Button, Input } from '../components/UI';
 import { SettingsIcon, SaveIcon, PlusIcon, Edit2Icon, Trash2Icon, CheckIcon, XIcon, TargetIcon } from '../components/Icons';
 import { db, doc, updateDoc, setDoc, deleteDoc, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ExercisesPage } from './ExercisesPage';
 
 export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
+  const [activeTab, setActiveTab] = useState<'info' | 'exercises'>('info');
   const [defaultDuration, setDefaultDuration] = useState(state.currentClub?.settings?.defaultProgramDuration || 7);
   const [stripeConnected, setStripeConnected] = useState(state.currentClub?.settings?.payment?.stripeConnected || false);
   const [stripeSecretKey, setStripeSecretKey] = useState(state.currentClub?.settings?.payment?.stripeSecretKey || '');
@@ -330,7 +332,36 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </div>
 
-      <Card className="p-8 border-zinc-200 bg-white">
+      <div className="flex border-b border-zinc-200 gap-6 pb-px px-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab('info')}
+          className={`pb-4 px-1 border-b-2 text-xs font-black uppercase tracking-widest transition-colors ${
+            activeTab === 'info'
+              ? 'border-emerald-500 text-zinc-900'
+              : 'border-transparent text-zinc-400 hover:text-zinc-600'
+          }`}
+        >
+          Formulaires & Paramètres
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('exercises')}
+          className={`pb-4 px-1 border-b-2 text-xs font-black uppercase tracking-widest transition-colors ${
+            activeTab === 'exercises'
+              ? 'border-emerald-500 text-zinc-900'
+              : 'border-transparent text-zinc-400 hover:text-zinc-600'
+          }`}
+        >
+          Base d'Exercices
+        </button>
+      </div>
+
+      {activeTab === 'exercises' ? (
+        <ExercisesPage state={state} setState={setState} showToast={showToast} />
+      ) : (
+        <>
+          <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
             <SettingsIcon size={24} />
@@ -852,6 +883,68 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
+      <Card className="p-8 border-zinc-200 bg-zinc-50 mb-6">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500">
+            <TargetIcon size={24} />
+          </div>
+          <div>
+            <h2 className="text-xl font-black uppercase text-zinc-900">Sélection de la base de données</h2>
+            <p className="text-xs text-zinc-500">Choisissez la base de données de production standard ou la nouvelle base isolée.</p>
+          </div>
+        </div>
+
+        <div className="bg-white border border-zinc-200 rounded-3xl p-6">
+          <p className="text-xs text-zinc-600 mb-4 leading-relaxed">
+            Suite aux récentes configurations, vous pouvez être connecté soit à la base de données standard de production <strong>(Default/Historique)</strong> contenant tous vos clubs, membres et entraînements d'origine, soit à la base de données isolée vide <strong>(Isolée/Développement)</strong> récemment créée.
+          </p>
+
+          <div className="flex flex-col md:flex-row gap-4">
+            <button
+              onClick={() => {
+                localStorage.setItem('velatra_firestore_db_override', 'default');
+                showToast("Bascule vers la base Historique (Default) active ! Rechargement...", "info");
+                setTimeout(() => window.location.reload(), 1500);
+              }}
+              className={`flex-1 p-5 rounded-2xl border-2 text-left transition-all ${
+                (!localStorage.getItem('velatra_firestore_db_override') || localStorage.getItem('velatra_firestore_db_override') === 'default')
+                  ? 'border-emerald-500 bg-emerald-50/50'
+                  : 'border-zinc-200 hover:border-zinc-300'
+              }`}
+            >
+              <div className="flex justify-between items-center mb-1">
+                <span className="font-bold text-sm text-zinc-900 font-sans">Base Historique (Default)</span>
+                {(!localStorage.getItem('velatra_firestore_db_override') || localStorage.getItem('velatra_firestore_db_override') === 'default') && (
+                  <span className="text-[10px] bg-emerald-500 text-white font-black uppercase px-2 py-0.5 rounded-full">Actif</span>
+                )}
+              </div>
+              <p className="text-[11px] text-zinc-500 leading-normal">Contient tous vos clubs, vos membres, les formules d'abonnements, les plannings et vos données de production.</p>
+            </button>
+
+            <button
+              onClick={() => {
+                localStorage.setItem('velatra_firestore_db_override', 'isolated');
+                showToast("Bascule vers la base Isolée active ! Rechargement...", "info");
+                setTimeout(() => window.location.reload(), 1500);
+              }}
+              className={`flex-1 p-5 rounded-2xl border-2 text-left transition-all ${
+                localStorage.getItem('velatra_firestore_db_override') === 'isolated'
+                  ? 'border-blue-500 bg-blue-50/50'
+                  : 'border-zinc-200 hover:border-zinc-300'
+              }`}
+            >
+              <div className="flex justify-between items-center mb-1">
+                <span className="font-bold text-sm text-zinc-900 font-sans">Base Isolée (Développement)</span>
+                {localStorage.getItem('velatra_firestore_db_override') === 'isolated' && (
+                  <span className="text-[10px] bg-blue-500 text-white font-black uppercase px-2 py-0.5 rounded-full">Actif</span>
+                )}
+              </div>
+              <p className="text-[11px] text-zinc-500 leading-normal">La nouvelle base de données isolée et sécurisée récemment provisionnée par l'outil de configuration.</p>
+            </button>
+          </div>
+        </div>
+      </Card>
+
       <Card className="p-8 border-zinc-200 bg-zinc-50">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
@@ -1109,6 +1202,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           </div>
         )}
       </Card>
+        </>
+      )}
 
       {isDisconnectModalOpen && createPortal(
         <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">

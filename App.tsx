@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, AppState, Program, Preset, SessionLog, Performance, BodyData, Message, FeedItem,
   SupplementProduct, SupplementOrder, FixedCost, CommissionPayment, Prospect, Newsletter, Club, Exercise,
-  Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect, Expense, Invoice, Booking, DriveFile, DriveFolder, Product, ProgressPhoto
+  Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect, Expense, Invoice, Booking, DriveFile, DriveFolder, Product, ProgressPhoto, NutritionPreset
 } from './types';
 import type { Notification } from './types';
 import { 
@@ -82,17 +82,37 @@ import { EvolutionGalleryPage } from './pages/EvolutionGalleryPage';
 import { GuidePage } from './pages/GuidePage';
 import { Onboarding } from './components/Onboarding';
 
+const getInitialFromCache = (key: string, defaultValue: any) => {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const item = localStorage.getItem(`velatra_cache_${key}`);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (e) {
+    return defaultValue;
+  }
+};
+
+const saveToLocalCache = (key: string, data: any) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(`velatra_cache_${key}`, JSON.stringify(data));
+  } catch (err) {
+    console.error(`Failed to save ${key} to local cache:`, err);
+  }
+};
+
 const INITIAL_STATE: AppState = {
-  user: null,
-  currentClub: null,
+  user: getInitialFromCache('user', null),
+  currentClub: getInitialFromCache('currentClub', null),
   users: [],
   exercises: INIT_EXERCISES,
-  programs: [],
+  programs: getInitialFromCache('programs', []),
   presets: [],
-  logs: [],
+  nutritionPresets: [],
+  logs: getInitialFromCache('logs', []),
   messages: [],
   bodyData: [],
-  performances: [],
+  performances: getInitialFromCache('performances', []),
   archivedPrograms: [],
   feed: [],
   supplementProducts: [],
@@ -108,8 +128,8 @@ const INITIAL_STATE: AppState = {
   subscriptions: [],
   payments: [],
   newsletters: [],
-  nutritionPlans: [],
-  nutritionLogs: [],
+  nutritionPlans: getInitialFromCache('nutritionPlans', []),
+  nutritionLogs: getInitialFromCache('nutritionLogs', []),
   crmClients: [],
   crmFormulas: [],
   manualStats: [],
@@ -161,19 +181,117 @@ export default function App() {
     return () => window.removeEventListener('gcp-billing-error', handleBillingError);
   }, []);
 
+  const [navigatorOnline, setNavigatorOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isOfflineBackupActive, setIsOfflineBackupActive] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('velatra_offline_backup_forced') === 'true';
+    }
+    return false;
+  });
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setNavigatorOnline(true);
+      showToast("Vous êtes de nouveau en ligne !", "success");
+    };
+    const handleOffline = () => {
+      setNavigatorOnline(false);
+      showToast("Connexion internet perdue. Passage en mode cache local.", "info");
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const queueForSync = (type: string, data: any) => {
+    try {
+      const currentQueue = JSON.parse(localStorage.getItem('velatra_pending_sync') || '[]');
+      currentQueue.push({ type, data, timestamp: Date.now() });
+      localStorage.setItem('velatra_pending_sync', JSON.stringify(currentQueue));
+      
+      if (type === 'logs') {
+        setState(prev => ({ ...prev, logs: [data, ...prev.logs] }));
+      } else if (type === 'performances') {
+        setState(prev => ({ ...prev, performances: [...data, ...prev.performances] }));
+      } else if (type === 'nutrition_log') {
+        setState(prev => {
+          const rest = prev.nutritionLogs.filter(l => l.id !== data.id);
+          return { ...prev, nutritionLogs: [data, ...rest] };
+        });
+      }
+    } catch (err) {
+      console.error("Failed to queue item for local sync:", err);
+    }
+  };
+
+  const triggerSync = async () => {
+    if (syncing) return;
+    const queue = JSON.parse(localStorage.getItem('velatra_pending_sync') || '[]');
+    if (queue.length === 0) {
+      showToast("Toutes vos données locales sont déjà synchronisées.", "success");
+      return;
+    }
+    if (!navigator.onLine || gcpBillingError) {
+      showToast("Connexion internet ou serveur toujours inaccessible.", "error");
+      return;
+    }
+    
+    setSyncing(true);
+    showToast("Synchronisation des logs vers le serveur...", "info");
+    
+    let isSuccess = true;
+    const remainingQueue: any[] = [];
+    
+    for (const item of queue) {
+      try {
+        if (item.type === 'logs') {
+          await setDoc(doc(db, "logs", item.data.id.toString()), item.data);
+        } else if (item.type === 'performances') {
+          for (const p of item.data) {
+            await setDoc(doc(db, "performances", p.id.toString()), p);
+          }
+        } else if (item.type === 'delete_program') {
+          await deleteDoc(doc(db, "programs", item.data.id.toString()));
+        } else if (item.type === 'nutrition_log') {
+          await setDoc(doc(db, "nutritionLogs", item.data.id), item.data);
+        }
+      } catch (err) {
+        console.error("Failed to sync item:", item, err);
+        isSuccess = false;
+        remainingQueue.push(item);
+      }
+    }
+    
+    localStorage.setItem('velatra_pending_sync', JSON.stringify(remainingQueue));
+    setSyncing(false);
+    
+    if (isSuccess) {
+      showToast("Toutes vos données et logs locaux ont été synchronisés !", "success");
+    } else {
+      showToast(`Certains éléments n'ont pas pu être synchronisés. (${remainingQueue.length} restants)`, "error");
+    }
+  };
+
   useEffect(() => {
     if (!connectionTested) {
       const testConnection = async () => {
         try {
           await getDocFromServer(doc(db, 'test', 'connection'));
+          setLoading(false);
         } catch (error: any) {
           const errMsg = error?.message || String(error);
           console.error("Firebase connection test result:", errMsg);
-          if (errMsg.includes('the client is offline')) {
-            console.error("Please check your Firebase configuration. The client is offline.");
+          if (errMsg.includes('the client is offline') || !navigator.onLine) {
+            console.warn("Client offline detected, entering offline cache backup mode.");
+            setIsOfflineBackupActive(true);
+            setLoading(false);
           } else {
-            // Any other error means either billing is suspended, or billing was reactivated
-            // but is still propagating (returns permission-denied), or rules are blocking connection.
             const isRestoring = errMsg.toLowerCase().includes('permission') || error?.code === 'permission-denied';
             setGcpBillingError(isRestoring ? "reactivating" : "suspended");
             setLoading(false);
@@ -203,13 +321,17 @@ export default function App() {
               userData.role = 'superadmin';
             }
             
-            setState(prev => ({ ...prev, user: { ...userData, id: Number(userData.id), firebaseUid: firebaseUser.uid } }));
+            const cachedUser = { ...userData, id: Number(userData.id), firebaseUid: firebaseUser.uid };
+            setState(prev => ({ ...prev, user: cachedUser }));
+            saveToLocalCache('user', cachedUser);
             
             // Fetch Club Data
             if (userData.clubId) {
               const clubDoc = await getDoc(doc(db, "clubs", userData.clubId));
               if (clubDoc.exists()) {
-                setState(prev => ({ ...prev, currentClub: clubDoc.data() as Club }));
+                const clubData = clubDoc.data() as Club;
+                setState(prev => ({ ...prev, currentClub: clubData }));
+                saveToLocalCache('currentClub', clubData);
               }
             }
           } else {
@@ -383,6 +505,7 @@ export default function App() {
         });
       });
       setState(prev => ({ ...prev, programs: allProgs }));
+      saveToLocalCache('programs', allProgs);
 
       if (!isInitialProgsLoad && hasNewProgram && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau programme", {
@@ -397,6 +520,12 @@ export default function App() {
       const allPresets: Preset[] = [];
       snap.forEach(d => allPresets.push(d.data() as Preset));
       setState(prev => ({ ...prev, presets: allPresets }));
+    });
+
+    const unsubNutritionPresets = onSnapshot(query(collection(db, "nutritionPresets"), where("clubId", "==", clubId)), (snap) => {
+      const allNutritionPresets: NutritionPreset[] = [];
+      snap.forEach(d => allNutritionPresets.push(d.data() as NutritionPreset));
+      setState(prev => ({ ...prev, nutritionPresets: allNutritionPresets }));
     });
 
     const unsubArchives = onSnapshot(query(collection(db, "archivedPrograms"), where("clubId", "==", clubId)), (snap) => {
@@ -425,6 +554,7 @@ export default function App() {
         } as Performance);
       });
       setState(prev => ({ ...prev, performances: perfs }));
+      saveToLocalCache('performances', perfs);
     });
 
     const unsubProducts = onSnapshot(query(collection(db, "supplementProducts"), where("clubId", "==", clubId)), (snap) => {
@@ -456,6 +586,7 @@ export default function App() {
         } as SessionLog);
       });
       setState(prev => ({ ...prev, logs }));
+      saveToLocalCache('logs', logs);
     });
 
     let isInitialMessagesLoad = true;
@@ -490,7 +621,7 @@ export default function App() {
       const fourDaysInMs = 4 * 24 * 60 * 60 * 1000;
 
       snap.forEach(d => {
-        const item = d.data() as FeedItem;
+        const item = { ...(d.data() as FeedItem), id: d.id };
         const itemTime = new Date(item.date).getTime();
         
         if (now - itemTime > fourDaysInMs) {
@@ -632,6 +763,7 @@ export default function App() {
         } as NutritionPlan);
       });
       setState(prev => ({ ...prev, nutritionPlans }));
+      saveToLocalCache('nutritionPlans', nutritionPlans);
 
       if (!isInitialNutritionPlansLoad && hasNewNutritionPlan && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau plan nutritionnel", {
@@ -662,6 +794,7 @@ export default function App() {
         }
       });
       setState(prev => ({ ...prev, nutritionLogs }));
+      saveToLocalCache('nutritionLogs', nutritionLogs);
     });
 
     const unsubSubscriptions = onSnapshot(query(collection(db, "subscriptions"), where("clubId", "==", clubId)), (snap) => {
@@ -805,7 +938,7 @@ export default function App() {
     });
 
     return () => {
-      unsubClub(); unsubUsers(); unsubProgs(); unsubPresets(); 
+      unsubClub(); unsubUsers(); unsubProgs(); unsubPresets(); unsubNutritionPresets(); 
       unsubArchives(); unsubPerfs(); unsubProducts(); unsubOrders();
       unsubLogs(); unsubMessages(); unsubFeed(); unsubBody();
       unsubProspects(); unsubNewsletters(); unsubExercises();
@@ -1072,6 +1205,10 @@ export default function App() {
     );
   };
 
+  const renderOfflineBanner = () => {
+    return null;
+  };
+
   if (loading) return (
     <div className="min-h-screen bg-white flex flex-col justify-between">
       {renderBillingBanner()}
@@ -1102,6 +1239,17 @@ export default function App() {
                 Forcer l'accès libre (Mode Démo)
               </button>
               <button 
+                onClick={() => {
+                  localStorage.setItem('velatra_offline_backup_forced', 'true');
+                  setIsOfflineBackupActive(true);
+                  setLoading(false);
+                  showToast("Mode Caches Locaux activé. Accès à vos programmes enregistrés !", "info");
+                }} 
+                className="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-medium px-4 py-2 rounded-lg text-sm shadow hover:shadow-md transition-all whitespace-nowrap"
+              >
+                Accéder au Cache Local (Hors-ligne)
+              </button>
+              <button 
                 onClick={() => window.location.reload()} 
                 className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-medium px-4 py-2 rounded-lg text-sm transition-all border border-zinc-200"
               >
@@ -1121,6 +1269,7 @@ export default function App() {
   if (!state.user) return (
     <div className="min-h-screen flex flex-col">
       {renderBillingBanner()}
+      {renderOfflineBanner()}
       <div className="flex-1">
         <Login />
       </div>
@@ -1131,6 +1280,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         {renderBillingBanner()}
+        {renderOfflineBanner()}
         <div className="flex-1 animate-fadeIn">
           <Onboarding user={state.user} club={state.currentClub} subscriptions={state.subscriptions} plans={state.plans} onComplete={() => {
             setState(prev => prev.user ? { ...prev, user: { ...prev.user, onboardingCompleted: true } } : prev);
@@ -1146,7 +1296,19 @@ export default function App() {
   return (
     <ErrorBoundary>
       {renderBillingBanner()}
-      <Layout user={state.user} club={state.currentClub} activePage={state.page} onPageChange={(p) => setState(s => ({ ...s, page: p }))} onLogout={handleLogout} unreadMessagesCount={unreadMessagesCount} unreadNotificationsCount={unreadNotificationsCount}>
+      {renderOfflineBanner()}
+      <Layout 
+        user={state.user} 
+        club={state.currentClub} 
+        activePage={state.page} 
+        onPageChange={(p) => setState(s => ({ ...s, page: p }))} 
+        onLogout={handleLogout} 
+        unreadMessagesCount={unreadMessagesCount} 
+        unreadNotificationsCount={unreadNotificationsCount}
+        logs={state.logs || []}
+        payments={state.payments || []}
+        users={state.users || []}
+      >
         {renderActivePageContent(state.user)}
       </Layout>
       
@@ -1164,19 +1326,40 @@ export default function App() {
               const logWithClub = { ...log, clubId: state.user?.clubId };
               const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
               
-              await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
-              for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
-              
-              if (state.workout?.isPlannedSession) {
-                await deleteDoc(doc(db, "programs", state.workout.id.toString()));
+              try {
+                if (!navigatorOnline || isOfflineBackupActive || gcpBillingError) {
+                  throw new Error("offline");
+                }
+                await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
+                for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
+                
+                if (state.workout?.isPlannedSession) {
+                  await deleteDoc(doc(db, "programs", state.workout.id.toString()));
+                }
+                
+                if (state.workout?.bookingId) {
+                  await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
+                }
+                
+                setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
+                showToast("Séance de coaching enregistrée !");
+              } catch (err) {
+                console.warn("Offline/failed save, caching coaching logs locally:", err);
+                queueForSync('logs', logWithClub);
+                queueForSync('performances', perfsWithClub);
+                
+                if (state.workout?.isPlannedSession) {
+                  const pid = state.workout.id;
+                  setState(prev => ({
+                    ...prev,
+                    programs: prev.programs.filter(p => p.id !== pid)
+                  }));
+                  queueForSync('delete_program', { id: pid });
+                }
+                
+                setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
+                showToast("Séance sauvegardée localement en cache (Hors-ligne) !", "info");
               }
-              
-              if (state.workout?.bookingId) {
-                await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
-              }
-              
-              setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
-              showToast("Séance de coaching enregistrée !");
             }}
           />
         ) : (
@@ -1192,19 +1375,40 @@ export default function App() {
               const logWithClub = { ...log, clubId: state.user?.clubId };
               const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
               
-              await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
-              for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
+              try {
+                if (!navigatorOnline || isOfflineBackupActive || gcpBillingError) {
+                  throw new Error("offline");
+                }
+                await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
+                for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
 
-              if (state.workout?.isPlannedSession) {
-                await deleteDoc(doc(db, "programs", state.workout.id.toString()));
-              }
-              
-              if (state.workout?.bookingId) {
-                await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
-              }
+                if (state.workout?.isPlannedSession) {
+                  await deleteDoc(doc(db, "programs", state.workout.id.toString()));
+                }
+                
+                if (state.workout?.bookingId) {
+                  await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
+                }
 
-              setState(s => ({ ...s, workout: null, workoutMember: null }));
-              showToast("Séance enregistrée !");
+                setState(s => ({ ...s, workout: null, workoutMember: null }));
+                showToast("Séance enregistrée !");
+              } catch (err) {
+                console.warn("Offline/failed save, caching member logs locally:", err);
+                queueForSync('logs', logWithClub);
+                queueForSync('performances', perfsWithClub);
+                
+                if (state.workout?.isPlannedSession) {
+                  const pid = state.workout.id;
+                  setState(prev => ({
+                    ...prev,
+                    programs: prev.programs.filter(p => p.id !== pid)
+                  }));
+                  queueForSync('delete_program', { id: pid });
+                }
+
+                setState(s => ({ ...s, workout: null, workoutMember: null }));
+                showToast("Séance sauvegardée localement en cache (Hors-ligne) !", "info");
+              }
             }}
           />
         )

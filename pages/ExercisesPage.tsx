@@ -103,14 +103,14 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
       animate="visible"
       className="space-y-8 pb-20"
     >
-      <motion.div variants={itemVariants} className="flex justify-between items-center px-1">
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">BIBLIOTHÈQUE</h1>
+          <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">BIBLIOTHÈQUE</h1>
           <p className="text-xs font-medium uppercase text-emerald-600 tracking-wider mt-2">{state.exercises.length} Exercices dispos</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setShowAddModal(true)} variant="primary" className="!py-3 !rounded-2xl shadow-xl shadow-emerald-500/20">
-            <PlusIcon size={18} className="mr-2" /> AJOUTER
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button onClick={() => setShowAddModal(true)} variant="primary" className="!py-2.5 sm:!py-3 !px-4 sm:!px-6 !rounded-2xl shadow-xl shadow-emerald-500/20 font-black text-xs italic whitespace-nowrap w-full sm:w-auto">
+            <PlusIcon size={18} className="mr-2 inline" /> AJOUTER
           </Button>
         </div>
       </motion.div>

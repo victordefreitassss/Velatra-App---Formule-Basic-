@@ -12,6 +12,9 @@ import {
 } from "firebase/auth";
 import { 
   getFirestore, 
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   doc, 
   setDoc, 
   getDoc, 
@@ -47,7 +50,61 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, config.firestoreDatabaseId || env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || undefined);
+let dbIdToUse: string | undefined = undefined;
+
+if (typeof window !== 'undefined') {
+  const localStorageOverride = window.localStorage.getItem('velatra_firestore_db_override');
+  if (localStorageOverride === 'isolated') {
+    dbIdToUse = config.firestoreDatabaseId || env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || undefined;
+  } else if (localStorageOverride === 'default') {
+    dbIdToUse = undefined;
+  } else {
+    // By default, connect to the standard historical (default) database where all your clubs and members live.
+    dbIdToUse = undefined;
+  }
+} else {
+  dbIdToUse = undefined;
+}
+
+let localDb: any;
+if (typeof dbIdToUse !== 'undefined') {
+  try {
+    localDb = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    }, dbIdToUse);
+  } catch (error) {
+    console.warn("Retrying Firestore initialization for key/db with simple cache:", error);
+    try {
+      localDb = initializeFirestore(app, {
+        localCache: persistentLocalCache()
+      }, dbIdToUse);
+    } catch (err) {
+      localDb = getFirestore(app, dbIdToUse);
+    }
+  }
+} else {
+  // Otherwise use default DB
+  try {
+    localDb = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
+  } catch (error) {
+    console.warn("Retrying default Firestore initialization with simple cache:", error);
+    try {
+      localDb = initializeFirestore(app, {
+        localCache: persistentLocalCache()
+      });
+    } catch (err) {
+      localDb = getFirestore(app);
+    }
+  }
+}
+
+export const db = localDb;
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
 

@@ -530,7 +530,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
           <p className="text-zinc-500 mt-1">Suivez vos revenus récurrents et paiements.</p>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <button
             onClick={handleExportPDF}
             className="flex items-center gap-2 bg-emerald-500 text-zinc-900 px-4 py-2 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:bg-emerald-600 transition-colors whitespace-nowrap"

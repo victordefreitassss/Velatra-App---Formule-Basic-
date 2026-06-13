@@ -6,8 +6,9 @@ import { getLevel, formatDate } from '../utils';
 import { CalendarIcon, RefreshCwIcon, TargetIcon, BarChartIcon, TrophyIcon, FlameIcon, SparklesIcon, MessageCircleIcon, ShoppingCartIcon, GiftIcon, MegaphoneIcon, BotIcon, SendIcon } from './Icons';
 import { BodyHeatmap } from './BodyHeatmap';
 import { db, doc, updateDoc, setDoc } from '../firebase';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenAI } from '../services/aiService';
+import confetti from 'canvas-confetti';
 
 interface MemberDashboardProps {
   state: AppState;
@@ -76,6 +77,105 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
   const [remark, setRemark] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [isSavingRemark, setIsSavingRemark] = useState(false);
+
+  // Daily Habits check-in states
+  const [water, setWater] = useState(1.5);
+  const [sleep, setSleep] = useState(7.5);
+  const [proteinOk, setProteinOk] = useState(false);
+  const [mood, setMood] = useState(4);
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [showLevelUpModal, setShowLevelUpModal] = useState<number | null>(null);
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isCheckedInToday = user.lastCheckInDate === todayStr;
+
+  const handleDailyCheckIn = async () => {
+    if (isCheckedInToday || isCheckingIn) return;
+    setIsCheckingIn(true);
+    try {
+      confetti({
+        particleCount: 120,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+
+      const prevXp = user.xp || 0;
+      const newXp = prevXp + 50;
+
+      const currentLvl = Math.floor(prevXp / 1000) + 1;
+      const newLvl = Math.floor(newXp / 1000) + 1;
+      const didLevelUp = newLvl > currentLvl;
+
+      // Streak calculation
+      let newStreak = user.streak || 0;
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+      if (user.lastCheckInDate === yesterdayStr) {
+        newStreak += 1;
+      } else if (user.lastCheckInDate !== todayStr) {
+        newStreak = 1;
+      }
+
+      const userRef = doc(db, "users", (user as any).firebaseUid);
+      await updateDoc(userRef, {
+        xp: newXp,
+        streak: newStreak,
+        lastCheckInDate: todayStr
+      });
+
+      // Send to Feed
+      const feedId = `checkin_${user.id}_${Date.now()}`;
+      const newFeedItem: FeedItem = {
+        id: Date.now(),
+        clubId: user.clubId,
+        userId: user.id,
+        userName: user.name,
+        type: 'session',
+        title: `🔥 Rituel Quotidien : ${user.name} a validé son rituel de forme du jour ! (Série de ${newStreak} jours)`,
+        date: new Date().toISOString()
+      };
+      await setDoc(doc(db, "feed", feedId), newFeedItem);
+
+      setState(prev => {
+        const cachedUser = { 
+          ...prev.user!, 
+          xp: newXp, 
+          streak: newStreak, 
+          lastCheckInDate: todayStr 
+        };
+        if (typeof window !== 'undefined') {
+          try {
+            localStorage.setItem('velatra_cache_user', JSON.stringify(cachedUser));
+          } catch (e) {}
+        }
+        return {
+          ...prev,
+          user: cachedUser,
+          users: prev.users.map(u => u.id === user.id ? cachedUser : u)
+        };
+      });
+
+      showToast("Rituel du jour complété ! +50 XP 🔥", "success");
+
+      if (didLevelUp) {
+        setShowLevelUpModal(newLvl);
+        setTimeout(() => {
+          confetti({
+            particleCount: 180,
+            spread: 90,
+            origin: { y: 0.5 }
+          });
+        }, 1200);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("Erreur d'enregistrement", "error");
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
 
   useEffect(() => {
     if (program?.memberRemarks) {
@@ -222,6 +322,211 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           </div>
         </motion.div>
       </motion.div>
+
+      {/* Leveling & Gamification Center */}
+      <motion.div variants={itemVariants} className="px-2">
+        <div className="bg-zinc-50 border border-zinc-200 rounded-[2rem] p-6 shadow-sm">
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center gap-2">
+              <TrophyIcon size={18} className="text-yellow-500 animate-bounce" />
+              <span className="text-xs font-black text-zinc-900 uppercase tracking-widest">Aventure Fitness : Niveau {Math.floor(user.xp / 1000) + 1}</span>
+            </div>
+            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{user.xp % 1000}/1000 XP</span>
+          </div>
+          
+          {/* Progress Bar Container */}
+          <div className="w-full h-3 bg-zinc-200 rounded-full overflow-hidden relative shadow-inner mb-4">
+            <motion.div 
+              initial={{ width: 0 }}
+              animate={{ width: `${(user.xp % 1000) / 10}%` }}
+              transition={{ duration: 1, ease: "easeOut" }}
+              className="h-full bg-gradient-to-r from-emerald-500 to-indigo-600 rounded-full relative"
+            >
+              <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.15)_50%,rgba(255,255,255,.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[progress-bar-stripes_1s_linear_infinite]" />
+            </motion.div>
+          </div>
+          
+          <p className="text-[10px] text-zinc-500 font-bold leading-tight mb-4">
+            Astuce : Rentre ton rituel quotidien et valide tes séances pour gagner {1000 - (user.xp % 1000)} XP et passer au niveau {Math.floor(user.xp / 1000) + 2} !
+          </p>
+
+          {/* Week overview */}
+          <div className="border-t border-zinc-200 pt-4">
+            <span className="text-[9px] font-black uppercase text-zinc-500 tracking-wider block mb-2 text-center">Série Hebdomadaire</span>
+            <div className="grid grid-cols-7 gap-1">
+              {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((day, idx) => {
+                const currentDayOfWeek = (new Date().getDay() + 6) % 7; 
+                const isToday = idx === currentDayOfWeek;
+                const isPast = idx < currentDayOfWeek;
+                const isChecked = isPast || (isToday && isCheckedInToday);
+                
+                return (
+                  <div key={day} className="flex flex-col items-center gap-1">
+                    <span className="text-[9px] font-bold text-zinc-400">{day}</span>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                      isChecked 
+                        ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20' 
+                        : isToday 
+                          ? 'bg-zinc-100 border border-orange-500 text-orange-500 animate-pulse'
+                          : 'bg-zinc-100 text-zinc-400 border border-transparent'
+                    }`}>
+                      {isChecked ? (
+                        <FlameIcon size={14} fill="currentColor" className="text-zinc-950" />
+                      ) : (
+                        <span className="text-[10px] font-black">{idx + 1}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Daily Ritual Habit Check-In Widget */}
+      <motion.section variants={itemVariants} className="px-2">
+        <div className="bg-zinc-50 border border-zinc-200 rounded-[2rem] p-6 shadow-sm relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+          
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
+              <SparklesIcon size={16} className="text-emerald-500 animate-spin-slow" /> Rituel Quotidien
+            </h3>
+            <Badge className={isCheckedInToday ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse"}>
+              {isCheckedInToday ? "COMPLÉTÉ SÉRIE ACTIVE" : "À VALIDER (+50 XP)"}
+            </Badge>
+          </div>
+
+          {isCheckedInToday ? (
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-6 text-center shadow-inner"
+            >
+              <div className="w-14 h-14 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-3 text-emerald-500 border border-emerald-500/20 shadow-inner">
+                <FlameIcon size={32} fill="currentColor" className="animate-pulse" />
+              </div>
+              <h4 className="text-base font-black text-zinc-900 mb-1">Rituel du Jour Enregistré !</h4>
+              <p className="text-xs text-zinc-500 font-bold leading-normal max-w-xs mx-auto">
+                Bravo ! Ta série de <span className="text-emerald-500 font-black">{user.streak || 0}</span> jours consécutifs est préservée. Ton corps te remerciera. À demain pour un nouveau rituel !
+              </p>
+            </motion.div>
+          ) : (
+            <div className="space-y-4">
+              {/* Mood Slider */}
+              <div className="bg-white rounded-2xl p-4 border border-zinc-100">
+                <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider block mb-2">Humeur & Énergie</span>
+                <div className="flex justify-between gap-1">
+                  {[
+                    { val: 1, label: "😭" },
+                    { val: 2, label: "🙁" },
+                    { val: 3, label: "😐" },
+                    { val: 4, label: "🙂" },
+                    { val: 5, label: "🔥" }
+                  ].map(m => (
+                    <button
+                      key={m.val}
+                      onClick={() => setMood(m.val)}
+                      type="button"
+                      className={`flex-1 py-1.5 text-xl rounded-xl transition-all ${
+                        mood === m.val 
+                          ? 'bg-zinc-100 border border-zinc-250 scale-105 shadow-sm' 
+                          : 'opacity-50 hover:opacity-100'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                {/* Hydration */}
+                <div className="bg-white rounded-2xl p-4 border border-zinc-100 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider block mb-1">Hydratation (L)</span>
+                    <span className="text-lg font-black text-sky-500">{water} L</span>
+                  </div>
+                  <div className="flex gap-1.5 mt-2">
+                    <button
+                      onClick={() => setWater(prev => Math.max(0.5, Number((prev - 0.5).toFixed(1))))}
+                      type="button"
+                      className="w-8 h-8 rounded-xl bg-zinc-50 hover:bg-zinc-100 font-black text-zinc-700 flex items-center justify-center border border-zinc-200"
+                    >
+                      -
+                    </button>
+                    <button
+                      onClick={() => setWater(prev => Math.min(4.0, Number((prev + 0.5).toFixed(1))))}
+                      type="button"
+                      className="w-8 h-8 rounded-xl bg-zinc-50 hover:bg-zinc-100 font-black text-zinc-700 flex items-center justify-center border border-zinc-200"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sleep */}
+                <div className="bg-white rounded-2xl p-4 border border-zinc-100 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider block mb-1">Sommeil (H)</span>
+                    <span className="text-lg font-black text-indigo-500">{sleep} H</span>
+                  </div>
+                  <div className="flex gap-1.5 mt-2">
+                    <button
+                      onClick={() => setSleep(prev => Math.max(4, Number((prev - 0.5).toFixed(1))))}
+                      type="button"
+                      className="w-8 h-8 rounded-xl bg-zinc-50 hover:bg-zinc-100 font-black text-zinc-700 flex items-center justify-center border border-zinc-200"
+                    >
+                      -
+                    </button>
+                    <button
+                      onClick={() => setSleep(prev => Math.min(12, Number((prev + 0.5).toFixed(1))))}
+                      type="button"
+                      className="w-8 h-8 rounded-xl bg-zinc-50 hover:bg-zinc-100 font-black text-zinc-700 flex items-center justify-center border border-zinc-200"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Protein Target */}
+              <button 
+                onClick={() => setProteinOk(!proteinOk)}
+                type="button"
+                className={`w-full rounded-2xl p-4 border flex items-center justify-between transition-all ${
+                  proteinOk 
+                    ? 'bg-zinc-100 border-zinc-300 shadow-sm' 
+                    : 'bg-white border-zinc-100 hover:bg-zinc-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${proteinOk ? 'bg-emerald-500 text-zinc-950 shadow' : 'bg-zinc-100 text-zinc-400'}`}>
+                    <TrophyIcon size={16} />
+                  </div>
+                  <div className="text-left">
+                    <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider block">Objectif Nutrition</span>
+                    <span className="text-xs font-bold text-zinc-900">Protéines quotidiennes atteintes</span>
+                  </div>
+                </div>
+                <div className={`w-6 h-6 rounded-full border flex items-center justify-center ${proteinOk ? 'bg-emerald-500 border-zinc-300 text-zinc-950' : 'border-zinc-300 bg-white'}`}>
+                  {proteinOk && <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                </div>
+              </button>
+
+              {/* Validation Button */}
+              <Button 
+                onClick={handleDailyCheckIn}
+                disabled={isCheckingIn}
+                className="w-full !py-4 bg-emerald-500 text-zinc-950 hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] font-black text-xs uppercase tracking-wider !rounded-2xl transition-all"
+              >
+                {isCheckingIn ? "ENREGISTREMENT..." : "VALIDER MON RITUEL DU JOUR (+50 XP)"}
+              </Button>
+            </div>
+          )}
+        </div>
+      </motion.section>
 
       {/* Main Action: Today's Session */}
       <motion.section variants={itemVariants} className="px-2">
@@ -419,6 +724,66 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           </div>
         </motion.section>
       )}
+
+      {/* Celebratory Level Up Overlay Modal */}
+      <AnimatePresence>
+        {showLevelUpModal !== null && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 50 }}
+              transition={{ type: "spring", damping: 15 }}
+              className="bg-white border border-zinc-200 rounded-[2.5rem] p-8 max-w-sm w-full text-center shadow-2xl relative overflow-hidden"
+            >
+              {/* Decorative radial gradient */}
+              <div className="absolute inset-0 bg-gradient-to-b from-yellow-300/10 via-transparent to-transparent pointer-events-none" />
+              
+              {/* Particle animation placeholder */}
+              <div className="w-20 h-20 bg-yellow-400/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-yellow-400/20 shadow-xl relative animate-pulse">
+                <TrophyIcon size={40} className="text-yellow-500" />
+                <motion.div 
+                  className="absolute inset-0 rounded-full border-2 border-yellow-400"
+                  animate={{ scale: [1, 1.4, 1], opacity: [1, 0, 1] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                />
+              </div>
+
+              <h3 className="text-2xl font-display font-black text-zinc-900 leading-tight mb-2">
+                NIVEAU SUPÉRIEUR ! 🎉
+              </h3>
+              
+              <div className="inline-block bg-zinc-900 text-yellow-400 font-extrabold text-xs px-4 py-1.5 rounded-full mb-6 tracking-widest uppercase">
+                TU ES NIVEAU {showLevelUpModal}
+              </div>
+
+              <p className="text-sm text-zinc-500 font-medium leading-relaxed mb-6">
+                Chaque effort paye. Ton coach a été prévenu de ta progression héroïque. Continue de valider tes séances et tes rituels quotidiens pour atteindre les sommets !
+              </p>
+
+              <div className="bg-zinc-50 rounded-2xl p-4 border border-zinc-150 mb-6 text-left space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-zinc-700">
+                  <span className="text-emerald-500">✔</span> Avatar de profil amélioré
+                </div>
+                <div className="flex items-center gap-2 text-xs font-bold text-zinc-700">
+                  <span className="text-emerald-500">✔</span> Statut actif sur le fil du club
+                </div>
+                <div className="flex items-center gap-2 text-xs font-bold text-zinc-700">
+                  <span className="text-emerald-500">✔</span> Respect éternel de ton coach
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowLevelUpModal(null)}
+                type="button"
+                className="w-full py-4 bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xs font-bold tracking-widest uppercase rounded-2xl shadow-lg shadow-zinc-900/10 transition-all font-sans"
+              >
+                Continuer l'aventure
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };
