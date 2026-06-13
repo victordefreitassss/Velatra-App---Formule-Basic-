@@ -71,13 +71,13 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   return (
     <div className="space-y-8 page-transition pb-20">
-      <div className="flex justify-between items-center px-1">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Modèles <span className="text-emerald-500">PRESETS</span></h1>
+          <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Modèles <span className="text-emerald-500">PRESETS</span></h1>
           <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">{state.presets.length} Templates dispos</p>
         </div>
-        <Button onClick={handleNewPreset} variant="primary" className="!py-3 !rounded-2xl shadow-xl shadow-emerald-500/20">
-          <PlusIcon size={18} className="mr-2" /> CRÉER UN MODÈLE
+        <Button onClick={handleNewPreset} variant="primary" className="!py-2.5 sm:!py-3 !px-4 sm:!px-6 !rounded-2xl shadow-xl shadow-emerald-500/20 font-black text-xs italic whitespace-nowrap">
+          <PlusIcon size={18} className="mr-2 inline" /> CRÉER UN MODÈLE
         </Button>
       </div>
 

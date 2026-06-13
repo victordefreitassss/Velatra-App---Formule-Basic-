@@ -5,7 +5,7 @@ import { AppState, User, UserDocument, Performance, BodyData, Program, Gender, G
 import { Card, Button, Input, Badge } from '../components/UI';
 import { 
   SearchIcon, InfoIcon, UserIcon, ActivityIcon, DollarSignIcon,
-  XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon, MailIcon, ImageIcon, SparklesIcon
+  XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon, MailIcon, ImageIcon, SparklesIcon, PlusIcon, PlayCircleIcon, SettingsIcon, PhoneIcon
 } from '../components/Icons';
 import { db, doc, setDoc, updateDoc, deleteDoc, auth, secondaryAuth, createUserWithEmailAndPassword, sendPasswordResetEmail, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage, addDoc } from '../firebase';
 import { uploadBytesResumable, deleteObject } from 'firebase/storage';
@@ -36,9 +36,18 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState(state.memberFilter || "Tous");
   const [selectedProfile, setSelectedProfile] = useState<User | null>(state.selectedMember || null);
-  const [memberTab, setMemberTab] = useState<'overview' | 'profile' | 'measurements' | 'training' | 'billing' | 'documents'>('overview');
+  const [memberTab, setMemberTab] = useState<string>('overview');
   const [selectedLog, setSelectedLog] = useState<SessionLog | null>(null);
   const [selectedEvolutionPhoto, setSelectedEvolutionPhoto] = useState<string | null>(null);
+
+  const [coachingNotes, setCoachingNotes] = useState("");
+  const [coachingNoteDate, setCoachingNoteDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [isSavingCoachingNotes, setIsSavingCoachingNotes] = useState(false);
+  const [bookingStatusFilter, setBookingStatusFilter] = useState<string>('all');
+  const [bookingTypeFilter, setBookingTypeFilter] = useState<string>('all');
+  const [measurementsSubTab, setMeasurementsSubTab] = useState<'scans' | 'biometrics'>('scans');
+  const [selectedDateForPhoto, setSelectedDateForPhoto] = useState<string>('');
+  const [showProgramOptions, setShowProgramOptions] = useState<boolean>(false);
 
   useEffect(() => {
     if (state.memberFilter) {
@@ -75,6 +84,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [subCommitmentDate, setSubCommitmentDate] = useState('');
   const [subContractUrl, setSubContractUrl] = useState('');
   const [isGeneratingNutrition, setIsGeneratingNutrition] = useState(false);
+  
+  // Modals for template assignment
+  const [showAssignProgramTemplateModal, setShowAssignProgramTemplateModal] = useState(false);
+  const [showAssignNutritionTemplateModal, setShowAssignNutritionTemplateModal] = useState(false);
+  const [showSaveNutritionTemplateModal, setShowSaveNutritionTemplateModal] = useState(false);
+  const [newNutritionTemplateName, setNewNutritionTemplateName] = useState('');
+  const [programPresetSearch, setProgramPresetSearch] = useState('');
+  const [nutritionPresetSearch, setNutritionPresetSearch] = useState('');
+  
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [generatedReport, setGeneratedReport] = useState<string | null>(null);
   const [isDetectingStagnation, setIsDetectingStagnation] = useState(false);
@@ -109,6 +127,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   useEffect(() => {
     if (selectedProfile) {
       setVisibleCoachingLogs(5);
+      setCoachingNotes(selectedProfile.notes || "");
+      setCoachingNoteDate(new Date().toISOString().split('T')[0]);
+      setSelectedDateForPhoto("");
+      setMeasurementsSubTab('scans');
     }
   }, [selectedProfile?.id]);
 
@@ -325,6 +347,73 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     } catch (err) {
       console.error("Error updating member info:", err);
       showToast("Erreur lors de la mise à jour", "error");
+    }
+  };
+
+  const handleSaveCoachingNotes = async () => {
+    if (!selectedProfile || !selectedProfile.firebaseUid) return;
+    if (!coachingNotes.trim()) {
+      showToast("Veuillez saisir une note avant d'enregistrer", "error");
+      return;
+    }
+    setIsSavingCoachingNotes(true);
+    try {
+      const userRef = doc(db, "users", selectedProfile.firebaseUid);
+      
+      const dateObj = new Date(coachingNoteDate);
+      const now = new Date();
+      dateObj.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+
+      const newNote = {
+        id: Math.random().toString(36).substring(2, 9),
+        date: dateObj.toISOString(),
+        content: coachingNotes.trim(),
+      };
+      
+      const updatedHistory = [newNote, ...(selectedProfile.coachingNotesHistory || [])]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      await updateDoc(userRef, { 
+        notes: coachingNotes.trim(),
+        coachingNotesHistory: updatedHistory 
+      });
+      
+      showToast("Note enregistrée avec succès !");
+      setSelectedProfile(prev => prev ? ({ 
+        ...prev, 
+        notes: coachingNotes.trim(),
+        coachingNotesHistory: updatedHistory 
+      }) : null);
+      
+      setCoachingNotes("");
+      setCoachingNoteDate(new Date().toISOString().split('T')[0]);
+    } catch (err) {
+      console.error("Error saving coaching notes:", err);
+      showToast("Erreur lors de l'enregistrement de la note", "error");
+    } finally {
+      setIsSavingCoachingNotes(false);
+    }
+  };
+
+  const handleDeleteCoachingNote = async (noteId: string) => {
+    if (!selectedProfile || !selectedProfile.firebaseUid) return;
+    if (!confirm("Voulez-vous vraiment supprimer cette note ?")) return;
+    try {
+      const userRef = doc(db, "users", selectedProfile.firebaseUid);
+      const updatedHistory = (selectedProfile.coachingNotesHistory || []).filter(note => note.id !== noteId);
+      
+      await updateDoc(userRef, { 
+        coachingNotesHistory: updatedHistory 
+      });
+      
+      showToast("Note supprimée.");
+      setSelectedProfile(prev => prev ? ({ 
+        ...prev, 
+        coachingNotesHistory: updatedHistory 
+      }) : null);
+    } catch (err) {
+      console.error("Error deleting coaching note:", err);
+      showToast("Erreur lors de la suppression", "error");
     }
   };
 
@@ -897,6 +986,222 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       showToast("Erreur lors de la génération du plan : " + error.message, "error");
     } finally {
       setIsGeneratingNutrition(false);
+    }
+  };
+
+  // Modèles de nutrition de base
+  const STANDARD_NUTRITION_PRESETS = [
+    {
+      id: "s1",
+      name: "Sèche Extrême / Low Carb (1600 kcal)",
+      targetCalories: 1600,
+      protein: 160,
+      carbs: 100,
+      fat: 60,
+      meals: [
+        { id: "s1_m1", name: "Petit Déjeuner", description: "3 œufs entiers brouillés, 50g d'épinards frais, 40g de flocons d'avoine cuits à l'eau", calories: 420, protein: 30, carbs: 26, fat: 22 },
+        { id: "s1_m2", name: "Déjeuner", description: "150g de filet de poulet cuit sans matière grasse, 150g de riz basmati cuit, 200g de haricots verts cuits à la vapeur", calories: 380, protein: 42, carbs: 40, fat: 4 },
+        { id: "s1_m3", name: "Collation", description: "1 dose (30g) de Whey protéine isolée mélangée à l'eau, 30g d'amandes entières", calories: 290, protein: 31, carbs: 6, fat: 16 },
+        { id: "s1_m4", name: "Dîner", description: "150g de pavé de saumon frais grillé, 250g de brocolis vapeur, 1 cuillère à café d'huile d'olive extra-vierge", calories: 510, protein: 37, carbs: 12, fat: 34 }
+      ],
+      liste_courses: [
+        { id: "c1_1", name: "Œufs entiers bios", checked: false },
+        { id: "c1_2", name: "Flocons d'avoine", checked: false },
+        { id: "c1_3", name: "Filets de poulet frais", checked: false },
+        { id: "c1_4", name: "Riz basmati", checked: false },
+        { id: "c1_5", name: "Épinards frais", checked: false },
+        { id: "c1_6", name: "Haricots verts bios", checked: false },
+        { id: "c1_7", name: "Whey protéine isolée", checked: false },
+        { id: "c1_8", name: "Amandes entières", checked: false },
+        { id: "c1_9", name: "Pavés de saumon frais", checked: false },
+        { id: "c1_10", name: "Brocolis", checked: false }
+      ],
+      dietPreference: "Low Carb",
+      goal: "Perte de poids"
+    },
+    {
+      id: "s2",
+      name: "Perte de poids / Sèche Modérée (1900 kcal)",
+      targetCalories: 1900,
+      protein: 175,
+      carbs: 160,
+      fat: 62,
+      meals: [
+        { id: "s2_m1", name: "Petit Déjeuner", description: "150g de fromage blanc 0%, 50g de framboises fraîches, 50g de muesli sans sucre ajouté", calories: 350, protein: 24, carbs: 45, fat: 5 },
+        { id: "s2_m2", name: "Déjeuner", description: "150g de steak de bœuf haché 5% MG, 200g de patate douce au four, 150g de courgettes poêlées", calories: 520, protein: 44, carbs: 54, fat: 12 },
+        { id: "s2_m3", name: "Collation", description: "1 bol de skyr nature, 1 pomme, 20g de noix de grenoble", calories: 310, protein: 20, carbs: 28, fat: 13 },
+        { id: "s2_m4", name: "Dîner", description: "150g de filet de cabillaud, 200g de quinoa cuit chaud, salade verte mixte arrosée de citron et 1 cuillère à soupe d'huile de colza", calories: 720, protein: 38, carbs: 70, fat: 32 }
+      ],
+      liste_courses: [
+        { id: "c2_1", name: "Fromage blanc 0%", checked: false },
+        { id: "c2_2", name: "Framboises fraîches", checked: false },
+        { id: "c2_3", name: "Muesli sans sucre", checked: false },
+        { id: "c2_4", name: "Steak de bœuf 5% MG", checked: false },
+        { id: "c2_5", name: "Patates douces", checked: false },
+        { id: "c2_6", name: "Quinoa", checked: false },
+        { id: "c2_7", name: "Filets de cabillaud", checked: false },
+        { id: "c2_8", name: "Huile de colza", checked: false }
+      ],
+      dietPreference: "Standard",
+      goal: "Perte de poids"
+    },
+    {
+      id: "s3",
+      name: "Maintien & Équilibre (2200 kcal)",
+      targetCalories: 2200,
+      protein: 165,
+      carbs: 230,
+      fat: 65,
+      meals: [
+        { id: "s3_m1", name: "Petit Déjeuner", description: "Omelette de 2 œufs et 3 blancs d'œufs, 2 tranches de pain de seigle complet toasté, 1 kiwi", calories: 420, protein: 32, carbs: 35, fat: 13 },
+        { id: "s3_m2", name: "Déjeuner", description: "140g d'escalope de dinde, 180g de pâtes complètes cuites chaudes, ratatouille de légumes cuite", calories: 650, protein: 45, carbs: 78, fat: 11 },
+        { id: "s3_m3", name: "Collation", description: "1 banane bien mûre, 1/2 tasse d'oléagineux, 1 shake de Whey", calories: 430, protein: 40, carbs: 42, fat: 10 },
+        { id: "s3_m4", name: "Dîner", description: "120g de pavé de thon frais poêlé, purée de carottes, salade d'endives avec 1 cuillère d'huile de noix", calories: 700, protein: 48, carbs: 75, fat: 21 }
+      ],
+      liste_courses: [
+        { id: "c3_1", name: "Pain de seigle", checked: false },
+        { id: "c3_2", name: "Escalopes de dinde", checked: false },
+        { id: "c3_3", name: "Pâtes complètes", checked: false },
+        { id: "c3_4", name: "Pavés de thon frais", checked: false }
+      ],
+      dietPreference: "Standard",
+      goal: "Sport santé bien-être"
+    },
+    {
+      id: "s4",
+      name: "Prise de Masse Propre (2600 kcal)",
+      targetCalories: 2600,
+      protein: 180,
+      carbs: 310,
+      fat: 72,
+      meals: [
+        { id: "s4_m1", name: "Petit Déjeuner", description: "90g de flocons d'avoine, 250ml de lait d'amande, 20g de beurre de cacahuète bio, 1 banane coupée", calories: 630, protein: 22, carbs: 88, fat: 23 },
+        { id: "s4_m2", name: "Déjeuner", description: "160g de blanc de poulet rôti au four, 250g de riz basmati cuit, 200g d'asperges poêlées au citron", calories: 710, protein: 55, carbs: 90, fat: 12 },
+        { id: "s4_m3", name: "Collation", description: "300g de fromage blanc nature, 30g de Whey goût chocolat, de la purée d'oléagineux", calories: 450, protein: 48, carbs: 22, fat: 18 },
+        { id: "s4_m4", name: "Dîner", description: "180g de cabillaud à la provençale, 250g de purée de pommes de terre de campagne maison", calories: 810, protein: 55, carbs: 110, fat: 19 }
+      ],
+      liste_courses: [
+        { id: "c4_1", name: "Beurre de cacahuète bio", checked: false },
+        { id: "c4_2", name: "Lait d'amandes", checked: false },
+        { id: "c4_3", name: "Purée d'arachides", checked: false },
+        { id: "c4_4", name: "Pommes de terre", checked: false }
+      ],
+      dietPreference: "Standard",
+      goal: "Prise de masse"
+    }
+  ];
+
+  const handleAssignProgramPreset = async (preset: any) => {
+    if (!selectedProfile) return;
+    try {
+      const mid = Number(selectedProfile.id);
+      const existingProg = state.programs.find(p => Number(p.memberId) === mid && !p.isPlannedSession);
+      if (existingProg) {
+        await deleteDoc(doc(db, "programs", existingProg.id.toString()));
+      }
+      
+      const newProgId = Date.now();
+      const newProgram: Program = {
+        id: newProgId,
+        clubId: selectedProfile.clubId,
+        memberId: mid,
+        name: preset.name,
+        presetId: preset.id,
+        nbDays: preset.nbDays,
+        durationWeeks: preset.durationWeeks || 4,
+        startDate: new Date().toISOString().split('T')[0],
+        completedWeeks: [],
+        currentDayIndex: 0,
+        days: preset.days || []
+      };
+      
+      await setDoc(doc(db, "programs", newProgId.toString()), newProgram);
+      showToast(`Modèle "${preset.name}" assigné avec succès !`, "success");
+      setShowAssignProgramTemplateModal(false);
+    } catch (error: any) {
+      console.error(error);
+      showToast("Erreur lors de l'assignation du modèle : " + error.message, "error");
+    }
+  };
+
+  const handleAssignNutritionPreset = async (preset: any) => {
+    if (!selectedProfile) return;
+    try {
+      const mid = Number(selectedProfile.id);
+      const existingPlan = state.nutritionPlans?.find(p => p.memberId === mid);
+      const planId = existingPlan?.id?.toString() || Date.now().toString();
+      
+      const weight = selectedProfile.weight || 70;
+      const height = selectedProfile.height || 175;
+      const age = selectedProfile.age || 30;
+      const gender = selectedProfile.gender || 'M';
+      
+      let bmr = (10 * weight) + (6.25 * height) - (5 * age);
+      bmr += gender === 'M' ? 5 : -161;
+      let tdee = bmr * 1.55;
+
+      const newPlan: NutritionPlan = {
+        id: planId,
+        memberId: mid,
+        clubId: selectedProfile.clubId,
+        createdAt: existingPlan?.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        weight: weight,
+        height: height,
+        age: age,
+        gender: gender,
+        activityLevel: "Modérément actif",
+        goal: (selectedProfile.objectifs?.[0] as any) || "Perte de poids",
+        durationWeeks: 4,
+        bmr: Math.round(bmr),
+        tdee: Math.round(tdee),
+        targetCalories: preset.targetCalories,
+        protein: preset.protein,
+        carbs: preset.carbs,
+        fat: preset.fat,
+        meals: preset.meals || [],
+        liste_courses: preset.liste_courses || [],
+        aiGenerated: false
+      };
+      
+      await setDoc(doc(db, "nutritionPlans", planId), newPlan);
+      setNutritionPlan(newPlan);
+      showToast(`Modèle nutritionnel "${preset.name}" assigné avec succès !`, "success");
+      setShowAssignNutritionTemplateModal(false);
+    } catch (error: any) {
+      console.error(error);
+      showToast("Erreur lors de l'assignation du modèle : " + error.message, "error");
+    }
+  };
+
+  const handleSaveAsNutritionPreset = async () => {
+    if (!selectedProfile || !newNutritionTemplateName.trim()) return;
+    const currentPlan = state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id));
+    if (!currentPlan) return;
+    
+    try {
+      const presetId = Date.now().toString();
+      const newPreset: any = {
+        id: presetId,
+        clubId: selectedProfile.clubId,
+        name: newNutritionTemplateName.trim(),
+        targetCalories: currentPlan.targetCalories,
+        protein: currentPlan.protein,
+        carbs: currentPlan.carbs,
+        fat: currentPlan.fat,
+        meals: currentPlan.meals || [],
+        liste_courses: currentPlan.liste_courses || [],
+        dietPreference: currentPlan.dietPreference || 'Standard',
+        goal: currentPlan.goal || 'Standard'
+      };
+      
+      await setDoc(doc(db, "nutritionPresets", presetId), newPreset);
+      showToast(`Modèle nutritionnel "${newPreset.name}" enregistré avec succès !`, "success");
+      setShowSaveNutritionTemplateModal(false);
+      setNewNutritionTemplateName('');
+    } catch (error: any) {
+      console.error(error);
+      showToast("Erreur lors de l'enregistrement du modèle : " + error.message, "error");
     }
   };
 
@@ -1553,12 +1858,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   return (
     <div className="space-y-6 page-transition">
-      <div className="flex justify-between items-center px-1">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900">Fiches Membres</h1>
+          <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900">Fiches Membres</h1>
           <p className="text-xs font-medium uppercase text-emerald-600 tracking-wider">{members.length} Profils Actifs</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <input 
             type="file" 
             accept=".csv" 
@@ -1568,12 +1873,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           />
           <label 
             htmlFor="import-clients-csv" 
-            className="bg-white backdrop-blur-xl text-zinc-900 px-6 py-3 rounded-2xl font-black text-xs italic cursor-pointer hover:bg-white transition-colors flex items-center gap-2 border border-zinc-200 shadow-sm"
+            className="bg-white backdrop-blur-xl text-zinc-900 px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl font-black text-[10px] sm:text-xs italic cursor-pointer hover:bg-white transition-colors flex items-center gap-2 border border-zinc-200 shadow-sm whitespace-nowrap"
           >
             <UploadIcon size={16} />
             IMPORT CSV
           </label>
-          <Button variant="primary" onClick={() => setIsAddingMember(true)} className="!py-3 !px-6 !rounded-2xl shadow-xl shadow-emerald-500/20 font-black text-xs italic">
+          <Button variant="primary" onClick={() => setIsAddingMember(true)} className="!py-2.5 sm:!py-3 !px-4 sm:!px-6 !rounded-2xl shadow-xl shadow-emerald-500/20 font-black text-[10px] sm:text-xs italic whitespace-nowrap">
             + NOUVEAU PROFIL
           </Button>
         </div>
@@ -1714,7 +2019,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="w-full max-w-6xl bg-zinc-100 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border border-zinc-200 shadow-2xl relative overflow-hidden my-0 md:my-8"
+                className="w-full max-w-[1450px] bg-zinc-100 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border border-zinc-200 shadow-2xl relative overflow-hidden my-0 md:my-8"
               >
                 <ErrorBoundary>
                 <button onClick={closeProfile} className="fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-zinc-100 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border border-zinc-200 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
@@ -1798,19 +2103,20 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       <Badge variant="accent" className="!px-4 !py-1.5">ÉVOLUTION</Badge>
                     </div>
                   </div>
-                  <nav className="flex flex-col gap-1 mt-4">
+                  <nav className="flex flex-row md:flex-col gap-1.5 mt-4 overflow-x-auto md:overflow-visible pb-2 md:pb-0 hide-scrollbar scrollbar-none">
                     {[
                       { id: 'overview', label: "Vue d'ensemble", icon: <LayersIcon size={16} /> },
                       { id: 'profile', label: "Profil", icon: <UserIcon size={16} /> },
                       { id: 'measurements', label: "Mensurations", icon: <ActivityIcon size={16} /> },
                       { id: 'training', label: "Entraînement", icon: <DumbbellIcon size={16} /> },
+                      { id: 'bookings', label: "Agenda", icon: <CalendarIcon size={16} /> },
                       { id: 'billing', label: "Facturation", icon: <DollarSignIcon size={16} /> },
                       { id: 'documents', label: "Documents", icon: <FolderIcon size={16} /> }
                     ].map(tab => (
                       <button 
                         key={tab.id}
                         onClick={() => setMemberTab(tab.id as any)}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${memberTab === tab.id ? 'bg-emerald-500 text-zinc-900 shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50'}`}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${memberTab === tab.id ? 'bg-emerald-500 text-zinc-900 shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50'}`}
                       >
                         {tab.icon}
                         {tab.label}
@@ -1847,16 +2153,27 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           </h4>
                           <p className="text-[10px] text-zinc-500 mb-6 leading-relaxed">Générez un programme d'entraînement complet et sur-mesure basé sur les objectifs et le niveau du membre.</p>
                         </div>
-                        <Button 
-                          variant="secondary" 
-                          fullWidth 
-                          onClick={openAIGeneratorModal} 
-                          disabled={isGeneratingProgram} 
-                          className={`!py-3 !text-[10px] !rounded-xl relative z-10 border-emerald-500/30 !bg-emerald-500/10 !text-emerald-500 hover:!bg-emerald-500/20 transition-all ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                          <SparklesIcon size={14} className="mr-2 inline" />
-                          {isGeneratingProgram ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER VIA IA'}
-                        </Button>
+                        <div className="space-y-2 relative z-10 w-full">
+                          <Button 
+                            variant="secondary" 
+                            fullWidth 
+                            onClick={openAIGeneratorModal} 
+                            disabled={isGeneratingProgram} 
+                            className={`!py-3 !text-[10px] !rounded-xl border-emerald-500/30 !bg-emerald-500/10 !text-emerald-500 hover:!bg-emerald-500/20 transition-all ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <SparklesIcon size={14} className="mr-2 inline" />
+                            {isGeneratingProgram ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER VIA IA'}
+                          </Button>
+                          <Button 
+                            variant="secondary" 
+                            fullWidth 
+                            onClick={() => setShowAssignProgramTemplateModal(true)} 
+                            className="!py-3 !text-[10px] !rounded-xl border-emerald-500/30 !bg-zinc-100 !text-zinc-700 hover:!bg-zinc-200 transition-all"
+                          >
+                            <PlusIcon size={14} className="mr-2 inline" />
+                            ASSIGNER UN MODÈLE
+                          </Button>
+                        </div>
                       </div>
 
                       {/* Feature 2: Nutrition Plan */}
@@ -1879,6 +2196,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           </Button>
                           <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl border-emerald-500/30 hover:border-emerald-500" onClick={openNutritionTargetsModal} disabled={isGeneratingNutrition}>
                             {isGeneratingNutrition ? "CRÉATION EN COURS..." : (state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)) ? "RÉGÉNÉRER LE PLAN" : "GÉNÉRER LE PLAN")}
+                          </Button>
+                          <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl border-emerald-500/30 hover:border-emerald-500 !bg-zinc-100 !text-zinc-700 hover:!bg-zinc-200 transition-all" onClick={() => setShowAssignNutritionTemplateModal(true)}>
+                            <PlusIcon size={14} className="mr-2 inline" /> ASSIGNER UN MODÈLE
                           </Button>
                         </div>
                       </div>
@@ -1958,6 +2278,356 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl relative z-10 border-emerald-500/30 hover:border-emerald-500" onClick={() => showToast("Fonctionnalité IA en cours d'activation pour votre club", "info")}>
                           ANALYSER DES PHOTOS
                         </Button>
+                      </div>
+                    </div>
+
+                    {/* NOTES DE SUIVI SECTION */}
+                    <div className="bg-zinc-50 border border-zinc-200 rounded-[32px] p-8 mt-8 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between border-b border-zinc-200/60 pb-3">
+                        <div className="flex items-center gap-2">
+                          <FileTextIcon size={20} className="text-emerald-500" />
+                          <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">
+                            Notes de suivi du client
+                          </h4>
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded">
+                          Coach
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500 leading-normal">
+                        Utilisez cet espace pour noter les forces, faiblesses, ressentis, et adaptations pour {selectedProfile.name}.
+                      </p>
+                      <textarea
+                        value={coachingNotes}
+                        onChange={(e) => setCoachingNotes(e.target.value)}
+                        placeholder="Saisissez une nouvelle note (ex : restriction d'amplitude, blessures passées, ressentis, objectifs à court terme)..."
+                        className="w-full h-24 bg-white border border-zinc-200 rounded-2xl p-4 text-xs text-zinc-800 outline-none focus:border-emerald-500 transition-colors resize-none shadow-sm animate-in fade-in"
+                      />
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Date de la note :</span>
+                          <input 
+                            type="date"
+                            value={coachingNoteDate}
+                            onChange={(e) => setCoachingNoteDate(e.target.value)}
+                            className="bg-white border border-zinc-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-zinc-800 outline-none focus:border-emerald-500 cursor-pointer shadow-sm"
+                          />
+                        </div>
+                        <Button 
+                          variant="success" 
+                          onClick={handleSaveCoachingNotes} 
+                          disabled={isSavingCoachingNotes}
+                          className="!py-2.5 !px-6 !text-[11px] w-full sm:w-auto"
+                        >
+                          {isSavingCoachingNotes ? "ENREGISTREMENT..." : "AJOUTER LA NOTE"}
+                        </Button>
+                      </div>
+
+                      {/* HISTORIQUE DES NOTES */}
+                      <div className="pt-6 border-t border-zinc-200/60 space-y-4">
+                        <h5 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                          <FileTextIcon size={14} className="text-emerald-500" /> Notes enregistrées ({(selectedProfile.coachingNotesHistory || []).length})
+                        </h5>
+
+                        {/* Legacy note or default display if history is empty but notes string is not empty */}
+                        {(!selectedProfile.coachingNotesHistory || selectedProfile.coachingNotesHistory.length === 0) && selectedProfile.notes && (
+                          <div className="bg-white border border-zinc-200 rounded-2xl p-4 text-xs shadow-sm flex justify-between items-start">
+                            <div className="space-y-1 w-full">
+                              <p className="text-zinc-400 text-[9px] uppercase font-bold tracking-wider">Note globale existante</p>
+                              <p className="text-zinc-800 whitespace-pre-wrap font-medium">{selectedProfile.notes}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedProfile.coachingNotesHistory && selectedProfile.coachingNotesHistory.length > 0 ? (
+                          <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                            {selectedProfile.coachingNotesHistory.map((note) => (
+                              <div key={note.id} className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-2xl p-4 text-xs shadow-sm space-y-2 relative group transition-colors">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] font-bold text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded tracking-wide uppercase">
+                                    {new Date(note.date).toLocaleString('fr-FR', {
+                                      day: 'numeric',
+                                      month: 'long',
+                                      year: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                  <button
+                                    onClick={() => handleDeleteCoachingNote(note.id)}
+                                    className="text-zinc-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-50 transition-colors"
+                                    title="Supprimer la note"
+                                  >
+                                    <Trash2Icon size={14} />
+                                  </button>
+                                </div>
+                                <p className="text-zinc-800 leading-relaxed font-semibold whitespace-pre-wrap">{note.content}</p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          !selectedProfile.notes && (
+                            <div className="text-center py-6 bg-zinc-100/50 border border-dashed border-zinc-200 rounded-2xl">
+                              <p className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider">Aucune note enregistrée pour le moment.</p>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </section>
+                  )}
+
+                  {/* AGENDA & RÉSERVATIONS TAB */}
+                  {memberTab === 'bookings' && (
+                  <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center gap-4">
+                       <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CalendarIcon size={24} /></div>
+                       <div>
+                         <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Agenda & Réservations</h3>
+                         <p className="text-xs text-zinc-500 mt-0.5">Consultez, filtrez et gérez les réservations et le forfait d'abonnement actif pour {selectedProfile.name}.</p>
+                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                      {/* SIDEBAR FILTERS AND STATS */}
+                      <div className="lg:col-span-1 space-y-6">
+                        {/* 1. Subscription Stats Card */}
+                        <div className="bg-zinc-50 border border-zinc-200 rounded-[32px] p-6 shadow-sm space-y-4">
+                          <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-200 pb-2">
+                            Abonnement & Forfait
+                          </h4>
+                          {(() => {
+                            const activeSub = state.subscriptions?.find(s => s.memberId === Number(selectedProfile?.id) && s.status === 'active');
+                            const activePlan = activeSub ? state.plans?.find(p => p.id === activeSub.planId) : null;
+                            const memberBookings = state.bookings?.filter(b => b.memberId === Number(selectedProfile?.id) && b.status !== 'cancelled') || [];
+                            const totalBookings = memberBookings.length;
+                            
+                            if (!activeSub) {
+                              return (
+                                <div className="space-y-2">
+                                  <div className="text-xs font-bold text-red-500 bg-red-50 border border-red-100 rounded-2xl p-3 text-center space-y-1">
+                                    <div className="font-extrabold uppercase tracking-wide">⚠️ Pas d'abonnement en cours</div>
+                                    <div className="text-[10px] text-red-400 font-medium normal-case">Aucune formule active trouvée pour ce membre.</div>
+                                  </div>
+                                  <div className="pt-2 border-t border-zinc-200/60 flex justify-between items-center text-[11px]">
+                                    <span className="font-bold text-zinc-500 uppercase tracking-wider">Réservations totales</span>
+                                    <span className="font-black text-zinc-900 bg-zinc-200 px-2 py-0.5 rounded-full">{totalBookings}</span>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            const creditsText = activePlan?.credits !== undefined ? String(activePlan.credits) : 'Illimité';
+                            return (
+                              <div className="space-y-4">
+                                <div className="space-y-1">
+                                  <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-full inline-block">
+                                    ACTIF
+                                  </span>
+                                  <h5 className="font-black text-zinc-950 text-xs leading-tight uppercase font-display italic">
+                                    {activeSub.planName || 'Formule Active'}
+                                  </h5>
+                                  <p className="text-[10px] text-zinc-500 font-medium">
+                                    Débute le : {new Date(activeSub.startDate).toLocaleDateString('fr-FR')}
+                                  </p>
+                                </div>
+
+                                <div className="pt-3 border-t border-zinc-200/60 space-y-3">
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="font-bold text-zinc-500 uppercase tracking-widest text-[10px]">Réservations totales</span>
+                                    <span className="font-black text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
+                                      {totalBookings}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex justify-between items-center text-xs">
+                                    <span className="font-bold text-zinc-500 uppercase tracking-widest text-[10px]">Séances forfait</span>
+                                    <span className="font-black text-zinc-800 bg-zinc-200 px-2.5 py-0.5 rounded-full">
+                                      {creditsText}
+                                    </span>
+                                  </div>
+
+                                  {activePlan?.credits !== undefined && activePlan.credits > 0 && (
+                                    <div className="space-y-1 pt-1">
+                                      <div className="w-full bg-zinc-200 rounded-full h-1.5 overflow-hidden">
+                                        <div 
+                                          className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                                          style={{ width: `${Math.min(100, (totalBookings / activePlan.credits) * 100)}%` }}
+                                        />
+                                      </div>
+                                      <div className="flex justify-between text-[9px] text-zinc-400 font-bold uppercase tracking-wider">
+                                        <span>Utilisé : {totalBookings}</span>
+                                        <span>Quota : {activePlan.credits}</span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* 2. Filters Card */}
+                        <div className="bg-zinc-50 border border-zinc-200 rounded-[32px] p-6 shadow-sm space-y-4">
+                          <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-200 pb-2">
+                            Filtres de l'Agenda
+                          </h4>
+                          
+                          {/* Status Filter */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-wider">
+                              Statut
+                            </label>
+                            <select
+                              value={bookingStatusFilter}
+                              onChange={(e) => setBookingStatusFilter(e.target.value)}
+                              className="w-full text-xs font-bold bg-white border border-zinc-200 rounded-xl px-2.5 py-2 outline-none focus:border-emerald-500 text-zinc-800 cursor-pointer"
+                            >
+                              <option value="all">Tous les statuts</option>
+                              <option value="confirmed">Confirmées / Actives</option>
+                              <option value="pending">En attente</option>
+                              <option value="completed">Terminées</option>
+                              <option value="cancelled">Annulées / Rejetées</option>
+                            </select>
+                          </div>
+
+                          {/* Type Filter */}
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-wider">
+                              Type de séance
+                            </label>
+                            <select
+                              value={bookingTypeFilter}
+                              onChange={(e) => setBookingTypeFilter(e.target.value)}
+                              className="w-full text-xs font-bold bg-white border border-zinc-200 rounded-xl px-2.5 py-2 outline-none focus:border-emerald-500 text-zinc-800 cursor-pointer"
+                            >
+                              <option value="all">Tous les types</option>
+                              <option value="coaching">Coaching individuel</option>
+                              <option value="trial">Séance d'essai</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* MAIN RESERVATIONS TIMELINE */}
+                      <div className="lg:col-span-3 space-y-4">
+                        {(() => {
+                          const rawBookings = state.bookings?.filter(b => b.memberId === Number(selectedProfile?.id)) || [];
+                          
+                          // Filter bookings based on state
+                          const filteredBookings = rawBookings.filter(b => {
+                            // Status filter
+                            if (bookingStatusFilter === 'confirmed' && b.status !== 'confirmed') return false;
+                            if (bookingStatusFilter === 'pending' && b.status !== 'pending') return false;
+                            if (bookingStatusFilter === 'completed' && b.status !== 'completed') return false;
+                            if (bookingStatusFilter === 'cancelled' && b.status !== 'cancelled' && b.status !== 'rejected') return false;
+                            
+                            // Type filter
+                            if (bookingTypeFilter === 'coaching' && b.type !== 'coaching') return false;
+                            if (bookingTypeFilter === 'trial' && b.type !== 'trial') return false;
+
+                            return true;
+                          });
+
+                          // Sort chronologically (upcoming first, then past)
+                          const sortedBookings = [...filteredBookings].sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+
+                          if (sortedBookings.length === 0) {
+                            return (
+                              <div className="bg-zinc-50 border border-zinc-200 rounded-[32px] p-12 text-center space-y-4 shadow-sm animate-in fade-in duration-300">
+                                <div className="p-4 bg-zinc-200/50 rounded-full text-zinc-400 inline-block">
+                                  <CalendarIcon size={32} />
+                                </div>
+                                <div className="space-y-1 max-w-sm mx-auto">
+                                  <h4 className="font-black text-zinc-900 text-sm uppercase">Aucune réservation trouvée</h4>
+                                  <p className="text-xs text-zinc-500 leading-normal">
+                                    Aucun créneau de réservation ne correspond à vos filtres actuels ou le membre n'a aucun enregistrement.
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="space-y-3">
+                              {sortedBookings.map(booking => {
+                                const coachName = state.users?.find(u => String(u.id) === booking.coachId)?.name || 'Coach Indéfini';
+                                const start = new Date(booking.startTime);
+                                const end = new Date(booking.endTime);
+                                
+                                // Format nicer French dates
+                                const dayName = start.toLocaleDateString('fr-FR', { weekday: 'short' });
+                                const dayNum = start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                                const timeStr = `${start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+
+                                return (
+                                  <div 
+                                    key={booking.id}
+                                    className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-2xl p-4 sm:p-5 shadow-sm transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                                  >
+                                    <div className="flex items-center gap-4">
+                                      {/* Date indicator block */}
+                                      <div className="bg-zinc-100 border border-zinc-200/60 rounded-xl px-3.5 py-2.5 text-center min-w-[70px]">
+                                        <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{dayName}</div>
+                                        <div className="text-sm font-black text-zinc-900 uppercase font-display italic tracking-tighter">{dayNum}</div>
+                                      </div>
+
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="text-xs font-black text-zinc-950 uppercase">
+                                            {booking.type === 'coaching' ? 'Coaching Privé' : 'Séance d\'Essai'}
+                                          </span>
+                                           <Badge 
+                                            variant={
+                                              booking.status === 'confirmed' ? 'success' :
+                                              booking.status === 'completed' ? 'accent' :
+                                              booking.status === 'pending' ? 'orange' :
+                                              'dark'
+                                            }
+                                            className="uppercase !text-[9px] !px-2 !py-0.5 font-bold tracking-widest"
+                                          >
+                                            {
+                                              booking.status === 'confirmed' ? 'Confirmé' :
+                                              booking.status === 'completed' ? 'Complété' :
+                                              booking.status === 'pending' ? 'En attente' :
+                                              booking.status === 'cancelled' ? 'Annulé' :
+                                              booking.status === 'rejected' ? 'Rejeté' : booking.status
+                                            }
+                                          </Badge>
+                                        </div>
+                                        <div className="text-[11px] text-zinc-500 font-bold flex items-center gap-1.5">
+                                          <span className="bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-700">{timeStr}</span>
+                                          <span>• Dirigé par : <strong className="text-zinc-700 font-extrabold">{coachName}</strong></span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Action button */}
+                                    {booking.status === 'confirmed' && (
+                                      <Button 
+                                        variant="secondary"
+                                        className="!py-1.5 !px-3 font-bold !text-[9px] !rounded-lg border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                        onClick={async () => {
+                                          if (confirm(`Voulez-vous vraiment annuler la réservation de ${selectedProfile.name} le ${dayNum} à ${timeStr} ?`)) {
+                                            try {
+                                              await updateDoc(doc(db, "bookings", booking.id), { status: 'cancelled' });
+                                              showToast("Réservation annulée avec succès");
+                                            } catch (err) {
+                                              console.error(err);
+                                              showToast("Erreur lors de l'annulation", "error");
+                                            }
+                                          }
+                                        }}
+                                      >
+                                        <XIcon size={12} className="mr-1 inline-block" /> ANNULER
+                                      </Button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </section>
@@ -2584,101 +3254,162 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 )}
 {memberTab === 'measurements' && (
 <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-  <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Suivi & Mensurations</h3>
-  <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                      <div className="space-y-6 bg-zinc-50 p-8 rounded-3xl border ">
-                    <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Nouveau Scan</h3>
-                    <div className="space-y-4">
-                      <Input placeholder="Poids (kg)" type="number" className="!bg-zinc-50" value={newScan.weight || ''} onChange={e => setNewScan({...newScan, weight: e.target.value})} />
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input placeholder="Gras (%)" type="number" className="!bg-zinc-50" value={newScan.fat || ''} onChange={e => setNewScan({...newScan, fat: e.target.value})} />
-                        <Input placeholder="Muscle (kg)" type="number" className="!bg-zinc-50" value={newScan.muscle || ''} onChange={e => setNewScan({...newScan, muscle: e.target.value})} />
-                      </div>
-                      <Button variant="success" fullWidth onClick={handleSaveScan} className="!py-4 shadow-xl shadow-emerald-500/10">
-                        <SaveIcon size={16} className="mr-2" /> ENREGISTRER SCAN
-                      </Button>
-                    </div>
-                  </div>
-                      <div className="space-y-4">
-                    <div className="flex items-center justify-between px-1">
-                       <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Évolution</h3>
-                    </div>
-                    {(() => {
-                      const memberPhotos = state.progressPhotos?.filter(p => p.memberId === Number(selectedProfile.id) && p.visibility === 'coach') || [];
-                      const photosByDate = memberPhotos.reduce((acc, photo) => {
-                        const date = photo.date.split('T')[0];
-                        if (!acc[date]) acc[date] = photo;
-                        return acc;
-                      }, {} as Record<string, import('../types').ProgressPhoto>);
-                      const sortedDates = Object.keys(photosByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-                      const latestDate = sortedDates[0];
-                      const latestPhoto = latestDate ? photosByDate[latestDate] : null;
-
-                      if (!latestPhoto) {
-                        return (
-                          <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm text-center">
-                            <ImageIcon size={24} className="mx-auto text-zinc-300 mb-2" />
-                            <p className="text-xs text-zinc-500 font-medium">Aucune photo partagée.</p>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm space-y-4">
-                          <div className="flex justify-between items-center mb-4">
-                            <span className="font-black text-zinc-900 text-sm uppercase">Dernières photos</span>
-                            <span className="text-[10px] font-bold text-zinc-500 uppercase">{new Date(latestDate).toLocaleDateString()}</span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 mb-4">
-                            {['frontUrl', 'sideUrl', 'backUrl'].map((type) => {
-                              const url = (latestPhoto as any)[type];
-                              return (
-                                <div key={type} className="aspect-[3/4] bg-zinc-200 rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity" onClick={() => url && setSelectedEvolutionPhoto(url)}>
-                                  {url ? (
-                                    <img src={url} alt={type} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-zinc-400">
-                                      <ImageIcon size={16} />
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                          
-                          {latestPhoto.measurements && Object.keys(latestPhoto.measurements).length > 0 && (
-                            <div className="bg-white rounded-2xl p-4 border border-zinc-200">
-                              <h4 className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-3">Mensurations (cm)</h4>
-                              <div className="grid grid-cols-3 gap-y-3 gap-x-2">
-                                {[
-                                  { key: 'chest', label: 'Poitrine' },
-                                  { key: 'waist', label: 'Taille' },
-                                  { key: 'hips', label: 'Hanches' },
-                                  { key: 'arm', label: 'Bras' },
-                                  { key: 'thigh', label: 'Cuisse' },
-                                  { key: 'calf', label: 'Mollet' }
-                                ].map(m => latestPhoto.measurements?.[m.key as any] ? (
-                                  <div key={m.key}>
-                                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{m.label}</div>
-                                    <div className="text-sm font-black text-zinc-900">{latestPhoto.measurements[m.key as any] || '--'}</div>
-                                  </div>
-                                ) : null)}
-                              </div>
-                            </div>
-                          )}
-
-                          {sortedDates.length > 1 && (
-                            <div className="text-center pt-2">
-                              <span className="text-[10px] font-bold text-zinc-500 uppercase">{sortedDates.length} dates disponibles</span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  </div>
-    
-    
+  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-4">
+    <div>
+      <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Suivi & Mensurations</h3>
+      <p className="text-xs text-zinc-500 mt-1">Gérez le scan corporel, l'évolution en photos et l'historique biométrique.</p>
+    </div>
+    <div className="flex gap-2 bg-zinc-100 p-1 rounded-xl">
+      <button
+        onClick={() => setMeasurementsSubTab('scans')}
+        className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${measurementsSubTab === 'scans' ? 'bg-emerald-500 text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}
+      >
+        Scans & Évolution
+      </button>
+      <button
+        onClick={() => setMeasurementsSubTab('biometrics')}
+        className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${measurementsSubTab === 'biometrics' ? 'bg-emerald-500 text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}
+      >
+        Journaux Biométriques
+      </button>
+    </div>
   </div>
+
+  {measurementsSubTab === 'scans' ? (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="space-y-6 bg-zinc-50 p-8 rounded-[32px] border border-zinc-200">
+        <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500 mb-2">Nouveau Scan</h3>
+        <div className="space-y-4">
+          <Input placeholder="Poids (kg)" type="number" className="!bg-zinc-50" value={newScan.weight || ''} onChange={e => setNewScan({...newScan, weight: e.target.value})} />
+          <div className="grid grid-cols-2 gap-4">
+            <Input placeholder="Gras (%)" type="number" className="!bg-zinc-50" value={newScan.fat || ''} onChange={e => setNewScan({...newScan, fat: e.target.value})} />
+            <Input placeholder="Muscle (kg)" type="number" className="!bg-zinc-50" value={newScan.muscle || ''} onChange={e => setNewScan({...newScan, muscle: e.target.value})} />
+          </div>
+          <Button variant="success" fullWidth onClick={handleSaveScan} className="!py-4 shadow-xl shadow-emerald-500/10">
+            <SaveIcon size={16} className="mr-2" /> ENREGISTRER SCAN
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {(() => {
+          const memberPhotos = state.progressPhotos?.filter(p => p.memberId === Number(selectedProfile.id) && p.visibility === 'coach') || [];
+          const photosByDate = memberPhotos.reduce((acc, photo) => {
+            const date = photo.date.split('T')[0];
+            if (!acc[date]) acc[date] = photo;
+            return acc;
+          }, {} as Record<string, import('../types').ProgressPhoto>);
+          const sortedDates = Object.keys(photosByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+          const latestDate = sortedDates[0];
+          
+          const activeDate = selectedDateForPhoto || latestDate;
+          const activePhoto = activeDate ? photosByDate[activeDate] : null;
+
+          if (!activePhoto) {
+            return (
+              <div className="bg-zinc-50 border border-zinc-200 rounded-[32px] p-8 shadow-sm text-center">
+                <ImageIcon size={32} className="mx-auto text-zinc-300 mb-3" />
+                <h4 className="font-black text-zinc-900 text-sm uppercase mb-1">Aucune photo d'évolution</h4>
+                <p className="text-xs text-zinc-500">Le membre n'a pas encore partagé ses photos d'évolution avec vous.</p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="bg-zinc-50 border border-zinc-200 rounded-[32px] p-8 shadow-sm space-y-4">
+              <div className="flex justify-between items-center mb-4">
+                <span className="font-black text-zinc-900 text-sm uppercase font-display italic">Évolution corporelle</span>
+                
+                {sortedDates.length > 1 ? (
+                  <select 
+                    value={activeDate} 
+                    onChange={(e) => setSelectedDateForPhoto(e.target.value)}
+                    className="text-xs bg-white border border-zinc-200 rounded-lg px-2.5 py-1.5 font-bold outline-none focus:border-emerald-500 cursor-pointer text-zinc-800"
+                  >
+                    {sortedDates.map(d => (
+                      <option key={d} value={d}>
+                        {new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="text-[10px] font-bold text-zinc-500 uppercase bg-zinc-200 px-2 py-1 rounded">
+                    {new Date(activeDate).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                {['frontUrl', 'sideUrl', 'backUrl'].map((type) => {
+                  const url = (activePhoto as any)[type];
+                  return (
+                    <div 
+                      key={type} 
+                      className="aspect-[3/4] bg-zinc-200 rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity border border-zinc-300/50 shadow-sm relative group" 
+                      onClick={() => url && setSelectedEvolutionPhoto(url)}
+                    >
+                      {url ? (
+                        <>
+                          <img src={url} alt={type} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="text-[10px] text-white font-bold uppercase tracking-wider">Agrandir</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-400">
+                          <ImageIcon size={16} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {activePhoto.measurements && Object.keys(activePhoto.measurements).length > 0 && (
+                <div className="bg-white rounded-2xl p-4 border border-zinc-200">
+                  <h4 className="text-xs font-black uppercase text-zinc-500 tracking-wider mb-3">Mensurations (cm)</h4>
+                  <div className="grid grid-cols-3 gap-y-3 gap-x-2">
+                    {[
+                      { key: 'chest', label: 'Poitrine' },
+                      { key: 'waist', label: 'Taille' },
+                      { key: 'hips', label: 'Hanches' },
+                      { key: 'arm', label: 'Bras' },
+                      { key: 'thigh', label: 'Cuisse' },
+                      { key: 'calf', label: 'Mollet' }
+                    ].map(m => activePhoto.measurements?.[m.key as any] ? (
+                      <div key={m.key}>
+                        <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{m.label}</div>
+                        <div className="text-sm font-black text-zinc-900">{activePhoto.measurements[m.key as any] || '--'}</div>
+                      </div>
+                    ) : null)}
+                  </div>
+                </div>
+              )}
+
+              {sortedDates.length > 1 && (
+                <div className="text-center pt-2">
+                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{sortedDates.length} relevés photos disponibles</span>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
+    </div>
+  ) : (
+    <div className="space-y-6 bg-zinc-50 border border-zinc-200 rounded-[32px] p-6 sm:p-8 animate-in fade-in duration-300">
+      <div>
+        <h4 className="text-sm font-black text-zinc-950 uppercase tracking-widest mb-1 flex items-center gap-2">
+          <FileTextIcon size={18} className="text-emerald-500" /> Journaux Biométriques & Alimentation
+        </h4>
+        <p className="text-[11px] text-zinc-500 leading-normal">
+          Consultez et complétez les relevés nutritionnels quotidiens, l'apport en eau, le sommeil et le poids du membre pour optimiser son suivi de près.
+        </p>
+      </div>
+      <div className="bg-white border border-zinc-200 rounded-2xl p-2 sm:p-6 shadow-inner">
+        <MemberNutritionView state={state} showToast={showToast} memberId={Number(selectedProfile.id)} readOnly={false} />
+      </div>
+    </div>
+  )}
 </section>
 )}
 {memberTab === 'training' && (
@@ -2687,77 +3418,200 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                         <div className="space-y-4">
                     <div className="flex items-center justify-between px-1">
                        <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Plan Actif</h3>
-                       <div className="flex gap-2">
-                         <button onClick={openAIGeneratorModal} disabled={isGeneratingProgram} className={`text-emerald-500 hover:text-emerald-600 transition-colors ${isGeneratingProgram ? 'animate-pulse cursor-not-allowed' : ''}`} title="Générer avec l'IA">
-                            <SparklesIcon size={14} />
-                         </button>
-                         <button onClick={() => handleEditProgram(selectedProfile)} className="text-zinc-500 hover:text-zinc-900 transition-colors" title="Créer / Modifier">
-                            <LayersIcon size={14} />
-                         </button>
-                       </div>
                     </div>
                     {stats.program ? (
-                      <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 shadow-sm relative overflow-hidden">
-                        <div className="font-black text-zinc-900 text-lg mb-1 uppercase italic">{stats.program.name}</div>
-                        <div className="flex justify-between text-[10px] font-bold text-zinc-500 uppercase mb-4 tracking-widest">
-                           <span>{hasDuration ? 'Cycle complété' : 'Progression'}</span>
-                           <span className="text-zinc-900">{hasDuration ? `${progCompletion}%` : `S${currentWeek} - J${currentSession}`}</span>
-                        </div>
-                        {hasDuration ? (
-                          <div className="h-2 bg-zinc-50 backdrop-blur-xl rounded-full overflow-hidden mb-4 border ">
-                            <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] transition-all duration-1000" style={{ width: `${progCompletion}%` }} />
+                      <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
+                        {/* Title & Phase Badge in a single line */}
+                        <div className="flex items-start justify-between gap-4 mb-2">
+                          <div className="font-black text-zinc-900 text-lg uppercase italic tracking-tight leading-tight shrink">
+                            {stats.program.name}
                           </div>
-                        ) : (
-                          <div className="h-2 bg-zinc-50 backdrop-blur-xl rounded-full overflow-hidden mb-4 border flex">
-                             <div className="h-full bg-emerald-500/80 w-full rounded-full" />
+                          <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 bg-zinc-100/80 px-2.5 py-1 rounded-full shrink-0">
+                            {hasDuration ? `${progCompletion}% complété` : `Semaine ${currentWeek} • Jour ${currentSession}`}
                           </div>
-                        )}
-                        
-                        {/* Feature 2: Auto Progression Toggle */}
-                        <div className="mt-4 pt-4 border-t  flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-4 bg-emerald-500 rounded-full relative cursor-pointer" onClick={() => showToast("Progression automatique activée", "success")}>
-                              <div className="absolute right-1 top-0.5 w-3 h-3 bg-white rounded-full shadow-sm"></div>
-                            </div>
-                            <span className="text-[9px] font-black text-zinc-900 uppercase tracking-widest">Surcharge Progressive IA</span>
-                          </div>
-                          <span className="text-[10px] text-zinc-500 uppercase tracking-widest">+2.5kg auto</span>
                         </div>
 
-                        <Button 
-                          variant="primary" 
-                          onClick={() => {
-                            setState(s => ({ ...s, workout: stats.program, workoutMember: selectedProfile }));
-                          }} 
-                          className="!py-3 !text-[10px] w-full mt-4 !rounded-xl shadow-xl shadow-emerald-500/20 mb-2"
-                        >
-                          LANCER SÉANCE COACHING
-                        </Button>
-                        <div className="flex gap-2">
-                           <Button variant="secondary" onClick={() => setState({...state, viewingProg: stats.program})} className="!py-2 !text-[10px] flex-1 !bg-white">
-                             CONSULTER
-                           </Button>
-                           <Button variant="secondary" onClick={() => {
-                             if (!selectedProfile.phone) return showToast("Adhérent sans numéro de téléphone", "error");
-                             const text = encodeURIComponent(`Salut ${selectedProfile.name} ! Ton nouveau programme ${stats.program?.name} est disponible sur l'application. Bon entraînement ! 💪`);
-                             window.open(`https://wa.me/${selectedProfile.phone.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
-                           }} className="!py-2 !text-[10px] w-auto px-4 !bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 border-none font-bold">
-                             WHATSAPP
-                           </Button>
+                        {/* Progress Bar (Thinner and sleeker) */}
+                        <div className="my-3">
+                          {hasDuration ? (
+                            <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden border border-zinc-200/50">
+                              <div className="h-full bg-emerald-500 rounded-full transition-all duration-1000" style={{ width: `${progCompletion}%` }} />
+                            </div>
+                          ) : (
+                            <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden border border-zinc-200/50 flex">
+                               <div className="h-full bg-emerald-500/80 w-full rounded-full" />
+                            </div>
+                          )}
                         </div>
+
+                        {/* Surcharge Progressive IA (Clean modern switch list item) */}
+                        <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="w-8 h-4 bg-emerald-500 rounded-full relative cursor-pointer transition-colors" 
+                              onClick={() => showToast("Surcharge active : progression de charge automatique réglée à +2.5kg", "info")}
+                            >
+                              <div className="absolute right-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-all" />
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-black text-zinc-900 uppercase tracking-widest block leading-tight">Surcharge Progressive IA</span>
+                              <span className="text-[8px] text-zinc-400 font-extrabold uppercase tracking-widest block mt-0.5">+2.5kg automatique par séance validée</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons: 1 Giant CTA, 2 auxiliary actions */}
+                        <div className="mt-5 space-y-2">
+                          {/* Play Action */}
+                          <Button 
+                            variant="primary" 
+                            onClick={() => {
+                              setState(s => ({ ...s, workout: stats.program, workoutMember: selectedProfile }));
+                            }} 
+                            className="!py-3.5 !text-xs w-full !rounded-2xl shadow-md font-black uppercase tracking-wider flex items-center justify-center gap-2 text-zinc-900 !bg-emerald-500 hover:!bg-emerald-600 border-none select-none cursor-pointer"
+                          >
+                            <PlayCircleIcon size={16} />
+                            LANCER SÉANCE COACHING
+                          </Button>
+
+                          {/* Auxiliary controls */}
+                          <div className="flex gap-2">
+                            {/* Aperçu */}
+                            <button 
+                              type="button"
+                              onClick={() => setState({...state, viewingProg: stats.program})} 
+                              className="flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-800 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                            >
+                              <EyeIcon size={12} />
+                              Aperçu du plan
+                            </button>
+
+                            {/* Gérer (Saves space by bundling edit/ai/assign and whatsapp) */}
+                            <button 
+                              type="button"
+                              onClick={() => setShowProgramOptions(!showProgramOptions)} 
+                              className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest border rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                showProgramOptions 
+                                  ? 'bg-zinc-900 border-zinc-900 text-white shadow-inner' 
+                                  : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-800'
+                              }`}
+                            >
+                              <SettingsIcon size={12} />
+                              {showProgramOptions ? 'Masquer Options' : 'Options & Gérer'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Expanded Program Actions (Clean grid, extremely professional) */}
+                        {showProgramOptions && (
+                          <div className="mt-4 pt-4 border-t border-zinc-105 grid grid-cols-2 gap-2 animate-in slide-in-from-top-2 duration-200">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowAssignProgramTemplateModal(true);
+                                setShowProgramOptions(false);
+                              }}
+                              className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-50 hover:bg-emerald-500/10 border border-zinc-150 text-left transition-all hover:border-emerald-500/20 cursor-pointer group"
+                            >
+                              <PlusIcon size={14} className="text-emerald-500 shrink-0 group-hover:scale-110 transition-transform" />
+                              <div>
+                                <div className="text-[9px] font-black uppercase text-zinc-900 tracking-wider">Assigner Modèle</div>
+                                <div className="text-[7px] text-zinc-400 font-bold uppercase mt-0.5">Importer de la base</div>
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                openAIGeneratorModal();
+                                setShowProgramOptions(false);
+                              }}
+                              disabled={isGeneratingProgram}
+                              className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-50 hover:bg-amber-500/10 border border-zinc-150 text-left transition-all hover:border-amber-500/20 cursor-pointer group disabled:opacity-50"
+                            >
+                              <SparklesIcon size={14} className="text-amber-500 shrink-0 group-hover:scale-110 transition-transform" />
+                              <div>
+                                <div className="text-[9px] font-black uppercase text-zinc-900 tracking-wider">Générer via IA</div>
+                                <div className="text-[7px] text-zinc-400 font-bold uppercase mt-0.5">Moteur Velatra AI</div>
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleEditProgram(selectedProfile);
+                                setShowProgramOptions(false);
+                              }}
+                              className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-50 hover:bg-indigo-500/10 border border-zinc-150 text-left transition-all hover:border-indigo-500/20 cursor-pointer group"
+                            >
+                              <LayersIcon size={14} className="text-indigo-500 shrink-0 group-hover:scale-110 transition-transform" />
+                              <div>
+                                <div className="text-[9px] font-black uppercase text-zinc-900 tracking-wider">Créer/Modifier Ext.</div>
+                                <div className="text-[7px] text-zinc-400 font-bold uppercase mt-0.5">Éditeur à la carte</div>
+                              </div>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowProgramOptions(false);
+                                if (!selectedProfile.phone) return showToast("Adhérent sans numéro de téléphone", "error");
+                                const text = encodeURIComponent(`Salut ${selectedProfile.name} ! Ton nouveau programme ${stats.program?.name} est disponible sur l'application. Bon entraînement ! 💪`);
+                                window.open(`https://wa.me/${selectedProfile.phone.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
+                              }}
+                              className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-50 hover:bg-teal-500/10 border border-zinc-150 text-left transition-all hover:border-teal-500/20 cursor-pointer group"
+                            >
+                              <PhoneIcon size={14} className="text-emerald-500 shrink-0 group-hover:scale-110 transition-transform" />
+                              <div>
+                                <div className="text-[9px] font-black uppercase text-zinc-900 tracking-wider">Alerte WhatsApp</div>
+                                <div className="text-[7px] text-zinc-400 font-bold uppercase mt-0.5">Partagé avec l'athlète</div>
+                              </div>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="bg-zinc-50 rounded-3xl p-8 border border-dashed  text-center">
-                         <p className="text-xs italic text-zinc-900 mb-4">Aucun cycle en cours</p>
-                         <div className="flex flex-col gap-2">
-                           <Button variant="primary" fullWidth onClick={() => handleEditProgram(selectedProfile)} className="!py-3 !text-[10px]">
-                              CRÉER MANUELLEMENT
-                           </Button>
-                           <Button variant="secondary" fullWidth onClick={openAIGeneratorModal} disabled={isGeneratingProgram} className={`!py-3 !text-[10px] bg-gradient-to-r from-emerald-500/10 to-emerald-600/10 text-emerald-600 hover:from-emerald-500/20 hover:to-emerald-600/20 shadow-sm border-none transition-all ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                             <SparklesIcon size={14} className="mr-2 inline" />
-                             {isGeneratingProgram ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER VIA IA'}
-                           </Button>
-                         </div>
+                      <div className="bg-white border border-dashed border-zinc-200 rounded-3xl p-6 text-center shadow-sm">
+                        <div className="w-12 h-12 rounded-2xl bg-zinc-50 flex items-center justify-center text-zinc-400 mx-auto mb-3 border border-zinc-100">
+                          <DumbbellIcon size={20} />
+                        </div>
+                        <h4 className="font-extrabold text-zinc-900 text-sm uppercase tracking-wider mb-1">Aucun cycle en cours</h4>
+                        <p className="text-[11px] text-zinc-500 max-w-xs mx-auto mb-5 leading-normal">
+                          Planifiez le parcours d'entraînement pour cet athlète en créant son programme.
+                        </p>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <button 
+                            type="button"
+                            onClick={() => handleEditProgram(selectedProfile)} 
+                            className="flex flex-col items-center justify-center p-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 transition-all text-center cursor-pointer group"
+                          >
+                            <LayersIcon size={14} className="text-zinc-600 mb-1.5 group-hover:scale-110 transition-transform" />
+                            <span className="text-[8px] font-black uppercase tracking-wider text-zinc-700 leading-tight">À la carte</span>
+                            <span className="text-[7px] text-zinc-400 font-extrabold uppercase mt-0.5">Créer</span>
+                          </button>
+
+                          <button 
+                            type="button"
+                            onClick={openAIGeneratorModal} 
+                            disabled={isGeneratingProgram} 
+                            className={`flex flex-col items-center justify-center p-3 rounded-xl bg-gradient-to-br from-emerald-500/5 to-emerald-600/5 hover:from-emerald-500/15 hover:to-emerald-600/15 border border-emerald-500/10 hover:border-emerald-500/20 transition-all text-center cursor-pointer group ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <SparklesIcon size={14} className="text-emerald-500 mb-1.5 group-hover:scale-110 transition-transform" />
+                            <span className="text-[8px] font-black uppercase tracking-wider text-emerald-600 leading-tight">Moteur IA</span>
+                            <span className="text-[7px] text-emerald-400 font-extrabold uppercase mt-0.5">Générer</span>
+                          </button>
+
+                          <button 
+                            type="button"
+                            onClick={() => setShowAssignProgramTemplateModal(true)} 
+                            className="flex flex-col items-center justify-center p-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 transition-all text-center cursor-pointer group"
+                          >
+                            <PlusIcon size={14} className="text-zinc-600 mb-1.5 group-hover:scale-110 transition-transform" />
+                            <span className="text-[8px] font-black uppercase tracking-wider text-zinc-700 leading-tight">Modèle</span>
+                            <span className="text-[7px] text-zinc-400 font-extrabold uppercase mt-0.5">Importer</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -3029,7 +3883,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="w-full max-w-lg"
+            className="w-full max-w-2xl"
           >
             <Card className="w-full !p-8 bg-zinc-100 backdrop-blur-xl  relative shadow-2xl max-h-[90vh] flex flex-col">
               <button onClick={() => setIsEditingInfo(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-50 backdrop-blur-xl border border-zinc-200 p-2 rounded-full transition-colors z-10 shadow-sm">
@@ -3218,7 +4072,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="w-full max-w-md"
+            className="w-full max-w-xl"
           >
             <Card className="w-full !p-8 bg-zinc-100 backdrop-blur-xl  relative shadow-2xl">
               <button onClick={() => setIsAdjustingTargets(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-50 backdrop-blur-xl border border-zinc-200 p-2 rounded-full transition-colors shadow-sm">
@@ -3333,7 +4187,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="w-full max-w-lg"
+            className="w-full max-w-2xl"
           >
             <Card className="w-full !p-8 bg-zinc-100 backdrop-blur-xl  relative shadow-2xl max-h-[90vh] flex flex-col">
               <button onClick={() => setIsAddingMember(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-50 backdrop-blur-xl border border-zinc-200 p-2 rounded-full transition-colors z-10 shadow-sm">
@@ -3489,17 +4343,31 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="w-full max-w-4xl bg-zinc-100 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border border-emerald-500/20 shadow-[0_0_100px_rgba(16,185,129,0.1)] relative overflow-hidden my-0 md:my-8 p-8 md:p-12"
+            className="w-full max-w-[1450px] bg-zinc-100 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border border-emerald-500/20 shadow-[0_0_100px_rgba(16,185,129,0.1)] relative overflow-hidden my-0 md:my-8 p-8 md:p-12"
           >
             <button onClick={() => setNutritionPlan(null)} className="fixed top-4 right-4 md:top-10 md:right-10 p-4 bg-zinc-100 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[800] border border-zinc-200 hover:bg-red-50 hover:border-red-200 transition-all shadow-xl"><XIcon size={24} /></button>
             
-            <div className="flex items-center gap-4 mb-8">
-               <div className="p-3 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl text-zinc-900 shadow-[0_0_20px_rgba(16,185,129,0.4)]"><CheckIcon size={24} /></div>
-               <div>
-                 <h2 className="text-3xl font-black text-zinc-900 uppercase italic tracking-tight">Plan Nutritionnel</h2>
-                 <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">Généré par Velatra AI Engine</p>
+             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+               <div className="flex items-center gap-4">
+                  <div className="p-3 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl text-zinc-900 shadow-[0_0_20px_rgba(16,185,129,0.4)]"><CheckIcon size={24} /></div>
+                  <div>
+                    <h2 className="text-3xl font-black text-zinc-900 uppercase italic tracking-tight">Plan Nutritionnel</h2>
+                    <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">
+                      {nutritionPlan.aiGenerated ? "Généré par Velatra AI Engine" : "Plan Actif de l'adhérent"}
+                    </p>
+                  </div>
                </div>
-            </div>
+               <Button 
+                 variant="secondary" 
+                 onClick={() => {
+                   setNewNutritionTemplateName(`Modèle ${selectedProfile?.name?.split(' ')[0] || ''} - ${nutritionPlan.targetCalories}kcal`);
+                   setShowSaveNutritionTemplateModal(true);
+                 }} 
+                 className="!py-3 !text-[11px] !rounded-xl !bg-emerald-500/10 hover:!bg-emerald-500/20 !text-emerald-600 border border-emerald-500/30 whitespace-nowrap self-start md:self-auto font-black italic tracking-wider"
+               >
+                 <SaveIcon size={14} className="mr-2 inline" /> SAUVEGARDER COMME MODÈLE
+               </Button>
+             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-10">
               <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 text-center shadow-sm">
@@ -3567,7 +4435,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-zinc-50 rounded-3xl p-8 max-w-md w-full shadow-2xl border"
+            className="bg-zinc-50 rounded-3xl p-8 max-w-xl w-full shadow-2xl border"
           >
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -3628,7 +4496,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-zinc-100 rounded-3xl p-6 max-w-4xl w-full shadow-2xl max-h-[90vh] overflow-y-auto border "
+            className="bg-zinc-100 rounded-3xl p-6 max-w-6xl w-full shadow-2xl max-h-[90vh] overflow-y-auto border "
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-start mb-6">
@@ -3652,7 +4520,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-zinc-100 rounded-3xl p-6 max-w-lg w-full shadow-2xl border "
+            className="bg-zinc-100 rounded-3xl p-6 max-w-2xl w-full shadow-2xl border "
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-start mb-6">
@@ -3781,7 +4649,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       {/* AI GENERATOR MODAL */}
       {isAIGeneratorModalOpen && selectedProfile && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl relative overflow-hidden">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-xl shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
             <div className="flex justify-between items-center mb-6 relative z-10">
               <h3 className="text-lg font-black text-zinc-900 uppercase italic flex items-center gap-2">
@@ -3881,7 +4749,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       {/* CSV IMPORT MODAL */}
       {isCsvImportModalOpen && createPortal(
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-8 w-full max-w-2xl shadow-2xl relative max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-3xl p-8 w-full max-w-4xl shadow-2xl relative max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h3 className="text-2xl font-black text-zinc-900 uppercase italic">Importer des clients</h3>
@@ -4055,6 +4923,241 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 </Button>
               </div>
             )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL ASSIGNATION DE PROGRAMME DE SEANCE */}
+      {showAssignProgramTemplateModal && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[85vh] flex flex-col">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+            
+            <div className="flex justify-between items-center mb-6 relative z-10">
+              <div>
+                <h3 className="text-xl font-black text-zinc-900 uppercase italic flex items-center gap-2">
+                  <LayersIcon size={20} className="text-emerald-500" /> Modèles de programmes
+                </h3>
+                <p className="text-xs text-zinc-500 font-medium mt-1">Assignez un programme type en 1 clic à cet adhérent.</p>
+              </div>
+              <button onClick={() => { setShowAssignProgramTemplateModal(false); setProgramPresetSearch(''); }} className="text-zinc-400 hover:text-zinc-900 p-1 hover:bg-zinc-100 rounded-lg transition-colors">
+                <XIcon size={20} />
+              </button>
+            </div>
+
+            {/* Barre de Recherche */}
+            <div className="relative mb-4 z-10">
+              <SearchIcon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <input 
+                type="text"
+                placeholder="Rechercher un modèle d'entraînement (Split, Full-Body, Force...)"
+                value={programPresetSearch}
+                onChange={(e) => setProgramPresetSearch(e.target.value)}
+                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-xs rounded-xl pl-10 pr-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-bold"
+              />
+            </div>
+
+            {/* Liste scrollable */}
+            <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar pr-1 space-y-3 z-10 pb-4">
+              {state.presets && state.presets.filter(p => !programPresetSearch || p.name.toLowerCase().includes(programPresetSearch.toLowerCase()) || (p.remarks || '').toLowerCase().includes(programPresetSearch.toLowerCase())).length > 0 ? (
+                state.presets.filter(p => !programPresetSearch || p.name.toLowerCase().includes(programPresetSearch.toLowerCase()) || (p.remarks || '').toLowerCase().includes(programPresetSearch.toLowerCase())).map((preset) => (
+                  <div key={preset.id} className="p-4 rounded-2xl border border-zinc-200 bg-white hover:border-emerald-500/50 hover:shadow-md transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        <span className="font-extrabold text-sm text-zinc-900 uppercase tracking-tight">{preset.name}</span>
+                        <Badge variant="dark" className="!bg-zinc-100 !text-zinc-600 !border-none !text-[9px] font-black">{preset.nbDays} j/sem</Badge>
+                        {preset.durationWeeks && <Badge variant="dark" className="!bg-zinc-100 !text-zinc-600 !border-none !text-[9px] font-black">{preset.durationWeeks} semaines</Badge>}
+                      </div>
+                      <p className="text-xs text-zinc-500 leading-relaxed font-medium mb-2">{preset.remarks || "Aucune description fournie"}</p>
+                      
+                      {preset.objectifs && preset.objectifs.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {preset.objectifs.map((objecti, idx) => (
+                            <Badge key={idx} variant="orange" className="!text-[9px] !px-2 py-0.5">{objecti}</Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <Button 
+                      variant="success"
+                      onClick={() => handleAssignProgramPreset(preset)}
+                      className="!py-2.5 !px-5 !text-[10px] w-full sm:w-auto font-black shrink-0 tracking-widest uppercase italic"
+                    >
+                      ASSIGNER
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-10 border border-dashed border-zinc-200 rounded-3xl bg-zinc-50">
+                  <DumbbellIcon size={32} className="mx-auto text-zinc-300 mb-3" />
+                  <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">Aucun modèle de programme disponible</p>
+                  <p className="text-[10px] text-zinc-400 mt-1">Créez des modèles dans la section 'Modèles de Séances'</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL ASSIGNATION DE PROGRAMME NUTRITIONNEL */}
+      {showAssignNutritionTemplateModal && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[85vh] flex flex-col">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+            
+            <div className="flex justify-between items-center mb-6 relative z-10">
+              <div>
+                <h3 className="text-xl font-black text-zinc-900 uppercase italic flex items-center gap-2">
+                  <CheckIcon size={20} className="text-emerald-500" /> Modèles nutritionnels
+                </h3>
+                <p className="text-xs text-zinc-500 font-medium mt-1">Choisissez un plan nutritionnel parmi les modèles existants.</p>
+              </div>
+              <button onClick={() => { setShowAssignNutritionTemplateModal(false); setNutritionPresetSearch(''); }} className="text-zinc-400 hover:text-zinc-900 p-1 hover:bg-zinc-100 rounded-lg transition-colors">
+                <XIcon size={20} />
+              </button>
+            </div>
+
+            {/* Barre de Recherche */}
+            <div className="relative mb-4 z-10">
+              <SearchIcon size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <input 
+                type="text"
+                placeholder="Rechercher un modèle de nutrition (Sèche, Prise de masse, Low Carb...)"
+                value={nutritionPresetSearch}
+                onChange={(e) => setNutritionPresetSearch(e.target.value)}
+                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-xs rounded-xl pl-10 pr-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-bold"
+              />
+            </div>
+
+            {/* Liste scrollable des presets (STANDARDS + SAUVEGARDÉS) */}
+            <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar pr-1 space-y-3 z-10 pb-4">
+              {(() => {
+                const allNutritionPresets = [
+                  ...STANDARD_NUTRITION_PRESETS,
+                  ...(state.nutritionPresets || [])
+                ];
+                
+                const filtered = allNutritionPresets.filter(p => 
+                  !nutritionPresetSearch || 
+                  p.name.toLowerCase().includes(nutritionPresetSearch.toLowerCase()) ||
+                  (p.dietPreference || '').toLowerCase().includes(nutritionPresetSearch.toLowerCase()) ||
+                  (p.goal || '').toLowerCase().includes(nutritionPresetSearch.toLowerCase())
+                );
+
+                if (filtered.length > 0) {
+                  return filtered.map((preset, idx) => (
+                    <div key={preset.id || idx} className="p-4 rounded-2xl border border-zinc-200 bg-white hover:border-emerald-500/50 hover:shadow-md transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="font-extrabold text-sm text-zinc-900 uppercase tracking-tight">{preset.name}</span>
+                          {preset.id && !preset.id.startsWith('s') ? (
+                            <Badge variant="orange" className="!text-[9px] font-black uppercase">MODÈLE ENREGISTRÉ</Badge>
+                          ) : (
+                            <Badge variant="dark" className="!bg-zinc-100 !text-zinc-600 !border-none !text-[9px] font-black uppercase">STANDARD</Badge>
+                          )}
+                        </div>
+                        
+                        {/* Valeurs Nutritionnelles */}
+                        <div className="grid grid-cols-4 gap-2 bg-zinc-50 p-2.5 rounded-xl border border-zinc-100 mb-2 max-w-sm">
+                          <div className="text-center">
+                            <div className="text-[10px] text-zinc-400 font-bold mb-0.5">Kcal</div>
+                            <div className="text-xs font-black text-zinc-800">{preset.targetCalories}</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[10px] text-emerald-500 font-bold mb-0.5">Prot</div>
+                            <div className="text-xs font-black text-emerald-600">{preset.protein}g</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[10px] text-blue-500 font-bold mb-0.5">Gluc</div>
+                            <div className="text-xs font-black text-blue-600">{preset.carbs}g</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[10px] text-orange-500 font-bold mb-0.5">Lip</div>
+                            <div className="text-xs font-black text-orange-600">{preset.fat}g</div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          {preset.dietPreference && <Badge variant="dark" className="!bg-zinc-100 !text-zinc-600 !border-none !text-[9px]">{preset.dietPreference}</Badge>}
+                          {preset.meals && <Badge variant="dark" className="!bg-zinc-100 !text-zinc-600 !border-none !text-[9px]">{preset.meals.length} repas</Badge>}
+                          {preset.goal && <Badge variant="orange" className="!text-[9px]">{preset.goal}</Badge>}
+                        </div>
+                      </div>
+                      <Button 
+                        variant="success"
+                        onClick={() => handleAssignNutritionPreset(preset)}
+                        className="!py-2.5 !px-5 !text-[10px] w-full sm:w-auto font-black shrink-0 tracking-widest uppercase italic"
+                      >
+                        ASSIGNER
+                      </Button>
+                    </div>
+                  ));
+                } else {
+                  return (
+                    <div className="text-center py-10 border border-dashed border-zinc-200 rounded-3xl bg-zinc-50">
+                      <CheckIcon size={32} className="mx-auto text-zinc-300 mb-3" />
+                      <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">Aucun modèle nutritionnel trouvé</p>
+                    </div>
+                  );
+                }
+              })()}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* MODAL ENREGISTRER UN MODÈLE NUTRITIONNEL DEPUIS LE PLAN ACTUEL */}
+      {showSaveNutritionTemplateModal && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+            
+            <div className="flex justify-between items-center mb-4 relative z-10">
+              <h3 className="text-sm font-black text-zinc-900 uppercase italic flex items-center gap-2">
+                <SaveIcon size={18} className="text-emerald-500" /> Sauvegarder comme modèle
+              </h3>
+              <button onClick={() => setShowSaveNutritionTemplateModal(false)} className="text-zinc-400 hover:text-zinc-900">
+                <XIcon size={18} />
+              </button>
+            </div>
+            
+            <p className="text-xs text-zinc-500 mb-4 font-medium leading-relaxed">
+              Enregistrez le plan de nutrition de cet adhérent pour pouvoir le réassigner facilement à d'autres membres par la suite.
+            </p>
+
+            <div className="space-y-4 relative z-10 mb-6">
+              <div>
+                <label className="block text-[10px] font-black uppercase text-zinc-500 tracking-wider mb-1">Nom du modèle</label>
+                <Input 
+                  type="text" 
+                  value={newNutritionTemplateName} 
+                  onChange={(e) => setNewNutritionTemplateName(e.target.value)} 
+                  placeholder="Ex: Sèche Modérée 1800kcal..." 
+                  className="font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 relative z-10">
+              <Button 
+                variant="secondary" 
+                onClick={() => setShowSaveNutritionTemplateModal(false)}
+                className="flex-1 !py-3 !text-[11px]"
+              >
+                ANNULER
+              </Button>
+              <Button 
+                variant="success" 
+                onClick={handleSaveAsNutritionPreset}
+                disabled={!newNutritionTemplateName.trim()}
+                className="flex-1 !py-3 !text-[11px]"
+              >
+                ENREGISTRER
+              </Button>
+            </div>
           </div>
         </div>,
         document.body

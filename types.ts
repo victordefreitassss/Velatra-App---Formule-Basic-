@@ -107,10 +107,12 @@ export interface User {
   equipment?: 'Salle complète' | 'Haltères/Kettlebells' | 'Poids du corps' | 'Élastiques';
   injuries?: string;
   notes: string;
+  coachingNotesHistory?: { id: string; date: string; content: string }[];
   createdAt: string;
   xp: number;
   streak: number;
   lastWorkoutDate?: string;
+  lastCheckInDate?: string;
   pointsFidelite: number;
   planRequested?: boolean;
   firebaseUid?: string;
@@ -326,7 +328,7 @@ export interface Message {
 }
 
 export interface FeedItem {
-  id: number;
+  id: string | number;
   clubId: string;
   userId: number;
   userName: string;
@@ -488,6 +490,21 @@ export interface NutritionPlan {
   liste_courses?: { id: string; name: string; checked: boolean }[];
   aiGenerated?: boolean;
   durationWeeks?: number;
+}
+
+// Modèle de plan nutritionnel (Modèles / Presets)
+export interface NutritionPreset {
+  id: string;
+  clubId: string;
+  name: string;
+  targetCalories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  meals: Meal[];
+  liste_courses?: { id: string; name: string; checked: boolean }[];
+  dietPreference?: string;
+  goal?: Goal;
 }
 
 export enum AppointmentSource { PROSPECT = 'PROSPECT', SETTER = 'SETTER' }
@@ -657,6 +674,7 @@ export interface AppState {
   newsletters: Newsletter[];
   nutritionPlans: NutritionPlan[];
   nutritionLogs: NutritionLog[];
+  nutritionPresets?: NutritionPreset[];
   crmClients: CRMClient[];
   crmFormulas: CRMFormula[];
   manualStats: ManualStats[];

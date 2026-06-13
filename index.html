@@ -89,6 +89,18 @@
       button:active {
         transform: scale(0.97);
       }
+
+      /* Force full page width for all pages and subpages */
+      main .max-w-7xl,
+      main .max-w-6xl,
+      main .max-w-5xl,
+      main .max-w-4xl,
+      main .max-w-3xl,
+      main .max-w-2xl,
+      main .max-w-[1600px] {
+        max-width: none !important;
+        width: 100% !important;
+      }
     </style>
     <script>
       tailwind.config = {

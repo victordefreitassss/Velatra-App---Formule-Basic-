@@ -107,14 +107,14 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-zinc-900 uppercase tracking-tight mb-2">Coaching Live</h1>
-        <p className="text-zinc-500">Gérez vos séances de coaching, suivez la progression et lancez des entraînements.</p>
+    <div className="p-3 sm:p-6 max-w-7xl mx-auto">
+      <div className="mb-6 sm:mb-8 px-1">
+        <h1 className="text-3xl font-display font-black text-zinc-900 uppercase tracking-tight mb-2">Coaching Live</h1>
+        <p className="text-sm text-zinc-500">Gérez vos séances de coaching, suivez la progression et lancez des entraînements.</p>
       </div>
 
-      <div className="bg-white rounded-3xl border border-zinc-200 p-6 mb-8 shadow-sm">
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
+      <div className="bg-transparent sm:bg-white rounded-3xl sm:border sm:border-zinc-200 p-0 sm:p-6 mb-8 sm:shadow-sm">
+        <div className="flex flex-col md:flex-row gap-4 mb-6 px-1 sm:px-0">
           <div className="relative flex-1">
             <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={20} />
             <Input 
@@ -124,19 +124,19 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
               className="pl-12 !bg-white"
             />
           </div>
-          <div className="flex flex-wrap gap-2 mt-4 sm:mt-0">
+          <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
             <Button variant={filter === 'all' ? 'primary' : 'secondary'} onClick={() => setFilter('all')} className="!py-2">Tous</Button>
             <Button variant={filter === 'active' ? 'primary' : 'secondary'} onClick={() => setFilter('active')} className="!py-2">Actifs</Button>
             <Button variant={filter === 'noprogram' ? 'primary' : 'secondary'} onClick={() => setFilter('noprogram')} className="!py-2">Sans Prog.</Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:gap-4">
           {filteredMembers.map(member => {
             return (
-              <div key={member.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-5 bg-white rounded-2xl border border-zinc-200 hover:border-emerald-500 transition-colors gap-4">
+              <div key={member.id} className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 sm:p-5 bg-white rounded-2xl border border-zinc-200 hover:border-emerald-500 transition-colors gap-4 shadow-sm sm:shadow-none">
                 
-                <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-4 flex-1 w-full">
                   <div className="w-14 h-14 rounded-full bg-gradient-to-br from-zinc-100 to-zinc-50 border border-white flex items-center justify-center font-black text-xl text-zinc-600 shadow-inner shrink-0 relative overflow-hidden">
                     {member.avatar?.startsWith('http') ? (
                       <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
@@ -148,9 +148,9 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
                     )}
                   </div>
                   
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="font-bold text-zinc-900 text-lg">{member.name}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center flex-wrap gap-2 mb-1">
+                      <div className="font-bold text-zinc-900 text-lg truncate">{member.name}</div>
                       {member.program && !member.isFinished && (
                         <Badge variant="success" className="!text-[10px]">En cours</Badge>
                       )}
@@ -188,7 +188,7 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
                 </div>
 
                 {member.program && !member.isFinished && (
-                  <div className="w-full md:w-48 px-4">
+                  <div className="w-full md:w-48 px-1 sm:px-4">
                     <div className="flex justify-between text-[10px] font-bold text-zinc-500 mb-1 uppercase tracking-widest">
                       <span>Progression</span>
                       <span>{member.progress}%</span>
@@ -202,7 +202,7 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
                   </div>
                 )}
                 
-                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-4 md:mt-0">
+                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0">
                   <div title="Voir le profil">
                     <Button variant="secondary" onClick={() => handleViewProfile(member)} className="!p-2">
                       <UserIcon size={18} />

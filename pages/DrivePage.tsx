@@ -319,7 +319,8 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
         </div>
       ) : (
         <div className="bg-zinc-50/50 rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
-          <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-zinc-200 text-sm text-zinc-500">
                 <th className="p-4 font-medium">Nom</th>
@@ -412,6 +413,7 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

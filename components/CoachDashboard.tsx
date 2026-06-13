@@ -125,6 +125,80 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   }).length;
   
   const avgSessionsPerDay = (sessionsThisMonth / currentDay).toFixed(1);
+  
+  const [sessionsPeriod, setSessionsPeriod] = useState<'month' | 'week' | 'day'>('month');
+  const [caPeriod, setCaPeriod] = useState<'month' | 'year' | 'week'>('month');
+
+  // Calculations for Key metrics
+  const {
+    sessionsThisWeek,
+    sessionsToday,
+    revenueThisMonth,
+    revenueThisYear,
+    revenueThisWeek
+  } = React.useMemo(() => {
+    const now = new Date();
+    const currM = now.getMonth();
+    const currY = now.getFullYear();
+    const todayStrStr = now.toISOString().split('T')[0];
+
+    // Start of this week (Monday)
+    const Monday = new Date(now);
+    const dayOfWeek = Monday.getDay();
+    const diffToMonday = Monday.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    Monday.setDate(diffToMonday);
+    Monday.setHours(0,0,0,0);
+    const startOfWeekMs = Monday.getTime();
+
+    const startOfMonthMs = new Date(currY, currM, 1).getTime();
+    const startOfYearMs = new Date(currY, 0, 1).getTime();
+
+    const clubId = state.user?.clubId;
+    const clubLogs = (state.logs || []).filter(l => l.clubId === clubId);
+    const clubPayments = (state.payments || []).filter(p => p.status === 'paid' && p.clubId === clubId);
+
+    const sThisWeek = clubLogs.filter(l => {
+      const d = new Date(l.date).getTime();
+      return d >= startOfWeekMs && d <= now.getTime();
+    }).length;
+
+    const sToday = clubLogs.filter(l => {
+      return l.date.split('T')[0] === todayStrStr;
+    }).length;
+
+    const rThisMonth = clubPayments.reduce((acc, p) => {
+      const t = new Date(p.date).getTime();
+      if (t >= startOfMonthMs && t <= now.getTime()) {
+        return acc + p.amount;
+      }
+      return acc;
+    }, 0);
+
+    const rThisYear = clubPayments.reduce((acc, p) => {
+      const t = new Date(p.date).getTime();
+      if (t >= startOfYearMs && t <= now.getTime()) {
+        return acc + p.amount;
+      }
+      return acc;
+    }, 0);
+
+    const rThisWeek = clubPayments.reduce((acc, p) => {
+      const t = new Date(p.date).getTime();
+      if (t >= startOfWeekMs && t <= now.getTime()) {
+        return acc + p.amount;
+      }
+      return acc;
+    }, 0);
+
+    return {
+      sessionsThisWeek: sThisWeek,
+      sessionsToday: sToday,
+      revenueThisMonth: rThisMonth,
+      revenueThisYear: rThisYear,
+      revenueThisWeek: rThisWeek
+    };
+  }, [state.logs, state.payments, state.user?.clubId]);
+
   const [showAnnual, setShowAnnual] = useState(false);
 
   useEffect(() => {
@@ -206,6 +280,83 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     setState(prev => ({ ...prev, workout: program, workoutMember: member, workoutData: {}, validatedExercises: [] }));
   };
 
+  const handleCongratulate = async (member: User) => {
+    try {
+      const userRef = doc(db, "users", member.firebaseUid!);
+      const rewardXp = (member.xp || 0) + 20;
+      await updateDoc(userRef, { xp: rewardXp });
+
+      // Create check-in congratulation message
+      const messageId = `msg_${Date.now()}`;
+      const congratsMessage = {
+        id: Date.now(),
+        clubId: state.user?.clubId!,
+        from: state.user?.id!,
+        to: member.id,
+        text: `Félicitations de la part de ton coach ! Ton assiduité et ton rituel quotidien me font super plaisir, continue sur cette lancée ! 🔥 (+20 XP offerts)`,
+        date: new Date().toISOString(),
+        read: false,
+        file: null
+      };
+      await setDoc(doc(db, "messages", messageId), congratsMessage);
+
+      // Create a notification
+      const notificationId = `noti_${Date.now()}`;
+      const newNoti = {
+        id: notificationId,
+        clubId: state.user?.clubId!,
+        userId: member.id,
+        title: "Félicitations du Coach ! 🏆",
+        message: `${state.user?.name} t'a félicité pour ta régularité et t'offre +20 XP !`,
+        type: 'success' as const,
+        read: false,
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(doc(db, "notifications", notificationId), newNoti);
+
+      // Update state
+      setState(prev => ({
+        ...prev,
+        users: prev.users.map(u => u.id === member.id ? { ...u, xp: rewardXp } : u),
+        messages: [...(prev.messages || []), congratsMessage],
+        notifications: [...(prev.notifications || []), newNoti]
+      }));
+
+      showToast(`Félicitations envoyées à ${member.name} ! (+20 XP offerts)`, "success");
+    } catch (err) {
+      console.error(err);
+      showToast("Une erreur est survenue lors de l'envoi des félicitations.", "error");
+    }
+  };
+
+  // 6. Statistiques d'Assiduité (7 derniers jours)
+  const chartData = React.useMemo(() => {
+    const days = [];
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const dateStr = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
+      const dayKey = d.toISOString().split('T')[0];
+      
+      const count = (state.logs || []).filter(l => {
+        if (l.clubId !== state.user?.clubId) return false;
+        return l.date.split('T')[0] === dayKey;
+      }).length;
+      
+      days.push({ name: dateStr, 'Séances': count });
+    }
+    return days;
+  }, [state.logs, state.user?.clubId]);
+
+  // Dynamic coaching quote/greeting based on hour
+  const coachGreeting = React.useMemo(() => {
+    const hours = new Date().getHours();
+    if (hours < 12) return { text: "Bon réveil Coach ! Prêt à transformer des vies aujourd'hui ?", icon: "🌅" };
+    if (hours < 18) return { text: "Excellent après-midi Coach ! Gardons l'énergie au maximum !", icon: "⚡" };
+    return { text: "Bonne soirée Coach ! Bilan de la journée et préparation de demain.", icon: "✨" };
+  }, []);
+
   return (
     <motion.div 
       variants={containerVariants}
@@ -213,138 +364,303 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
       animate="visible"
       className="space-y-8 pb-20"
     >
-      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-1">
-        <div>
-          <h1 className="text-4xl font-display font-black tracking-tight leading-none mb-2 text-zinc-900">Accueil</h1>
-          <p className="text-zinc-500 text-[10px] uppercase tracking-[3px] font-black">Votre Centre de Contrôle</p>
+      {/* 1. Header Hero Panel with Wave Gradient */}
+      <motion.div variants={itemVariants} className="relative overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-800 to-indigo-950 text-white rounded-3xl p-8 shadow-xl border border-zinc-800/50">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent opacity-60" />
+        <div className="absolute -right-32 -bottom-32 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -left-32 -top-32 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-3">
+            <div className="flex items-center gap-2.5">
+              <span className="text-2xl animate-bounce">{coachGreeting.icon}</span>
+              <span className="text-xs font-black uppercase tracking-[3px] text-emerald-400">Centre de Commandes</span>
+            </div>
+            <div>
+              <h1 className="text-3xl md:text-4xl font-display font-black tracking-tight leading-none mb-2">
+                Bonjour, {state.user?.name || "Coach"} 🔥
+              </h1>
+              <p className="text-zinc-300 text-xs md:text-sm max-w-xl font-medium italic opacity-90">
+                "{coachGreeting.text}"
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4 bg-zinc-800/40 backdrop-blur-md p-4 rounded-2xl border border-zinc-700/50 shrink-0 self-start md:self-auto">
+            <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400">
+              <ClockIcon size={22} className="animate-pulse" />
+            </div>
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Date d'aujourd'hui</div>
+              <div className="text-sm font-bold tracking-tight">
+                {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </div>
+            </div>
+          </div>
         </div>
       </motion.div>
 
-      {/* 4. Raccourcis Rapides */}
-      <motion.div variants={itemVariants} className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'users', memberFilter: 'Tous' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-zinc-50 border border-zinc-200 rounded-3xl hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/10 transition-all group">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
-            <UserIcon size={24} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Nouveau Membre</span>
-        </motion.button>
-        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'presets' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-zinc-50 border border-zinc-200 rounded-3xl hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/10 transition-all group">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
-            <FileTextIcon size={24} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Créer Programme</span>
-        </motion.button>
-        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-zinc-50 border border-zinc-200 rounded-3xl hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/10 transition-all group">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
-            <BarChartIcon size={24} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Nouvelle Vente</span>
-        </motion.button>
-        <motion.button whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }} onClick={() => setState(s => ({ ...s, page: 'crm_pipeline' }))} className="flex flex-col items-center justify-center gap-3 p-6 bg-zinc-50 border border-zinc-200 rounded-3xl hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/10 transition-all group">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform shadow-inner">
-            <TargetIcon size={24} />
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Nouveau Prospect</span>
-        </motion.button>
+      {/* 2. Bento Shortcuts Grid */}
+      <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { icon: UserIcon, label: "Membres & Athlètes", page: "users", color: "from-emerald-500/10 to-emerald-500/5 text-emerald-500 hover:border-emerald-500/40" },
+          { icon: FileTextIcon, label: "Programmes & Modèles", page: "presets", color: "from-indigo-500/10 to-indigo-500/5 text-indigo-500 hover:border-indigo-500/40" },
+          { icon: BarChartIcon, label: "Finances & Budgets", page: "crm_finances", color: "from-amber-500/10 to-amber-500/5 text-amber-500 hover:border-amber-500/40" },
+          { icon: TargetIcon, label: "Prospects & Tunnels", page: "crm_pipeline", color: "from-rose-500/10 to-rose-500/5 text-rose-500 hover:border-rose-500/40" }
+        ].map((btn, idx) => (
+          <motion.button
+            key={idx}
+            whileHover={{ scale: 1.03, y: -4 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setState(s => ({ ...s, page: btn.page as any }))}
+            className={`flex flex-col items-center justify-center text-center gap-3.5 p-6 bg-white border border-zinc-200/80 rounded-3xl transition-all duration-300 shadow-sm hover:shadow-md hover:shadow-zinc-100/50 group cursor-pointer`}
+          >
+            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${btn.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-inner`}>
+              <btn.icon size={22} strokeWidth={2.5} />
+            </div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-900 group-hover:text-zinc-950 transition-colors">{btn.label}</span>
+          </motion.button>
+        ))}
       </motion.div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column */}
+      {/* 3. Main Dashboard Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Side (8 cols) */}
         <div className="lg:col-span-8 space-y-8">
           
-          {/* 5. Chiffres Clés */}
+          {/* Key Metrics Section */}
           <motion.section variants={itemVariants} className="space-y-4">
             <div className="flex justify-between items-center px-1">
-              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Chiffres Clés</h2>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-6 rounded bg-emerald-500" />
+                <h2 className="text-lg font-black uppercase tracking-wider text-zinc-900 italic">Chiffres Clés</h2>
+              </div>
+              <Badge variant="blue">SYNCHRONISÉ</Badge>
             </div>
+            
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <StatBox label="Séances (mois)" value={sessionsThisMonth} className="bg-zinc-50 border border-zinc-200 shadow-sm" />
-              <StatBox label="Moyenne / jour" value={avgSessionsPerDay} className="bg-zinc-50 border border-zinc-200 shadow-sm" />
-              <StatBox 
-                label={showAnnual ? "ARR" : "MRR"} 
-                value={`${showAnnual ? (mrr * 12).toFixed(0) : mrr.toFixed(0)}€`} 
-                onClick={() => setShowAnnual(!showAnnual)} 
-                className={`bg-zinc-50 border border-zinc-200 shadow-sm cursor-pointer hover:ring-2 hover:ring-emerald-500/50 transition-all`}
-              />
-              <StatBox label="Panier Moyen" value={`${arpu.toFixed(0)}€`} onClick={() => setState(s => ({ ...s, page: 'crm_finances' }))} className="bg-zinc-50 border border-zinc-200 shadow-sm" />
+              {/* 1. SÉANCES COUNTER (CLIQUEZ POUR SWITCHER MOIS/SEMAINE/JOUR) */}
+              <div 
+                onClick={() => setSessionsPeriod(prev => prev === 'month' ? 'week' : prev === 'week' ? 'day' : 'month')}
+                className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-emerald-500/30 cursor-pointer transition-all relative group"
+              >
+                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2 mr-1">
+                  Séances ({sessionsPeriod === 'month' ? 'Mois' : sessionsPeriod === 'week' ? 'Semaine' : 'Jour'})
+                </div>
+                <div className="text-3xl font-display font-black text-zinc-900 group-hover:scale-105 transition-transform origin-left">
+                  {sessionsPeriod === 'month' ? sessionsThisMonth : sessionsPeriod === 'week' ? sessionsThisWeek : sessionsToday}
+                </div>
+                <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1.5">
+                  Cliquez pour changer
+                </div>
+              </div>
+              
+              {/* 2. NOMBRE D'ADHÉRENTS DE L'UTILISATEUR */}
+              <div className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
+                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2">Adhérents Actifs</div>
+                <div className="text-3xl font-display font-black text-indigo-600">{members.length}</div>
+                <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1.5">Athlètes du club</div>
+              </div>
+
+              {/* 3. CHIFFRE D'AFFAIRES (CA) CLIQUEZ POUR SWITCHER CE MOIS/CETTE ANNÉE/CETTE SEMAINE */}
+              <div 
+                onClick={() => setCaPeriod(prev => prev === 'month' ? 'year' : prev === 'year' ? 'week' : 'month')}
+                className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-emerald-500/30 cursor-pointer transition-all relative group"
+              >
+                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2 mr-1">
+                  CA ({caPeriod === 'month' ? 'Mois' : caPeriod === 'year' ? 'Année' : 'Semaine'})
+                </div>
+                <div className="text-3xl font-display font-black text-emerald-600 group-hover:scale-105 transition-transform origin-left">
+                  {(caPeriod === 'month' ? revenueThisMonth : caPeriod === 'year' ? revenueThisYear : revenueThisWeek).toFixed(0)}€
+                </div>
+                <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1.5">
+                  Cliquez pour changer
+                </div>
+              </div>
+
+              {/* 4. ABO MOYEN */}
+              <div className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
+                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2">Abo Moyen</div>
+                <div className="text-3xl font-display font-black text-zinc-900">{arpu.toFixed(0)}€</div>
+                <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1.5">Valeur par athlète</div>
+              </div>
             </div>
           </motion.section>
 
-          {/* 1. Actions Urgentes */}
+          {/* Engagement Analytics Chart */}
           <motion.section variants={itemVariants} className="space-y-4">
             <div className="flex justify-between items-center px-1">
-              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Actions Urgentes</h2>
-              <Badge variant="blue">AUJOURD'HUI</Badge>
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-6 rounded bg-indigo-500" />
+                <h2 className="text-lg font-black uppercase tracking-wider text-zinc-900 italic">Volume d'Activité Hebdomadaire</h2>
+              </div>
+              <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">7 derniers jours</span>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
-                <Card className="!p-6 bg-zinc-50 border border-zinc-200 hover:border-emerald-500/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'users', memberFilter: 'Demande de Plan' }))}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2.5 bg-orange-500/10 text-orange-500 rounded-xl"><FileTextIcon size={20} /></div>
-                    <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Plans</div>
+            
+            <Card className="!p-6 bg-white border border-zinc-200/80 shadow-sm">
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="neonEmerald" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.85} />
+                        <stop offset="100%" stopColor="#059669" stopOpacity={0.2} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fill: '#71717a', fontSize: 10, fontWeight: 700 }}
+                      axisLine={{ stroke: '#e4e4e7' }}
+                      tickLine={false}
+                    />
+                    <YAxis 
+                      tick={{ fill: '#71717a', fontSize: 10, fontWeight: 700 }}
+                      axisLine={false}
+                      tickLine={false}
+                      allowDecimals={false}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: '#f4f4f5', opacity: 0.5 }}
+                      contentStyle={{ 
+                        background: '#18181b', 
+                        border: 'none', 
+                        borderRadius: '12px', 
+                        color: '#fff',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                        fontSize: '11px',
+                        fontFamily: 'Inter, sans-serif',
+                        fontWeight: 700
+                      }}
+                    />
+                    <Bar 
+                      dataKey="Séances" 
+                      fill="url(#neonEmerald)" 
+                      radius={[6, 6, 0, 0]} 
+                      maxBarSize={45}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </motion.section>
+
+          {/* Urgent Actions Section */}
+          <motion.section variants={itemVariants} className="space-y-4">
+            <div className="flex justify-between items-center px-1">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-6 rounded bg-orange-500" />
+                <h2 className="text-lg font-black uppercase tracking-wider text-zinc-900 italic">Actions Prioritaires</h2>
+              </div>
+              <Badge variant="orange" className="font-extrabold">INTERACTIVITÉ RECOMMANDÉE</Badge>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <motion.div 
+                whileHover={{ scale: 1.02, y: -2 }} 
+                onClick={() => setState(s => ({ ...s, page: 'users', memberFilter: 'Demande de Plan' }))}
+              >
+                <Card className="!p-5 bg-white border border-zinc-200/80 hover:border-emerald-500/40 cursor-pointer shadow-sm hover:shadow-md transition-all h-full relative group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-orange-500/5 rounded-full blur-xl group-hover:bg-orange-500/10 transition-colors pointer-events-none" />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-orange-500/10 text-orange-600 rounded-xl"><FileTextIcon size={18} strokeWidth={2.5} /></div>
+                    {planRequests.length > 0 && <span className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-ping" />}
                   </div>
-                  <div className="text-4xl font-display font-bold text-zinc-900">{planRequests.length}</div>
-                  <div className="text-[10px] font-bold text-zinc-500 uppercase mt-2 tracking-widest">En attente</div>
+                  <div className="text-3xl font-display font-black text-zinc-900">{planRequests.length}</div>
+                  <div className="text-[9px] font-black text-zinc-500 uppercase mt-2 tracking-widest flex items-center justify-between">
+                    <span>Créations de Plans</span>
+                    <span className="text-zinc-400 group-hover:text-orange-500 transition-colors">→</span>
+                  </div>
                 </Card>
               </motion.div>
-              <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
-                <Card className="!p-6 bg-zinc-50 border border-zinc-200 hover:border-emerald-500/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'chat' }))}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2.5 bg-blue-500/10 text-blue-500 rounded-xl"><MessageCircleIcon size={20} /></div>
-                    <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Messages</div>
+
+              <motion.div 
+                whileHover={{ scale: 1.02, y: -2 }} 
+                onClick={() => setState(s => ({ ...s, page: 'chat' }))}
+              >
+                <Card className="!p-5 bg-white border border-zinc-200/80 hover:border-emerald-500/40 cursor-pointer shadow-sm hover:shadow-md transition-all h-full relative group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/5 rounded-full blur-xl group-hover:bg-blue-500/10 transition-colors pointer-events-none" />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-blue-500/10 text-blue-600 rounded-xl"><MessageCircleIcon size={18} strokeWidth={2.5} /></div>
+                    {unreadMessages.length > 0 && <span className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />}
                   </div>
-                  <div className="text-4xl font-display font-bold text-zinc-900">{unreadMessages.length}</div>
-                  <div className="text-[10px] font-bold text-zinc-500 uppercase mt-2 tracking-widest">Non lus</div>
+                  <div className="text-3xl font-display font-black text-zinc-900">{unreadMessages.length}</div>
+                  <div className="text-[9px] font-black text-zinc-500 uppercase mt-2 tracking-widest flex items-center justify-between">
+                    <span>Messages non lus</span>
+                    <span className="text-zinc-400 group-hover:text-blue-500 transition-colors">→</span>
+                  </div>
                 </Card>
               </motion.div>
-              <motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
-                <Card className="!p-6 bg-zinc-50 border border-zinc-200 hover:border-emerald-500/30 cursor-pointer shadow-sm hover:shadow-md transition-all h-full" onClick={() => setState(s => ({ ...s, page: 'crm_tasks' }))}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2.5 bg-green-500/10 text-green-500 rounded-xl"><CheckCircleIcon size={20} /></div>
-                    <div className="font-black text-sm uppercase tracking-widest text-zinc-900">Tâches</div>
+
+              <motion.div 
+                whileHover={{ scale: 1.02, y: -2 }} 
+                onClick={() => setState(s => ({ ...s, page: 'crm_tasks' }))}
+              >
+                <Card className="!p-5 bg-white border border-zinc-200/80 hover:border-emerald-500/40 cursor-pointer shadow-sm hover:shadow-md transition-all h-full relative group overflow-hidden">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl group-hover:bg-emerald-500/10 transition-colors pointer-events-none" />
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-xl"><CheckCircleIcon size={18} strokeWidth={2.5} /></div>
+                    {tasksToday.length > 0 && <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping" />}
                   </div>
-                  <div className="text-4xl font-display font-bold text-zinc-900">{tasksToday.length}</div>
-                  <div className="text-[10px] font-bold text-zinc-500 uppercase mt-2 tracking-widest">Pour aujourd'hui</div>
+                  <div className="text-3xl font-display font-black text-zinc-900">{tasksToday.length}</div>
+                  <div className="text-[9px] font-black text-zinc-500 uppercase mt-2 tracking-widest flex items-center justify-between">
+                    <span>Tâches du jour</span>
+                    <span className="text-zinc-400 group-hover:text-emerald-500 transition-colors">→</span>
+                  </div>
                 </Card>
               </motion.div>
             </div>
           </motion.section>
 
-          {/* 2. Prochaines Séances */}
+          {/* Agenda / Upcoming Bookings */}
           {state.currentClub?.settings?.booking?.enabled !== false && (
             <motion.section variants={itemVariants} className="space-y-4">
               <div className="flex justify-between items-center px-1">
-                <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Prochaines Séances</h2>
-                <Button variant="secondary" className="!py-1.5 !px-3 !text-[9px]" onClick={() => setState(s => ({ ...s, page: 'calendar' }))}>VOIR PLANNING</Button>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-6 rounded bg-teal-500" />
+                  <h2 className="text-lg font-black uppercase tracking-wider text-zinc-900 italic">Agenda des Cours Prochains</h2>
+                </div>
+                <Button 
+                  onClick={() => setState(s => ({ ...s, page: 'calendar' }))}
+                  className="!py-1.5 !px-3.5 !text-[9px] hover:scale-105 transition-transform"
+                >
+                  GÉRER LE SCHÉDULE
+                </Button>
               </div>
+              
               {upcomingEvents.length === 0 ? (
-                <Card className="!p-8 bg-zinc-50/60 backdrop-blur-xl border-dashed  flex flex-col items-center justify-center text-center shadow-sm">
-                  <CalendarIcon size={32} className="text-zinc-500 mb-3" />
-                  <p className="text-xs font-bold text-zinc-900 uppercase tracking-widest">Aucune séance prévue</p>
-                  <p className="text-[10px] text-zinc-500 mt-2">Gérez vos créneaux depuis l'onglet Planning.</p>
+                <Card className="!p-8 bg-zinc-50/50 border-dashed border-2 border-zinc-200 flex flex-col items-center justify-center text-center shadow-inner rounded-3xl">
+                  <CalendarIcon size={28} className="text-zinc-400 mb-2.5" />
+                  <p className="text-xs font-black text-zinc-900 uppercase tracking-wider">Aucune réservation active</p>
+                  <p className="text-[10px] text-zinc-500 mt-1 max-w-xs">Vos athlètes n'ont pas encore réservé de séances sur vos créneaux.</p>
                 </Card>
               ) : (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {upcomingEvents.map((event, idx) => {
                     const member = (state.users || []).find(u => Number(u.id) === event.memberId);
                     const startTime = new Date(event.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
                     const endTime = new Date(event.endTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
                     const isToday = new Date(event.startTime).toDateString() === new Date().toDateString();
                     const eventDate = new Date(event.startTime).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+                    
                     return (
-                      <Card key={idx} className="!p-4 bg-zinc-50/60 backdrop-blur-xl  shadow-sm flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex flex-col items-center justify-center font-black text-xs leading-none">
-                            <span className="text-[9px] mb-0.5 opacity-80">{isToday ? "AUJ" : eventDate.slice(0, 5)}</span>
+                      <Card key={idx} className="!p-4 bg-white border border-zinc-200/80 shadow-sm flex items-center justify-between hover:border-teal-500/30 hover:shadow-md transition-all">
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-600 flex flex-col items-center justify-center font-black text-[11px] leading-none shrink-0">
+                            <span className="text-[8px] mb-0.5 opacity-80 font-black">{isToday ? "AUJ" : eventDate}</span>
                             <span>{startTime}</span>
                           </div>
                           <div>
-                            <div className="font-bold text-zinc-900">{member?.name || 'Membre Inconnu'}</div>
-                            <div className="text-xs text-zinc-500">{startTime} - {endTime}</div>
+                            <div className="font-extrabold text-xs text-zinc-900 max-w-[120px] truncate">{member?.name || 'Inscrit Direct'}</div>
+                            <div className="text-[10px] text-zinc-500 font-medium">{startTime} à {endTime}</div>
                           </div>
                         </div>
-                        <Button variant="secondary" className="!py-2 !px-3 !text-[10px]" onClick={() => setState(s => ({ ...s, page: 'calendar' }))}>
-                          DÉTAILS
+                        <Button 
+                          variant="secondary" 
+                          className="!py-1.5 !px-3 !text-[9px]"
+                          onClick={() => setState(s => ({ ...s, page: 'calendar' }))}
+                        >
+                          Détails
                         </Button>
                       </Card>
                     );
@@ -355,24 +671,112 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
           )}
         </div>
 
-        {/* Right Column */}
+        {/* Right Side (4 cols) */}
         <div className="lg:col-span-4 space-y-8">
           
-          {/* 3. Alertes de Rétention */}
+          {/* Recent Live Feed/Activities */}
           <motion.section variants={itemVariants} className="space-y-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 px-1 italic">Alertes Rétention</h2>
+            <div className="flex justify-between items-center px-1">
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-6 rounded bg-emerald-500" />
+                <h2 className="text-lg font-black uppercase tracking-wider text-zinc-900 italic">Flux Temps-Réel</h2>
+              </div>
+              {(() => {
+                const clubFeed = (state.feed || []).filter(f => f.clubId === state.user?.clubId);
+                if (clubFeed.length > 0) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (window.confirm("Voulez-vous valider et effacer l’intégralité des activités de votre flux ?")) {
+                          try {
+                            const promises = clubFeed.map(item => deleteDoc(doc(db, "feed", item.id.toString())));
+                            await Promise.all(promises);
+                            showToast("Flux d'activité vidé", "success");
+                          } catch (err) {
+                            console.error("Error clearing feed:", err);
+                            showToast("Erreur lors de la validation", "error");
+                          }
+                        }
+                      }}
+                      className="text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 py-1.5 px-3 rounded-full transition-all flex items-center gap-1 border border-emerald-500/10 cursor-pointer"
+                    >
+                      <CheckCircleIcon size={10} strokeWidth={3} />
+                      Tout vider
+                    </button>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+            
+            <div className="space-y-3 max-h-[360px] overflow-y-auto no-scrollbar pr-1">
+              {(() => {
+                const clubFeed = (state.feed || []).filter(f => f.clubId === state.user?.clubId);
+                if (clubFeed.length === 0) {
+                  return (
+                    <div className="text-center py-10 bg-zinc-50 border border-zinc-200/80 rounded-3xl text-zinc-400 italic text-xs font-black uppercase tracking-widest opacity-60">
+                      Rien à signaler
+                    </div>
+                  );
+                }
+                return clubFeed.map((item, i) => (
+                  <motion.div 
+                    key={item.id} 
+                    initial={{ opacity: 0, x: 20 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    transition={{ delay: i * 0.05 }}
+                  >
+                    <Card className="!p-4 bg-white border border-zinc-200/80 flex items-center gap-3 px-3.5 group hover:border-emerald-500/30 transition-all shadow-sm">
+                      <div className="p-2 bg-gradient-to-br from-emerald-500/25 to-emerald-500/5 rounded-xl text-emerald-600 shadow-inner shrink-0 leading-none">
+                        {item.title.includes("Feedback") ? <MessageCircleIcon size={16}/> : <SparklesIcon size={16}/>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] font-black text-zinc-900 leading-snug truncate group-hover:text-emerald-600 transition-colors">{item.title}</div>
+                        <div className="text-[8px] text-zinc-405 font-black uppercase tracking-widest mt-0.5 whitespace-nowrap">
+                          {new Date(item.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} • {item.userName}
+                        </div>
+                      </div>
+                      <button 
+                        onClick={async () => {
+                          try {
+                            await deleteDoc(doc(db, "feed", item.id.toString()));
+                            showToast("Activité validée !", "success");
+                          } catch (err) {
+                            console.error("Error deleting feed item:", err);
+                          }
+                        }}
+                        className="p-1.5 rounded-full hover:bg-emerald-500/10 text-zinc-400 hover:text-emerald-600 transition-all cursor-pointer select-none"
+                        title="Marquer comme traité"
+                      >
+                        <CheckCircleIcon size={16} strokeWidth={2.5} />
+                      </button>
+                    </Card>
+                  </motion.div>
+                ));
+              })()}
+            </div>
+          </motion.section>
+
+          {/* Retention / Warning Alerts */}
+          <motion.section variants={itemVariants} className="space-y-4">
+            <div className="flex items-center gap-2 px-1">
+              <div className="w-1.5 h-6 rounded bg-rose-500" />
+              <h2 className="text-lg font-black uppercase tracking-wider text-zinc-900 italic">Alertes Rétention & Baisse</h2>
+            </div>
+            
             <div className="space-y-3">
               {failedSubs.map(sub => {
                 const member = members.find(m => Number(m.id) === sub.memberId);
                 if (!member) return null;
                 return (
-                  <motion.div key={`sub_${sub.id}`} whileHover={{ scale: 1.02, x: -4 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
-                    <Card className="!p-4 border-orange-500/30 bg-zinc-50 flex items-center justify-between shadow-sm hover:shadow-orange-500/20 transition-all">
+                  <motion.div key={`sub_${sub.id}`} whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 450, damping: 30 }}>
+                    <Card className="!p-4 border-l-4 border-l-rose-500 border-zinc-200/80 bg-white flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center text-orange-500 shadow-inner"><InfoIcon size={20}/></div>
+                        <div className="w-9 h-9 rounded-xl bg-rose-50 bg-rose-100/10 flex items-center justify-center text-rose-500 shrink-0"><InfoIcon size={18}/></div>
                         <div>
-                          <div className="text-xs font-black text-zinc-900">{member.name}</div>
-                          <div className="text-[9px] font-bold text-orange-500 uppercase tracking-widest mt-0.5">Paiement Échoué</div>
+                          <div className="text-xs font-black text-zinc-900 leading-tight">{member.name}</div>
+                          <div className="text-[8px] font-black text-rose-500 uppercase tracking-widest mt-0.5">Paiement Échoué / Rejeté</div>
                         </div>
                       </div>
                     </Card>
@@ -387,13 +791,13 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 const daysLeft = targetDate ? Math.ceil((new Date(targetDate).getTime() - new Date().getTime()) / (1000 * 3600 * 24)) : 0;
                 
                 return (
-                  <motion.div key={`end_sub_${sub.id}`} whileHover={{ scale: 1.02, x: -4 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
-                    <Card className="!p-4 border-yellow-500/30 bg-zinc-50 flex items-center justify-between shadow-sm hover:shadow-yellow-500/20 transition-all">
+                  <motion.div key={`end_sub_${sub.id}`} whileHover={{ scale: 1.02 }}>
+                    <Card className="!p-4 border-l-4 border-l-amber-500 border-zinc-200/80 bg-white flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center text-yellow-600 shadow-inner"><InfoIcon size={20}/></div>
+                        <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 shrink-0"><InfoIcon size={18}/></div>
                         <div>
-                          <div className="text-xs font-black text-zinc-900">{member.name}</div>
-                          <div className="text-[9px] font-bold text-yellow-600 uppercase tracking-widest mt-0.5">Fin d'abonnement dans {daysLeft} jour{daysLeft > 1 ? 's' : ''}</div>
+                          <div className="text-xs font-black text-zinc-900 leading-tight">{member.name}</div>
+                          <div className="text-[8px] font-black text-amber-600 uppercase tracking-widest mt-0.5">Abonnement fini dans {daysLeft}j</div>
                         </div>
                       </div>
                     </Card>
@@ -402,10 +806,10 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
               })}
 
               {membersAtRisk.map(m => (
-                <motion.div key={`risk_${m.id}`} whileHover={{ scale: 1.02, x: -4 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
-                  <Card className="!p-4 border-red-500/30 bg-zinc-50 flex items-center justify-between shadow-sm hover:shadow-red-500/20 transition-all">
+                <motion.div key={`risk_${m.id}`} whileHover={{ scale: 1.02 }}>
+                  <Card className="!p-4 border-l-4 border-l-rose-400 border-zinc-200/80 bg-white flex items-center justify-between shadow-sm hover:shadow-md transition-all">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center text-red-500 font-black shadow-inner overflow-hidden">
+                      <div className="w-9 h-9 rounded-xl bg-zinc-100 flex items-center justify-center text-rose-500 font-extrabold border border-zinc-200 shrink-0 overflow-hidden">
                         {m.avatar?.startsWith('http') ? (
                           <img src={m.avatar} alt={m.name} className="w-full h-full object-cover" />
                         ) : (
@@ -413,28 +817,94 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                         )}
                       </div>
                       <div>
-                        <div className="text-xs font-black text-zinc-900">{m.name}</div>
-                        <div className="text-[9px] font-bold text-red-500 uppercase tracking-widest mt-0.5">Inactif depuis 7j+</div>
+                        <div className="text-xs font-black text-zinc-900 leading-tight">{m.name}</div>
+                        <div className="text-[8px] font-black text-rose-500 uppercase tracking-widest mt-0.5">Aucune activité depuis 7j+</div>
                       </div>
                     </div>
-                    <button onClick={() => handleLaunchCoaching(m)} className="p-2 text-zinc-500 hover:text-red-500 transition-colors bg-white rounded-lg hover:bg-zinc-100"><PlayIcon size={18}/></button>
+                    <button 
+                      onClick={() => handleLaunchCoaching(m)} 
+                      className="p-1.5 text-zinc-500 hover:text-rose-500 hover:bg-zinc-100/80 rounded-lg transition-all shrink-0 cursor-pointer border border-zinc-150 bg-zinc-50"
+                      title="Lancer le coaching"
+                    >
+                      <PlayIcon size={14}/>
+                    </button>
                   </Card>
                 </motion.div>
               ))}
 
               {membersAtRisk.length === 0 && failedSubs.length === 0 && endingSubs.length === 0 && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-zinc-500 font-bold uppercase tracking-widest p-6 text-center bg-zinc-50 rounded-3xl border border-zinc-200">
-                  Tout est au vert <span className="text-green-500 ml-1">✅</span>
-                </motion.div>
+                <div className="text-xs text-zinc-500 font-black uppercase tracking-widest p-5 text-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-200 text-zinc-400">
+                  Zéro alerte, performance maximale ✨
+                </div>
               )}
             </div>
           </motion.section>
 
-          {/* 4. Anniversaires à venir */}
+          {/* Active Streaks / Rituels Leaderboard */}
           <motion.section variants={itemVariants} className="space-y-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 px-1 italic">Anniversaires</h2>
+            <div className="flex items-center gap-2 px-1">
+              <div className="w-1.5 h-6 rounded bg-indigo-500" />
+              <h2 className="text-lg font-black uppercase tracking-wider text-zinc-900 italic">Séries Actives & Rituels</h2>
+            </div>
+            
             <div className="space-y-3">
-              {upcomingBirthdays.map(member => {
+              {members
+                .slice()
+                .sort((a, b) => {
+                  const streakDiff = (b.streak || 0) - (a.streak || 0);
+                  if (streakDiff !== 0) return streakDiff;
+                  return (b.xp || 0) - (a.xp || 0);
+                })
+                .slice(0, 4)
+                .map(m => {
+                  const isHighStreak = (m.streak || 0) > 0;
+                  return (
+                    <motion.div key={`streak_leader_${m.id}`} whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 450, damping: 30 }}>
+                      <Card className="!p-4 bg-white border border-zinc-200/80 flex items-center justify-between shadow-sm">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center font-bold text-[10px] text-zinc-800 border border-zinc-200 shrink-0 overflow-hidden">
+                            {m.avatar?.startsWith('http') ? (
+                              <img src={m.avatar} alt={m.name} className="w-full h-full object-cover" />
+                            ) : (
+                              m.avatar || m.name.substring(0, 2).toUpperCase()
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-xs font-black text-zinc-900 leading-tight truncate max-w-[100px]">{m.name}</div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[8px] font-black text-zinc-400 uppercase tracking-wider">Lvl {Math.floor((m.xp || 0) / 1000) + 1}</span>
+                              {isHighStreak && (
+                                <div className="flex items-center gap-0.5 text-[8px] font-black text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-full border border-orange-505/10">
+                                  <FlameIcon size={8} fill="currentColor" /> {m.streak} J
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <button
+                          onClick={() => handleCongratulate(m)}
+                          type="button"
+                          className="py-1.5 px-2.5 rounded-lg text-[8px] font-black uppercase tracking-wider text-emerald-600 hover:text-white bg-emerald-50 hover:bg-emerald-600 hover:border-emerald-600 transition-all border border-emerald-500/10 flex items-center gap-1 shrink-0 cursor-pointer"
+                        >
+                          <SparklesIcon size={9} /> Féliciter
+                        </button>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+            </div>
+          </motion.section>
+
+          {/* Upcoming Birthdays Section */}
+          <motion.section variants={itemVariants} className="space-y-4">
+            <div className="flex items-center gap-2 px-1">
+              <div className="w-1.5 h-6 rounded bg-emerald-500" />
+              <h2 className="text-lg font-black uppercase tracking-wider text-zinc-900 italic">Fêtes & Anniversaires</h2>
+            </div>
+            
+            <div className="space-y-3">
+              {upcomingBirthdays.slice(0, 3).map(member => {
                 const birthDate = new Date(member.birthDate!);
                 const today = new Date();
                 let age = today.getFullYear() - birthDate.getFullYear();
@@ -446,14 +916,14 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 const isToday = today.getMonth() === birthDate.getMonth() && today.getDate() === birthDate.getDate();
                 
                 return (
-                  <motion.div key={`bday_${member.id}`} whileHover={{ scale: 1.02, x: -4 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
-                    <Card className={`!p-4 border-emerald-500/30 ${isToday ? 'bg-emerald-500/20' : 'bg-zinc-50'} backdrop-blur-md flex items-center justify-between shadow-sm hover:shadow-emerald-500/20 transition-all`}>
+                  <motion.div key={`bday_${member.id}`} whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 450, damping: 30 }}>
+                    <Card className={`!p-4 border border-zinc-200/80 ${isToday ? 'bg-gradient-to-r from-emerald-500/10 to-transparent border-l-4 border-l-emerald-500' : 'bg-white'} backdrop-blur-md flex items-center justify-between shadow-sm hover:shadow-md transition-all`}>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-inner"><GiftIcon size={20}/></div>
+                        <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500 shrink-0"><GiftIcon size={18}/></div>
                         <div>
-                          <div className="text-xs font-black text-zinc-900">{member.name}</div>
-                          <div className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest mt-0.5">
-                            {isToday ? `Aujourd'hui ! (${nextAge} ans)` : `${birthDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })} (${nextAge} ans)`}
+                          <div className="text-xs font-black text-zinc-900 leading-tight">{member.name}</div>
+                          <div className="text-[8px] font-black text-emerald-600 uppercase tracking-widest mt-0.5">
+                            {isToday ? `C'EST AUJOURD'HUI ! (${nextAge} ans)` : `${birthDate.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })} (${nextAge} ans)`}
                           </div>
                         </div>
                       </div>
@@ -462,49 +932,9 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 );
               })}
               {upcomingBirthdays.length === 0 && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-zinc-500 font-bold uppercase tracking-widest p-6 text-center bg-zinc-50 rounded-3xl border border-zinc-200">
-                  Aucun anniversaire ce mois-ci
-                </motion.div>
-              )}
-            </div>
-          </motion.section>
-
-          {/* Flux d'activité */}
-          <motion.section variants={itemVariants} className="space-y-4">
-            <div className="flex justify-between items-center px-1">
-              <h2 className="text-xl font-black uppercase tracking-tight text-zinc-900 italic">Activité</h2>
-            </div>
-            <div className="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-              {(state.feed || []).filter(f => f.clubId === state.user?.clubId).map((item, i) => (
-                <motion.div key={item.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
-                  <Card className="!p-4 bg-zinc-50 border border-zinc-200 flex items-center gap-4 group hover:border-emerald-500/30 transition-all shadow-sm hover:shadow-md">
-                    <div className="p-2.5 bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 rounded-xl text-emerald-500 shadow-inner group-hover:scale-110 transition-transform">
-                      {item.title.includes("Feedback") ? <MessageCircleIcon size={20}/> : <SparklesIcon size={20}/>}
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-xs font-bold text-zinc-900 group-hover:text-emerald-500 transition-colors">{item.title}</div>
-                      <div className="text-[9px] text-zinc-500 font-black uppercase tracking-widest mt-1">
-                        {new Date(item.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} • {item.userName}
-                      </div>
-                    </div>
-                    <button 
-                      onClick={async () => {
-                        try {
-                          await deleteDoc(doc(db, "feed", item.id.toString()));
-                        } catch (err) {
-                          console.error("Error deleting feed item:", err);
-                        }
-                      }}
-                      className="p-2 text-zinc-500 hover:text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Marquer comme traité"
-                    >
-                      <CheckCircleIcon size={18} />
-                    </button>
-                  </Card>
-                </motion.div>
-              ))}
-              {(state.feed || []).length === 0 && (
-                <p className="text-center py-8 text-zinc-500 italic text-xs uppercase tracking-widest opacity-50">Aucune activité récente</p>
+                <div className="text-xs text-zinc-500 font-black uppercase tracking-widest p-5 text-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-200 text-zinc-400">
+                  Aucun anniversaire ce mois-ci 🎂
+                </div>
               )}
             </div>
           </motion.section>
