@@ -10,9 +10,16 @@ import { EXERCISE_CATEGORIES, GOALS } from '../constants';
 import { 
   ChevronDownIcon, SearchIcon, Plus, Trash2, ArrowLeft, ArrowRight, ArrowUp, ArrowDown,
   Copy, Link, Eye, Sparkles, MessageCircle, MoreHorizontal, Settings2, Lock,
-  Settings, Clock, Dumbbell, Play, Save, ChevronUp, RefreshCw, X
+  Settings, Clock, Play, Save, ChevronUp, RefreshCw, X, HelpCircle, Flame, Heart, Activity
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
+// Quick Presets helper configuration
+const REPS_PRESETS = ["8", "10", "12", "15", "8-12", "10-12", "12-15", "MAX", "10/8/6/15"];
+const REST_PRESETS = ["30s", "45s", "60s", "90s", "2 min", "3 min"];
+const TEMPO_PRESETS = ["2010", "3010", "4010", "Explosif", "Contrôlé"];
+
+// Searchable selection component with modern visual presentation and quick categories
 const SearchableExerciseSelect: React.FC<{
   exercises: Exercise[];
   value: number;
@@ -20,6 +27,7 @@ const SearchableExerciseSelect: React.FC<{
 }> = ({ exercises, value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,61 +42,125 @@ const SearchableExerciseSelect: React.FC<{
 
   const selectedEx = exercises.find(e => e.id === value);
 
-  const filteredExercises = exercises.filter(e => 
-    e.name.toLowerCase().includes(search.toLowerCase()) || 
-    e.cat.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredExercises = exercises.filter(e => {
+    const matchesSearch = e.name.toLowerCase().includes(search.toLowerCase()) || 
+      e.cat.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = selectedCategory ? e.cat === selectedCategory : true;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="relative w-full" ref={containerRef}>
-      <div 
-        className="w-full bg-white border border-zinc-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm font-black text-zinc-900 cursor-pointer flex justify-between items-center hover:border-emerald-500 transition-colors"
+      <button
+        type="button"
+        className="w-full bg-zinc-50 border border-zinc-200 hover:border-emerald-500 rounded-2xl p-4 text-sm font-bold text-zinc-900 cursor-pointer flex justify-between items-center transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className="truncate">{selectedEx ? selectedEx.name : 'Sélectionner un exercice'}</span>
+        <div className="flex items-center gap-2.5 truncate">
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span className="truncate">{selectedEx ? selectedEx.name : 'Sélectionner un exercice'}</span>
+          {selectedEx && (
+            <span className="text-[10px] text-zinc-400 bg-zinc-100 rounded-md px-2 py-0.5 font-bold uppercase tracking-wider ml-1 truncate">
+              {selectedEx.cat}
+            </span>
+          )}
+        </div>
         <ChevronDownIcon size={16} className={`text-zinc-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </div>
+      </button>
       
       {isOpen && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-zinc-200 rounded-xl shadow-xl max-h-60 overflow-y-auto overflow-x-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
-          <div className="p-2 sticky top-0 bg-white border-b border-zinc-200 z-10">
+        <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-zinc-150 rounded-[28px] shadow-2xl max-h-[420px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+          <div className="p-3 sticky top-0 bg-white border-b border-zinc-100/80 z-10 space-y-2">
             <div className="relative">
-              <SearchIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+              <SearchIcon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
-                className="w-full bg-white border border-zinc-200 rounded-lg py-2 pl-9 pr-3 text-xs font-bold text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
-                placeholder="Rechercher un exercice..."
+                className="w-full bg-zinc-50 border border-zinc-150 rounded-xl py-2.5 pl-11 pr-4 text-xs font-semibold text-zinc-900 focus:outline-none focus:border-emerald-500 focus:bg-white transition-all shadow-inner"
+                placeholder="Rechercher un exercice par nom ou catégorie..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 onClick={e => e.stopPropagation()}
                 autoFocus
               />
             </div>
+            
+            {/* Category selection bar */}
+            <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar pt-1">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedCategory(null);
+                }}
+                className={`px-3 py-1 text-[9px] font-bold rounded-lg transition-all capitalize shrink-0 ${
+                  selectedCategory === null 
+                    ? 'bg-zinc-900 text-white' 
+                    : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900'
+                }`}
+              >
+                Tout voir
+              </button>
+              {EXERCISE_CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedCategory(cat);
+                  }}
+                  className={`px-3 py-1 text-[9px] font-bold rounded-lg transition-all capitalize shrink-0 ${
+                    selectedCategory === cat 
+                      ? 'bg-emerald-500 text-zinc-950 font-black' 
+                      : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-900'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="p-1">
+
+          <div className="p-2 overflow-y-auto max-h-[260px] custom-scrollbar">
             {filteredExercises.length === 0 ? (
-              <div className="p-3 text-xs text-zinc-500 text-center font-medium">Aucun exercice trouvé</div>
+              <div className="p-8 text-xs text-zinc-500 text-center font-semibold italic flex flex-col items-center justify-center gap-2">
+                <SearchIcon size={24} className="text-zinc-300" />
+                Aucun mouvement trouvé
+              </div>
             ) : (
-              EXERCISE_CATEGORIES.map(cat => {
-                const catExs = filteredExercises.filter(e => e.cat === cat);
-                if (catExs.length === 0) return null;
+              EXERCISE_CATEGORIES.map(category => {
+                const categoryExs = filteredExercises.filter(e => e.cat === category);
+                if (categoryExs.length === 0) return null;
                 return (
-                  <div key={cat} className="mb-2">
-                    <div className="px-3 py-1.5 text-xs font-black uppercase text-emerald-600 tracking-widest bg-white/80">{cat}</div>
-                    {catExs.map(e => (
-                      <div 
-                        key={e.id}
-                        className={`px-3 py-2.5 text-xs font-bold cursor-pointer rounded-lg transition-colors flex items-center justify-between ${e.id === value ? 'bg-emerald-500/10 text-emerald-500' : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'}`}
-                        onClick={() => {
-                          onChange(e.id);
-                          setIsOpen(false);
-                          setSearch('');
-                        }}
-                      >
-                        <span>{e.name}</span>
-                        {e.id === value && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
-                      </div>
-                    ))}
+                  <div key={category} className="mb-3">
+                    <div className="px-3 py-1 text-[9px] font-extrabold uppercase text-emerald-600 tracking-wider sticky top-0 bg-white/95 backdrop-blur-sm z-10">
+                      {category}
+                    </div>
+                    <div className="grid grid-cols-1 gap-1.5 mt-1.5">
+                      {categoryExs.map(e => (
+                        <button 
+                          key={e.id}
+                          type="button"
+                          className={`w-full text-left px-3.5 py-3 text-xs font-semibold cursor-pointer rounded-xl transition-all flex items-center justify-between ${
+                            e.id === value 
+                              ? 'bg-emerald-50 text-emerald-600 font-extrabold border border-emerald-100/50' 
+                              : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 border border-transparent'
+                          }`}
+                          onClick={() => {
+                            onChange(e.id);
+                            setIsOpen(false);
+                            setSearch('');
+                          }}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            {e.id === value && <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />}
+                            <span className="truncate">{e.name}</span>
+                          </div>
+                          <span className="text-[9px] font-bold text-zinc-400 bg-zinc-100 px-2.5 py-1 rounded-md shrink-0">
+                            {e.equip}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 );
               })
@@ -104,7 +176,7 @@ interface ProgramEditorProps {
   program: Program | null;
   preset: Preset | null;
   exercises: Exercise[];
-  clubId: string; // New prop
+  clubId: string;
   onSave: (data: any, action?: 'plan' | 'start') => void;
   onCancel: () => void;
   allPresets?: Preset[]; 
@@ -146,8 +218,10 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   const [openActionIdx, setOpenActionIdx] = useState<number | null>(null);
   const isSingleSession = formData.isPlannedSession;
 
+  // Track the custom calculated state for session duration
+  const [autoCalculatedDurations, setAutoCalculatedDurations] = useState<Record<number, number>>({});
+
   const handleApplyPreset = (p: Preset) => {
-    // If we are in "Day Import" mode, we apply to current day
     if (showPresets && formData.days[selectedDayIdx]) {
       handleApplyPresetToDay(p, selectedDayIdx);
       setShowPresets(false);
@@ -159,7 +233,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
       name: p.name,
       nbDays: p.nbDays,
       durationWeeks: p.durationWeeks,
-      days: JSON.parse(JSON.stringify(p.days)), // Profonde copie
+      days: JSON.parse(JSON.stringify(p.days)),
       presetId: p.id
     });
     setShowPresets(false);
@@ -223,7 +297,6 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
       
       if (isGroupType) {
         if (currentGroup !== null && currentGroup > 0) {
-          // Already in a group, update type for all in the group
           newDays[dayIdx].exercises = newDays[dayIdx].exercises.map((e: ExerciseEntry) => {
             if (e.setGroup === currentGroup) {
               return { ...e, setType: newType as any };
@@ -231,7 +304,6 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
             return e;
           });
         } else {
-          // Create a new group
           let count = 2;
           if (newType === 'triset') count = 3;
           if (newType === 'giantset') count = 4;
@@ -251,7 +323,6 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
         }
       } else if (newType === 'normal') {
         if (currentGroup !== null && currentGroup > 0) {
-          // Ungroup all in this group
           newDays[dayIdx].exercises = newDays[dayIdx].exercises.map((e: ExerciseEntry) => {
             if (e.setGroup === currentGroup) {
               return { ...e, setGroup: null, setType: 'normal' };
@@ -266,7 +337,6 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
           };
         }
       } else {
-        // Dropset, custom, etc.
         newDays[dayIdx].exercises[exIdx] = {
           ...currentEx,
           [field]: value
@@ -310,11 +380,11 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
 
   const handleMoveEx = (dayIdx: number, exIdx: number, direction: 'up' | 'down') => {
     const newDays = [...formData.days];
-    const exercises = newDays[dayIdx].exercises;
+    const exercisesList = newDays[dayIdx].exercises;
     if (direction === 'up' && exIdx > 0) {
-      [exercises[exIdx - 1], exercises[exIdx]] = [exercises[exIdx], exercises[exIdx - 1]];
-    } else if (direction === 'down' && exIdx < exercises.length - 1) {
-      [exercises[exIdx], exercises[exIdx + 1]] = [exercises[exIdx + 1], exercises[exIdx]];
+      [exercisesList[exIdx - 1], exercisesList[exIdx]] = [exercisesList[exIdx], exercisesList[exIdx - 1]];
+    } else if (direction === 'down' && exIdx < exercisesList.length - 1) {
+      [exercisesList[exIdx], exercisesList[exIdx + 1]] = [exercisesList[exIdx + 1], exercisesList[exIdx]];
     }
     setFormData({ ...formData, days: newDays });
   };
@@ -333,10 +403,8 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
     const prevEx = newDays[dayIdx].exercises[exIdx - 1];
 
     if (currentEx.setGroup && currentEx.setGroup === prevEx.setGroup) {
-      // Unlink
       newDays[dayIdx].exercises[exIdx] = { ...currentEx, setGroup: null, setType: 'normal' };
     } else {
-      // Link
       let groupToUse = prevEx.setGroup;
       if (!groupToUse) {
         const allGroups = newDays[dayIdx].exercises.map((e: ExerciseEntry) => e.setGroup).filter((g: number | null) => g !== null && g > 0) as number[];
@@ -350,10 +418,6 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
 
   const handleApplyPresetToDay = (p: Preset, dayIdx: number) => {
     const newDays = [...formData.days];
-    // For simplicity, we just take the first day of the preset or let user choose?
-    // Let's just append all exercises from the first day of the preset for now, 
-    // or if the preset has multiple days, maybe we should show a picker.
-    // For now, let's just append exercises from the first day.
     if (p.days.length > 0) {
       const presetExercises = JSON.parse(JSON.stringify(p.days[0].exercises));
       newDays[dayIdx].exercises = [...newDays[dayIdx].exercises, ...presetExercises];
@@ -361,199 +425,396 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
     }
   };
 
+  // Auto calculate workout session length dynamically
+  const estimateSessionDuration = (day: Day) => {
+    if (!day || !day.exercises || day.exercises.length === 0) return 45;
+    
+    let totalMinutes = 8; // Warmup minutes
+    day.exercises.forEach(ex => {
+      const numSets = Number(ex.sets) || 3;
+      
+      // Try to parse rest string (ex: "90", "90s", "1m30s", "2m")
+      let restSeconds = 90;
+      const cleanRest = String(ex.rest || "").toLowerCase().trim();
+      if (cleanRest.includes('m') || cleanRest.includes('min')) {
+        const matched = cleanRest.match(/(\d+)\s*(m|min)/);
+        if (matched) {
+          restSeconds = parseInt(matched[1]) * 60;
+        }
+      } else {
+        const parsedSec = parseInt(cleanRest);
+        if (!isNaN(parsedSec)) {
+          restSeconds = parsedSec;
+        }
+      }
+
+      // Rest time + execution time (~45s per set)
+      const secondsPerSet = restSeconds + 45;
+      totalMinutes += (numSets * secondsPerSet) / 60;
+    });
+
+    totalMinutes += 5; // Cooldown/Stretch
+    return Math.round(totalMinutes);
+  };
+
+  const handleApplyEstimate = (dayIdx: number) => {
+    const day = formData.days[dayIdx];
+    if (!day) return;
+    const est = estimateSessionDuration(day);
+    
+    const newDays = [...formData.days];
+    newDays[dayIdx].duration = est;
+    setFormData({ ...formData, days: newDays });
+  };
+
+  const activeDay = formData.days[selectedDayIdx];
+
   return (
-    <div className="space-y-8 max-w-4xl mx-auto pb-24 px-4 page-transition">
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-zinc-200/50 -mx-4 px-4 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 shadow-sm">
+    <div className="space-y-8 max-w-6xl mx-auto pb-32 px-4 page-transition">
+      
+      {/* Top Professional Sticky Header Bar */}
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-zinc-100/80 -mx-4 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 shadow-sm">
         <div className="flex items-center gap-4">
-          <button onClick={onCancel} className="p-2 text-zinc-500 hover:text-zinc-900 transition-colors bg-white rounded-full shadow-sm">
-            <ChevronLeftIcon size={24} />
-          </button>
+          <motion.button 
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onCancel} 
+            className="p-3 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/80 transition-all rounded-full"
+          >
+            <ChevronLeftIcon size={22} />
+          </motion.button>
           <div>
-            <h1 className="text-2xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">
-              {isSingleSession ? "PRÉPARER LA SÉANCE" : (isEditingProgram ? "ADAPTER LE PLAN" : "ÉDITION MODÈLE")}
+            <div className="text-[10px] font-black uppercase text-emerald-500 tracking-widest flex items-center gap-1.5 leading-none">
+              <Activity size={12} />
+              CONCEPTEUR DE PROGRAMME SPORTIF
+            </div>
+            <h1 className="text-xl sm:text-2xl font-display font-black tracking-tight text-zinc-900 mt-1 uppercase leading-none">
+              {isSingleSession ? "PLAN DE SÉANCE INDIVIDUELLE" : (isEditingProgram ? `ÉDITION PLAN ATHLÈTE` : "CRÉATION DE MODÈLE")}
             </h1>
-            <p className="text-emerald-500 text-xs font-medium uppercase text-zinc-500 tracking-wider mt-1">Expert Coaching <span className="text-zinc-900">VELATRA</span></p>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
+
+        <div className="flex flex-wrap items-center gap-2">
           {allPresets.length > 0 && (
-             <Button onClick={() => setShowPresets(!showPresets)} variant="secondary" className="!rounded-full font-black text-[10px] tracking-widest italic shadow-sm">
-                {showPresets ? "X" : "APPLIQUER MODÈLE"}
+             <Button 
+               type="button"
+               onClick={() => setShowPresets(!showPresets)} 
+               variant={showPresets ? "primary" : "secondary"}
+               className="!rounded-2xl font-extrabold text-[11px] tracking-wider py-2.5 px-4 shadow-sm"
+             >
+                {showPresets ? "Masquer Modèles" : "Charger un Modèle"}
              </Button>
           )}
           {!isSingleSession && (
-            <Button onClick={() => {
-              import('../services/pdfService').then(m => m.exportProgramToPDF(formData, exercises, null, member?.name));
-            }} variant="ghost" className="shadow-sm px-4 py-3 !rounded-full font-black italic">
-              <span className="mr-2">📄</span>
-              EXPORT PDF
+            <Button 
+              type="button"
+              onClick={() => {
+                import('../services/pdfService').then(m => m.exportProgramToPDF(formData, exercises, null, member?.name));
+              }} 
+              variant="secondary" 
+              className="shadow-sm font-extrabold text-[11px] uppercase tracking-wider py-2.5 rounded-2xl bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50"
+            >
+              📄 EXPORT PDF
             </Button>
           )}
           {!readOnly && (
             isSingleSession ? (
-              <>
-                <Button onClick={() => onSave(formData, 'plan')} variant="secondary" className="shadow-sm px-6 py-3 !rounded-full font-black italic">
-                  <CalendarIcon size={18} className="mr-2" />
-                  PRÉVOIR
+              <div className="flex items-center gap-2">
+                <Button 
+                  type="button"
+                  onClick={() => onSave(formData, 'plan')} 
+                  variant="secondary" 
+                  className="shadow-sm text-[11px] font-extrabold py-2.5 px-4 rounded-2xl uppercase tracking-wider"
+                >
+                  <CalendarIcon size={14} className="mr-1.5 inline" />
+                  Prévoyez
                 </Button>
-                <Button onClick={() => onSave(formData, 'start')} variant="primary" className="shadow-lg px-6 py-3 !rounded-full font-black italic !bg-blue-500 hover:!bg-blue-600">
-                  <PlayIcon size={18} className="mr-2" />
-                  COMMENCER MTN
+                <Button 
+                  type="button"
+                  onClick={() => onSave(formData, 'start')} 
+                  variant="primary" 
+                  className="shadow-md text-[11px] font-extrabold py-2.5 px-4 rounded-2xl uppercase tracking-wider !bg-emerald-500 hover:!bg-emerald-600 !text-zinc-950"
+                >
+                  <Play size={14} className="mr-1.5 inline fill-zinc-950" />
+                  Démarrer
                 </Button>
-              </>
+              </div>
             ) : (
-              <Button onClick={() => onSave(formData)} variant="success" className="shadow-lg px-8 py-3 !rounded-full font-black italic">
-                <SaveIcon size={18} className="mr-2" />
-                VALIDER
+              <Button 
+                type="button"
+                onClick={() => onSave(formData)} 
+                variant="success" 
+                className="shadow-lg shadow-emerald-500/15 py-3 px-6 !rounded-2xl font-extrabold text-[11px] tracking-widest uppercase !bg-emerald-400 hover:!bg-emerald-500 !text-zinc-950"
+              >
+                <SaveIcon size={14} className="mr-2 inline" />
+                Valider et Enregistrer
               </Button>
             )
           )}
         </div>
       </header>
 
-      {showPresets && allPresets.length > 0 && (
-        <Card className="!bg-emerald-500/5 border-emerald-500/20 animate-in slide-in-from-top-4 duration-300">
-           <h3 className="text-xs font-black uppercase text-zinc-500 tracking-wider text-emerald-500 mb-4">Choisir un modèle (Preset)</h3>
-           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {allPresets.map(p => (
-                <button 
-                  key={p.id} 
-                  onClick={() => handleApplyPreset(p)}
-                  className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-left hover:border-emerald-500 transition-all"
-                >
-                  <div className="text-xs font-black text-zinc-900 uppercase">{p.name}</div>
-                  <div className="text-[10px] text-zinc-900 font-black mt-1 uppercase">{p.nbDays} JOURS</div>
-                </button>
-              ))}
-              {allPresets.length === 0 && <p className="text-[10px] text-zinc-900 italic">Aucun modèle disponible.</p>}
-           </div>
-        </Card>
-      )}
+      {/* Preset Section (when open) */}
+      <AnimatePresence>
+        {showPresets && allPresets.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.2 }}
+          >
+            <Card className="!bg-emerald-50 text-zinc-900 border-emerald-100 !p-6 rounded-[28px] shadow-sm">
+               <div className="flex justify-between items-center mb-4">
+                 <h3 className="text-xs font-black uppercase text-emerald-800 tracking-wider flex items-center gap-1.5">
+                   <LayersIcon size={14} />
+                   Sélectionner un modèle pré-configuré (Preset)
+                 </h3>
+                 <button 
+                   type="button" 
+                   onClick={() => setShowPresets(false)} 
+                   className="text-emerald-700 hover:text-emerald-950 hover:bg-emerald-100 p-1 rounded-full text-xs"
+                 >
+                   <X size={16} />
+                 </button>
+               </div>
+               
+               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                  {allPresets.map(p => (
+                    <button 
+                      key={p.id} 
+                      type="button"
+                      onClick={() => handleApplyPreset(p)}
+                      className="p-4 bg-white border border-emerald-100/80 rounded-2xl text-left hover:border-emerald-500 hover:shadow-md transition-all group"
+                    >
+                      <div className="text-xs font-black text-zinc-900 group-hover:text-emerald-700 uppercase transition-colors">{p.name || "Sans nom"}</div>
+                      <div className="flex gap-2 items-center text-[10px] text-zinc-500 font-extrabold mt-2 uppercase">
+                        <span className="bg-emerald-100/50 text-emerald-800 py-0.5 px-2 rounded-md">{p.nbDays} SEANCES</span>
+                        {p.durationWeeks && <span className="bg-zinc-150 py-0.5 px-2 rounded-md">{p.durationWeeks} SEMAINES</span>}
+                      </div>
+                    </button>
+                  ))}
+               </div>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Main Info Card */}
-      <Card className="space-y-6 !p-8 bg-zinc-50 border-zinc-200 ring-1 ring-zinc-200">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-1">
-            <label className="text-xs font-black uppercase text-emerald-600 tracking-widest ml-1">
-              {isSingleSession ? "Titre de la séance" : "Titre du Programme"}
-            </label>
-            <Input 
-              value={formData.name} 
-              onChange={e => setFormData({...formData, name: e.target.value})}
-              placeholder={isSingleSession ? "Ex: Séance Pectoraux" : "Ex: Hypertrophie Poussée"} 
-            />
-          </div>
-          
-          {!isSingleSession && (
-            <div className="space-y-1">
-              <label className="text-xs font-black uppercase text-emerald-600 tracking-widest ml-1">Durée (Semaines)</label>
-              <select 
-                value={formData.durationWeeks || ''} 
-                onChange={e => setFormData({...formData, durationWeeks: e.target.value ? parseInt(e.target.value) : null})}
-                className="w-full bg-white border border-zinc-200 rounded-2xl px-4 py-3 text-zinc-900 text-sm font-medium focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all"
-              >
-                <option value="">Pas de délai (Continu)</option>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20, 24].map(w => (
-                  <option key={w} value={w}>{w} Semaine{w > 1 ? 's' : ''}</option>
-                ))}
-              </select>
+      {/* Main Grid: Meta Info on left, Program options on right (bento styled) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Side: Parameters Panel */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="!p-6 bg-zinc-50 border-zinc-200 ring-1 ring-zinc-200/50 rounded-[32px] space-y-6">
+            <div className="border-b border-zinc-200/60 pb-3">
+              <h2 className="text-sm font-black uppercase text-zinc-800 tracking-widest flex items-center gap-2">
+                <Settings size={16} className="text-emerald-500" />
+                PARAMÈTRES GÉNÉRAUX DU PLAN
+              </h2>
             </div>
-          )}
-
-          {isEditingProgram ? (
-            <>
-              <div className="space-y-1">
-                <label className="text-xs font-black uppercase text-emerald-600 tracking-widest ml-1">Date de début</label>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-1.5 col-span-1 md:col-span-2">
+                <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">
+                  {isSingleSession ? "Nom de la séance programmée" : "Nom complet du programme"}
+                </label>
                 <Input 
-                  type="date"
-                  value={formData.startDate} 
-                  onChange={e => setFormData({...formData, startDate: e.target.value})}
+                  value={formData.name} 
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  className="!rounded-2xl !bg-white border-zinc-200 font-bold !py-3.5 focus:!border-emerald-500 focus:!ring-emerald-500 text-sm"
+                  placeholder={isSingleSession ? "Ex: Haut Du Corps - Force & Densité" : "Ex: Hypertrophie Avancée Trimestre 1"} 
                 />
               </div>
-              {member && (
-                <div className="space-y-2 col-span-1 md:col-span-2 mt-2 p-4 bg-zinc-100/50 rounded-2xl border border-zinc-200/50">
-                  <div className="flex items-center gap-2 text-zinc-900 mb-2">
-                    <InfoIcon size={16} className="text-emerald-500" />
-                    <span className="text-xs font-black uppercase text-zinc-500 tracking-wider">Profil de {member.name}</span>
-                  </div>
-                  {member.objectifs && member.objectifs.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {member.objectifs.map((o: string) => (
-                        <Badge key={o} variant="dark" className="!bg-white !text-zinc-500 !border-zinc-200 !text-[10px]">{o}</Badge>
-                      ))}
-                    </div>
-                  )}
-                  {member.notes && (
-                    <p className="text-xs text-zinc-500 italic leading-relaxed">"{member.notes}"</p>
-                  )}
+              
+              {!isSingleSession && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Durée Prévue</label>
+                  <select 
+                    value={formData.durationWeeks || ''} 
+                    onChange={e => setFormData({...formData, durationWeeks: e.target.value ? parseInt(e.target.value) : null})}
+                    className="w-full bg-white border border-zinc-200 hover:border-zinc-300 rounded-2xl px-4 py-3.5 text-zinc-900 text-sm font-bold focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-sm"
+                  >
+                    <option value="">Pas de durée limite (Continu)</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20, 24].map(w => (
+                      <option key={w} value={w}>{w} Semaine{w > 1 ? 's' : ''}</option>
+                    ))}
+                  </select>
                 </div>
               )}
-            </>
-          ) : (
-            <div className="space-y-1">
-              <label className="text-xs font-black uppercase text-emerald-600 tracking-widest ml-1">Objectifs du Modèle</label>
-              <div className="flex flex-wrap gap-2 p-2 bg-zinc-50 border border-zinc-200 rounded-2xl min-h-[48px]">
-                {GOALS.map(g => {
-                  const isSelected = formData.objectifs?.includes(g);
-                  return (
-                    <button
-                      key={g}
-                      onClick={() => {
-                        const current = formData.objectifs || [];
-                        if (isSelected) {
-                          setFormData({ ...formData, objectifs: current.filter((item: string) => item !== g) });
-                        } else {
-                          setFormData({ ...formData, objectifs: [...current, g] });
-                        }
-                      }}
-                      className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all border ${isSelected ? 'bg-emerald-500 border-emerald-500 text-zinc-900' : 'bg-zinc-50 border-zinc-200 text-zinc-500 hover:text-zinc-900'}`}
-                    >
-                      {g}
-                    </button>
-                  );
-                })}
-              </div>
+
+              {isEditingProgram ? (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Date de début</label>
+                  <Input 
+                    type="date"
+                    value={formData.startDate} 
+                    onChange={e => setFormData({...formData, startDate: e.target.value})}
+                    className="!rounded-2xl !bg-white border-zinc-200 font-bold !py-3.5"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-zinc-500 tracking-widest ml-1">Objectifs Ciblés</label>
+                  <div className="dropdown w-full relative">
+                    <div className="flex flex-wrap gap-1.5 p-2 bg-white border border-zinc-200 rounded-[20px] min-h-[46px] shadow-sm">
+                      {GOALS.map(g => {
+                        const isSelected = formData.objectifs?.includes(g);
+                        return (
+                          <button
+                            key={g}
+                            type="button"
+                            onClick={() => {
+                              const current = formData.objectifs || [];
+                              if (isSelected) {
+                                setFormData({ ...formData, objectifs: current.filter((item: string) => item !== g) });
+                              } else {
+                                setFormData({ ...formData, objectifs: [...current, g] });
+                              }
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase transition-all tracking-wide border ${
+                              isSelected 
+                                ? 'bg-emerald-500 border-emerald-500 text-zinc-950 font-black scale-[1.02] shadow-sm' 
+                                : 'bg-zinc-50 border-zinc-200/60 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
+                            }`}
+                          >
+                            {g}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </Card>
         </div>
 
-        {/* Remarks display for coach - Critical for adaptive coaching */}
+        {/* Right Side: Member Profile Insights Card or general coach notes */}
+        <div className="space-y-6">
+          {member ? (
+            <Card className="!p-6 bg-white border border-zinc-200 rounded-[32px] h-full shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                  <DumbbellIcon className="text-emerald-500" size={20} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-extrabold text-zinc-400 uppercase tracking-widest">Informations Athlète</div>
+                  <h3 className="text-base font-black text-zinc-900 uppercase leading-none mt-0.5">{member.name}</h3>
+                </div>
+              </div>
+
+              <div className="space-y-3.5">
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge variant="dark" className="!bg-zinc-100 !text-zinc-600 !border-transparent text-[10px] font-bold">
+                    {member.gender === 'F' ? 'Femme' : 'Homme'} • {member.age} ans
+                  </Badge>
+                  {member.weight && (
+                    <Badge variant="dark" className="!bg-zinc-100 !text-zinc-600 !border-transparent text-[10px] font-bold">
+                      {member.weight} kg
+                    </Badge>
+                  )}
+                  {member.experienceLevel && (
+                    <Badge variant="accent" className="!bg-emerald-50 !text-emerald-700 !border-transparent text-[10px] font-extrabold uppercase">
+                      {member.experienceLevel}
+                    </Badge>
+                  )}
+                </div>
+
+                {member.objectifs && member.objectifs.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-black uppercase text-zinc-400 tracking-wider block">Objectifs :</span>
+                    <div className="flex flex-wrap gap-1">
+                      {member.objectifs.map((obj: string) => (
+                        <span key={obj} className="px-2 py-0.5 bg-zinc-100 border border-zinc-150 rounded-md text-[9px] text-zinc-600 font-bold uppercase">
+                          {obj}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {member.notes && (
+                  <div className="p-3 bg-zinc-50 border border-zinc-150 rounded-2xl mt-2">
+                    <span className="text-[9px] font-black uppercase text-zinc-400 tracking-wider block mb-1">Notes Coach :</span>
+                    <p className="text-xs text-zinc-500 italic leading-relaxed font-semibold">"{member.notes}"</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          ) : (
+            <Card className="!p-6 bg-zinc-950 text-white rounded-[32px] h-full flex flex-col justify-between relative overflow-hidden">
+               {/* Background glowing decorations */}
+               <div className="absolute right-0 bottom-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+               
+               <div className="space-y-3">
+                 <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                   <Sparkles className="text-emerald-400" size={18} />
+                 </div>
+                 <h3 className="text-sm font-black uppercase tracking-wider col-white">RECOMMANDATIONS ERGONOMIQUES</h3>
+                 <p className="text-[11px] text-zinc-300 leading-relaxed font-medium">
+                   Utilisez les boutons de raccourcis <strong>- / +</strong> et de réglages automatiques pour ajuster instantanément les séries, reps et temps de repos en un seul clic, particulièrement sur mobile.
+                 </p>
+               </div>
+               
+               <div className="pt-3 border-t border-white/10 mt-4 flex items-center justify-between text-[10px] font-black text-emerald-400 uppercase tracking-widest">
+                  <span>VELATRA ATHLETE HUB</span>
+                  <span>PRECISE WORKOUTS</span>
+               </div>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Critical Highlight Box for the User Appeal (such as Victor's June 9 feedback context) */}
+      <AnimatePresence>
         {isEditingProgram && formData.memberRemarks && (
-          <div className="p-5 bg-orange-500/10 border-2 border-orange-500/30 rounded-[32px] flex flex-col sm:flex-row gap-5 items-start sm:items-center justify-between animate-in zoom-in duration-500">
-             <div className="flex gap-5 items-center">
-               <div className="w-12 h-12 rounded-2xl bg-orange-500 text-zinc-900 flex items-center justify-center shrink-0">
-                  <MessageCircleIcon size={24} />
+          <motion.div 
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.95, opacity: 0 }}
+            className="p-5 bg-amber-50 border-2 border-amber-300/60 rounded-[32px] flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between shadow-sm shadow-amber-100"
+          >
+             <div className="flex gap-4 items-center">
+               <div className="w-11 h-11 rounded-2xl bg-amber-500 text-zinc-950 flex items-center justify-center shrink-0 shadow-sm animate-pulse">
+                  <MessageCircleIcon size={20} />
                </div>
                <div>
-                  <div className="text-[10px] font-black text-orange-500 uppercase tracking-widest mb-1">RETOUR ADHÉRENT (À TRAITER) :</div>
-                  <p className="text-base font-black text-zinc-900 italic leading-tight">"{formData.memberRemarks}"</p>
-                  <p className="text-[9px] text-zinc-900 font-bold uppercase mt-1">Ajustez les intensités ou remplacez les exercices concernés ci-dessous.</p>
+                  <div className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-0.5">
+                    RETOUR CO-CONSTRUCTION ATHLÈTE (FAIT APPEL EN DATE DU 9 JUIN) :
+                  </div>
+                  <p className="text-sm font-black text-zinc-900 italic leading-snug">
+                    "{formData.memberRemarks}"
+                  </p>
+                  <p className="text-[10px] text-zinc-600 font-bold mt-1">
+                    Veuillez évaluer ses performances et adapter temporairement l'intensité de la séance.
+                  </p>
                </div>
              </div>
-             <Button 
-               variant="secondary" 
+             <button 
+               type="button"
                onClick={() => setFormData({...formData, memberRemarks: ""})}
-               className="!py-2 !px-4 !rounded-xl !text-[10px] font-black tracking-widest whitespace-nowrap shrink-0"
+               className="py-2.5 px-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-[10px] font-black tracking-widest whitespace-nowrap shrink-0 transition-all border border-transparent shadow-sm uppercase cursor-pointer"
              >
-               MARQUER COMME TRAITÉ
-             </Button>
-          </div>
+               Marquer comme Traité / Résolu
+             </button>
+          </motion.div>
         )}
-      </Card>
+      </AnimatePresence>
 
+      {/* Weekly planning view */}
       {!isSingleSession && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-sm font-black uppercase tracking-wider flex items-center gap-2 text-zinc-800">
-              <LayersIcon size={16} className="text-emerald-500" />
-              Planification Hebdomadaire
+          <div className="flex items-center justify-between px-2">
+            <h2 className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-zinc-500">
+              <LayersIcon size={14} className="text-emerald-500" />
+              SÉLECTION & ARCHITECTURE DES SÉANCES HEBDOMADAIRES
             </h2>
-            <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-              {formData.days.length} {formData.days.length > 1 ? 'séances programmées' : 'séance programmée'}
+            <div className="text-[10px] font-black text-emerald-500 bg-emerald-50 border border-emerald-100/50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+              {formData.days.length} Séance{formData.days.length > 1 ? 's' : ''} programmée{formData.days.length > 1 ? 's' : ''}
             </div>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth">
+          <div className="flex gap-3 overflow-x-auto pb-3 pt-1 no-scrollbar scroll-smooth">
             {formData.days.map((day: Day, idx: number) => {
               const isSelected = selectedDayIdx === idx;
               return (
@@ -565,24 +826,30 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                     setOpenActionIdx(null);
                   }}
                   className={`
-                    relative p-5 rounded-[24px] border text-left min-w-[160px] max-w-[200px] shrink-0 transition-all cursor-pointer select-none group
+                    relative p-5 rounded-[24px] border text-left min-w-[170px] max-w-[210px] shrink-0 transition-all cursor-pointer select-none group
                     ${isSelected 
-                      ? 'bg-zinc-950 border-zinc-950 text-white shadow-xl shadow-zinc-950/20 scale-[1.02]' 
-                      : 'bg-white border-zinc-200/80 text-zinc-900 hover:border-zinc-300 hover:bg-zinc-50/50'
+                      ? 'bg-zinc-950 border-zinc-950 text-white shadow-xl shadow-zinc-950/25 scale-[1.02]' 
+                      : 'bg-white border-zinc-200 text-zinc-900 hover:border-zinc-300 hover:bg-zinc-50'
                     }
                   `}
                 >
-                  <div className="flex justify-between items-start mb-2.5">
+                  <div className="flex justify-between items-start mb-3">
                     <span className={`text-[9px] font-black uppercase tracking-widest ${isSelected ? 'text-emerald-400' : 'text-zinc-400'}`}>
-                      Jour {idx + 1}
+                      SÉANCE 0{idx + 1}
                     </span>
-                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${isSelected ? 'bg-white/10 text-emerald-400' : 'bg-zinc-100 text-zinc-500'}`}>
+                    <span className={`text-[8px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${isSelected ? 'bg-white/10 text-emerald-400' : 'bg-zinc-100 text-zinc-500'}`}>
                       {day.exercises?.length || 0} MVTS
                     </span>
                   </div>
-                  <div className="font-black text-sm truncate uppercase italic tracking-tight leading-none">
+                  <div className="font-extrabold text-sm truncate uppercase italic tracking-tight mb-1 leading-none">
                     {day.name || `Séance ${idx + 1}`}
                   </div>
+                  {day.duration && (
+                    <div className={`text-[9px] font-bold flex items-center gap-1 mt-2 ${isSelected ? 'text-zinc-400' : 'text-zinc-500'}`}>
+                      <Clock size={10} />
+                      {day.duration} min environ
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -590,26 +857,28 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
             <button
               onClick={handleAddDay}
               type="button"
-              className="flex flex-col items-center justify-center p-5 rounded-[24px] border-2 border-dashed border-zinc-200 bg-zinc-50/30 hover:bg-emerald-500/[0.03] hover:border-emerald-500/30 text-emerald-600 font-black text-xs uppercase tracking-widest min-w-[140px] shrink-0 transition-all cursor-pointer hover:scale-[1.01]"
+              className="flex flex-col items-center justify-center p-5 rounded-[24px] border-2 border-dashed border-zinc-200/80 bg-zinc-50/20 hover:bg-emerald-500/[0.02] hover:border-emerald-500/30 text-emerald-600 font-black text-[10px] uppercase tracking-widest min-w-[150px] shrink-0 transition-all cursor-pointer hover:scale-[1.01]"
             >
-              <Plus size={16} className="mb-1.5 shrink-0" />
-              Nouveau jour
+              <Plus size={16} className="mb-2 shrink-0" />
+              Ajouter Séance
             </button>
           </div>
         </div>
       )}
 
-      {/* Day Details Workspace */}
+      {/* Workspace Area: Focus Day Details */}
       <div className="space-y-6">
-        <Card className="border border-zinc-200 !p-7 bg-white rounded-[32px] shadow-sm relative overflow-hidden">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-zinc-100">
+        <Card className="border border-zinc-200 !p-6 sm:!p-8 bg-white rounded-[32px] shadow-sm relative overflow-hidden">
+          
+          {/* Day Workspace Subheader with Day name edits, estimated duration and actions */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-zinc-100/80">
             <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-5">
               {!isSingleSession && (
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider ml-1">Nom de la Séance</label>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider ml-1">Définition de la Séance</label>
                   <Input 
-                    className="!text-lg font-black italic !bg-zinc-50/50 border-zinc-150 !rounded-2xl"
-                    value={formData.days[selectedDayIdx]?.name || ''} 
+                    className="!text-base font-bold !bg-zinc-50 border-zinc-200 !rounded-2xl !py-3 px-4"
+                    value={activeDay?.name || ''} 
                     onChange={e => {
                       const newDays = [...formData.days];
                       if (newDays[selectedDayIdx]) {
@@ -617,18 +886,30 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                         setFormData({...formData, days: newDays});
                       }
                     }}
-                    placeholder="Ex: Legday Intense, Push Day..."
+                    placeholder="Ex: Pecs & Épaules (Superset Focus)"
                   />
                 </div>
               )}
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider ml-1">Durée Estimée (minutes)</label>
+              
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">Durée Estimée</label>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyEstimate(selectedDayIdx)}
+                    className="text-[9px] font-black uppercase text-emerald-500 hover:text-emerald-700 flex items-center gap-1 transition-colors"
+                    title="Calculer automatiquement basé sur les séries et temps de repos"
+                  >
+                    <RefreshCw size={10} className="animate-spin-hover" />
+                    Estimer Durée Automatiquement
+                  </button>
+                </div>
                 <div className="relative">
                   <Input 
                     type="number"
-                    className="!text-lg font-black italic !bg-zinc-50/50 border-zinc-150 !rounded-2xl pr-10"
+                    className="!text-base font-bold !bg-zinc-50 border-zinc-200 !rounded-2xl !py-3 pl-4 pr-14"
                     placeholder="Ex: 60"
-                    value={formData.days[selectedDayIdx]?.duration || ''} 
+                    value={activeDay?.duration || ''} 
                     onChange={e => {
                       const newDays = [...formData.days];
                       if (newDays[selectedDayIdx]) {
@@ -641,21 +922,20 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                       }
                     }}
                   />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-bold uppercase pointer-events-none">MIN</div>
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-black uppercase pointer-events-none">MIN</div>
                 </div>
               </div>
             </div>
 
-            {/* Compact Day actions group */}
+            {/* Quick Actions (Duplicate day, Reorder day, Delete day) */}
             {!isSingleSession && (
               <div className="flex flex-wrap items-center gap-2 lg:self-end">
                 <button 
                   type="button"
                   onClick={() => setShowPresets(!showPresets)}
-                  className="px-4 py-2.5 bg-zinc-50 hover:bg-emerald-500/10 border border-zinc-200 hover:border-emerald-500/20 text-zinc-700 hover:text-emerald-700 font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
-                  title="Importer un modèle de séance"
+                  className="px-4 py-3 bg-zinc-50 hover:bg-emerald-50 border border-zinc-200 hover:border-emerald-500/20 text-zinc-700 hover:text-emerald-800 font-extrabold text-[10px] uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shadow-zinc-100"
                 >
-                  <LayersIcon size={12} className="shrink-0" />
+                  <LayersIcon size={12} className="shrink-0 text-emerald-500" />
                   Importer Séance
                 </button>
 
@@ -702,36 +982,36 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                 <button 
                   type="button"
                   onClick={() => handleDuplicateDay(selectedDayIdx)}
-                  className="p-2.5 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 hover:border-zinc-300 text-zinc-600 hover:text-zinc-800 rounded-xl transition-all cursor-pointer shadow-sm"
+                  className="p-3 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 hover:border-zinc-300 text-zinc-600 hover:text-zinc-800 rounded-xl transition-all cursor-pointer shadow-sm"
                   title="Dupliquer ce jour"
                 >
-                  <Copy size={14} />
+                  <Copy size={13} />
                 </button>
 
                 <button 
                   type="button"
                   onClick={() => handleRemoveDay(selectedDayIdx)}
                   disabled={formData.days.length <= 1}
-                  className="p-2.5 bg-red-500/[0.03] hover:bg-red-500/10 border border-red-500/10 hover:border-red-500/20 text-red-500 rounded-xl disabled:opacity-20 transition-all cursor-pointer shadow-sm"
+                  className="p-3 bg-red-500/[0.02] hover:bg-red-50 hover:border-red-500/20 text-red-500 border border-zinc-200 hover:border-red-500/10 rounded-xl disabled:opacity-10 transition-all cursor-pointer shadow-sm"
                   title="Supprimer ce jour"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={13} />
                 </button>
               </div>
             )}
           </div>
 
-          {/* List of Exercises */}
+          {/* List of Exercises / Movements */}
           <div className="pt-6 space-y-6">
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">
-                Mouvements ({formData.days[selectedDayIdx]?.exercises?.length || 0})
+                Mouvements programmés pour cette séance ({activeDay?.exercises?.length || 0})
               </span>
             </div>
             
-            <div className="space-y-8">
+            <div className="space-y-10">
               {(() => {
-                const exercisesList = formData.days[selectedDayIdx]?.exercises || [];
+                const exercisesList = activeDay?.exercises || [];
                 const groupedExercises: { isGroup: boolean; groupName?: string; exercises: { entry: ExerciseEntry; index: number }[] }[] = [];
                 
                 let currentGroup: number | null = null;
@@ -764,31 +1044,62 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                   groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
                 }
 
+                if (groupedExercises.length === 0) {
+                  return (
+                    <div className="text-center py-16 px-4 bg-zinc-50 border border-zinc-200/50 border-dashed rounded-[28px] text-zinc-500">
+                      <DumbbellIcon size={36} className="mx-auto text-zinc-300 mb-3 animate-pulse" />
+                      <p className="text-xs font-bold uppercase tracking-wider text-zinc-800">SÉANCE VIDE POUR LE MOMENT</p>
+                      <p className="text-[11px] text-zinc-400 mt-1 max-w-sm mx-auto">
+                        Cliquez sur "Ajouter un mouvement" ci-dessous pour composer la programmation sportive de ce jour.
+                      </p>
+                    </div>
+                  );
+                }
+
+                // Render groups and standalone exercises
                 return groupedExercises.map((group, groupIndex) => {
-                  const getGroupColor = (type: string) => {
+                  const getGroupColorClasses = (type: string) => {
                     switch (type?.toLowerCase()) {
-                      case 'superset': return 'from-emerald-500 to-teal-400';
-                      case 'biset': return 'from-blue-500 to-indigo-400';
-                      case 'triset': return 'from-purple-500 to-pink-400';
-                      case 'giantset': return 'from-orange-500 to-amber-400';
-                      default: return 'from-emerald-500 to-teal-400';
+                      case 'superset': return { bg: 'bg-emerald-500', text: 'text-emerald-500', fromTo: 'from-emerald-500 to-teal-400', banner: 'bg-gradient-to-r from-emerald-500 to-teal-100/10 border-emerald-500/20 text-emerald-800' };
+                      case 'biset': return { bg: 'bg-blue-500', text: 'text-blue-500', fromTo: 'from-blue-500 to-indigo-400', banner: 'bg-gradient-to-r from-blue-500 to-indigo-100/10 border-blue-500/20 text-blue-800' };
+                      case 'triset': return { bg: 'bg-purple-500', text: 'text-purple-500', fromTo: 'from-purple-500 to-pink-400', banner: 'bg-gradient-to-r from-purple-500 to-pink-100/10 border-purple-500/20 text-purple-800' };
+                      case 'giantset': return { bg: 'bg-amber-500', text: 'text-amber-500', fromTo: 'from-amber-400 to-orange-500', banner: 'bg-gradient-to-r from-amber-400 to-orange-100/10 border-amber-500/20 text-amber-800' };
+                      default: return { bg: 'bg-zinc-650', text: 'text-zinc-650', fromTo: 'from-zinc-500 to-zinc-400', banner: 'bg-gradient-to-r from-zinc-500 to-zinc-100/10 border-zinc-500/20 text-zinc-800' };
                     }
                   };
 
+                  const groupMeta = getGroupColorClasses(group.groupName || '');
+
                   return (
-                    <div key={groupIndex} className={group.isGroup ? "relative pl-5 sm:pl-8 space-y-4" : "space-y-4"}>
+                    <div key={groupIndex} className={group.isGroup ? "relative pl-4 sm:pl-8 space-y-6" : "space-y-6"}>
+                      
                       {group.isGroup && (
                         <>
-                          {/* Beautiful solid gradient bar on the side for connected exercises */}
-                          <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${getGroupColor(group.groupName || '')} rounded-full opacity-80`} />
+                          {/* Continuous visual guideline sidebar for Supersets */}
+                          <div className={`absolute left-0 top-3 bottom-3 w-1.5 bg-gradient-to-b ${groupMeta.fromTo} rounded-full opacity-80`} />
                           
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-1 text-white bg-gradient-to-r ${getGroupColor(group.groupName || '')} rounded-full`}>
-                              {group.groupName || 'SUPERSET'} (Groupe {group.exercises[0]?.entry.setGroup})
-                            </span>
-                            <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">
-                              Enchaînez sans temps de repos
-                            </span>
+                          <div className={`p-3 border rounded-xl ${groupMeta.banner} flex items-center justify-between gap-4 shadow-sm mb-4`}>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 text-zinc-950 bg-white rounded-md shadow-sm`}>
+                                {group.groupName || 'SUPERSET'}
+                              </span>
+                              <span className="text-[10px] font-extrabold uppercase tracking-wider opacity-90 hidden sm:inline">
+                                Groupe {group.exercises[0]?.entry.setGroup} • Enchaînez les mouvements sans repos
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                // Ungroup all exercises in this group
+                                const firstExIdx = group.exercises[0]?.index;
+                                if (firstExIdx !== undefined) {
+                                  handleUpdateEx(selectedDayIdx, firstExIdx, 'setType', 'normal');
+                                }
+                              }}
+                              className="text-[9px] font-black uppercase text-zinc-700 hover:text-black bg-white/50 hover:bg-white rounded px-2 py-0.5 shrink-0 transition-all border border-black/5"
+                            >
+                              Dissoudre le groupe
+                            </button>
                           </div>
                         </>
                       )}
@@ -800,30 +1111,24 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
 
                         return (
                           <div key={exIdx} className="relative group">
-                            <div className={`p-5 sm:p-6 bg-white rounded-[24px] border transition-all duration-300 relative ${group.isGroup ? 'border-zinc-200/60 shadow-[0_1px_3px_rgba(0,0,0,0.02)]' : 'border-zinc-200/80 shadow-sm hover:border-zinc-300'}`}>
+                            <div className={`p-5 sm:p-6 bg-white rounded-[24px] border border-zinc-200/80 hover:border-zinc-300 transition-all shadow-sm ${group.isGroup ? 'bg-zinc-50/20' : ''}`}>
                               
                               {/* Exercise Header Row */}
-                              <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-5">
-                                <div className="flex items-center gap-4 w-full md:max-w-2xl">
-                                  {/* Thumbnail */}
-                                  <div className="w-12 h-12 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center shrink-0 overflow-hidden relative shadow-inner">
+                              <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between mb-4 pb-4 border-b border-zinc-150/40">
+                                <div className="flex items-center gap-3.5 w-full md:max-w-2xl">
+                                  
+                                  {/* Mouvement badge icon */}
+                                  <div className="w-10 h-10 rounded-xl bg-zinc-50 border border-zinc-200 flex items-center justify-center shrink-0 overflow-hidden relative shadow-inner text-zinc-400">
                                     {baseEx?.photo ? (
                                       <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
                                     ) : (
-                                      <div className="text-zinc-400">
-                                        <Dumbbell size={18} />
-                                      </div>
-                                    )}
-                                    {baseEx?.videoUrl && (
-                                      <div className="absolute top-0 right-0 bg-emerald-500 text-zinc-950 p-0.5 rounded-bl shadow-sm">
-                                        <Play size={8} fill="currentColor" />
-                                      </div>
+                                      <DumbbellIcon size={18} />
                                     )}
                                   </div>
 
                                   {/* Dropdown Select for Exercise Name */}
                                   <div className="flex-1 min-w-0">
-                                    <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block mb-1">Mouvement {exIdx + 1}</span>
+                                    <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block mb-0.5">Mouvement {exIdx + 1}</span>
                                     <SearchableExerciseSelect
                                       exercises={exercises}
                                       value={ex.exId}
@@ -833,29 +1138,29 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                 </div>
 
                                 {/* Clean Actions Bar right aligned */}
-                                <div className="flex items-center gap-1.5 self-end md:self-center">
+                                <div className="flex items-center gap-2 self-end md:self-center">
                                   {/* Link Previous superset toggler */}
                                   <button 
                                     type="button"
                                     onClick={() => handleToggleLink(selectedDayIdx, exIdx)}
                                     disabled={exIdx === 0}
-                                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-1.5 disabled:opacity-20 cursor-pointer ${
-                                      ex.setGroup && ex.setGroup === formData.days[selectedDayIdx].exercises[exIdx-1]?.setGroup 
-                                        ? 'bg-emerald-500 border-emerald-500 text-zinc-950 shadow-sm shadow-emerald-500/10' 
+                                    className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-1.5 disabled:opacity-20 cursor-pointer ${
+                                      ex.setGroup && ex.setGroup === activeDay.exercises[exIdx-1]?.setGroup 
+                                        ? 'bg-emerald-400 border-emerald-400 text-zinc-950 shadow-sm' 
                                         : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-500 hover:text-zinc-800'
                                     }`}
                                     title="Lier avec le mouvement précédent (Superset)"
                                   >
-                                    <Link size={12} />
-                                    <span>Lier</span>
+                                    <LinkIcon size={12} />
+                                    <span>{ex.setGroup && ex.setGroup === activeDay.exercises[exIdx-1]?.setGroup ? 'Lié' : 'Lier'}</span>
                                   </button>
 
-                                  {/* Multi-actions dropdown triggers */}
+                                  {/* Settings menu dropdown for movement options */}
                                   <div className="relative">
                                     <button 
                                       type="button"
                                       onClick={() => setOpenActionIdx(isDropdownOpen ? null : exIdx)}
-                                      className="p-2 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl text-zinc-500 hover:text-zinc-800 transition-all cursor-pointer flex items-center gap-1 text-[10px] uppercase font-black tracking-wider"
+                                      className="p-2 sm:px-3 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 rounded-xl text-zinc-500 hover:text-zinc-800 transition-all cursor-pointer flex items-center gap-1.5 text-[10px] uppercase font-black tracking-wider"
                                       title="Plus d'actions"
                                     >
                                       <Settings2 size={13} />
@@ -863,10 +1168,10 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                     </button>
 
                                     {isDropdownOpen && (
-                                      <div className="absolute right-0 top-full mt-2 bg-white border border-zinc-200 rounded-[20px] shadow-xl p-2.5 z-40 w-48 animate-in fade-in slide-in-from-top-1 duration-150">
-                                        <div className="flex justify-between items-center px-2 py-1 mb-1 border-b border-zinc-100">
+                                      <div className="absolute right-0 top-full mt-2 bg-white border border-zinc-200 rounded-[22px] shadow-xl p-2.5 z-40 w-48 animate-in fade-in slide-in-from-top-1 duration-150">
+                                        <div className="flex justify-between items-center px-1.5 py-1 mb-1 border-b border-zinc-100">
                                           <span className="text-[9px] font-black uppercase text-zinc-400">Position & Modèle</span>
-                                          <button type="button" onClick={() => setOpenActionIdx(null)} className="text-zinc-400 hover:text-zinc-700">
+                                          <button type="button" onClick={() => setOpenActionIdx(null)} className="text-zinc-400 hover:text-zinc-750">
                                             <X size={12} />
                                           </button>
                                         </div>
@@ -888,7 +1193,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                             handleMoveEx(selectedDayIdx, exIdx, 'down');
                                             setOpenActionIdx(null);
                                           }}
-                                          disabled={exIdx === formData.days[selectedDayIdx].exercises.length - 1}
+                                          disabled={exIdx === activeDay.exercises.length - 1}
                                           className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 rounded-lg disabled:opacity-20 transition-colors flex items-center gap-2 cursor-pointer"
                                         >
                                           <ArrowDown size={12} /> Descendre d'un rang
@@ -899,15 +1204,15 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                             handleDuplicateEx(selectedDayIdx, exIdx);
                                             setOpenActionIdx(null);
                                           }}
-                                          className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 rounded-lg transition-colors flex items-center gap-2 cursor-pointer"
+                                          className="w-full text-left px-2.5 py-2 text-[10px] font-bold text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 rounded-lg transition-colors flex items-center gap-2 cursor-pointer border-t border-zinc-100 mt-1 pt-1.5"
                                         >
-                                          <Copy size={12} /> Dupliquer le mvt
+                                          <Copy size={12} /> Dupliquer le mouvement
                                         </button>
 
-                                        {/* Copy to Day */}
+                                        {/* Copy to other days list */}
                                         {formData.days.length > 1 && (
                                           <div className="mt-2 pt-2 border-t border-zinc-100">
-                                            <div className="text-[8px] font-black uppercase text-zinc-400 mb-1 px-2">Copier vers :</div>
+                                            <div className="text-[8px] font-black uppercase text-zinc-400 mb-1 px-1.5">Copier vers séance :</div>
                                             <div className="space-y-0.5 max-h-24 overflow-y-auto">
                                               {formData.days.map((d: any, dIdx: number) => dIdx !== selectedDayIdx && (
                                                 <button 
@@ -917,9 +1222,9 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                                     handleCopyExToDay(selectedDayIdx, exIdx, dIdx);
                                                     setOpenActionIdx(null);
                                                   }}
-                                                  className="w-full text-left px-2 py-1.5 text-[9px] font-bold text-zinc-600 hover:bg-emerald-500/10 hover:text-emerald-700 rounded-md transition-colors truncate"
+                                                  className="w-full text-left px-2 py-1 text-[9px] font-bold text-zinc-600 hover:bg-emerald-50 hover:text-emerald-800 rounded-md transition-colors truncate"
                                                 >
-                                                  J{dIdx + 1} - {d.name || `Jour ${dIdx+1}`}
+                                                  S0{dIdx + 1} - {d.name || `Séance ${dIdx+1}`}
                                                 </button>
                                               ))}
                                             </div>
@@ -933,104 +1238,173 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                                   <button 
                                     type="button"
                                     onClick={() => handleRemoveEx(selectedDayIdx, exIdx)}
-                                    className="p-2 bg-red-500/[0.02] hover:bg-red-500/10 text-zinc-400 hover:text-red-500 rounded-xl transition-all cursor-pointer"
+                                    className="p-2 bg-red-50 hover:bg-red-100/85 text-red-400 hover:text-red-650 rounded-xl transition-all cursor-pointer border border-transparent"
                                     title="Supprimer ce mouvement"
                                   >
-                                    <Trash2 size={13} />
+                                    <Trash2Icon size={14} />
                                   </button>
                                 </div>
                               </div>
 
-                              {/* Spec Dashboard Grid */}
-                              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 bg-zinc-50/70 p-4 sm:p-5 rounded-[20px] border border-zinc-100">
-                                <div className="space-y-1">
-                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider text-center block">Séries</label>
-                                  <Input 
-                                    type="number" 
-                                    className="text-center !rounded-xl !text-sm font-black !bg-white border-zinc-200/70 focus:!border-zinc-400 !py-2"
-                                    value={ex.sets || ''}
-                                    onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'sets', parseInt(e.target.value) || 0)}
-                                  />
+                              {/* Spec Dashboard Grid - Beautiful pill inputs and easy stepper controls */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 bg-zinc-50/50 p-5 rounded-[22px] border border-zinc-150/40">
+                                
+                                {/* 1. SERIES STEPPER */}
+                                <div className="space-y-1.5">
+                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest text-center block">SÉRIES</label>
+                                  <div className="flex items-center justify-between bg-white border border-zinc-200 rounded-2xl p-1 shadow-sm h-11">
+                                    <button
+                                      type="button"
+                                      className="w-9 h-9 flex items-center justify-center bg-zinc-50 hover:bg-zinc-100 text-zinc-600 font-bold rounded-xl transition-all cursor-pointer select-none"
+                                      onClick={() => handleUpdateEx(selectedDayIdx, exIdx, 'sets', Math.max(1, (Number(ex.sets) || 1) - 1))}
+                                    >
+                                      -
+                                    </button>
+                                    <input 
+                                      type="number" 
+                                      className="w-12 text-center text-sm font-black text-zinc-900 border-none bg-transparent focus:ring-0 p-0"
+                                      value={ex.sets || ''}
+                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'sets', parseInt(e.target.value) || 0)}
+                                    />
+                                    <button
+                                      type="button"
+                                      className="w-9 h-9 flex items-center justify-center bg-zinc-50 hover:bg-zinc-100 text-zinc-600 font-bold rounded-xl transition-all cursor-pointer select-none"
+                                      onClick={() => handleUpdateEx(selectedDayIdx, exIdx, 'sets', (Number(ex.sets) || 1) + 1)}
+                                    >
+                                      +
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="space-y-1">
-                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider text-center block">
-                                    {baseEx?.cat === 'Cardio' ? 'Durée/Temps' : 'Répétitions'}
+
+                                {/* 2. REPS WITH POPULAR TAGS */}
+                                <div className="space-y-1.5">
+                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest text-center block">
+                                    {baseEx?.cat === 'Cardio' ? 'DURÉE/TEMPS' : 'RÉPÉTITIONS'}
                                   </label>
-                                  <Input 
-                                    className="text-center !rounded-xl !text-sm font-black !bg-white border-zinc-200/70 focus:!border-zinc-400 !py-2"
-                                    value={baseEx?.cat === 'Cardio' ? (ex.duration || '') : ex.reps}
-                                    placeholder={baseEx?.cat === 'Cardio' ? "Ex: 15 min" : "Ex: 10,12"}
-                                    onChange={e => handleUpdateEx(selectedDayIdx, exIdx, baseEx?.cat === 'Cardio' ? 'duration' : 'reps', e.target.value)}
-                                  />
+                                  <div className="relative">
+                                    <Input 
+                                      className="text-center !rounded-2xl !text-sm font-black !bg-white border-zinc-200 focus:!border-zinc-400 !py-2.5 h-11"
+                                      value={baseEx?.cat === 'Cardio' ? (ex.duration || '') : ex.reps}
+                                      placeholder={baseEx?.cat === 'Cardio' ? "Ex: 15 min" : "Ex: 10,12"}
+                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, baseEx?.cat === 'Cardio' ? 'duration' : 'reps', e.target.value)}
+                                    />
+                                  </div>
+                                  
+                                  {/* Presets underlay */}
+                                  {baseEx?.cat !== 'Cardio' && (
+                                    <div className="flex flex-wrap gap-1 justify-center max-h-[44px] overflow-hidden pt-0.5">
+                                      {REPS_PRESETS.slice(0, 4).map(pre => (
+                                        <button
+                                          key={pre}
+                                          type="button"
+                                          onClick={() => handleUpdateEx(selectedDayIdx, exIdx, 'reps', pre)}
+                                          className={`px-1.5 py-0.5 bg-zinc-100 hover:bg-emerald-50 rounded text-[9px] font-bold text-zinc-500 hover:text-emerald-700 transition-colors uppercase`}
+                                        >
+                                          {pre}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="space-y-1">
-                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider text-center block">Repos (Sec)</label>
-                                  <Input 
-                                    className="text-center !rounded-xl !text-sm font-black !bg-white border-zinc-200/70 focus:!border-zinc-400 !py-2"
-                                    value={ex.rest}
-                                    onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'rest', e.target.value)}
-                                  />
+
+                                {/* 3. REPOS SECONDS WITH ONE-TAP TAGS */}
+                                <div className="space-y-1.5">
+                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest text-center block">REPOS</label>
+                                  <div className="relative">
+                                    <Input 
+                                      className="text-center !rounded-2xl !text-sm font-black !bg-white border-zinc-200 focus:!border-zinc-400 !py-2.5 h-11"
+                                      value={ex.rest}
+                                      placeholder="Ex: 90"
+                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'rest', e.target.value)}
+                                    />
+                                  </div>
+                                  
+                                  <div className="flex flex-wrap gap-1 justify-center max-h-[44px] overflow-hidden pt-0.5">
+                                    {REST_PRESETS.map(pre => (
+                                      <button
+                                        key={pre}
+                                        type="button"
+                                        onClick={() => handleUpdateEx(selectedDayIdx, exIdx, 'rest', pre.replace('s', ''))}
+                                        className="px-1.5 py-0.5 bg-zinc-100 hover:bg-emerald-50 rounded text-[9px] font-bold text-zinc-500 hover:text-emerald-700 transition-colors"
+                                      >
+                                        {pre}
+                                      </button>
+                                    ))}
+                                  </div>
                                 </div>
-                                <div className="space-y-1">
-                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider text-center block">
-                                    {baseEx?.cat === 'Cardio' ? 'Intensité' : 'Tempo'}
+
+                                {/* 4. TEMPO WITH HINTS */}
+                                <div className="space-y-1.5">
+                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest text-center block" title="Excentrique - Isométrique - Concentrique - Transition">
+                                    {baseEx?.cat === 'Cardio' ? 'INTENSITÉ' : 'TEMPO'}
                                   </label>
-                                  <Input 
-                                    className="text-center !rounded-xl !text-sm font-black !bg-white border-zinc-200/70 focus:!border-zinc-400 !py-2"
-                                    value={ex.tempo || ''}
-                                    placeholder={baseEx?.cat === 'Cardio' ? "Ex: Niv 5" : "Ex: 2010"}
-                                    onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'tempo', e.target.value)}
-                                  />
+                                  <div className="relative">
+                                    <Input 
+                                      className="text-center !rounded-2xl !text-sm font-black !bg-white border-zinc-200 focus:!border-zinc-400 !py-2.5 h-11"
+                                      value={ex.tempo || ''}
+                                      placeholder={baseEx?.cat === 'Cardio' ? "Ex: RPE 7" : "Ex: 2010"}
+                                      onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'tempo', e.target.value)}
+                                    />
+                                  </div>
+                                  
+                                  {baseEx?.cat !== 'Cardio' && (
+                                    <div className="flex flex-wrap gap-1 justify-center max-h-[44px] overflow-hidden pt-0.5">
+                                      {TEMPO_PRESETS.slice(0, 3).map(pre => (
+                                        <button
+                                          key={pre}
+                                          type="button"
+                                          onClick={() => handleUpdateEx(selectedDayIdx, exIdx, 'tempo', pre)}
+                                          className="px-1.5 py-0.5 bg-zinc-100 hover:bg-emerald-50 rounded text-[9px] font-bold text-zinc-500 hover:text-emerald-700 transition-colors"
+                                        >
+                                          {pre}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="space-y-1 col-span-1">
-                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider text-center block">Type d'effort</label>
+
+                                {/* 5. EFFORT TYPE CUSTOM DROP-DOWN */}
+                                <div className="space-y-1.5">
+                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest text-center block">SÉRIES INTENSIVES</label>
                                   <div className="relative">
                                     <select 
-                                      className="w-full bg-white border border-zinc-200/70 rounded-xl px-2 py-2 text-center text-xs font-black text-zinc-900 focus:outline-none focus:border-zinc-400 appearance-none cursor-pointer"
+                                      className="w-full bg-white border border-zinc-200 rounded-2xl px-2 py-3 text-center text-xs font-black text-zinc-900 focus:outline-none focus:border-zinc-400 appearance-none cursor-pointer h-11"
                                       value={ex.setType || 'normal'}
                                       onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setType', e.target.value)}
                                     >
-                                      <option value="normal">Normal</option>
+                                      <option value="normal">Série Standard</option>
                                       <option value="superset">Superset</option>
                                       <option value="biset">Bi-set</option>
                                       <option value="triset">Tri-set</option>
                                       <option value="giantset">Giant-set</option>
                                       <option value="dropset">Drop-set</option>
                                     </select>
-                                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
+                                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
                                       <ChevronDownIcon size={12} />
                                     </div>
                                   </div>
                                 </div>
-                                <div className="space-y-1">
-                                  <label className="text-[9px] font-black text-zinc-400 uppercase tracking-wider text-center block" title="Même numéro = même groupe (Superset)">Groupe ID</label>
-                                  <Input 
-                                    type="number" 
-                                    className="text-center !rounded-xl !text-sm font-black !bg-white border-zinc-200/70 focus:!border-zinc-400 !py-2"
-                                    value={ex.setGroup || ''}
-                                    placeholder="Libre"
-                                    onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'setGroup', parseInt(e.target.value) || null)}
-                                  />
-                                </div>
                               </div>
                               
-                              {/* Notes Input styled like continuous conversational guidance */}
+                              {/* Notes Input for particular coaching instructions */}
                               <div className="mt-4 flex gap-2.5 items-center">
                                 <div className="p-2 bg-zinc-50 rounded-xl text-zinc-400 shrink-0">
                                   <MessageCircle size={14} />
                                 </div>
                                 <Input 
-                                  className="!rounded-2xl !text-xs font-medium !bg-zinc-50 border-transparent focus:!border-zinc-200 !py-2.5"
+                                  className="!rounded-2xl !text-xs font-semibold !bg-zinc-50 border-transparent focus:!border-zinc-200 !py-2.5 pl-2"
                                   value={ex.notes || ''}
-                                  placeholder="Consignes particulières (ex: Focus sur la phase excentrique lente, restez gainé...)"
+                                  placeholder="Consigne du coach (Ex: Accentuer le pic de contraction en fin de mouvement, rester gainer...)"
                                   onChange={e => handleUpdateEx(selectedDayIdx, exIdx, 'notes', e.target.value)}
                                 />
                               </div>
                             </div>
+                            
+                            {/* Inter-exercises visual link dot representation for continuous flow list */}
                             {group.isGroup && !isLastInGroup && (
-                              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center justify-center">
-                                <div className="w-6 h-6 rounded-full bg-zinc-150 border border-zinc-200 text-zinc-400 flex items-center justify-center shadow-sm">
-                                  <Link size={10} />
+                              <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center justify-center">
+                                <div className={`w-7 h-7 rounded-full text-zinc-950 border-2 bg-zinc-900 border-white flex items-center justify-center shadow-lg`}>
+                                  <LinkIcon size={11} className="text-emerald-400" />
                                 </div>
                               </div>
                             )}
@@ -1043,13 +1417,17 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
               })()}
             </div>
 
-            <button 
-              onClick={() => handleAddExercise(selectedDayIdx)}
+            {/* Huge Touch-Friendly Add Movement Button */}
+            <motion.button 
               type="button"
-              className="w-full py-6 border-2 border-dashed border-zinc-200 hover:border-emerald-500/40 rounded-[28px] text-zinc-800 hover:text-emerald-500 transition-all font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 bg-zinc-50/50 hover:bg-emerald-505/[0.01] mt-4 cursor-pointer"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={() => handleAddExercise(selectedDayIdx)}
+              className="w-full py-5 border-2 border-dashed border-zinc-200 hover:border-emerald-500 hover:bg-emerald-500/[0.01] rounded-[28px] text-zinc-700 hover:text-emerald-600 transition-all font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 mt-6 cursor-pointer bg-zinc-50/20"
             >
-              <Plus size={16} /> Ajouter un mouvement
-            </button>
+              <Plus size={18} />
+              Ajouter un exercice à la séance
+            </motion.button>
           </div>
         </Card>
       </div>
