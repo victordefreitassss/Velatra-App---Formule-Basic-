@@ -10,7 +10,7 @@ import {
   INIT_EXERCISES, CLUB_INFO, COACHES, CATEGORY_MEDIA, getExerciseMedia 
 } from './constants';
 import { 
-  auth, db, messaging,
+  auth, db, messaging, firebaseConfig,
   onAuthStateChanged, signOut, 
   doc, getDoc, getDocFromServer, setDoc, onSnapshot as originalOnSnapshot, updateDoc, collection, deleteDoc, query, where, getDocs,
   getToken, onMessage
@@ -283,6 +283,7 @@ export default function App() {
       const testConnection = async () => {
         try {
           await getDocFromServer(doc(db, 'test', 'connection'));
+          setGcpBillingError(null);
           setLoading(false);
         } catch (error: any) {
           const errMsg = error?.message || String(error);
@@ -1152,19 +1153,32 @@ export default function App() {
             <div>
               <p className="font-bold text-base md:text-lg flex items-center gap-2">
                 {isReactivating 
-                  ? "🔄 Réactivation de la Facturation en Cours (Propagation)" 
+                  ? (firebaseConfig?.projectId === "velatra-75daa" ? "⚡ Nouveau Projet Connecté (velatra-75daa)" : "🔄 Réactivation de la Facturation en Cours (Propagation)")
                   : "⚠️ Compte de Facturation Google Cloud / Firebase Suspendu"}
               </p>
               <div className="text-sm text-red-100 max-w-4xl mt-0.5">
                 {isReactivating ? (
-                  <p>
-                    Vous avez réactivé votre facturation pour le compte <code className="bg-black/30 px-1.5 py-0.5 rounded text-yellow-300 font-mono font-semibold">018FEA-1EED1E-A30FD3</code>. 
-                    <strong> S'il reste des lenteurs ou des blocages, c'est tout à fait normal :</strong> Google Cloud prend habituellement entre <strong>15 à 60 minutes</strong> pour propager l'autorisation d'accès aux serveurs de base de données.
-                  </p>
+                  firebaseConfig?.projectId === "velatra-75daa" ? (
+                    <p>
+                      La connexion au nouveau projet Firebase <code className="bg-black/30 px-1.5 py-0.5 rounded text-yellow-300 font-mono font-semibold">velatra-75daa</code> s'est heurtée à un message d'autorisation temporaire pendant que la base de données finalisait son déploiement sur les serveurs Google. 
+                      <strong> S'il n'y a pas d'autres blocages :</strong> cliquez sur <strong>Actualiser</strong> ou fermez ce message avec le bouton <strong>Masquer</strong> pour continuer normalement.
+                    </p>
+                  ) : (
+                    <p>
+                      Vous avez réactivé votre facturation pour le compte <code className="bg-black/30 px-1.5 py-0.5 rounded text-yellow-300 font-mono font-semibold">018FEA-1EED1E-A30FD3</code>. 
+                      <strong> S'il reste des lenteurs ou des blocages, c'est tout à fait normal :</strong> Google Cloud prend habituellement entre <strong>15 à 60 minutes</strong> pour propager l'autorisation d'accès aux serveurs de base de données.
+                    </p>
+                  )
                 ) : (
-                  <p>
-                    Le compte de facturation Google Cloud associé <code className="bg-black/30 px-1.5 py-0.5 rounded text-yellow-300 font-mono font-semibold">018FEA-1EED1E-A30FD3</code> est clôturé ou inactifs. Toutes les requêtes vers la base de données Firestore et vers l'IA Gemini sont momentanément suspendues.
-                  </p>
+                  firebaseConfig?.projectId === "velatra-75daa" ? (
+                    <p>
+                      La base de données du nouveau projet <code className="bg-black/30 px-1.5 py-0.5 rounded text-yellow-300 font-mono font-semibold">velatra-75daa</code> est prête. Si des blocages subsistent, veuillez lier un compte de facturation actif à ce nouveau projet depuis votre console Google Cloud.
+                    </p>
+                  ) : (
+                    <p>
+                      Le compte de facturation Google Cloud associé <code className="bg-black/30 px-1.5 py-0.5 rounded text-yellow-300 font-mono font-semibold">018FEA-1EED1E-A30FD3</code> est clôturé ou inactifs. Toutes les requêtes vers la base de données Firestore et vers l'IA Gemini sont momentanément suspendues.
+                    </p>
+                  )
                 )}
               </div>
             </div>
