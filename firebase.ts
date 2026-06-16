@@ -39,7 +39,7 @@ const env: any = (typeof import.meta !== 'undefined' && (import.meta as any).env
 
 const config: any = typeof __FIREBASE_APPLET_CONFIG__ !== 'undefined' ? __FIREBASE_APPLET_CONFIG__ : {};
 
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: config.apiKey || env.VITE_FIREBASE_API_KEY || "",
   authDomain: config.authDomain || env.VITE_FIREBASE_AUTH_DOMAIN || "",
   projectId: config.projectId || env.VITE_FIREBASE_PROJECT_ID || "",
