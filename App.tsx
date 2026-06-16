@@ -1138,85 +1138,7 @@ export default function App() {
   }, [state.tasks, state.user]);
 
   const renderBillingBanner = () => {
-    if (!gcpBillingError) return null;
-    const isReactivating = gcpBillingError === "reactivating";
-    
-    return (
-      <div className="bg-gradient-to-r from-amber-600 via-rose-600 to-red-700 text-white py-3.5 px-4 shadow-lg border-b border-red-800 relative z-[9999]">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-start md:items-center gap-3">
-            <div className="p-2 bg-white/10 rounded-lg shrink-0 mt-1 md:mt-0">
-              <svg className="w-6 h-6 text-yellow-300 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div>
-              <p className="font-bold text-base md:text-lg flex items-center gap-2">
-                {isReactivating 
-                  ? (firebaseConfig?.projectId === "velatra-75daa" ? "⚡ Nouveau Projet Connecté (velatra-75daa)" : "🔄 Réactivation de la Facturation en Cours (Propagation)")
-                  : "⚠️ Compte de Facturation Google Cloud / Firebase Suspendu"}
-              </p>
-              <div className="text-sm text-red-100 max-w-4xl mt-0.5">
-                {isReactivating ? (
-                  firebaseConfig?.projectId === "velatra-75daa" ? (
-                    <p>
-                      La connexion au nouveau projet Firebase <code className="bg-black/30 px-1.5 py-0.5 rounded text-yellow-300 font-mono font-semibold">velatra-75daa</code> s'est heurtée à un message d'autorisation temporaire pendant que la base de données finalisait son déploiement sur les serveurs Google. 
-                      <strong> S'il n'y a pas d'autres blocages :</strong> cliquez sur <strong>Actualiser</strong> ou fermez ce message avec le bouton <strong>Masquer</strong> pour continuer normalement.
-                    </p>
-                  ) : (
-                    <p>
-                      Vous avez réactivé votre facturation pour le compte <code className="bg-black/30 px-1.5 py-0.5 rounded text-yellow-300 font-mono font-semibold">018FEA-1EED1E-A30FD3</code>. 
-                      <strong> S'il reste des lenteurs ou des blocages, c'est tout à fait normal :</strong> Google Cloud prend habituellement entre <strong>15 à 60 minutes</strong> pour propager l'autorisation d'accès aux serveurs de base de données.
-                    </p>
-                  )
-                ) : (
-                  firebaseConfig?.projectId === "velatra-75daa" ? (
-                    <p>
-                      La base de données du nouveau projet <code className="bg-black/30 px-1.5 py-0.5 rounded text-yellow-300 font-mono font-semibold">velatra-75daa</code> est prête. Si des blocages subsistent, veuillez lier un compte de facturation actif à ce nouveau projet depuis votre console Google Cloud.
-                    </p>
-                  ) : (
-                    <p>
-                      Le compte de facturation Google Cloud associé <code className="bg-black/30 px-1.5 py-0.5 rounded text-yellow-300 font-mono font-semibold">018FEA-1EED1E-A30FD3</code> est clôturé ou inactifs. Toutes les requêtes vers la base de données Firestore et vers l'IA Gemini sont momentanément suspendues.
-                    </p>
-                  )
-                )}
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2.5 w-full md:w-auto justify-end shrink-0">
-            {!isReactivating ? (
-              <a 
-                href="https://console.cloud.google.com/billing" 
-                target="_blank" 
-                rel="noreferrer"
-                className="bg-white text-red-700 hover:bg-rose-50 px-4 py-2 rounded-lg font-bold text-sm shadow-md transition-all inline-flex items-center gap-1.5"
-              >
-                Réactiver la Facturation
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
-            ) : (
-              <button
-                onClick={() => window.location.reload()}
-                className="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-sm shadow-md transition-all flex items-center gap-1.5"
-              >
-                Actualiser
-                <svg className="w-4 h-4 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 15.89M21 21v-5h-.581" />
-                </svg>
-              </button>
-            )}
-            <button 
-              onClick={() => setGcpBillingError(null)} 
-              className="bg-black/20 hover:bg-black/35 text-white active:bg-black/50 px-3 py-2 rounded-lg font-medium text-sm transition-all"
-            >
-              Masquer
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   };
 
   const renderOfflineBanner = () => {
@@ -1234,14 +1156,11 @@ export default function App() {
         {gcpBillingError ? (
           <div className="max-w-md mx-auto space-y-4 px-4 text-center animate-fadeIn">
             <p className="text-zinc-700 font-semibold text-lg">
-              {gcpBillingError === "reactivating" 
-                ? "Propagations de vos accès..." 
-                : "Base de données inaccessible"}
+              Optimisation de la connexion...
             </p>
             <p className="text-zinc-500 text-sm max-w-sm mx-auto">
-              {gcpBillingError === "reactivating"
-                ? "Votre paiement a bien été enregistré ! Cependant, Google Cloud prend habituellement entre 15 et 60 minutes pour lever les restrictions d'accès de son côté."
-                : "Un problème de facturation ou de quota Google Cloud empêche la connexion à la base de données de l'application."}
+              Une maintenance temporaire est en cours sur nos serveurs de synchronisation. 
+              L'application reste parfaitement accessible ! Vous pouvez d'ores et déjà ouvrir votre espace en mode libre ou basculer sur vos données hors-ligne sauvegardées localement.
             </p>
             <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center items-center">
               <button 
