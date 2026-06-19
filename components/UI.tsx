@@ -1,147 +1,109 @@
+
 import React from 'react';
 
-// ============================================================================
-// CARD COMPONENT
-// ============================================================================
-export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  children?: React.ReactNode;
-}
+import { LockIcon } from './Icons';
 
-export const Card: React.FC<CardProps> = ({ 
-  children, 
-  className = '', 
-  ...props 
-}) => {
-  return (
-    <div 
-      className={`bg-zinc-950/80 backdrop-blur-md border border-zinc-900 rounded-2xl p-6 shadow-xl text-white ${className}`}
-      {...props}
-    >
-      {children}
-    </div>
-  );
-};
+export const Card: React.FC<{ children: React.ReactNode, className?: string, onClick?: () => void }> = ({ children, className = "", onClick }) => (
+  <div 
+    onClick={onClick}
+    className={`glass-card rounded-3xl p-6 transition-all duration-500 ${className} ${onClick ? 'cursor-pointer hover:border-emerald-500/40 hover:shadow-[0_0_40px_-15px_rgba(16,185,129,0.3)] hover:-translate-y-1 active:scale-[0.98]' : ''}`}
+  >
+    {children}
+  </div>
+);
 
-// ============================================================================
-// BADGE COMPONENT
-// ============================================================================
-export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-  variant?: 'success' | 'blue' | 'dark' | 'amber' | 'danger' | 'indigo' | 'secondary' | 'error' | 'gray' | 'orange' | 'accent' | string;
-  children: React.ReactNode;
-}
+export const StatBox: React.FC<{ label: string, value: string | number, className?: string, icon?: React.ReactNode, onClick?: () => void, locked?: boolean }> = ({ label, value, className = "", icon, onClick, locked }) => (
+  <div 
+    onClick={onClick}
+    className={`bg-white border border-zinc-200 rounded-3xl p-5 flex flex-col items-center justify-center transition-all duration-500 relative overflow-hidden ${onClick ? 'cursor-pointer hover:bg-zinc-50 hover:border-emerald-500/40 hover:-translate-y-1' : ''} ${className}`}
+  >
+    {locked && (
+       <div className="absolute inset-0 bg-white/80 backdrop-blur-[2px] z-10 flex items-center justify-center">
+        <LockIcon size={20} className="text-emerald-500 opacity-80" />
+      </div>
+    )}
+    {icon && <div className="text-emerald-500 mb-3 opacity-90">{icon}</div>}
+    <span className="text-[10px] uppercase tracking-[3px] font-black text-zinc-500 mb-1">{label}</span>
+    <span className={`text-3xl font-display font-black text-zinc-900 tracking-tight ${locked ? 'opacity-20 blur-[2px]' : ''}`}>{value}</span>
+  </div>
+);
 
-export const Badge: React.FC<BadgeProps> = ({ 
-  variant = 'gray', 
-  children, 
-  className = '', 
-  ...props 
-}) => {
-  const baseStyles = "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide transition-all";
-  
-  const variants: Record<string, string> = {
-    success: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-    blue: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
-    dark: "bg-zinc-800 text-zinc-200 border border-zinc-700/50",
-    amber: "bg-amber-500/10 text-amber-400 border border-amber-500/20",
-    orange: "bg-amber-600/15 text-amber-400 border border-amber-650/20",
-    accent: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",
-    danger: "bg-rose-500/10 text-rose-400 border border-rose-500/20",
-    error: "bg-rose-500/10 text-rose-400 border border-rose-500/20",
-    indigo: "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20",
-    gray: "bg-zinc-850 text-zinc-400 border border-zinc-800/80",
-    secondary: "bg-zinc-900 text-zinc-300 border border-zinc-800",
-  };
-
-  return (
-    <span 
-      className={`${baseStyles} ${variants[variant] || variants.gray} ${className}`}
-      {...props}
-    >
-      {children}
-    </span>
-  );
-};
-
-// ============================================================================
-// BUTTON COMPONENT
-// ============================================================================
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline' | 'indigo' | 'emerald' | 'success' | 'orange' | 'glass' | string;
-  fullWidth?: boolean;
-}
-
-export const Button: React.FC<ButtonProps> = ({ 
-  variant = 'primary', 
-  fullWidth = false, 
-  children, 
-  className = '', 
-  disabled,
-  type = 'button',
-  ...props 
-}) => {
-  const baseStyles = "inline-flex items-center justify-center font-semibold rounded-xl text-xs sm:text-sm transition-all duration-200 active:scale-[0.98] select-none h-11 px-5 whitespace-nowrap cursor-pointer";
-  
-  const widths = fullWidth ? "w-full flex" : "";
-  
-  const variants: Record<string, string> = {
-    primary: "bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-350 hover:to-emerald-450 text-neutral-950 font-bold shadow-lg shadow-emerald-500/5 hover:shadow-emerald-500/15 disabled:bg-none disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed",
-    success: "bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-350 hover:to-emerald-450 text-neutral-950 font-bold shadow-lg shadow-emerald-500/5 hover:shadow-emerald-500/15 disabled:bg-none disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed",
-    emerald: "bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-350 hover:to-emerald-450 text-neutral-950 font-bold shadow-lg shadow-emerald-500/5 hover:shadow-emerald-500/15 disabled:bg-none disabled:bg-zinc-800 disabled:text-zinc-500 disabled:cursor-not-allowed",
-    secondary: "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-850 hover:border-zinc-700 disabled:bg-zinc-950 disabled:border-zinc-900 disabled:text-zinc-650",
-    danger: "bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 hover:text-rose-350 active:bg-rose-500/35",
-    ghost: "bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/50",
-    outline: "border border-zinc-800 bg-transparent text-zinc-300 hover:text-white hover:bg-zinc-900 hover:border-zinc-700",
-    indigo: "bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-400 hover:to-violet-555 text-white active:scale-[0.98]",
-    orange: "bg-amber-500 text-black hover:bg-amber-450 shadow-lg shadow-amber-500/10",
-    glass: "bg-white/5 border border-white/10 text-white hover:bg-white/10",
+export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & { 
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost' | 'success' | 'blue' | 'glass',
+  fullWidth?: boolean
+}> = ({ children, variant = 'primary', className = "", fullWidth, ...props }) => {
+  const variants = {
+    primary: 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-zinc-900 shadow-md hover:shadow-lg border border-transparent',
+    secondary: 'bg-white text-zinc-900 border border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300',
+    danger: 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40',
+    success: 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/40',
+    blue: 'bg-blue-500/10 text-blue-500 border border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/40',
+    glass: 'glass text-zinc-900 border-zinc-200 hover:bg-zinc-50',
+    ghost: 'bg-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
   };
 
   return (
     <button 
-      type={type}
-      disabled={disabled}
-      className={`${baseStyles} ${widths} ${variants[variant] || variants.primary} ${className}`}
       {...props}
+      className={`
+        px-3 sm:px-6 py-3 sm:py-4 rounded-2xl font-black text-[10px] sm:text-[13px] tracking-wider sm:tracking-widest uppercase
+        flex items-center justify-center text-center transition-all duration-300 ease-out
+        disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.99]
+        ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className}
+      `}
     >
       {children}
     </button>
   );
 };
 
-// ============================================================================
-// INPUT COMPONENT
-// ============================================================================
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
+export const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement>> = (props) => (
+  <input 
+    {...props}
+    className={`
+      w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl 
+      text-zinc-900 text-[15px] placeholder:text-zinc-500
+      focus:outline-none focus:border-emerald-500/50 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300
+      ${props.className || ''}
+    `}
+  />
+);
 
-export const Input: React.FC<InputProps> = ({ 
-  className = '', 
-  disabled,
-  ...props 
-}) => {
+export const Textarea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement>> = (props) => (
+  <textarea 
+    {...props}
+    className={`
+      w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl 
+      text-zinc-900 text-[15px] placeholder:text-zinc-500
+      focus:outline-none focus:border-emerald-500/50 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 transition-all duration-300 resize-none
+      ${props.className || ''}
+    `}
+  />
+);
+
+export const Badge: React.FC<{ children: React.ReactNode, variant?: 'accent' | 'blue' | 'orange' | 'success' | 'dark', className?: string }> = ({ children, variant = 'accent', className = "" }) => {
+  const colors = {
+    accent: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+    blue: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    orange: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+    success: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    dark: 'bg-zinc-100 text-zinc-600 border-zinc-200'
+  };
   return (
-    <input 
-      disabled={disabled}
-      className={`w-full h-11 px-4 text-sm rounded-xl border border-zinc-800 bg-zinc-950/50 text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 hover:border-zinc-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
-      {...props}
-    />
+    <span className={`inline-block px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[2px] border backdrop-blur-md ${colors[variant]} ${className}`}>
+      {children}
+    </span>
   );
 };
 
-// ============================================================================
-// TEXTAREA COMPONENT
-// ============================================================================
-export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
-
-export const Textarea: React.FC<TextareaProps> = ({ 
-  className = '', 
-  disabled,
-  ...props 
-}) => {
-  return (
-    <textarea 
-      disabled={disabled}
-      className={`w-full px-4 py-3 text-sm rounded-xl border border-zinc-800 bg-zinc-950/50 text-white placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 hover:border-zinc-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed min-h-[80px] resize-y ${className}`}
-      {...props}
-    />
-  );
-};
+export const SessionDot: React.FC<{ size?: number }> = ({ size = 10 }) => (
+  <div 
+    className="rounded-full flex-shrink-0 animate-pulse" 
+    style={{ 
+      width: size, 
+      height: size, 
+      backgroundColor: '#3b82f6',
+      boxShadow: `0 0 15px rgba(59, 130, 246, 0.6)`
+    }} 
+  />
+);

@@ -29,11 +29,11 @@ const ScrollToTopButton = () => {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.8 }}
           onClick={scrollToTop}
-          className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-12 h-12 bg-zinc-900/80 hover:bg-zinc-900 text-white rounded-full shadow-lg hover:scale-110 transition-transform group border border-zinc-800/80 backdrop-blur-md"
+          className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-12 h-12 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white rounded-full shadow-lg hover:scale-110 transition-transform group border border-zinc-200 dark:border-zinc-800"
           aria-label="Retour en haut"
         >
           <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="4" className="text-zinc-850" />
+            <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="4" className="text-zinc-100 dark:text-zinc-800" />
             <motion.circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="4" className="text-emerald-500" style={{ pathLength }} />
           </svg>
           <ArrowUp className="w-5 h-5 relative z-10 group-hover:-translate-y-1 transition-transform" />

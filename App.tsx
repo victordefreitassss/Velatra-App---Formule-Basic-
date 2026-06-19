@@ -146,8 +146,6 @@ import { Onboarding } from './components/Onboarding';
 
 // Routing & Marketing Pages
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
-import { PageTransition } from './components/PageTransition';
 import LandingLayout from './components/LandingLayout';
 import HomePage from './pages/HomePage';
 import FeaturesPage from './pages/FeaturesPage';
@@ -1329,203 +1327,193 @@ export default function App() {
   const effectiveRole = isReallySuperAdmin ? adminPerspective : (state.user?.role === 'superadmin' ? 'member' : state.user?.role);
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        {/* Landing Layout / Marketing Routes */}
-        <Route element={<LandingLayout />}>
-          <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
-          <Route path="/fonctionnalites" element={<PageTransition><FeaturesPage /></PageTransition>} />
-          <Route path="/tarifs" element={<PageTransition><PricingPage /></PageTransition>} />
-          <Route path="/solutions" element={<PageTransition><SolutionsPage /></PageTransition>} />
-          <Route path="/centre-d-aide" element={<PageTransition><HelpCenterPage /></PageTransition>} />
-          <Route path="/blog" element={<PageTransition><BlogPage /></PageTransition>} />
-          <Route path="/blog/:slug" element={<PageTransition><BlogPostPage /></PageTransition>} />
-          <Route path="/a-propos" element={<PageTransition><AboutPageMarketing /></PageTransition>} />
-          <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
-          <Route path="/mentions-legales" element={<PageTransition><MentionsLegales /></PageTransition>} />
-          <Route path="/cgv" element={<PageTransition><CGV /></PageTransition>} />
-          <Route path="/confidentialite" element={<PageTransition><Confidentialite /></PageTransition>} />
-        </Route>
+    <Routes>
+      {/* Landing Layout / Marketing Routes */}
+      <Route element={<LandingLayout />}>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/fonctionnalites" element={<FeaturesPage />} />
+        <Route path="/tarifs" element={<PricingPage />} />
+        <Route path="/solutions" element={<SolutionsPage />} />
+        <Route path="/centre-d-aide" element={<HelpCenterPage />} />
+        <Route path="/blog" element={<BlogPage />} />
+        <Route path="/blog/:slug" element={<BlogPostPage />} />
+        <Route path="/a-propos" element={<AboutPageMarketing />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/mentions-legales" element={<MentionsLegales />} />
+        <Route path="/cgv" element={<CGV />} />
+        <Route path="/confidentialite" element={<Confidentialite />} />
+      </Route>
 
-        {/* Auth Routes */}
-        <Route path="/login" element={
-          state.user ? <Navigate to="/dashboard" replace /> : (
-            <PageTransition>
-              <div className="min-h-screen flex flex-col bg-[#ffffff]">
-                {renderBillingBanner()}
-                {renderOfflineBanner()}
-                <div className="flex-1">
-                  <Login initialMode="login" />
-                </div>
+      {/* Auth Routes */}
+      <Route path="/login" element={
+        state.user ? <Navigate to="/dashboard" replace /> : (
+          <div className="min-h-screen flex flex-col bg-[#ffffff]">
+            {renderBillingBanner()}
+            {renderOfflineBanner()}
+            <div className="flex-1 animate-fadeIn">
+              <Login initialMode="login" />
+            </div>
+          </div>
+        )
+      } />
+
+      <Route path="/register" element={
+        state.user ? <Navigate to="/dashboard" replace /> : (
+          <div className="min-h-screen flex flex-col bg-[#ffffff]">
+            {renderBillingBanner()}
+            {renderOfflineBanner()}
+            <div className="flex-1 animate-fadeIn">
+              <Login initialMode="register" />
+            </div>
+          </div>
+        )
+      } />
+
+      {/* Private Dashboard Route */}
+      <Route path="/dashboard" element={
+        !state.user ? <Navigate to="/login" replace /> : (
+          (state.user.role === 'member' && !state.user.onboardingCompleted) ? (
+            <div className="min-h-screen flex flex-col bg-[#ffffff]">
+              {renderBillingBanner()}
+              {renderOfflineBanner()}
+              <div className="flex-1 animate-fadeIn">
+                <Onboarding user={state.user} club={state.currentClub} subscriptions={state.subscriptions} plans={state.plans} onComplete={() => {
+                  setState(prev => prev.user ? { ...prev, user: { ...prev.user, onboardingCompleted: true } } : prev);
+                }} />
               </div>
-            </PageTransition>
-          )
-        } />
-
-        <Route path="/register" element={
-          state.user ? <Navigate to="/dashboard" replace /> : (
-            <PageTransition>
-              <div className="min-h-screen flex flex-col bg-[#ffffff]">
-                {renderBillingBanner()}
-                {renderOfflineBanner()}
-                <div className="flex-1">
-                  <Login initialMode="register" />
-                </div>
-              </div>
-            </PageTransition>
-          )
-        } />
-
-        {/* Private Dashboard Route */}
-        <Route path="/dashboard" element={
-          !state.user ? <Navigate to="/login" replace /> : (
-            (state.user.role === 'member' && !state.user.onboardingCompleted) ? (
-              <PageTransition>
-                <div className="min-h-screen flex flex-col bg-[#ffffff]">
-                  {renderBillingBanner()}
-                  {renderOfflineBanner()}
-                  <div className="flex-1">
-                    <Onboarding user={state.user} club={state.currentClub} subscriptions={state.subscriptions} plans={state.plans} onComplete={() => {
-                      setState(prev => prev.user ? { ...prev, user: { ...prev.user, onboardingCompleted: true } } : prev);
-                    }} />
-                  </div>
-                </div>
-              </PageTransition>
-            ) : (
-              <PageTransition>
-                <ErrorBoundary>
-                  {renderBillingBanner()}
-                  {renderOfflineBanner()}
-                  <Layout 
-                    user={state.user} 
-                    club={state.currentClub} 
-                    activePage={state.page} 
-                    onPageChange={(p) => setState(s => ({ ...s, page: p }))} 
-                    onLogout={handleLogout} 
-                    unreadMessagesCount={unreadMessagesCount} 
-                    unreadNotificationsCount={unreadNotificationsCount}
-                    logs={state.logs || []}
-                    payments={state.payments || []}
-                    users={state.users || []}
-                    adminPerspective={adminPerspective}
-                    onChangePerspective={(p) => {
-                      handlePerspectiveChange(p as any);
-                      setState(s => ({ ...s, page: p === 'superadmin' ? 'admin' : 'home' }));
+            </div>
+          ) : (
+            <ErrorBoundary>
+              {renderBillingBanner()}
+              {renderOfflineBanner()}
+              <Layout 
+                user={state.user} 
+                club={state.currentClub} 
+                activePage={state.page} 
+                onPageChange={(p) => setState(s => ({ ...s, page: p }))} 
+                onLogout={handleLogout} 
+                unreadMessagesCount={unreadMessagesCount} 
+                unreadNotificationsCount={unreadNotificationsCount}
+                logs={state.logs || []}
+                payments={state.payments || []}
+                users={state.users || []}
+                adminPerspective={adminPerspective}
+                onChangePerspective={(p) => {
+                  handlePerspectiveChange(p);
+                  setState(s => ({ ...s, page: p === 'superadmin' ? 'admin' : 'home' }));
+                }}
+              >
+                {renderActivePageContent(state.user)}
+              </Layout>
+              
+              {state.toast && <Toast message={state.toast.message} type={state.toast.type} />}
+              {state.workout && state.workoutMember && (
+                (effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'superadmin') ? (
+                  <CoachingSessionView 
+                    program={state.workout} 
+                    member={state.workoutMember} 
+                    state={state}
+                    showToast={showToast}
+                    isProgramSession={state.workoutIsProgramSession}
+                    onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }))}
+                    onComplete={async (log, perfs) => {
+                      const logWithClub = { ...log, clubId: state.user?.clubId };
+                      const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
+                      
+                      try {
+                        if (!navigatorOnline || isOfflineBackupActive || gcpBillingError) {
+                          throw new Error("offline");
+                        }
+                        await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
+                        for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
+                        
+                        if (state.workout?.isPlannedSession) {
+                          await deleteDoc(doc(db, "programs", state.workout.id.toString()));
+                        }
+                        
+                        if (state.workout?.bookingId) {
+                          await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
+                        }
+                        
+                        setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
+                        showToast("Séance de coaching enregistrée !");
+                      } catch (err) {
+                        console.warn("Offline/failed save, caching coaching logs locally:", err);
+                        queueForSync('logs', logWithClub);
+                        queueForSync('performances', perfsWithClub);
+                        
+                        if (state.workout?.isPlannedSession) {
+                          const pid = state.workout.id;
+                          setState(prev => ({
+                            ...prev,
+                            programs: prev.programs.filter(p => p.id !== pid)
+                          }));
+                          queueForSync('delete_program', { id: pid });
+                        }
+                        
+                        setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
+                        showToast("Séance sauvegardée localement en cache (Hors-ligne) !", "info");
+                      }
                     }}
-                  >
-                    {renderActivePageContent(state.user)}
-                  </Layout>
-                  
-                  {state.toast && <Toast message={state.toast.message} type={state.toast.type} />}
-                  {state.workout && state.workoutMember && (
-                    (effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'superadmin') ? (
-                      <CoachingSessionView 
-                        program={state.workout} 
-                        member={state.workoutMember} 
-                        state={state}
-                        showToast={showToast}
-                        isProgramSession={state.workoutIsProgramSession}
-                        onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }))}
-                        onComplete={async (log, perfs) => {
-                          const logWithClub = { ...log, clubId: state.user?.clubId };
-                          const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
-                          
-                          try {
-                            if (!navigatorOnline || isOfflineBackupActive || gcpBillingError) {
-                              throw new Error("offline");
-                            }
-                            await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
-                            for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
-                            
-                            if (state.workout?.isPlannedSession) {
-                              await deleteDoc(doc(db, "programs", state.workout.id.toString()));
-                            }
-                            
-                            if (state.workout?.bookingId) {
-                              await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
-                            }
-                            
-                            setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
-                            showToast("Séance de coaching enregistrée !");
-                          } catch (err) {
-                            console.warn("Offline/failed save, caching coaching logs locally:", err);
-                            queueForSync('logs', logWithClub);
-                            queueForSync('performances', perfsWithClub);
-                            
-                            if (state.workout?.isPlannedSession) {
-                              const pid = state.workout.id;
-                              setState(prev => ({
-                                ...prev,
-                                programs: prev.programs.filter(p => p.id !== pid)
-                              }));
-                              queueForSync('delete_program', { id: pid });
-                            }
-                            
-                            setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
-                            showToast("Séance sauvegardée localement en cache (Hors-ligne) !", "info");
-                          }
-                        }}
-                      />
-                    ) : (
-                      <WorkoutView 
-                        program={state.workout} 
-                        member={state.workoutMember} 
-                        state={state}
-                        setState={setState}
-                        showToast={showToast}
-                        isCoachView={false}
-                        onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null }))}
-                        onComplete={async (log, perfs) => {
-                          const logWithClub = { ...log, clubId: state.user?.clubId };
-                          const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
-                          
-                          try {
-                            if (!navigatorOnline || isOfflineBackupActive || gcpBillingError) {
-                              throw new Error("offline");
-                            }
-                            await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
-                            for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
+                  />
+                ) : (
+                  <WorkoutView 
+                    program={state.workout} 
+                    member={state.workoutMember} 
+                    state={state}
+                    setState={setState}
+                    showToast={showToast}
+                    isCoachView={false}
+                    onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null }))}
+                    onComplete={async (log, perfs) => {
+                      const logWithClub = { ...log, clubId: state.user?.clubId };
+                      const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
+                      
+                      try {
+                        if (!navigatorOnline || isOfflineBackupActive || gcpBillingError) {
+                          throw new Error("offline");
+                        }
+                        await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
+                        for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
 
-                            if (state.workout?.isPlannedSession) {
-                              await deleteDoc(doc(db, "programs", state.workout.id.toString()));
-                            }
-                            
-                            if (state.workout?.bookingId) {
-                              await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
-                            }
+                        if (state.workout?.isPlannedSession) {
+                          await deleteDoc(doc(db, "programs", state.workout.id.toString()));
+                        }
+                        
+                        if (state.workout?.bookingId) {
+                          await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
+                        }
 
-                            setState(s => ({ ...s, workout: null, workoutMember: null }));
-                            showToast("Séance enregistrée !");
-                          } catch (err) {
-                            console.warn("Offline/failed save, caching member logs locally:", err);
-                            queueForSync('logs', logWithClub);
-                            queueForSync('performances', perfsWithClub);
-                            
-                            if (state.workout?.isPlannedSession) {
-                              const pid = state.workout.id;
-                              setState(prev => ({
-                                ...prev,
-                                programs: prev.programs.filter(p => p.id !== pid)
-                              }));
-                              queueForSync('delete_program', { id: pid });
-                            }
+                        setState(s => ({ ...s, workout: null, workoutMember: null }));
+                        showToast("Séance enregistrée !");
+                      } catch (err) {
+                        console.warn("Offline/failed save, caching member logs locally:", err);
+                        queueForSync('logs', logWithClub);
+                        queueForSync('performances', perfsWithClub);
+                        
+                        if (state.workout?.isPlannedSession) {
+                          const pid = state.workout.id;
+                          setState(prev => ({
+                            ...prev,
+                            programs: prev.programs.filter(p => p.id !== pid)
+                          }));
+                          queueForSync('delete_program', { id: pid });
+                        }
 
-                            setState(s => ({ ...s, workout: null, workoutMember: null }));
-                            showToast("Séance sauvegardée localement en cache (Hors-ligne) !", "info");
-                          }
-                        }}
-                      />
-                    )
-                  )}
-                </ErrorBoundary>
-              </PageTransition>
-            )
+                        setState(s => ({ ...s, workout: null, workoutMember: null }));
+                        showToast("Séance sauvegardée localement en cache (Hors-ligne) !", "info");
+                      }
+                    }}
+                  />
+                )
+              )}
+            </ErrorBoundary>
           )
-        } />
+        )
+      } />
 
-        {/* Catch-all to / */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AnimatePresence>
+      {/* Catch-all to / */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

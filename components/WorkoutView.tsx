@@ -1,324 +1,738 @@
+
 import React, { useState, useEffect } from 'react';
-import { User, SessionLog, Performance, AppState } from '../types';
-import { Card, Button, Input, Badge, Textarea } from './UI';
-import { Timer, ToggleLeft, Save, Dumbbell, Clock, Landmark, X, Play, Pause, RotateCcw } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Program, User, Exercise, AppState, SessionLog, Performance, ExerciseEntry } from '../types';
+import { Button, Input, Badge, Card } from './UI';
+import { XIcon, CheckIcon, DumbbellIcon, InfoIcon, RefreshCwIcon, SparklesIcon, TrophyIcon, LinkIcon, VideoIcon } from './Icons';
+import { db, doc, setDoc, updateDoc, deleteDoc } from '../firebase';
+import { PROGRAM_DURATION_WEEKS } from '../constants';
+import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
+
+const getTargetRepsForSet = (repsString: string | number | undefined, setIndex: number): string => {
+  if (typeof repsString === 'number') return String(repsString);
+  if (!repsString) return '';
+  const parts = repsString.split(',').map(s => s.trim());
+  if (parts.length === 0) return '';
+  if (setIndex < parts.length) return parts[setIndex];
+  return parts[parts.length - 1];
+};
 
 interface WorkoutViewProps {
-  program: any | null;
-  member: User | null;
+  program: Program;
+  member: User;
+  onClose: () => void;
+  onComplete: (log: SessionLog, perfs: Performance[]) => void;
   state: AppState;
   setState: React.Dispatch<React.SetStateAction<AppState>>;
-  showToast: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  showToast: (m: string, t?: any) => void;
   isCoachView?: boolean;
-  onClose: () => void;
-  onComplete: (log: SessionLog, perfs: Performance[]) => Promise<void>;
 }
 
-export const WorkoutView: React.FC<WorkoutViewProps> = ({
-  program,
-  member,
-  state,
-  setState,
-  showToast,
-  isCoachView = false,
-  onClose,
-  onComplete
-}) => {
-  if (!program) return null;
+export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClose, onComplete, state, setState, showToast, isCoachView }) => {
+  const currentDay = program.days[program.currentDayIndex % program.nbDays];
+  const [sessionData, setSessionData] = useState<Record<string, string>>(() => {
+    const initialData: Record<string, string> = {};
+    
+    // Find the last session log for this specific day to pre-fill data
+    const lastLog = state.logs
+      ?.filter(l => l.memberId === Number(member.id) && l.dayName === currentDay.name)
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
 
-  // Running timer states
-  const [seconds, setSeconds] = useState(0);
-  const [isActive, setIsActive] = useState(true);
-  const [completedSets, setCompletedSets] = useState<Record<string, boolean>>({});
-  const [exPerformance, setExPerformance] = useState<Record<string, { weight: number, reps: number, notes: string }>>({});
-  const [workoutNotes, setWorkoutNotes] = useState("");
-  const [isFinishing, setIsFinishing] = useState(false);
+    currentDay.exercises.forEach((exEntry, exIndex) => {
+      const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
+      
+      const baseEx = state.exercises.find(e => e.id === exEntry.exId);
+      const lastPerf = baseEx?.perfId ? state.performances.filter(p => p.memberId === Number(member.id) && p.exId === baseEx.perfId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
 
-  // Timer loop
+      // Find if this exercise was in the last log
+      const lastLogEx = lastLog?.exercises?.find(e => e.exId === exEntry.exId);
+
+      for (let i = 0; i < numSets; i++) {
+        // Pre-fill reps
+        const targetReps = getTargetRepsForSet(exEntry.reps, i);
+        if (lastLogEx && lastLogEx.sets[i] && lastLogEx.sets[i].reps) {
+          initialData[`${exIndex}-${i}-reps`] = lastLogEx.sets[i].reps;
+        } else if (targetReps) {
+          initialData[`${exIndex}-${i}-reps`] = targetReps;
+        }
+
+        // Pre-fill weight
+        if (lastLogEx && lastLogEx.sets[i] && lastLogEx.sets[i].weight) {
+          initialData[`${exIndex}-${i}-weight`] = lastLogEx.sets[i].weight;
+        } else if (lastPerf && lastPerf.weight) {
+          initialData[`${exIndex}-${i}-weight`] = String(lastPerf.weight);
+        }
+
+        // Pre-fill duration
+        if (lastLogEx && lastLogEx.sets[i] && lastLogEx.sets[i].duration) {
+          initialData[`${exIndex}-${i}-duration`] = lastLogEx.sets[i].duration;
+        }
+      }
+    });
+    return initialData;
+  });
+  const [completedExercises, setCompletedExercises] = useState<number[]>([]);
+  const [sessionXP, setSessionXP] = useState(0);
+  const [activeVideo, setActiveVideo] = useState<string | null>(null);
+  const [restTimer, setRestTimer] = useState<number | null>(null);
+  const [isTimerActive, setIsTimerActive] = useState(false);
+
   useEffect(() => {
-    let interval: any = null;
-    if (isActive) {
+    let interval: any;
+    if (isTimerActive && restTimer !== null && restTimer > 0) {
       interval = setInterval(() => {
-        setSeconds((s) => s + 1);
+        setRestTimer(prev => (prev !== null && prev > 0 ? prev - 1 : 0));
       }, 1000);
-    } else {
-      clearInterval(interval);
+    } else if (restTimer === 0 && isTimerActive) {
+      setIsTimerActive(false);
+      try {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.play();
+      } catch(e) {}
     }
     return () => clearInterval(interval);
-  }, [isActive]);
+  }, [isTimerActive, restTimer]);
 
-  const toggleTimer = () => setIsActive(!isActive);
-  const resetTimer = () => {
-    setSeconds(0);
-    setIsActive(false);
+  const startTimer = (seconds: number) => {
+    setRestTimer(seconds);
+    setIsTimerActive(true);
   };
 
-  const formatTime = (totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Pre-fill sets values from program
-  useEffect(() => {
-    const freshPerfs: typeof exPerformance = {};
-    program.rounds?.forEach((round, rIdx) => {
-      round.exercises?.forEach((ex: any, exIdx: number) => {
-        const key = `${rIdx}-${exIdx}`;
-        // Extract default numbers from program
-        const matches = ex.repetitionsText?.match(/\d+/);
-        const reps = matches ? Number(matches[0]) : 10;
-        freshPerfs[key] = {
-          weight: 0,
-          reps,
-          notes: ex.notes || ""
-        };
-      });
-    });
-    setExPerformance(freshPerfs);
-  }, [program]);
-
-  const handleToggleSet = (key: string) => {
-    setCompletedSets(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }));
-  };
-
-  const handleUpdateExPerformance = (key: string, field: 'weight' | 'reps' | 'notes', value: any) => {
-    setExPerformance(prev => ({
-      ...prev,
-      [key]: {
-        ...prev[key],
-        [field]: value
-      }
-    }));
-  };
-
-  const handleFinishWorkout = async () => {
-    setIsFinishing(true);
-    try {
-      // Create session Log
-      const logId = Date.now();
-      const sessionLog: any = {
-        id: logId,
-        memberId: member ? Number(member.id) : Number(state.user?.id || 1),
-        nomSession: program.nom,
-        description: program.description || "",
-        dureeMinutes: Math.max(1, Math.round(seconds / 60)),
-        difficulte: program.difficulte,
-        xpGagnee: 15, // standard xp reward
-        pointsFideliteGagnes: 10,
-        date: new Date().toLocaleDateString('fr-FR'),
-        notes: workoutNotes,
-        coachNotes: "",
-        roundsRef: program.rounds || []
-      };
-
-      // Create exercises performance records
-      const performancesList: any[] = [];
-      program.rounds?.forEach((round, rIdx) => {
-        round.exercises?.forEach((ex: any, exIdx: number) => {
-          const key = `${rIdx}-${exIdx}`;
-          const perfData = exPerformance[key];
-          if (perfData) {
-            performancesList.push({
-              id: Date.now() + Math.random(),
-              sessionId: logId,
-              memberId: member ? Number(member.id) : Number(state.user?.id || 1),
-              exerciseId: ex.exerciseId,
-              exerciseNom: ex.nom,
-              poids: Number(perfData.weight) || 0,
-              repetitionsText: perfData.reps.toString(),
-              notes: perfData.notes,
-              date: new Date().toLocaleDateString('fr-FR')
-            });
-          }
-        });
-      });
-
-      await onComplete(sessionLog, performancesList);
-    } catch (err) {
-      console.error(err);
-      showToast("Erreur lors de l'enregistrement", "error");
-    } finally {
-      setIsFinishing(false);
+  const containerVariants: any = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 bg-[#070709] bg-gradient-to-br from-[#0a0a0d] to-[#040405] text-white overflow-y-auto p-4 md:p-8 flex flex-col items-center">
-      <div className="w-full max-w-3xl space-y-6">
+  const itemVariants: any = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: { type: "spring", stiffness: 300, damping: 24 }
+    }
+  };
+
+  const handleInputChange = (exIndex: number, setIndex: number, field: string, value: string) => {
+    const key = `${exIndex}-${setIndex}-${field}`;
+    const newData = { ...sessionData, [key]: value };
+    if (setIndex === 0) {
+      const exEntry = currentDay.exercises[exIndex];
+      const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
+      const hasCommaReps = typeof exEntry.reps === 'string' && exEntry.reps.includes(',');
+      
+      for (let i = 1; i < numSets; i++) {
+        const targetKey = `${exIndex}-${i}-${field}`;
+        if (!newData[targetKey]) {
+          if (field === 'reps' && hasCommaReps) {
+            newData[targetKey] = getTargetRepsForSet(exEntry.reps, i);
+          } else {
+            newData[targetKey] = value;
+          }
+        }
+      }
+    }
+    setSessionData(newData);
+  };
+
+  const isExerciseComplete = (exIndex: number) => {
+    const exEntry = currentDay.exercises[exIndex];
+    const baseEx = state.exercises.find(e => e.id === exEntry.exId);
+    const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
+    for (let i = 0; i < numSets; i++) {
+      if (baseEx?.cat === 'Cardio') {
+        if (!sessionData[`${exIndex}-${i}-duration`]) return false;
+      } else {
+        if (!sessionData[`${exIndex}-${i}-weight`] || !sessionData[`${exIndex}-${i}-reps`]) return false;
+      }
+    }
+    return true;
+  };
+
+  const toggleExerciseValidation = (exIndex: number) => {
+    if (completedExercises.includes(exIndex)) {
+      setCompletedExercises(completedExercises.filter(i => i !== exIndex));
+      setSessionXP(prev => prev - 25);
+    } else {
+      if (isExerciseComplete(exIndex)) {
+        setCompletedExercises([...completedExercises, exIndex]);
+        // Gamification: Bonus XP for completing exercises
+        const bonus = 25 + (completedExercises.length * 5); 
+        setSessionXP(prev => prev + bonus);
+        showToast(`+${bonus} XP ! COMBO x${completedExercises.length + 1}`, "success");
         
-        {/* Header toolbar */}
-        <div className="flex items-center justify-between border-b border-zinc-900 pb-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center justify-center text-emerald-400 shrink-0">
-              <Dumbbell className="w-5 h-5" />
+        setTimeout(() => {
+          const nextEl = document.getElementById(`exercise-${exIndex + 1}`);
+          if (nextEl) {
+            nextEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+      } else {
+        showToast("Remplissez tous les champs !", "error");
+      }
+    }
+  };
+
+  const loyaltyPoints = state.currentClub?.settings?.loyalty?.pointsPerWorkout || 100;
+
+  const groupedExercises: { isGroup: boolean; groupName?: string; exercises: { entry: ExerciseEntry; index: number }[] }[] = [];
+  
+  let currentGroup: number | null = null;
+  let currentGroupType: string | null = null;
+  let currentGroupItems: { entry: ExerciseEntry; index: number }[] = [];
+
+  currentDay.exercises.forEach((exEntry, exIndex) => {
+    if (exEntry.setGroup && exEntry.setGroup > 0) {
+      if (currentGroup === exEntry.setGroup) {
+        currentGroupItems.push({ entry: exEntry, index: exIndex });
+      } else {
+        if (currentGroupItems.length > 0) {
+          groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
+        }
+        currentGroup = exEntry.setGroup;
+        currentGroupType = exEntry.setType;
+        currentGroupItems = [{ entry: exEntry, index: exIndex }];
+      }
+    } else {
+      if (currentGroupItems.length > 0) {
+        groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
+        currentGroupItems = [];
+        currentGroup = null;
+        currentGroupType = null;
+      }
+      groupedExercises.push({ isGroup: false, exercises: [{ entry: exEntry, index: exIndex }] });
+    }
+  });
+  if (currentGroupItems.length > 0) {
+    groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
+  }
+
+  const finishSession = async () => {
+    const sessionExercisesList = currentDay.exercises.map((exEntry, exIndex) => {
+      const baseEx = state.exercises.find(e => e.id === exEntry.exId);
+      const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
+      const sets = [];
+      for (let i = 0; i < numSets; i++) {
+        sets.push({
+          weight: sessionData[`${exIndex}-${i}-weight`] || "",
+          reps: sessionData[`${exIndex}-${i}-reps`] || "",
+          duration: sessionData[`${exIndex}-${i}-duration`] || ""
+        });
+      }
+      return {
+        exId: exEntry.exId,
+        name: baseEx?.name || String(exEntry.exId),
+        sets
+      };
+    });
+
+    const log: SessionLog = {
+      id: Date.now(),
+      clubId: member.clubId,
+      memberId: Number(member.id),
+      date: new Date().toISOString().split('T')[0],
+      week: Math.ceil((program.currentDayIndex + 1) / program.nbDays),
+      isCoaching: isCoachView || currentDay.isCoaching,
+      dayName: currentDay.name,
+      exerciseData: sessionData,
+      exercises: sessionExercisesList
+    };
+
+    const perfs: Performance[] = [];
+    let hasNewPR = false;
+    currentDay.exercises.forEach((exEntry, exIndex) => {
+      const baseEx = state.exercises.find(e => e.id === exEntry.exId);
+      if (baseEx?.perfId) {
+        let maxWeight = 0, associatedReps = 0, duration = "";
+        const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
+        for (let i = 0; i < numSets; i++) {
+          if (baseEx.cat === 'Cardio') {
+            duration = sessionData[`${exIndex}-${i}-duration`] || "";
+          } else {
+            const w = parseFloat(sessionData[`${exIndex}-${i}-weight`]), r = parseInt(sessionData[`${exIndex}-${i}-reps`], 10);
+            if (w > maxWeight) { maxWeight = w; associatedReps = r; }
+          }
+        }
+        
+        // Check for PR
+        const previousPerfs = state.performances.filter(p => p.memberId === Number(member.id) && p.exId === baseEx.perfId);
+        const previousMaxWeight = previousPerfs.length > 0 ? Math.max(...previousPerfs.map(p => p.weight)) : 0;
+        
+        if (maxWeight > previousMaxWeight && previousMaxWeight > 0) {
+          hasNewPR = true;
+        }
+
+        if (maxWeight > 0 || duration) perfs.push({ 
+          id: Date.now() + exIndex, 
+          clubId: member.clubId,
+          memberId: Number(member.id), 
+          date: log.date, 
+          exId: baseEx.perfId, 
+          weight: maxWeight, 
+          reps: associatedReps, 
+          duration: duration,
+          fromCoaching: log.isCoaching 
+        });
+      }
+    });
+
+    if (hasNewPR) {
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#f43f5e', '#10b981', '#3b82f6']
+      });
+      showToast("NOUVEAU RECORD PERSONNEL ! 🎉", "success");
+    }
+
+    const userRef = doc(db, "users", (member as any).firebaseUid);
+    const newStreak = (member.lastWorkoutDate === new Date(Date.now() - 86400000).toISOString().split('T')[0]) ? (member.streak || 0) + 1 : 1;
+    const totalXP = (member.xp || 0) + sessionXP + loyaltyPoints;
+    const oldLevel = Math.floor((member.xp || 0) / 1000) + 1;
+    const newLevel = Math.floor(totalXP / 1000) + 1;
+
+    await updateDoc(userRef, { xp: totalXP, streak: newStreak, lastWorkoutDate: log.date });
+
+    // Resolve any "Relance" tasks for this member
+    const relanceTasks = state.tasks?.filter(t => t.relatedMemberId === member.id && t.status === 'todo' && t.title.includes('Relance')) || [];
+    for (const t of relanceTasks) {
+      try {
+        await updateDoc(doc(db, "tasks", t.id.toString()), { status: 'done' });
+      } catch (err) {
+        console.error("Error updating task:", err);
+      }
+    }
+
+    if (newLevel > oldLevel) {
+      showToast(`NOUVEAU NIVEAU ATTEINT : ${newLevel} ! 🏆`, "success");
+    }
+
+    // Vérification fin de programme
+    const durationWeeks = program.durationWeeks;
+    const nextDayIndex = program.currentDayIndex + 1;
+
+    if (durationWeeks) {
+      const totalSessionsInCycle = program.nbDays * durationWeeks;
+      if (nextDayIndex >= totalSessionsInCycle) {
+        // ARCHIVAGE AUTOMATIQUE
+        const archiveRef = doc(db, "archivedPrograms", program.id.toString());
+        await setDoc(archiveRef, { ...program, clubId: member.clubId, endDate: log.date, memberName: member.name, status: "completed" });
+        await deleteDoc(doc(db, "programs", program.id.toString()));
+        alert(`FÉLICITATIONS ! Vous avez terminé votre cycle de ${durationWeeks} semaines. Le programme est désormais archivé.`);
+      } else {
+        await updateDoc(doc(db, "programs", program.id.toString()), { currentDayIndex: nextDayIndex });
+      }
+    } else {
+      await updateDoc(doc(db, "programs", program.id.toString()), { currentDayIndex: nextDayIndex });
+    }
+
+    onComplete(log, perfs);
+  };
+
+  return createPortal(
+    <motion.div 
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 50 }}
+      className="fixed inset-0 bg-white z-[100] flex flex-col page-transition"
+    >
+      <header className="glass border-b  px-4 py-4 md:px-8 md:py-6 flex flex-col sticky top-0 z-20">
+        <div className="flex items-center justify-between w-full">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+               {currentDay.duration && (
+                 <Badge variant="dark" className="!text-[10px] !px-1.5 !py-0.5 italic">
+                   ~{currentDay.duration} MIN
+                 </Badge>
+               )}
+               <div className="flex items-center gap-1 text-emerald-500 font-bold text-[10px] animate-pulse">
+                  <SparklesIcon size={12}/> {sessionXP} XP
+               </div>
             </div>
-            <div>
-              <h1 className="text-lg sm:text-xl font-bold font-display tracking-tight leading-none text-white">{program.nom}</h1>
-              <p className="text-xs text-zinc-400 mt-1.5 truncate max-w-[200px] md:max-w-none">
-                Difficulté : <strong className="text-zinc-200">{program.difficulte}</strong> • Séance commencée
-              </p>
-            </div>
+            <div className="font-display font-bold text-2xl md:text-3xl tracking-tight text-zinc-900 leading-none truncate pr-4">{currentDay.name}</div>
           </div>
-          
-          <button 
-            type="button"
-            onClick={onClose}
-            className="p-2 text-zinc-500 hover:text-white hover:bg-zinc-900 rounded-xl border border-zinc-850"
+          <motion.button 
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={onClose} 
+            className="p-3 bg-white rounded-full text-zinc-500 hover:text-zinc-900 transition-all hover:bg-red-500 shrink-0"
           >
-            <X className="w-4 h-4" />
-          </button>
+            <XIcon size={20} />
+          </motion.button>
         </div>
+        <div className="w-full h-1.5 bg-zinc-100 rounded-full mt-4 overflow-hidden">
+          <motion.div 
+            className="h-full bg-emerald-500"
+            initial={{ width: 0 }}
+            animate={{ width: `${(completedExercises.length / currentDay.exercises.length) * 100}%` }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+          />
+        </div>
+      </header>
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="flex-1 overflow-y-auto px-4 py-6 md:px-16 space-y-8 no-scrollbar"
+      >
+        <motion.div variants={itemVariants} className="flex justify-between items-center bg-white p-6 rounded-[32px] border ">
+           <div className="space-y-1">
+              <span className="text-xs font-black uppercase text-zinc-500 tracking-widest text-zinc-900">Progression Cycle</span>
+              <div className="text-sm font-black text-zinc-900 italic">
+                SEMAINE {Math.floor(program.currentDayIndex / program.nbDays) + 1} {program.durationWeeks ? `/ ${program.durationWeeks}` : ''} • JOUR {(program.currentDayIndex % program.nbDays) + 1}
+              </div>
+           </div>
+           <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 shadow-inner">
+              <TrophyIcon size={28} />
+           </div>
+        </motion.div>
+        {groupedExercises.map((group, gIndex) => {
+          const getGroupDescription = (type: string) => {
+            switch (type.toLowerCase()) {
+              case 'superset': return "Enchaînez ces exercices sans temps de repos entre eux.";
+              case 'biset': return "Enchaînez ces 2 exercices ciblant le même muscle sans repos.";
+              case 'triset': return "Enchaînez ces 3 exercices sans temps de repos.";
+              case 'giantset': return "Enchaînez ces 4 exercices ou plus sans temps de repos.";
+              case 'dropset': return "Allez jusqu'à l'échec, baissez le poids de 20% et repartez sans repos.";
+              default: return "Enchaînez ces exercices selon les indications.";
+            }
+          };
 
-        {/* Stopwatch Card */}
-        <Card className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-[#0a0a0c]/85 border-zinc-90 w-full">
-          <div className="flex items-center gap-3">
-            <Clock className="w-6 h-6 text-emerald-400 stroke-[2.5]" />
-            <div>
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block leading-none">TEMPS ÉCOULÉ</span>
-              <span className="text-2xl sm:text-3xl font-bold font-mono tracking-wide text-white mt-1 block">
-                {formatTime(seconds)}
-              </span>
+          return (
+            <motion.div 
+              variants={itemVariants} 
+              key={gIndex} 
+              className={group.isGroup ? "relative pl-6 md:pl-10 space-y-8 mt-16" : "space-y-8"}
+              transition={{ duration: 0.3 }}
+            >
+              {group.isGroup && (
+                <>
+                  {/* Ligne verticale de liaison */}
+                  <motion.div 
+                    initial={{ height: 0 }}
+                    animate={{ height: '100%' }}
+                    transition={{ duration: 0.8, ease: "easeInOut" }}
+                    className="absolute left-0 top-0 w-2 bg-gradient-to-b from-emerald-500 to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" 
+                  />
+                  
+                  <motion.div 
+                    initial={{ x: -20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="absolute -top-8 left-0 bg-emerald-500 text-zinc-900 px-4 py-2 rounded-r-2xl rounded-tl-2xl shadow-lg z-10 flex flex-col gap-1"
+                  >
+                    <div className="text-xs font-black uppercase text-zinc-500 tracking-wider flex items-center gap-2">
+                      <LinkIcon size={12} /> {group.groupName || 'SUPERSET'}
+                    </div>
+                    <div className="text-[9px] font-bold opacity-80 leading-tight max-w-[200px]">
+                      {getGroupDescription(group.groupName || 'superset')}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+              {group.exercises.map(({ entry: exEntry, index: exIndex }, i) => {
+                const baseEx = state.exercises.find(e => e.id === exEntry.exId);
+                const isValidated = completedExercises.includes(exIndex);
+                const pr = baseEx?.perfId ? state.performances.filter(p => p.memberId === Number(member.id) && p.exId === baseEx.perfId).sort((a, b) => b.weight - a.weight)[0] : null;
+                const isLastInGroup = i === group.exercises.length - 1;
+                
+                return (
+                  <div key={exIndex} className="relative">
+                    <div id={`exercise-${exIndex}`} className={`transition-all duration-500 ${isValidated ? 'opacity-30 grayscale scale-[0.98] pointer-events-none' : ''}`}>
+                      <Card className={`!p-6 md:!p-8 bg-zinc-50 shadow-xl relative border-none ring-1 ring-zinc-200 ${group.isGroup ? 'hover:ring-emerald-500/50 transition-all' : ''}`}>
+                        {group.isGroup && (
+                          <div className="absolute -left-6 md:-left-10 top-1/2 -translate-y-1/2 w-6 md:w-10 h-1 bg-emerald-500/30" />
+                        )}
+                        <div className="flex gap-4 md:gap-8 items-center mb-6 md:mb-10">
+                          <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-white border border-zinc-200 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
+                            {baseEx?.photo ? (
+                              <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="text-emerald-500">
+                                <DumbbellIcon size={40} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="text-[10px] text-emerald-500 font-black uppercase tracking-[3px] mb-1 md:mb-2">{baseEx?.cat}</div>
+                            <div className="font-black text-2xl md:text-3xl tracking-tighter leading-none text-zinc-900 italic uppercase mb-2 md:mb-3 flex items-center gap-2">
+                              {baseEx?.name}
+                              {baseEx?.videoUrl && (
+                                <button 
+                                  onClick={() => setActiveVideo(baseEx.videoUrl!)}
+                                  className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg hover:bg-emerald-500/20 transition-colors"
+                                  title="Voir la vidéo"
+                                >
+                                  <VideoIcon size={18} />
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-2 mb-2">
+                              {exEntry.setType && exEntry.setType !== 'normal' && !group.isGroup && (
+                                <Badge variant="orange" className="uppercase">{exEntry.setType}</Badge>
+                              )}
+                              {exEntry.tempo && (
+                                <Badge variant="dark" className="uppercase">Tempo: {exEntry.tempo}</Badge>
+                              )}
+                              {exEntry.rest && (
+                                <button onClick={() => startTimer(parseInt(exEntry.rest) || 90)} className="hover:scale-105 transition-transform active:scale-95">
+                                  <Badge variant="dark" className="uppercase flex items-center gap-1 cursor-pointer !bg-zinc-800 hover:!bg-zinc-700">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    Repos: {exEntry.rest}s
+                                  </Badge>
+                                </button>
+                              )}
+                            </div>
+                            {pr && (
+                              <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
+                                <TrophyIcon size={12} className="text-yellow-500" /> PR: {baseEx?.cat === 'Cardio' ? (pr.duration || 'N/A') : (baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? `${pr.weight}kg x ${pr.reps}s` : `${pr.weight}kg x ${pr.reps}`}
+                              </div>
+                            )}
+                            {exEntry.notes && (
+                              <div className="mt-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-xs text-zinc-600 font-medium leading-relaxed">
+                                <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest block mb-1">Notes du coach</span>
+                                {exEntry.notes}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 md:gap-6 mb-8 md:mb-10">
+                          {Array.from({ length: (typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1) }).map((_, sIdx) => (
+                            <div key={sIdx} className="flex items-center gap-3 md:gap-6 group animate-in slide-in-from-left">
+                               <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center text-xs font-black text-zinc-900 group-focus-within:border-emerald-500 transition-all shrink-0">{sIdx+1}</div>
+                               <div className="flex-1 flex flex-col gap-1">
+                                 <div className="grid grid-cols-2 gap-2 md:gap-4">
+                                  {baseEx?.cat === 'Cardio' ? (
+                                    <div className="relative flex items-center col-span-2">
+                                      <Input 
+                                        placeholder={exEntry.duration || "DURÉE (ex: 15 min)"} 
+                                        className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-4" 
+                                        value={sessionData[`${exIndex}-${sIdx}-duration`] || ""} 
+                                        onChange={e => handleInputChange(exIndex, sIdx, 'duration', e.target.value)} 
+                                      />
+                                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-zinc-50 px-1 md:px-2 text-[7px] font-black text-zinc-500 uppercase">Temps / Distance</span>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="relative flex items-center">
+                                         <button 
+                                           onClick={() => handleInputChange(exIndex, sIdx, 'weight', String(Math.max(0, (parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") - 1))))}
+                                           className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-white rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
+                                         >-</button>
+                                         <Input type="number" inputMode="decimal" placeholder={(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "LEST" : "KG"} className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
+                                         <button 
+                                           onClick={() => handleInputChange(exIndex, sIdx, 'weight', String((parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") + 1)))}
+                                           className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-50 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
+                                         >+</button>
+                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-zinc-50 px-1 md:px-2 text-[7px] font-black text-zinc-500 uppercase">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? 'Lest' : 'Charge'}</span>
+                                      </div>
+                                      <div className="relative flex items-center">
+                                         <button 
+                                           onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") - 1))))}
+                                           className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-50 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
+                                         >-</button>
+                                         <Input type="text" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || String(exEntry.reps).toLowerCase().includes('s')) ? "SEC" : "REPS")} className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
+                                         <button 
+                                           onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") + 1)))}
+                                           className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-50 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
+                                         >+</button>
+                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-zinc-50 px-1 md:px-2 text-[7px] font-black text-zinc-500 uppercase whitespace-nowrap">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || getTargetRepsForSet(exEntry.reps, sIdx).toLowerCase().includes('s')) ? 'Temps (sec)' : 'Répétitions'} {exEntry.reps ? `(Cible: ${getTargetRepsForSet(exEntry.reps, sIdx)})` : ''}</span>
+                                      </div>
+                                    </>
+                                  )}
+                               </div>
+                               {baseEx?.cat !== 'Cardio' && sessionData[`${exIndex}-${sIdx}-weight`] && sessionData[`${exIndex}-${sIdx}-reps`] && (
+                                 <div className="text-[9px] font-bold text-zinc-400 text-right pr-2">
+                                   1RM Estimé : {Math.round(parseFloat(sessionData[`${exIndex}-${sIdx}-weight`]) * (1 + parseInt(sessionData[`${exIndex}-${sIdx}-reps`]) / 30))} kg
+                                 </div>
+                               )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                          <Button 
+                            variant={isValidated ? "success" : "primary"} 
+                            fullWidth 
+                            className={`!py-5 !rounded-[24px] font-black italic tracking-widest text-base shadow-xl transition-colors duration-300 ${isValidated ? 'shadow-emerald-500/20 bg-emerald-500 text-zinc-900' : 'shadow-emerald-500/20 text-zinc-900'}`} 
+                            onClick={() => toggleExerciseValidation(exIndex)}
+                          >
+                             <AnimatePresence mode="wait">
+                               {isValidated ? (
+                                 <motion.div 
+                                   key="validated"
+                                   initial={{ scale: 0, opacity: 0 }} 
+                                   animate={{ scale: 1, opacity: 1 }} 
+                                   exit={{ scale: 0, opacity: 0 }}
+                                   className="flex items-center justify-center gap-2"
+                                 >
+                                   <CheckIcon size={20} /> FAIT
+                                 </motion.div>
+                               ) : (
+                                 <motion.div 
+                                   key="validate"
+                                   initial={{ opacity: 0 }} 
+                                   animate={{ opacity: 1 }} 
+                                   exit={{ opacity: 0 }}
+                                 >
+                                   VALIDER MOUVEMENT
+                                 </motion.div>
+                               )}
+                             </AnimatePresence>
+                          </Button>
+                        </motion.div>
+                      </Card>
+                    </div>
+                    {group.isGroup && !isLastInGroup && (
+                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center justify-center">
+                        <motion.div 
+                          animate={{ 
+                            scale: [1, 1.2, 1],
+                            opacity: [0.5, 1, 0.5]
+                          }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                          className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center backdrop-blur-sm border border-emerald-500/30"
+                        >
+                          <LinkIcon size={14} />
+                        </motion.div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </motion.div>
+          );
+        })}
+        <div className="h-32" />
+      </motion.div>
+      <motion.footer 
+        variants={itemVariants}
+        className="glass border-t  p-8 backdrop-blur-3xl flex flex-col gap-4"
+      >
+        <div className="flex justify-between items-center px-4">
+           <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">Récompense de séance</div>
+           <div className="text-sm font-black text-emerald-500 italic">+{loyaltyPoints} XP</div>
+        </div>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Button variant="success" fullWidth onClick={finishSession} className="!py-6 !rounded-[32px] font-black text-xl italic shadow-2xl shadow-emerald-500/20" disabled={completedExercises.length < currentDay.exercises.length}>
+            TERMINER MA SÉANCE
+          </Button>
+        </motion.div>
+      </motion.footer>
+
+      <AnimatePresence>
+        {restTimer !== null && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="fixed inset-0 bg-zinc-900 z-[200] flex flex-col items-center justify-center p-6"
+          >
+            <div className="absolute top-8 right-8">
+              <button 
+                onClick={() => { setRestTimer(null); setIsTimerActive(false); }} 
+                className="p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+              >
+                <XIcon size={32} />
+              </button>
             </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={toggleTimer}
-              className={`p-2.5 rounded-xl border flex items-center gap-1.5 text-xs font-semibold select-none ${
-                isActive 
-                  ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' 
-                  : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-              }`}
-            >
-              {isActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              <span>{isActive ? 'Pause' : 'Reprendre'}</span>
-            </button>
-            <button 
-              onClick={resetTimer}
-              className="p-2.5 rounded-xl border border-zinc-800 hover:bg-zinc-900 text-zinc-400 hover:text-white"
-            >
-              <RotateCcw className="w-4 h-4" />
-            </button>
-          </div>
-        </Card>
 
-        {/* Rounds / Exercises Checklist */}
-        <div className="space-y-6">
-          {program.rounds?.map((round, rIndex) => (
-            <div key={rIndex} className="space-y-3.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Badge variant="indigo">Bloc {rIndex + 1}</Badge>
-                  <h3 className="text-sm font-bold tracking-wide text-zinc-200">{round.nom}</h3>
-                  <Badge variant="dark" className="text-[9px] scale-90 uppercase tracking-widest">{round.type}</Badge>
+            <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md">
+              <h2 className="text-2xl font-black text-zinc-400 uppercase tracking-widest mb-12">Temps de repos</h2>
+              
+              <div className="relative flex items-center justify-center mb-16">
+                <svg className="absolute w-[320px] h-[320px] -rotate-90">
+                  <circle cx="160" cy="160" r="150" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
+                  <motion.circle 
+                    cx="160" cy="160" r="150" 
+                    fill="none" 
+                    stroke={restTimer === 0 ? "#ef4444" : "#10b981"} 
+                    strokeWidth="8"
+                    strokeLinecap="round"
+                    initial={{ strokeDasharray: "942", strokeDashoffset: "0" }}
+                    animate={{ strokeDashoffset: restTimer === 0 ? 0 : (1 - (restTimer % 60) / 60) * 942 }}
+                    transition={{ duration: 1, ease: "linear" }}
+                  />
+                </svg>
+                <div className="text-center z-10">
+                  <span className={`font-mono font-black text-8xl tracking-tighter ${restTimer === 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                    {Math.floor(restTimer / 60).toString().padStart(2, '0')}:{(restTimer % 60).toString().padStart(2, '0')}
+                  </span>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                {round.exercises?.map((ex: any, exIndex: number) => {
-                  const key = `${rIndex}-${exIndex}`;
-                  const isDone = !!completedSets[key];
-                  const perf = exPerformance[key] || { weight: 0, reps: 10, notes: "" };
-
-                  return (
-                    <Card 
-                      key={exIndex} 
-                      className={`p-4 border transition-all ${
-                        isDone 
-                          ? 'border-emerald-500/30 bg-emerald-500/[0.02]/70 shadow-emerald-500/[0.01]' 
-                          : 'border-zinc-900 bg-zinc-950/40'
-                      }`}
-                    >
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-                        {/* Title & default info */}
-                        <div className="md:col-span-5 space-y-1">
-                          <h4 className="text-xs sm:text-sm font-bold text-zinc-100">{ex.nom}</h4>
-                          <p className="text-[11px] text-zinc-400 leading-normal font-medium">
-                            Target : {ex.series} séries • {ex.repetitionsText} reps • Récup {ex.recupText}
-                          </p>
-                          {ex.notes && (
-                            <p className="text-[10px] text-zinc-550 border-l border-zinc-800 pl-2 mt-1 italic">{ex.notes}</p>
-                          )}
-                        </div>
-
-                        {/* Log input fields */}
-                        <div className="md:col-span-2">
-                          <label className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Poids (kg)</label>
-                          <input 
-                            type="number" 
-                            placeholder="0"
-                            value={perf.weight || ""}
-                            onChange={(e) => handleUpdateExPerformance(key, 'weight', Number(e.target.value))}
-                            className="w-full h-9 px-3 bg-zinc-950/60 border border-zinc-850 rounded-xl text-xs text-white placeholder-zinc-700 font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                          />
-                        </div>
-
-                        <div className="md:col-span-2">
-                          <label className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider block mb-1">Répétitions</label>
-                          <input 
-                            type="number" 
-                            placeholder="10"
-                            value={perf.reps || ""}
-                            onChange={(e) => handleUpdateExPerformance(key, 'reps', Number(e.target.value))}
-                            className="w-full h-9 px-3 bg-zinc-950/60 border border-zinc-850 rounded-xl text-xs text-white placeholder-zinc-700 font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                          />
-                        </div>
-
-                        {/* Checkbox button */}
-                        <div className="md:col-span-3 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleSet(key)}
-                            className={`w-full md:w-auto h-9 px-4 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 select-none active:scale-98 ${
-                              isDone 
-                                ? 'bg-emerald-500 text-neutral-950 border-emerald-400 shadow-md shadow-emerald-500/10' 
-                                : 'bg-transparent border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900'
-                            }`}
-                          >
-                            <span>{isDone ? "Validé" : "Valider Bloc"}</span>
-                          </button>
-                        </div>
-                      </div>
-                    </Card>
-                  );
-                })}
+              <div className="grid grid-cols-2 gap-4 w-full">
+                <button 
+                  onClick={() => setRestTimer(prev => prev !== null ? prev + 30 : 30)} 
+                  className="py-6 bg-zinc-800 hover:bg-zinc-700 rounded-3xl text-white font-black text-xl uppercase tracking-wider transition-colors"
+                >
+                  +30 SEC
+                </button>
+                <button 
+                  onClick={() => setIsTimerActive(!isTimerActive)} 
+                  className={`py-6 rounded-3xl text-white font-black text-xl uppercase tracking-wider transition-colors ${isTimerActive ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
+                >
+                  {isTimerActive ? 'PAUSE' : 'REPRENDRE'}
+                </button>
               </div>
+              
+              <button 
+                onClick={() => { setRestTimer(null); setIsTimerActive(false); }}
+                className="mt-8 py-6 w-full bg-white text-zinc-900 rounded-3xl font-black text-2xl uppercase tracking-wider hover:bg-zinc-200 transition-colors"
+              >
+                PASSER LE REPOS
+              </button>
             </div>
-          ))}
-        </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        {/* Workout notes input */}
-        <Card className="space-y-3">
-          <label className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider block">Bilan de la séance (Notes personnelles)</label>
-          <Textarea 
-            placeholder="Ex. Super sensations sur les pecs aujourd'hui, j'ai augmenté de 2kg au développé couché !"
-            value={workoutNotes}
-            onChange={(e) => setWorkoutNotes(e.target.value)}
-            rows={3}
-          />
-        </Card>
-
-        {/* Submit Save bar */}
-        <div className="flex items-center justify-between border-t border-zinc-900 pt-5 gap-4">
-          <Button variant="outline" onClick={onClose} disabled={isFinishing}>
-            Abandonner
-          </Button>
-
-          <Button 
-            disabled={isFinishing}
-            onClick={handleFinishWorkout}
-            className="px-6 font-bold"
+      <AnimatePresence>
+        {activeVideo && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4"
+            onClick={() => setActiveVideo(null)}
           >
-            <Save className="w-4 h-4 mr-1.5 shrink-0 text-neutral-950" />
-            <span>{isFinishing ? "Enregistrement..." : "Terminer et Enregistrer"}</span>
-          </Button>
-        </div>
-
-      </div>
-    </div>
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-4xl aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setActiveVideo(null)}
+                className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 z-10"
+              >
+                <XIcon size={24} />
+              </button>
+              {activeVideo.includes('youtube.com') || activeVideo.includes('youtu.be') ? (
+                <iframe 
+                  src={activeVideo.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
+                  className="w-full h-full"
+                  allowFullScreen
+                />
+              ) : activeVideo.includes('vimeo.com') ? (
+                <iframe 
+                  src={`https://player.vimeo.com/video/${activeVideo.split('/').pop()}`}
+                  className="w-full h-full"
+                  allowFullScreen
+                />
+              ) : (
+                <video src={activeVideo} controls className="w-full h-full" />
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>,
+    document.body
   );
 };

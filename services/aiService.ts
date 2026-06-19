@@ -34,7 +34,7 @@ export class GoogleGenAI {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              model: options.model || "gemini-2.5-flash",
+              model: options.model || "gemini-3.1-pro-preview",
               config: options.config,
               contents: newHistory
             })
@@ -343,7 +343,7 @@ Format de sortie JSON obligatoire respectant le schéma :
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-pro-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -527,7 +527,7 @@ nombre de repas : 4
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-pro-preview",
       contents: prompt,
       config: {
         systemInstruction: "Tu es un expert en nutrition sportive. Tu dois calculer les macros et calories avec précision et retourner UNIQUEMENT un objet JSON valide. Ne retourne aucun texte explicatif, aucune formule de calcul dans les champs. Les noms des repas doivent être simples (ex: 'Petit-déjeuner', 'Déjeuner', 'Collation', 'Dîner'). Les valeurs de calories et macros doivent être des nombres entiers. La description doit être courte et concise.",
@@ -610,7 +610,7 @@ Retourne uniquement un objet JSON avec les champs suivants :
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-pro-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -669,7 +669,7 @@ Le bilan doit être professionnel, encourageant, et prêt à être envoyé par m
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-pro-preview",
       contents: prompt,
       config: {
       }
@@ -715,7 +715,7 @@ Retourne uniquement un objet JSON avec :
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-pro-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -756,7 +756,7 @@ export const analyzeMealImage = async (base64Image: string, mimeType: string) =>
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-pro-preview",
       contents: {
         parts: [
           {
@@ -808,7 +808,7 @@ export const generateRecipeFromFridge = async (base64Image: string, mimeType: st
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.1-pro-preview",
       contents: {
         parts: [
           {

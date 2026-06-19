@@ -1,357 +1,1037 @@
-import React, { useState } from 'react';
+
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, Page, Club } from '../types';
 import { 
-  LayoutDashboard, Users, Calendar, Dumbbell, Copy, BookOpen, 
-  MessageSquare, Target, DollarSign, CheckSquare, HardDrive, 
-  Settings, Sparkles, User as UserIcon, ShoppingBag, Eye, 
-  LogOut, Menu, X, Bell, Shield, ArrowRightLeft, Cpu
-} from 'lucide-react';
-import { User, Club } from '../types';
+  HomeIcon, UsersIcon, LayersIcon, BarChartIcon, 
+  DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon, FolderIcon, PlayCircleIcon, UserIcon, ActivityIcon, BellIcon, ImageIcon
+} from './Icons';
+import { Timer } from './Timer';
+import { db, auth } from '../firebase';
+import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { Megaphone, AlertTriangle, X } from 'lucide-react';
 
 interface LayoutProps {
-  user: User | null;
+  user: User;
   club: Club | null;
-  activePage: string;
-  onPageChange: (page: any) => void;
+  activePage: Page;
+  onPageChange: (p: Page) => void;
   onLogout: () => void;
-  unreadMessagesCount: number;
-  unreadNotificationsCount: number;
-  logs: any[];
-  payments: any[];
-  users: User[];
-  adminPerspective: 'coach' | 'owner' | 'member' | 'superadmin' | string;
-  onChangePerspective: (perspective: string) => void;
   children: React.ReactNode;
+  unreadMessagesCount?: number;
+  unreadNotificationsCount?: number;
+  logs?: any[];
+  payments?: any[];
+  users?: any[];
+  adminPerspective?: 'superadmin' | 'coach' | 'member';
+  onChangePerspective?: (p: 'superadmin' | 'coach' | 'member') => void;
 }
 
-export const Layout: React.FC<LayoutProps> = ({
-  user,
-  club,
-  activePage,
-  onPageChange,
-  onLogout,
-  unreadMessagesCount,
-  unreadNotificationsCount,
-  logs,
-  payments,
-  users,
-  adminPerspective,
-  onChangePerspective,
-  children
+const AppLogo: React.FC<{ club: Club | null, user: User, effectiveRole: string }> = ({ club, user, effectiveRole }) => (
+  <div className="flex flex-col">
+    <div className="flex items-center gap-3">
+      <div className="w-10 h-10 rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.1)] overflow-hidden flex items-center justify-center shrink-0 bg-white">
+        <img src="https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png" alt="Velatra Logo" className="w-full h-full object-contain scale-[1.4]" />
+      </div>
+      <div className="font-display font-bold text-3xl tracking-tight leading-none text-zinc-900 truncate max-w-[180px]">
+        VELA<span className="text-emerald-500">TRA</span>
+      </div>
+    </div>
+    <div className="text-[10px] tracking-[2px] text-zinc-500 font-bold uppercase mt-1 pl-12 opacity-80">
+      APPLICATION NUMÉRO 1
+    </div>
+    {club && (effectiveRole === 'coach' || effectiveRole === 'owner') && (
+      <div className="mt-4 p-3 bg-white border border-zinc-200 rounded-xl backdrop-blur-sm">
+        <div className="flex items-center gap-2 mb-1">
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-black">Code d'accès Club</div>
+          <div className="relative group flex items-center">
+            <div className="w-3.5 h-3.5 rounded-full bg-zinc-200 text-zinc-500 flex items-center justify-center text-[10px] font-black cursor-help hover:bg-emerald-500 hover:text-white transition-colors">i</div>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-zinc-900 text-white text-[10px] rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-center shadow-xl pointer-events-none">
+              Partagez ce code avec vos membres pour qu'ils puissent rejoindre votre club lors de leur inscription.
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900"></div>
+            </div>
+          </div>
+        </div>
+        <div className="text-xs font-mono font-bold text-emerald-500 select-all">{club.id}</div>
+      </div>
+    )}
+  </div>
+);
+
+export const Layout: React.FC<LayoutProps> = ({ 
+  user, club, activePage, onPageChange, onLogout, children, 
+  unreadMessagesCount = 0, unreadNotificationsCount = 0, 
+  logs = [], payments = [], users = [],
+  adminPerspective = 'superadmin', onChangePerspective
 }) => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const planningEnabled = club?.settings?.booking?.enabled ?? true;
 
-  // Determine role perspective
-  const isStaff = adminPerspective === 'coach' || adminPerspective === 'owner';
-  const isSuperadmin = adminPerspective === 'superadmin';
-  const isMember = adminPerspective === 'member';
+  const isReallySuperAdmin = user.role === 'superadmin' && user.email === 'victor.defreitas.pro@gmail.com';
+  const effectiveRole = isReallySuperAdmin ? adminPerspective : (user.role === 'superadmin' ? 'member' : user.role);
 
-  // Navigation Items according to current perspective
-  const getNavItems = () => {
-    if (isSuperadmin) {
-      return [
-        { id: 'admin', label: 'SuperAdmin', icon: Shield },
-      ];
-    }
-
-    if (isStaff) {
-      return [
-        { id: 'home', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'users', label: 'Membres', icon: Users },
-        { id: 'calendar', label: 'Agenda & Résas', icon: Calendar },
-        { id: 'coaching', label: 'Séances & Suivi', icon: Dumbbell },
-        { id: 'presets', label: 'Modèles', icon: Copy },
-        { id: 'exercises', label: 'Bibliothèque', icon: BookOpen },
-        { id: 'chat', label: 'Messagerie', icon: MessageSquare, badge: unreadMessagesCount },
-        { id: 'crm_pipeline', label: 'CRM Prospects', icon: Target },
-        { id: 'crm_finances', label: 'Finances', icon: DollarSign },
-        { id: 'crm_tasks', label: 'Mes Tâches', icon: CheckSquare },
-        { id: 'drive', label: 'Drive Fichiers', icon: HardDrive },
-        { id: 'settings', label: 'Club Settings', icon: Settings },
-      ];
-    }
-
-    // Default: isMember
+  const coachItems = React.useMemo(() => {
     return [
-      { id: 'home', label: 'Tableau de bord', icon: LayoutDashboard },
-      { id: 'planning', label: 'Mon Planning', icon: Calendar },
-      { id: 'nutrition', label: 'Nutrition', icon: ShoppingBag },
-      { id: 'ai_coach', label: 'Coach Virtuel IA', icon: Cpu },
-      { id: 'messages', label: 'Mes Messages', icon: MessageSquare, badge: unreadMessagesCount },
-      { id: 'supplements', label: 'Compléments', icon: Sparkles },
-      { id: 'evolution', label: 'Évolution', icon: Eye },
-      { id: 'profile', label: 'Mon Profil', icon: UserIcon },
+      { id: 'home', icon: HomeIcon, label: 'Accueil' },
+      { id: 'users', icon: UsersIcon, label: 'Membres', category: '👥 Suivi des Athlètes' },
+      { id: 'coaching', icon: ActivityIcon, label: 'Coaching', category: '🏋️ Contenus & Modèles' },
+      { id: 'chat', icon: MessageCircleIcon, label: 'Discussion', category: '👥 Suivi des Athlètes' },
+      ...(planningEnabled ? [{ id: 'calendar', icon: CalendarIcon, label: 'Planning des Cours', category: '👥 Suivi des Athlètes' }] : []),
+      { id: 'presets', icon: LayersIcon, label: "Programme", category: '🏋️ Contenus & Modèles' },
+      { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: '🏋️ Contenus & Modèles' },
+      { id: 'drive', icon: FolderIcon, label: 'Documents', category: '🏋️ Contenus & Modèles' },
+      { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances & Ventes', category: '💼 CRM & Comptabilité' },
+      { id: 'crm_pipeline', icon: TargetIcon, label: 'Tunnels de Ventes', category: '💼 CRM & Comptabilité' },
+      { id: 'marketing', icon: MegaphoneIcon, label: 'Marketing Auto', category: '💼 CRM & Comptabilité' },
+      { id: 'guide', icon: InfoIcon, label: 'Guides Vidéos', category: '⚙️ Configuration & Aide' },
+      { id: 'about', icon: InfoIcon, label: 'Fiche du Club', category: '⚙️ Configuration & Aide' },
+      { id: 'settings', icon: SettingsIcon, label: 'Paramètres Club', category: '⚙️ Configuration & Aide' },
     ];
+  }, [planningEnabled]);
+
+  const memberItems = React.useMemo(() => {
+    return [
+      { id: 'home', icon: HomeIcon, label: 'Mon Espace' },
+      { id: 'ai_coach', icon: MessageCircleIcon, label: 'Coach Sportif IA', category: '📂 Mon Espace Personnel' },
+      { id: 'calendar', icon: DumbbellIcon, label: 'Lancer ma Séance', category: '💪 Entraînement & Logs' },
+      ...(planningEnabled ? [{ id: 'planning', icon: CalendarIcon, label: 'Réserver un cours', category: '💪 Entraînement & Logs' }] : []),
+      { id: 'performances', icon: BarChartIcon, label: 'Mes Records (PR)', category: '💪 Entraînement & Logs' },
+      { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: '🥗 Nutrition & Boutique' },
+      { id: 'drive', icon: FolderIcon, label: 'Documents', category: '📂 Mon Espace Personnel' },
+      { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique Shaker', category: '🥗 Nutrition & Boutique' },
+      { id: 'evolution', icon: ImageIcon, label: 'Photos Évolution', category: '💪 Entraînement & Logs' },
+      { id: 'profile', icon: UserIcon, label: 'Mes Objectifs', category: '📂 Mon Espace Personnel' },
+      { id: 'about', icon: InfoIcon, label: 'Infos du Club', category: '📂 Mon Espace Personnel' },
+    ];
+  }, [planningEnabled]);
+
+  const hasRequiredPlan = (requiredPlan?: 'basic' | 'classic' | 'premium') => {
+    if (!requiredPlan || requiredPlan === 'basic') return true;
+    const currentPlan = club?.plan || 'basic';
+    if (currentPlan === 'premium') return true;
+    if (currentPlan === 'classic' && requiredPlan === 'classic') return true;
+    return false;
   };
 
-  const navItems = getNavItems();
+  const menuItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = React.useMemo(() => {
+    return effectiveRole === 'superadmin' 
+      ? [{ id: 'admin', icon: ShieldIcon, label: 'Tableau de Bord' }]
+      : (effectiveRole === 'coach' || effectiveRole === 'owner') 
+        ? coachItems 
+        : memberItems;
+  }, [effectiveRole, coachItems, memberItems]);
 
-  const handleNavClick = (id: string) => {
-    onPageChange(id);
-    setMobileMenuOpen(false);
-  };
+  const [showTimer, setShowTimer] = React.useState(false);
+  const [showMobileMenu, setShowMobileMenu] = React.useState(false);
+  const [showCommandPalette, setShowCommandPalette] = React.useState(false);
+  const [commandSearch, setCommandSearch] = React.useState("");
+  const [mobileSearch, setMobileSearch] = React.useState("");
 
-  // List of available perspectives for the user based on their real role
-  const getAvailablePerspectives = () => {
-    if (!user) return [];
-    const pList: { id: string; label: string }[] = [];
-    
-    if (user.role === 'superadmin') {
-      pList.push({ id: 'superadmin', label: 'SuperAdmin' });
+  // Real-time Platform Alerts Live Sync
+  const [activeAnnouncements, setActiveAnnouncements] = React.useState<any[]>([]);
+  const [closedAnnouncements, setClosedAnnouncements] = React.useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('closed_announcements');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
     }
+  });
+
+  React.useEffect(() => {
+    if (!user || !auth.currentUser || auth.currentUser.uid !== String(user.id)) return;
     
-    if (user.role === 'superadmin' || user.role === 'owner' || user.role === 'coach') {
-      pList.push({ id: 'coach', label: 'Espace Coach' });
-    }
-    
-    pList.push({ id: 'member', label: 'Espace Adhérent' });
-    return pList;
+    // Listen to most recent announcement flashes live
+    const q = query(
+      collection(db, 'system_announcements'),
+      orderBy('createdAt', 'desc'),
+      limit(5)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setActiveAnnouncements(items);
+    }, (err) => {
+      console.error("Error reading live system announcements:", err);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleDismissAnnouncement = (id: string) => {
+    const nextClosed = [...closedAnnouncements, id];
+    setClosedAnnouncements(nextClosed);
+    localStorage.setItem('closed_announcements', JSON.stringify(nextClosed));
   };
 
-  const perspectives = getAvailablePerspectives();
+  const visibleAnnouncements = React.useMemo(() => {
+    return activeAnnouncements.filter(ann => {
+      if (closedAnnouncements.includes(ann.id)) return false;
+      if (ann.target === 'all') return true;
+      if (ann.target === 'coaches' && (effectiveRole === 'coach' || effectiveRole === 'owner')) return true;
+      if (ann.target === 'members' && effectiveRole === 'member') return true;
+      return false;
+    });
+  }, [activeAnnouncements, closedAnnouncements, effectiveRole]);
+
+  const isCoach = effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'superadmin';
+
+
+  const coachPoles = React.useMemo(() => [
+    { id: 'coaching', label: 'Coaching', icon: DumbbellIcon, items: ['coaching', 'presets', 'exercises', 'nutrition', 'drive'] },
+    { id: 'members', label: 'Membres', icon: UsersIcon, items: ['users', 'chat', 'calendar'] },
+    { id: 'gestion', label: 'Gestion', icon: DollarSignIcon, items: ['home', 'crm_finances', 'crm_pipeline', 'marketing', 'settings', 'guide', 'about', 'admin'] }
+  ], []);
+
+  const memberPoles = React.useMemo(() => [
+    { id: 'sport', label: 'Sport', icon: DumbbellIcon, items: ['calendar', 'planning', 'performances', 'evolution'] },
+    { id: 'nutrition', label: 'Nutrition', icon: AppleIcon, items: ['nutrition', 'supplements'] },
+    { id: 'account', label: 'Compte', icon: UserIcon, items: ['home', 'ai_coach', 'drive', 'profile', 'about'] }
+  ], []);
+
+  const activePoles = isCoach ? coachPoles : memberPoles;
+
+  const [selectedMobilePole, setSelectedMobilePole] = React.useState<string>("");
+
+  React.useEffect(() => {
+    if (showMobileMenu) {
+      const parentPole = activePoles.find(pole => pole.items.includes(activePage));
+      if (parentPole) {
+        setSelectedMobilePole(parentPole.id);
+      } else {
+        setSelectedMobilePole(activePoles[0].id);
+      }
+    }
+  }, [showMobileMenu, activePage, activePoles]);
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(prev => !prev);
+      } else if (e.key === 'Escape') {
+        setShowCommandPalette(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activePage]);
+
+  const filteredCommandItems = React.useMemo(() => {
+    if (!commandSearch) return menuItems;
+    const query = commandSearch.toLowerCase().trim();
+    return menuItems.filter(item => 
+      item.label.toLowerCase().includes(query) || 
+      (item.category && item.category.toLowerCase().includes(query))
+    );
+  }, [commandSearch, menuItems]);
+
+  const handleCommandSelect = (itemId: string) => {
+    onPageChange(itemId as Page);
+    setShowCommandPalette(false);
+    setCommandSearch("");
+  };
+
+  const filteredMobileMenuItems = React.useMemo(() => {
+    if (mobileSearch) {
+      const query = mobileSearch.toLowerCase().trim();
+      return menuItems.filter(item => 
+        item.label.toLowerCase().includes(query)
+      );
+    }
+    const currentPole = activePoles.find(p => p.id === selectedMobilePole);
+    if (!currentPole) return [];
+    return menuItems.filter(item => currentPole.items.includes(item.id));
+  }, [mobileSearch, selectedMobilePole, menuItems, activePoles]);
+
+  // Group items by category (excluding empty ones)
+  const topLevelItems = React.useMemo(() => {
+    return menuItems.filter(item => !item.category);
+  }, [menuItems]);
+
+  const groupedItems = React.useMemo(() => {
+    return menuItems.reduce((acc, item) => {
+      if (!item.category) return acc;
+      const cat = item.category;
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(item);
+      return acc;
+    }, {} as Record<string, typeof menuItems>);
+  }, [menuItems]);
+
+  const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({});
+
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [cat]: !prev[cat]
+    }));
+  };
+
+  React.useEffect(() => {
+    const currentItem = menuItems.find(it => it.id === activePage);
+    if (currentItem && currentItem.category) {
+      const cat = currentItem.category;
+      setExpandedCategories(prev => {
+        if (prev[cat]) return prev;
+        return {
+          ...prev,
+          [cat]: true
+        };
+      });
+    }
+  }, [activePage, menuItems]);
 
   return (
-    <div className="min-h-screen bg-[#070709] bg-gradient-to-br from-[#0c0c0f] to-[#040405] text-white flex flex-col md:flex-row antialiased font-sans">
-      
-      {/* 1. SIDEBAR (Desktop) */}
-      <aside className="hidden md:flex flex-col w-72 shrink-0 border-r border-zinc-900 bg-[#09090b]/80 backdrop-blur-md p-6 fixed inset-y-0 left-0 z-40 justify-between">
-        <div className="space-y-6">
-          {/* Logo / Club */}
-          <div className="flex items-center gap-3 border-b border-zinc-900 pb-5">
-            <div className="w-10 h-10 rounded-xl overflow-hidden bg-white flex items-center justify-center border border-zinc-800 shrink-0">
-              <img 
-                src={club?.logo || "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"} 
-                alt="Logo" 
-                className="w-full h-full object-contain scale-[1.3]" 
-              />
-            </div>
-            <div className="overflow-hidden">
-              <h2 className="font-bold text-sm tracking-tight text-white truncate">{club?.name || "VELATRA CLI"}</h2>
-              <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest leading-none mt-1">
-                {isSuperadmin ? "SUPERADMIN" : isStaff ? "STAFF ACCÈS" : "ATHLÈTE"}
-              </p>
-            </div>
-          </div>
+    <div className="min-h-screen flex flex-col md:flex-row bg-transparent">
+      {/* Sidebar Desktop */}
+      <aside className="hidden md:flex flex-col w-[240px] lg:w-[280px] bg-white/80 backdrop-blur-xl border-r border-zinc-200 h-screen fixed left-0 top-0 py-10 lg:py-12 px-4 lg:px-6 z-40 shadow-2xl">
+        <div className="mb-6 px-4">
+           <AppLogo club={club} user={user} effectiveRole={effectiveRole} />
+        </div>
 
-          {/* Perspective Selector (if multiple roles exist) */}
-          {perspectives.length > 1 && (
-            <div className="bg-zinc-950/60 border border-zinc-900 rounded-xl p-2 flex flex-col gap-1">
-              <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider px-2">PERSPECTIVE</span>
-              <div className="flex flex-col gap-1 mt-1">
-                {perspectives.map((p) => {
-                  const active = adminPerspective === p.id || (p.id === 'coach' && (adminPerspective === 'coach' || adminPerspective === 'owner'));
-                  return (
-                    <button
-                      key={p.id}
-                      onClick={() => onChangePerspective(p.id)}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs leading-none transition-all active:scale-98 ${
-                        active 
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold' 
-                          : 'text-zinc-400 hover:text-white hover:bg-zinc-900/50'
-                      }`}
-                    >
-                      <ArrowRightLeft className="w-3.5 h-3.5" />
-                      {p.label}
-                    </button>
-                  );
-                })}
+        {/* Super Admin Perspective switcher */}
+        {isReallySuperAdmin && onChangePerspective && (
+          <div className="px-4 mb-6">
+            <div className="p-3 bg-zinc-950 text-white rounded-2xl border border-zinc-850 shadow-xl relative overflow-hidden backdrop-blur-md">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-2xl"></div>
+              
+              <div className="text-[10px] font-black uppercase tracking-wider text-emerald-400 mb-2.5 flex items-center gap-1.5 z-10 relative">
+                <ShieldIcon size={12} className="text-emerald-400" />
+                <span>Console de Pilotage</span>
               </div>
-            </div>
-          )}
-
-          {/* Nav Items */}
-          <nav className="flex flex-col gap-1 scrollbar-thin overflow-y-auto max-h-[50vh]">
-            {navItems.map((item) => {
-              const active = activePage === item.id;
-              const Icon = item.icon;
-              return (
+              
+              <div className="grid grid-cols-3 gap-1 bg-black/40 p-1 rounded-xl border border-white/5 relative z-10">
                 <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item.id)}
-                  className={`flex items-center justify-between px-4 py-3 rounded-xl text-left text-xs font-semibold tracking-wide transition-all ${
-                    active 
-                      ? 'bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 text-emerald-400 border border-emerald-500/15 font-bold shadow-inner shadow-emerald-500/5' 
-                      : 'text-zinc-450 hover:text-zinc-200 hover:bg-zinc-900/40 border border-transparent'
+                  type="button"
+                  onClick={() => onChangePerspective('superadmin')}
+                  className={`py-1.5 px-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                    adminPerspective === 'superadmin'
+                      ? 'bg-emerald-500 text-zinc-950 shadow-md font-black'
+                      : 'text-zinc-400 hover:text-white bg-transparent'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${active ? 'text-emerald-400' : 'text-zinc-500'}`} />
-                    <span>{item.label}</span>
-                  </div>
-                  {item.badge && item.badge > 0 ? (
-                    <span className="bg-emerald-500 text-neutral-950 font-bold px-1.5 py-0.5 rounded-full text-[9px]">
-                      {item.badge}
-                    </span>
-                  ) : null}
+                  Admin
                 </button>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Footer info & Logout */}
-        <div className="border-t border-zinc-900 pt-5 flex flex-col gap-4">
-          <div className="flex items-center gap-3 px-2">
-            <div className="w-10 h-10 rounded-full bg-zinc-900 flex items-center justify-center text-emerald-400 font-bold border border-zinc-800 text-sm overflow-hidden shrink-0">
-              {user?.avatar ? (
-                <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                user?.name?.substring(0, 2).toUpperCase() || "VE"
-              )}
-            </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-semibold text-zinc-100 truncate">{user?.name || "Profil"}</p>
-              <p className="text-[10px] text-zinc-500 truncate leading-none mt-1">{user?.email || ""}</p>
-            </div>
-          </div>
-          <button 
-            onClick={onLogout}
-            className="flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-350 hover:bg-rose-500/5 border border-transparent hover:border-rose-500/10 rounded-xl text-xs font-bold transition-all active:scale-98"
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            <span>Déconnexion</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* 2. HEADER & LAYOUT FOR MOBILE */}
-      <div className="flex-1 flex flex-col md:pl-72">
-        <header className="md:hidden flex items-center justify-between border-b border-zinc-900 bg-[#09090b]/90 backdrop-blur-md px-6 h-16 sticky top-0 z-40">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg overflow-hidden bg-white flex items-center justify-center border border-zinc-800">
-              <img 
-                src={club?.logo || "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"} 
-                alt="Logo" 
-                className="w-full h-full object-contain scale-[1.3]" 
-              />
-            </div>
-            <span className="font-bold text-sm text-white tracking-tight truncate max-w-[120px]">{club?.name || "VELATRA"}</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {unreadNotificationsCount > 0 && (
-              <div className="p-2 bg-zinc-900 hover:bg-zinc-850 rounded-xl text-emerald-400 cursor-pointer relative">
-                <Bell className="w-4 h-4" />
-                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-              </div>
-            )}
-            <button 
-              onClick={() => setMobileMenuOpen(true)}
-              className="p-2 text-zinc-400 hover:text-white bg-zinc-900 rounded-xl border border-zinc-850"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-          </div>
-        </header>
-
-        {/* Mobile slide-out overlay drawer */}
-        {mobileMenuOpen && (
-          <div className="md:hidden fixed inset-0 z-50 flex">
-            {/* Backdrop overlay */}
-            <div 
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-              onClick={() => setMobileMenuOpen(false)}
-            />
-            {/* Drawer */}
-            <div className="relative flex flex-col w-4/5 max-w-xs bg-[#09090b] h-full p-6 border-r border-zinc-900 shadow-2xl justify-between">
-              <div className="space-y-6">
-                <div className="flex items-center justify-between pb-3 border-b border-zinc-900">
-                  <span className="text-xs font-bold tracking-widest text-emerald-400">VELATRA APP</span>
-                  <button 
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="p-1.5 text-zinc-400 hover:text-white transition-colors bg-zinc-900 rounded-lg"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Perspective selector for mobile */}
-                {perspectives.length > 1 && (
-                  <div className="bg-zinc-950/60 border border-zinc-900 rounded-xl p-2.5 flex flex-col gap-1.5">
-                    <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider px-2">PERSPECTIVE</span>
-                    <div className="flex flex-col gap-1 mt-1">
-                      {perspectives.map((p) => {
-                        const active = adminPerspective === p.id || (p.id === 'coach' && (adminPerspective === 'coach' || adminPerspective === 'owner'));
-                        return (
-                          <button
-                            key={p.id}
-                            onClick={() => {
-                              onChangePerspective(p.id);
-                              setMobileMenuOpen(false);
-                            }}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                              active 
-                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold' 
-                                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-                            }`}
-                          >
-                            <ArrowRightLeft className="w-3.5 h-3.5" />
-                            {p.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Mobile Navigation Links */}
-                <nav className="flex flex-col gap-1 overflow-y-auto max-h-[55vh]">
-                  {navItems.map((item) => {
-                    const active = activePage === item.id;
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => handleNavClick(item.id)}
-                        className={`flex items-center justify-between px-4 py-3 rounded-xl text-left text-xs font-semibold tracking-wide transition-all ${
-                          active 
-                            ? 'bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 text-emerald-400 border border-emerald-500/15 font-bold shadow-inner' 
-                            : 'text-zinc-450 hover:text-zinc-200 hover:bg-zinc-900/50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon className={`w-4 h-4 ${active ? 'text-emerald-400' : 'text-zinc-500'}`} />
-                          <span>{item.label}</span>
-                        </div>
-                        {item.badge && item.badge > 0 ? (
-                          <span className="bg-emerald-500 text-neutral-950 font-bold px-1.5 py-0.5 rounded-full text-[9px]">
-                            {item.badge}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </nav>
-              </div>
-
-              {/* Mobile logout footer */}
-              <div className="border-t border-zinc-900 pt-5 flex flex-col gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 text-emerald-400 flex items-center justify-center text-xs font-bold overflow-hidden shrink-0">
-                    {user?.avatar ? (
-                      <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      user?.name?.substring(0, 2).toUpperCase() || "VE"
-                    )}
-                  </div>
-                  <p className="text-xs font-semibold text-zinc-200 truncate">{user?.name || ""}</p>
-                </div>
-                <button 
-                  onClick={onLogout}
-                  className="flex items-center justify-center gap-2.5 w-full bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:text-rose-350 rounded-xl py-3 text-xs font-bold transition-all"
+                <button
+                  type="button"
+                  onClick={() => onChangePerspective('coach')}
+                  className={`py-1.5 px-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                    adminPerspective === 'coach'
+                      ? 'bg-emerald-500 text-zinc-950 shadow-md font-black'
+                      : 'text-zinc-400 hover:text-white bg-transparent'
+                  }`}
                 >
-                  <LogOut className="w-4 h-4 shrink-0" />
-                  <span>Se déconnecter</span>
+                  Coach
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onChangePerspective('member')}
+                  className={`py-1.5 px-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                    adminPerspective === 'member'
+                      ? 'bg-emerald-500 text-zinc-950 shadow-md font-black'
+                      : 'text-zinc-400 hover:text-white bg-transparent'
+                  }`}
+                >
+                  Membre
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* 3. MAIN WORKSPACE / CHILDPAGES */}
-        <main className="flex-grow p-4 md:p-8 overflow-y-auto w-full max-w-7xl mx-auto block min-h-calc min-h-[calc(100vh-4rem)] md:min-h-screen">
-          {children}
-        </main>
-      </div>
+        {/* Quick Search trigger button */}
+        <div className="px-4 mb-6">
+          <button 
+            type="button"
+            onClick={() => setShowCommandPalette(true)}
+            className="flex items-center justify-between w-full px-4 py-3 bg-zinc-50 border border-zinc-200 hover:border-zinc-300 rounded-2xl text-left text-zinc-400 hover:text-zinc-500 transition-all text-xs font-bold shadow-inner"
+          >
+            <span className="flex items-center gap-2 uppercase tracking-wider text-[9px] font-black">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-zinc-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              Rechercher...
+            </span>
+            <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-[8px] font-black tracking-widest text-zinc-400 bg-zinc-200 border border-zinc-350 rounded-lg">⌘K</kbd>
+          </button>
+        </div>
+
+        
+        <nav className="flex-1 space-y-4 overflow-y-auto no-scrollbar px-2 pb-6">
+          {/* Top Level Items */}
+          {topLevelItems.length > 0 && (
+            <div className="space-y-1">
+              {topLevelItems.map(item => {
+                const isActive = activePage === item.id;
+                return (
+                  <button 
+                    key={item.id}
+                    onClick={() => onPageChange(item.id as Page)}
+                    className={`
+                      relative flex items-center justify-between px-4 py-3 rounded-xl w-full transition-all duration-300 group
+                      ${isActive ? 'text-emerald-950 font-black' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}
+                    `}
+                  >
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeMenuIndicator"
+                        className="absolute inset-0 bg-gradient-to-r from-emerald-50 to-emerald-100/50 border-l-4 border-emerald-500 rounded-xl"
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                      />
+                    )}
+                    <div className="flex items-center gap-3 relative z-10">
+                      <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-emerald-600' : 'group-hover:scale-110 transition-transform duration-300'} />
+                      <span className="text-[11px] font-black uppercase tracking-[1.5px]">{item.label}</span>
+                      {item.id === 'chat' && unreadMessagesCount > 0 && (
+                        <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
+                      )}
+                      {item.id === 'notifications' && unreadNotificationsCount > 0 && (
+                        <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
+                      )}
+                    </div>
+                    {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && !isReallySuperAdmin && (
+                      <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity relative z-10" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Collapsible Categories */}
+          {Object.entries(groupedItems).map(([category, items]) => {
+            const isExpanded = !!expandedCategories[category];
+            const hasActiveItem = items.some(item => item.id === activePage);
+            return (
+              <div key={category} className="space-y-1">
+                {/* Accordion Trigger Header */}
+                <button
+                  type="button"
+                  onClick={() => toggleCategory(category)}
+                  className={`flex items-center justify-between w-full px-4 py-2.5 rounded-xl transition-all outline-none select-none ${
+                    hasActiveItem 
+                      ? 'bg-zinc-100/70 border border-zinc-200/50 text-zinc-900 font-extrabold shadow-sm' 
+                      : 'text-zinc-400 hover:text-zinc-600'
+                  }`}
+                >
+                  <span className={`text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 ${hasActiveItem ? 'text-emerald-600' : ''}`}>
+                    {category}
+                  </span>
+                  <svg 
+                    width="12" 
+                    height="12" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="3.5" 
+                    className={`transition-transform duration-200 shrink-0 opacity-70 ${isExpanded ? 'rotate-180 text-emerald-500' : 'rotate-0 text-zinc-400'}`}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+
+                {/* Collapsible Content */}
+                <AnimatePresence initial={false}>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2, ease: "easeInOut" }}
+                      className="overflow-hidden pl-1 pr-1 py-0.5 space-y-0.5"
+                    >
+                      {items.map(item => {
+                        const isActive = activePage === item.id;
+                        return (
+                          <button 
+                            key={item.id}
+                            onClick={() => onPageChange(item.id as Page)}
+                            className={`
+                              relative flex items-center justify-between px-3.5 py-2.5 rounded-xl w-full transition-all duration-300 group
+                              ${isActive ? 'text-emerald-950 font-black' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50/70'}
+                            `}
+                          >
+                            {isActive && (
+                              <motion.div
+                                layoutId="activeMenuIndicator"
+                                className="absolute inset-0 bg-gradient-to-r from-emerald-50 to-emerald-100/50 border-l-4 border-emerald-500 rounded-xl"
+                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                              />
+                            )}
+                            <div className="flex items-center gap-3 relative z-10 pl-2">
+                              <item.icon size={16} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-emerald-600' : 'group-hover:scale-110 transition-transform duration-300 text-zinc-400 group-hover:text-zinc-605'} />
+                              <span className="text-[11px] font-black uppercase tracking-[1.5px] truncate max-w-[170px]">{item.label}</span>
+                              {item.id === 'chat' && unreadMessagesCount > 0 && (
+                                <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
+                              )}
+                              {item.id === 'notifications' && unreadNotificationsCount > 0 && (
+                                <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
+                              )}
+                            </div>
+                            {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && !isReallySuperAdmin && (
+                              <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity relative z-10" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            );
+          })}
+          
+          <div className="pt-4 mt-4 border-t border-zinc-200">
+            <button 
+              onClick={() => setShowTimer(!showTimer)}
+              className={`
+                flex items-center gap-3 px-4 py-3 rounded-xl w-full transition-all duration-300 group
+                ${showTimer ? 'bg-zinc-100 text-zinc-900 shadow-inner' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}
+              `}
+            >
+              <TimerIcon size={18} className="group-hover:rotate-12 transition-transform duration-300" />
+              <span className="text-[11px] font-bold uppercase tracking-[1.5px]">Timer</span>
+            </button>
+          </div>
+        </nav>
+
+        <div className="px-2">
+          <button onClick={onLogout} className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl w-full text-zinc-500 hover:text-red-500 transition-all hover:bg-red-50 group">
+            <LogOutIcon size={18} className="group-hover:translate-x-1 transition-transform duration-300" />
+            <span className="text-[11px] font-bold uppercase tracking-[1.5px]">Quitter</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 md:ml-[240px] lg:ml-[280px] min-h-screen relative overflow-hidden">
+        
+        {/* Dynamic Platform Banners */}
+        {visibleAnnouncements.length > 0 && (
+          <div className="px-3 md:px-12 pt-6 pb-2 space-y-3 z-50 relative">
+            <AnimatePresence>
+              {visibleAnnouncements.map((ann) => {
+                let textCol = 'text-teal-950';
+                let bgCol = 'bg-teal-50/90 border-teal-200 backdrop-blur';
+                let iconCol = 'text-teal-600';
+                let accentCol = 'border-teal-305';
+                
+                if (ann.category === 'critical') {
+                  textCol = 'text-red-950';
+                  bgCol = 'bg-red-50/90 border-red-200 backdrop-blur';
+                  iconCol = 'text-red-500';
+                  accentCol = 'border-red-300 animate-pulse';
+                } else if (ann.category === 'warning') {
+                  textCol = 'text-amber-950';
+                  bgCol = 'bg-amber-50/90 border-amber-200 backdrop-blur';
+                  iconCol = 'text-amber-600';
+                  accentCol = 'border-amber-300';
+                }
+
+                return (
+                  <motion.div
+                    key={ann.id}
+                    initial={{ opacity: 0, height: 0, y: -20 }}
+                    animate={{ opacity: 1, height: 'auto', y: 0 }}
+                    exit={{ opacity: 0, height: 0, y: -20 }}
+                    className={`rounded-2xl border p-4 shadow-sm flex items-start gap-3.5 relative overflow-hidden ${bgCol} ${accentCol}`}
+                  >
+                    {ann.category === 'critical' && (
+                      <div className="absolute top-0 left-0 right-0 h-0.5 bg-red-500"></div>
+                    )}
+
+                    <div className="pt-0.5 shrink-0">
+                      {ann.category === 'critical' ? (
+                        <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                          <AlertTriangle size={16} className={`${iconCol} animate-bounce`} />
+                        </div>
+                      ) : ann.category === 'warning' ? (
+                        <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                          <AlertTriangle size={16} className={iconCol} />
+                        </div>
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center">
+                          <Megaphone size={16} className={iconCol} />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex-1 min-w-0 pr-6">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs font-black uppercase tracking-wider ${textCol}`}>
+                          {ann.title}
+                        </span>
+                        <span className="text-[9px] bg-black/5 rounded-md px-1.5 py-0.5 font-bold uppercase tracking-wider text-zinc-500 border border-black/5 leading-none">
+                          FLASH INFO
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-700 font-medium leading-relaxed mt-1.5 pr-2 whitespace-pre-wrap">
+                        {ann.body}
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => handleDismissAnnouncement(ann.id)}
+                      className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-800 hover:bg-black/5 p-1 rounded-xl transition-all"
+                      title="Masquer l'annonce"
+                    >
+                      <X size={15} />
+                    </button>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        )}
+
+        <AnimatePresence mode="wait">
+          <motion.div 
+            key={activePage}
+            initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="px-3 py-4 md:p-12 max-w-none pb-32 md:pb-12 w-full"
+          >
+            {children}
+          </motion.div>
+        </AnimatePresence>
+
+        {showTimer && (
+          <div className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-[100] animate-in slide-in-from-bottom-10 duration-500">
+            <div className="relative">
+              <button 
+                onClick={() => setShowTimer(false)}
+                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-zinc-900 rounded-full flex items-center justify-center z-10 shadow-lg hover:scale-110 transition-transform"
+              >
+                <XIcon size={12} />
+              </button>
+              <Timer />
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Navigation Tab Bar */}
+        <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] h-16 bg-white/85 backdrop-blur-xl border border-zinc-200 rounded-full flex items-center justify-around z-50 px-4 shadow-xl shadow-zinc-350/15">
+          {menuItems.slice(0, 4).map(item => {
+            const isActive = activePage === item.id;
+            return (
+              <button 
+                key={item.id}
+                onClick={() => {
+                  onPageChange(item.id as Page);
+                  setShowMobileMenu(false);
+                }}
+                className={`relative flex items-center justify-center w-11 h-11 rounded-full transition-all duration-300`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="mobileActiveIndicator"
+                    className="absolute inset-0 bg-emerald-500 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                  />
+                )}
+                <div className={`relative z-10 transition-transform ${isActive ? 'text-white scale-110' : 'text-zinc-500 hover:text-zinc-900'}`}>
+                  <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                  {item.id === 'chat' && unreadMessagesCount > 0 && (
+                    <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border ${isActive ? 'border-emerald-500' : 'border-white'}`}></span>
+                  )}
+                  {item.id === 'notifications' && unreadNotificationsCount > 0 && (
+                    <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border ${isActive ? 'border-emerald-500' : 'border-white'}`}></span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+          
+          <button 
+            onClick={() => setShowMobileMenu(!showMobileMenu)}
+            className={`relative flex items-center justify-center w-11 h-11 rounded-full transition-all duration-300 ${showMobileMenu ? 'text-emerald-950 scale-110' : 'text-zinc-500 hover:text-zinc-900'}`}
+          >
+            {showMobileMenu && (
+              <motion.div
+                layoutId="mobileActiveIndicator"
+                className="absolute inset-0 bg-zinc-100 rounded-full border border-zinc-200"
+                transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              />
+            )}
+            <div className="relative z-10">
+              <MenuIcon size={20} />
+            </div>
+          </button>
+        </nav>
+
+        {/* Mobile Menu Drawer containing interactive live filter search */}
+        <AnimatePresence>
+          {showMobileMenu && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="md:hidden fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-40"
+              onClick={() => setShowMobileMenu(false)}
+            >
+              <motion.div 
+                initial={{ opacity: 0, y: 80, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 80, scale: 0.98 }}
+                transition={{ type: "spring", damping: 25, stiffness: 350 }}
+                className="absolute bottom-24 left-4 right-4 bg-zinc-50 border border-zinc-200 rounded-[2rem] p-5 shadow-2xl max-h-[78vh] overflow-y-auto no-scrollbar space-y-6"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* 1. Header Profil Utilisateur */}
+                <div className="bg-gradient-to-br from-zinc-900 to-zinc-950 text-white rounded-3xl p-5 relative overflow-hidden shadow-lg border border-zinc-850">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
+                  <div className="flex items-center gap-4 relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center font-black text-lg text-emerald-400 overflow-hidden shrink-0 shadow-lg">
+                      {user.avatar?.startsWith('http') ? (
+                        <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                      ) : (
+                        user.avatar || user.name.substring(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[9px] font-black uppercase tracking-widest text-emerald-400">
+                        {isReallySuperAdmin 
+                          ? `👑 Super Admin (${effectiveRole === 'superadmin' ? 'Plateforme' : effectiveRole === 'coach' ? 'Simu Coach' : 'Simu Athlète'})` 
+                          : user.role === 'coach' || user.role === 'owner' 
+                            ? "⚡ Coach Principal" 
+                            : "🎯 Athlète Élite"}
+                      </div>
+                      <div className="text-sm font-extrabold text-white truncate leading-tight mt-0.5">
+                        {user.name}
+                      </div>
+                      <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider mt-1 flex items-center gap-1.5">
+                        <span>Niveau {Math.floor((user.xp || 0) / 1000) + 1}</span>
+                        {user.streak && user.streak > 0 ? (
+                          <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-600"></span>
+                            <span className="text-orange-400 font-extrabold flex items-center gap-0.5">🔥 {user.streak} J</span>
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile Admin Perspective Switcher */}
+                {isReallySuperAdmin && onChangePerspective && (
+                  <div className="bg-zinc-950 border border-zinc-850 text-white rounded-3xl p-4 shadow-lg relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl"></div>
+                    <div className="text-[10px] font-black uppercase tracking-wider text-emerald-400 mb-2.5 flex items-center gap-1.5 relative z-10">
+                      <ShieldIcon size={12} className="text-emerald-400" />
+                      <span>Console de Pilotage</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1 bg-black/40 p-1 rounded-xl border border-white/5 relative z-10">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onChangePerspective('superadmin');
+                          setShowMobileMenu(false);
+                        }}
+                        className={`py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                          adminPerspective === 'superadmin'
+                            ? 'bg-emerald-500 text-zinc-950 shadow-md font-black'
+                            : 'text-zinc-400 hover:text-white bg-transparent'
+                        }`}
+                      >
+                        Admin
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onChangePerspective('coach');
+                          setShowMobileMenu(false);
+                        }}
+                        className={`py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                          adminPerspective === 'coach'
+                            ? 'bg-emerald-500 text-zinc-950 shadow-md font-black'
+                            : 'text-zinc-400 hover:text-white bg-transparent'
+                        }`}
+                      >
+                        Coach
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onChangePerspective('member');
+                          setShowMobileMenu(false);
+                        }}
+                        className={`py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+                          adminPerspective === 'member'
+                            ? 'bg-emerald-500 text-zinc-950 shadow-md font-black'
+                            : 'text-zinc-400 hover:text-white bg-transparent'
+                        }`}
+                      >
+                        Membre
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+
+                {/* 2. Filtre par Pôles Logiques */}
+                {!mobileSearch && (
+                  <div className="bg-zinc-200/50 p-1.5 rounded-2xl flex items-center justify-between gap-1 border border-zinc-200/60 shadow-inner">
+                    {activePoles.map(pole => {
+                      const isSelected = selectedMobilePole === pole.id;
+                      const PoleIcon = pole.icon;
+                      return (
+                        <button
+                          key={pole.id}
+                          type="button"
+                          onClick={() => setSelectedMobilePole(pole.id)}
+                          className="flex-1 relative flex flex-col items-center justify-center py-2.5 rounded-xl transition-all outline-none"
+                        >
+                          {isSelected && (
+                            <motion.div
+                              layoutId="mobileActivePoleIndicator"
+                              className="absolute inset-x-0 inset-y-0 bg-white rounded-lg border border-zinc-250 shadow-sm"
+                              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                            />
+                          )}
+                          <div className="relative z-10 flex flex-col items-center justify-center">
+                            <PoleIcon size={15} strokeWidth={isSelected ? 2.5 : 2} className={isSelected ? 'text-emerald-500 animate-pulse' : 'text-zinc-500'} />
+                            <span className={`text-[9px] font-black uppercase tracking-wider mt-1 ${isSelected ? 'text-zinc-950' : 'text-zinc-500'}`}>{pole.label}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* 3. Recherche rapide */}
+                <div className="relative w-full">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                  </span>
+                  <input 
+                    type="text" 
+                    placeholder="Filtrer ou rechercher une section..." 
+                    value={mobileSearch}
+                    onChange={e => setMobileSearch(e.target.value)}
+                    className="w-full text-xs font-bold bg-white border border-zinc-200 focus:border-emerald-500 rounded-2xl pl-10 pr-10 py-3 outline-none text-zinc-800 placeholder-zinc-400 shadow-sm transition-all"
+                  />
+                  {mobileSearch && (
+                    <button 
+                      onClick={() => setMobileSearch("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-xs font-black text-zinc-400 hover:text-zinc-650 bg-zinc-100 hover:bg-zinc-200 rounded-full"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* 4. Rubriques du pôle actif ou résultats de la recherche */}
+                <div className="space-y-3">
+                  <div className="text-[10px] font-black uppercase text-zinc-400 tracking-wider mb-2 px-1 flex items-center justify-between">
+                    <span>{mobileSearch ? `Résultats de recherche (${filteredMobileMenuItems.length})` : activePoles.find(p => p.id === selectedMobilePole)?.label}</span>
+                    {!mobileSearch && (
+                      <span className="text-[9px] bg-emerald-500/10 text-emerald-700 px-2.5 py-0.5 rounded-full font-extrabold uppercase">Pôle actif</span>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {filteredMobileMenuItems.map(item => {
+                      const isSelected = activePage === item.id;
+                      const itemDesc: Record<string, string> = {
+                        home: isCoach ? "Tableau de bord principal" : "Mon espace d'accueil principal",
+                        users: "Consulter & éditer mes athlètes",
+                        coaching: "Lancer ou guider un entraînement",
+                        chat: isCoach ? "Discussion & feedbacks directs" : "Messages avec mon coach",
+                        calendar: isCoach ? "Planning des séances & réservations" : "Planifier ma séance active",
+                        presets: "Créer des modèles d'entraînements",
+                        exercises: "Base d'exercices vidéos illustrés",
+                        nutrition: isCoach ? "Créer des structures de menus" : "Plan de repas personnalisé & recettes",
+                        drive: "Documents PDF, images & fiches club",
+                        crm_finances: "Comptabilité & abonnements membres",
+                        crm_pipeline: "Suivi acquisition & prospects",
+                        marketing: "Relances & campagnes SMS automatisées",
+                        settings: "Réglages complets & préférences",
+                        guide: "Vidéos de démonstration & tutoriels",
+                        about: "Informations générales & contact du club",
+                        admin: "Console superadmin d'administration",
+                        ai_coach: "Discuter avec l'IA de conseil sportif",
+                        planning: "Réserver mon cours collectif club",
+                        performances: "Mes charges max & records historiques",
+                        supplements: "Boutique de suppléments recommandés",
+                        evolution: "Suivi morphologique & photos",
+                        profile: "Mes objectifs & informations de compte"
+                      };
+
+                      return (
+                        <button 
+                          key={item.id}
+                          onClick={() => {
+                            onPageChange(item.id as Page);
+                            setShowMobileMenu(false);
+                          }}
+                          className={`w-full flex items-center justify-between p-3.5 rounded-2xl transition-all border ${
+                            isSelected 
+                              ? 'bg-gradient-to-r from-emerald-50 to-emerald-100/40 border-emerald-500/30 text-emerald-950 font-black shadow-sm' 
+                              : 'bg-white hover:bg-zinc-100 border-zinc-200/80 text-zinc-800 shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-xl shrink-0 ${
+                              isSelected ? 'bg-emerald-500 text-white shadow-md' : 'bg-zinc-100/70 border border-zinc-200 text-zinc-500'
+                            }`}>
+                              <item.icon size={16} strokeWidth={isSelected ? 2.5 : 2} />
+                            </div>
+                            <div className="text-left">
+                              <span className="text-xs font-black uppercase tracking-wider block leading-tight">{item.label}</span>
+                              <span className="text-[10px] text-zinc-400 font-bold block leading-tight mt-1 max-w-[210px] truncate">{itemDesc[item.id] || "Accéder à cette section"}</span>
+                            </div>
+                          </div>
+                          <div className="shrink-0 flex items-center gap-2 pl-2">
+                            {item.id === 'chat' && unreadMessagesCount > 0 && (
+                              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
+                            )}
+                            {item.id === 'notifications' && unreadNotificationsCount > 0 && (
+                              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
+                            )}
+                            {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && !isReallySuperAdmin ? (
+                              <LockIcon size={12} className="text-zinc-400" />
+                            ) : (
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-zinc-400"><path d="M9 5l7 7-7 7"/></svg>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                    {filteredMobileMenuItems.length === 0 && (
+                      <div className="text-xs text-zinc-400 font-bold uppercase tracking-widest text-center py-8 bg-white border border-zinc-200/60 rounded-2xl">
+                        Aucune rubrique ne correspond à votre recherche
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. Actions Générales de bas de tiroir */}
+                <div className="pt-4 border-t border-zinc-200 grid grid-cols-2 gap-3 pb-2">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setShowTimer(!showTimer);
+                      setShowMobileMenu(false);
+                    }}
+                    className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-black uppercase tracking-wider text-[10px] border transition-all ${
+                      showTimer 
+                        ? 'bg-emerald-500 text-white border-emerald-500 shadow-md' 
+                        : 'bg-white hover:bg-zinc-50 text-zinc-700 border-zinc-200'
+                    }`}
+                  >
+                    <TimerIcon size={14} className="shrink-0" />
+                    Chronomètre
+                  </button>
+
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      onLogout();
+                      setShowMobileMenu(false);
+                    }}
+                    className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-black uppercase tracking-wider text-[10px] bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/60 transition-all cursor-pointer"
+                  >
+                    <LogOutIcon size={14} className="shrink-0" />
+                    Se déconnecter
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+
+      {/* Command Palette Modal overlay */}
+      <AnimatePresence>
+        {showCommandPalette && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-zinc-950/60 backdrop-blur-md z-[9999] flex items-start justify-center pt-[15vh] px-4"
+            onClick={() => {
+              setShowCommandPalette(false);
+              setCommandSearch("");
+            }}
+          >
+            <motion.div 
+              initial={{ opacity: 0, y: -24, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -24, scale: 0.96 }}
+              transition={{ type: "spring", damping: 25, stiffness: 350 }}
+              className="bg-white border border-zinc-200 w-full max-w-3xl rounded-3xl overflow-hidden shadow-[0_30px_60px_rgba(24,24,27,0.25)]"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-100 bg-zinc-50/50">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-zinc-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input 
+                  autoFocus
+                  type="text" 
+                  placeholder="Rechercher une page ou section... (ex: Modèles, Nutrition, Drive)" 
+                  value={commandSearch}
+                  onChange={e => setCommandSearch(e.target.value)}
+                  className="w-full bg-transparent border-none outline-none text-sm font-bold text-zinc-800 placeholder-zinc-400"
+                />
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setShowCommandPalette(false);
+                    setCommandSearch("");
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl hover:bg-zinc-100 text-[10px] font-black uppercase text-zinc-400 tracking-wider transition-colors border border-zinc-200"
+                >
+                  ESC
+                </button>
+              </div>
+
+              <div className="max-h-[350px] overflow-y-auto p-3 space-y-1 no-scrollbar">
+                {filteredCommandItems.length > 0 ? (
+                  filteredCommandItems.map(item => {
+                    const isSelected = activePage === item.id;
+                    return (
+                      <button
+                        type="button"
+                        key={item.id}
+                        onClick={() => handleCommandSelect(item.id)}
+                        className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl text-left transition-all ${
+                          isSelected 
+                            ? 'bg-emerald-500 text-white font-black shadow-lg shadow-emerald-500/20' 
+                            : 'hover:bg-zinc-50 text-zinc-600 hover:text-zinc-900 font-bold'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <item.icon size={16} strokeWidth={2.5} className={isSelected ? 'text-white' : 'text-zinc-400'} />
+                          <span className="text-[11px] uppercase tracking-wider">{item.label}</span>
+                        </div>
+                        {item.category && (
+                          <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                            isSelected ? 'bg-white/20 text-white' : 'bg-zinc-100 text-zinc-500'
+                          }`}>
+                            {item.category}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div className="text-xs text-zinc-400 font-bold uppercase tracking-widest text-center py-8">
+                    Aucun résultat trouvé pour "{commandSearch}"
+                  </div>
+                )}
+              </div>
+              <div className="px-5 py-3.5 bg-zinc-50 border-t border-zinc-100 flex justify-between items-center text-[9px] font-black text-zinc-400 uppercase tracking-wider">
+                <span>Naviguer avec la souris ou tapez</span>
+                <span className="flex items-center gap-1">
+                  <span>Valider</span> <kbd className="px-1.5 py-0.5 bg-zinc-200 border border-zinc-350 rounded">↵</kbd>
+                </span>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
