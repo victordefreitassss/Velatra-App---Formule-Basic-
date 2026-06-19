@@ -42,7 +42,7 @@ RÈGLES DE REDIRECTION IMPORTANTES :
 2. Si l'adhérent pose une question sportive trop complexe, médicale, ou nécessitant une analyse approfondie (blessure, douleur, programme très spécifique), tu dois le rediriger vers les coachs sportifs (Thomas, Tristan ou Evan) lors de sa prochaine séance ou via la messagerie de l'application.`;
 
       chatRef.current = ai.chats.create({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-2.5-flash",
         config: {
           systemInstruction,
           temperature: 0.7

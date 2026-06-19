@@ -1,307 +1,259 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { User, Club, Subscription, Plan, Gender, Goal } from '../types';
-import { Button, Input, Card } from './UI';
-import { CheckIcon, ArrowRightIcon, ArrowLeftIcon, FileTextIcon, CreditCardIcon } from './Icons';
-import { db, doc, updateDoc } from '../firebase';
-import SignatureCanvas from 'react-signature-canvas';
-import { GOALS } from '../constants';
+import React, { useState } from 'react';
+import { User, Club, Subscription, Plan } from '../types';
+import { Card, Button, Input, Badge } from './UI';
+import { doc, updateDoc, db } from '../firebase';
+import { Sparkles, Trophy, Dumbbell, Calendar, ChevronRight, UserCheck } from 'lucide-react';
 
 interface OnboardingProps {
-  user: User;
+  user: User | null;
   club: Club | null;
-  subscriptions?: Subscription[];
-  plans?: Plan[];
+  subscriptions: Subscription[];
+  plans: Plan[];
   onComplete: () => void;
 }
 
-export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscriptions, plans, onComplete }) => {
+export const Onboarding: React.FC<OnboardingProps> = ({
+  user,
+  club,
+  subscriptions,
+  plans,
+  onComplete
+}) => {
   const [step, setStep] = useState(1);
-  const [objectives, setObjectives] = useState<string[]>(user.objectifs || []);
-  const [injuries, setInjuries] = useState(user.injuries || '');
+  const [weight, setWeight] = useState(user?.weight || 70);
+  const [height, setHeight] = useState(user?.height || 175);
+  const [age, setAge] = useState(user?.age || 25);
+  const [selectedGoal, setSelectedGoal] = useState<string>('Sport santé bien-être');
+  const [equipment, setEquipment] = useState<'Salle complète' | 'Haltères/Kettlebells' | 'Poids du corps' | 'Élastiques'>('Salle complète');
+  const [experience, setExperience] = useState<'Débutant' | 'Intermédiaire' | 'Avancé'>('Débutant');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [profile, setProfile] = useState({
-    age: user.age === 30 ? '' : user.age?.toString() || '', // Coach default is often 30, leave blank if possible or keep
-    gender: user.gender || 'M',
-    weight: user.weight === 70 ? '' : user.weight?.toString() || '',
-    height: user.height === 175 ? '' : user.height?.toString() || '',
-    phone: user.phone || ''
-  });
-
-  const [training, setTraining] = useState({
-    experienceLevel: user.experienceLevel || "Débutant",
-    trainingDays: user.trainingDays || 3,
-    sessionDuration: user.sessionDuration || 60,
-    equipment: user.equipment || "Salle complète"
-  });
-
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const totalSteps = 4;
-
-  const handleNext = () => {
-    if (step < totalSteps) {
+  const handleNextStep = () => {
+    if (step < 3) {
       setStep(step + 1);
-    }
-  };
-
-  const handlePrev = () => {
-    if (step > 1) setStep(step - 1);
-  };
-
-  const handleObjectiveToggle = (obj: string) => {
-    if (objectives.includes(obj)) {
-      setObjectives(objectives.filter(o => o !== obj));
     } else {
-      setObjectives([...objectives, obj]);
+      handleFinishOnboarding();
     }
   };
 
-  const finishOnboarding = async () => {
-    setIsProcessing(true);
+  const handleFinishOnboarding = async () => {
+    if (!user) return;
+    setIsSubmitting(true);
     try {
-      if (user.firebaseUid) {
-        await updateDoc(doc(db, "users", user.firebaseUid), {
-          age: Number(profile.age) || 25,
-          gender: profile.gender,
-          weight: Number(profile.weight) || 70,
-          height: Number(profile.height) || 175,
-          phone: profile.phone,
-          experienceLevel: training.experienceLevel,
-          trainingDays: Number(training.trainingDays),
-          sessionDuration: Number(training.sessionDuration),
-          equipment: training.equipment,
-          objectifs: objectives,
-          blessures: injuries,
-          injuries: injuries, // sync both fields for consistency
-          onboardingCompleted: true,
-          paymentStatus: 'active'
-        });
-      }
+      const userRef = doc(db, "users", (user as any).firebaseUid || user.id.toString());
+      await updateDoc(userRef, {
+        onboardingCompleted: true,
+        weight: Number(weight),
+        height: Number(height),
+        age: Number(age),
+        objectifs: [selectedGoal],
+        equipment,
+        experienceLevel: experience,
+      });
+
       onComplete();
-    } catch (err) {
-      console.error("Error saving onboarding data:", err);
-      setError("Erreur lors de l'enregistrement.");
+    } catch (e) {
+      console.error("Error writing onboarding details:", e);
+      // Fallback completion even if firestore fails (network loss)
+      onComplete();
     } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const renderStep = () => {
-    switch (step) {
-      case 1:
-        return (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
-          >
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-display font-bold text-zinc-900 mb-2">Bienvenue {user.name} !</h2>
-              <p className="text-zinc-500">Pour personnaliser votre expérience, complétons votre profil.</p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Sexe</label>
-                <div className="flex gap-2">
-                  <Button 
-                    variant={profile.gender === 'M' ? 'primary' : 'secondary'} 
-                    onClick={() => setProfile({...profile, gender: 'M'})} 
-                    className="flex-1"
-                  >
-                    Homme
-                  </Button>
-                  <Button 
-                    variant={profile.gender === 'F' ? 'primary' : 'secondary'} 
-                    onClick={() => setProfile({...profile, gender: 'F'})} 
-                    className="flex-1"
-                  >
-                    Femme
-                  </Button>
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Âge</label>
-                <Input type="number" placeholder="Ex: 28" value={profile.age} onChange={(e) => setProfile({...profile, age: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Poids (kg)</label>
-                <Input type="number" placeholder="Ex: 75" value={profile.weight} onChange={(e) => setProfile({...profile, weight: e.target.value})} />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Taille (cm)</label>
-                <Input type="number" placeholder="Ex: 180" value={profile.height} onChange={(e) => setProfile({...profile, height: e.target.value})} />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Téléphone</label>
-                <Input type="tel" placeholder="Votre numéro de téléphone" value={profile.phone} onChange={(e) => setProfile({...profile, phone: e.target.value})} />
-              </div>
-            </div>
-          </motion.div>
-        );
-
-      case 2:
-        return (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
-          >
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-display font-bold text-zinc-900 mb-2">Vos Objectifs</h2>
-              <p className="text-zinc-500">Quels sont vos objectifs principaux avec Velatra ?</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {GOALS.map(obj => (
-                <button
-                  key={obj}
-                  onClick={() => handleObjectiveToggle(obj)}
-                  className={`p-4 rounded-2xl border-2 transition-all text-left ${
-                    objectives.includes(obj) 
-                      ? 'border-emerald-500 bg-emerald-500/5 text-emerald-500' 
-                      : 'border-zinc-200 hover:border-zinc-300 text-zinc-500 bg-white'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold">{obj}</span>
-                    {objectives.includes(obj) && <CheckIcon size={20} />}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        );
-
-      case 3:
-        return (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
-          >
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-display font-bold text-zinc-900 mb-2">Condition Physique & Entraînement</h2>
-              <p className="text-zinc-500">Aidez-nous à adapter vos séances.</p>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Niveau d'expérience</label>
-                <select 
-                  value={training.experienceLevel}
-                  onChange={(e) => setTraining({...training, experienceLevel: e.target.value as any})}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
-                >
-                  <option value="Débutant">Débutant (Jamais pratiqué ou peu)</option>
-                  <option value="Intermédiaire">Intermédiaire (Pratique régulière 1-2 ans)</option>
-                  <option value="Avancé">Avancé (Pratique depuis plusieurs années)</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-zinc-700 mb-1">Séances / Semaine</label>
-                  <Input type="number" min="1" max="7" value={training.trainingDays} onChange={(e) => setTraining({...training, trainingDays: Number(e.target.value)})} />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-zinc-700 mb-1">Durée (min)</label>
-                  <Input type="number" min="15" max="180" step="15" value={training.sessionDuration} onChange={(e) => setTraining({...training, sessionDuration: Number(e.target.value)})} />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Équipement à disposition</label>
-                <select 
-                  value={training.equipment}
-                  onChange={(e) => setTraining({...training, equipment: e.target.value as any})}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
-                >
-                  <option value="Salle complète">Salle de sport complète</option>
-                  <option value="Haltères/Kettlebells">Haltères et Kettlebells uniquement</option>
-                  <option value="Élastiques">Élastiques de résistance</option>
-                  <option value="Poids du corps">Poids du corps uniquement</option>
-                </select>
-              </div>
-            </div>
-          </motion.div>
-        );
-
-      case 4:
-        return (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            className="space-y-6"
-          >
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-display font-bold text-zinc-900 mb-2">Santé & Antécédents</h2>
-              <p className="text-zinc-500">Avez-vous des blessures ou des contraintes médicales dont votre coach doit avoir connaissance ?</p>
-            </div>
-            <textarea
-              value={injuries}
-              onChange={(e) => setInjuries(e.target.value)}
-              placeholder="Ex: Douleur à l'épaule droite, entorse cheville il y a 2 ans..."
-              className="w-full h-40 p-4 rounded-2xl border border-zinc-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 resize-none"
-            />
-          </motion.div>
-        );
-      default:
-        return null;
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      {/* Progress Bar */}
-      <div className="h-2 bg-zinc-100 w-full fixed top-0 left-0 z-50">
-        <motion.div 
-          className="h-full bg-emerald-500"
-          initial={{ width: '0%' }}
-          animate={{ width: `${(step / totalSteps) * 100}%` }}
-          transition={{ duration: 0.3 }}
-        />
-      </div>
-
-      <div className="flex-1 flex flex-col items-center justify-center p-6 mt-8">
-        <div className="w-full max-w-2xl bg-zinc-50 border border-zinc-200 rounded-[40px] shadow-xl p-8 md:p-12 relative overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-[#070709] flex items-center justify-center p-4 overflow-y-auto">
+      <div className="w-full max-w-xl">
+        <Card className="p-6 md:p-8 space-y-6 relative overflow-hidden shadow-[0_24px_50px_rgba(0,0,0,0.8)] border border-zinc-900 bg-zinc-950/90 backdrop-blur-lg">
           
-          <AnimatePresence mode="wait">
-            {renderStep()}
-          </AnimatePresence>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-          <div className="mt-12 flex items-center justify-between pt-6 border-t border-zinc-200">
-            {step > 1 ? (
-              <Button variant="secondary" onClick={handlePrev} disabled={isProcessing}>
-                <ArrowLeftIcon size={20} className="mr-2" /> Retour
-              </Button>
-            ) : (
-              <div></div>
-            )}
-            
-            {step < totalSteps ? (
-              <Button 
-                onClick={handleNext} 
-                disabled={(step === 2 && objectives.length === 0)}
-              >
-                Continuer <ArrowRightIcon size={20} className="ml-2" />
-              </Button>
-            ) : (
-              <Button 
-                onClick={finishOnboarding} 
-                disabled={isProcessing}
-                className="bg-emerald-500 text-zinc-900 hover:bg-emerald-500/90"
-              >
-                {isProcessing ? 'Enregistrement...' : 'Terminer mon profil'} <CheckIcon size={20} className="ml-2" />
-              </Button>
-            )}
+          {/* Progress bar */}
+          <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden">
+            <div 
+              className="bg-emerald-500 h-full transition-all duration-300"
+              style={{ width: `${(step / 3) * 100}%` }}
+            />
           </div>
-        </div>
+
+          {/* STEP 1: WELCOME & PRIMARY PHYSICAL DATA */}
+          {step === 1 && (
+            <div className="space-y-5">
+              <div className="inline-flex p-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl">
+                <Sparkles className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-xl sm:text-2xl font-bold font-display tracking-tight text-white leading-none">
+                  Bienvenue chez <span className="text-emerald-400">{club?.name || "VELATRA"}</span> !
+                </h2>
+                <p className="text-xs text-zinc-400 leading-relaxed font-normal">
+                  Faisons d'abord connaissance. Renseigne tes mensurations actuelles pour que ton programme soit parfaitement calibré.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 pt-2">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Âge</label>
+                  <Input 
+                    type="number"
+                    value={age}
+                    onChange={(e) => setAge(Number(e.target.value))}
+                    min={1}
+                    max={120}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Poids (kg)</label>
+                  <Input 
+                    type="number"
+                    value={weight}
+                    onChange={(e) => setWeight(Number(e.target.value))}
+                    min={30}
+                    max={250}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">Taille (cm)</label>
+                  <Input 
+                    type="number"
+                    value={height}
+                    onChange={(e) => setHeight(Number(e.target.value))}
+                    min={100}
+                    max={250}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: GOAL SELECTOR */}
+          {step === 2 && (
+            <div className="space-y-5">
+              <div className="inline-flex p-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl">
+                <Trophy className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-xl sm:text-2xl font-bold font-display tracking-tight text-white leading-none">Quel est ton objectif ?</h2>
+                <p className="text-xs text-zinc-400 leading-relaxed font-normal">
+                  Choisis l'axe prioritaire vers lequel tu souhaites orienter tes efforts sportifs et nutritionnels.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                {[
+                  "Perte de poids",
+                  "Prise de masse",
+                  "Sport santé bien-être",
+                  "Prépa physique",
+                  "Remise en forme",
+                  "Performance sportive"
+                ].map((g) => {
+                  const selected = selectedGoal === g;
+                  return (
+                    <button
+                      key={g}
+                      onClick={() => setSelectedGoal(g)}
+                      className={`text-left px-4 py-3 rounded-xl border text-xs font-semibold select-none flex items-center justify-between transition-all ${
+                        selected 
+                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' 
+                          : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-900'
+                      }`}
+                    >
+                      <span>{g}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: WORKOUT LEVEL & EQUIPMENTS */}
+          {step === 3 && (
+            <div className="space-y-5">
+              <div className="inline-flex p-3 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl">
+                <Dumbbell className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-xl sm:text-2xl font-bold font-display tracking-tight text-white leading-none">Ton équipement & niveau</h2>
+                <p className="text-xs text-zinc-400 leading-relaxed font-normal">
+                  Dernière étape. Indique sur quel type de matériel tu as accès pour générer tes entraînements.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Matériel Disponible</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: "Salle complète" as const, label: "Salle de sport" },
+                      { id: "Haltères/Kettlebells" as const, label: "Poids Libres" },
+                      { id: "Poids du corps" as const, label: "Poids du Corps" },
+                      { id: "Élastiques" as const, label: "Bandes Élastiques" }
+                    ].map((item) => (
+                      <button
+                        type="button"
+                        key={item.id}
+                        onClick={() => setEquipment(item.id)}
+                        className={`px-4 py-2.5 rounded-xl border text-xs font-semibold text-center transition-all ${
+                          equipment === item.id 
+                            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400' 
+                            : 'bg-zinc-904 border-zinc-800 text-zinc-450 hover:text-white'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Expérience en Musculation</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {["Débutant", "Intermédiaire", "Avancé"].map((level) => (
+                      <button
+                        type="button"
+                        key={level}
+                        onClick={() => setExperience(level as any)}
+                        className={`px-3 py-2 rounded-xl border text-[11px] font-semibold text-center transition-all ${
+                          experience === level 
+                            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-400 font-bold' 
+                            : 'bg-zinc-904 border-zinc-800 text-zinc-450 hover:text-white'
+                        }`}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-between pt-4 border-t border-zinc-900 gap-4">
+            {step > 1 ? (
+              <Button 
+                variant="outline" 
+                onClick={() => setStep(step - 1)}
+                disabled={isSubmitting}
+              >
+                Retour
+              </Button>
+            ) : (
+              <div /> // placeholder to align next button right
+            )}
+
+            <Button 
+              disabled={isSubmitting}
+              onClick={handleNextStep}
+              className="px-6"
+            >
+              <span>{step === 3 ? (isSubmitting ? "Finalisation..." : "C'est parti !") : "Suivant"}</span>
+              <ChevronRight className="w-4 h-4 ml-1.5 shrink-0" />
+            </Button>
+          </div>
+
+        </Card>
       </div>
     </div>
   );

@@ -297,6 +297,27 @@ app.post("/api/stripe/charge-customer", async (req, res) => {
   }
 });
 
+// Endpoint to create a Stripe Customer Portal session
+app.post("/api/stripe/portal", async (req, res) => {
+  try {
+    const { stripeSecretKey, customerId, returnUrl } = req.body;
+    if (!stripeSecretKey || !customerId) {
+       return res.status(400).json({ error: "Missing required parameters: stripeSecretKey, customerId" });
+    }
+
+    const stripe = new Stripe(stripeSecretKey);
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl || `${req.headers.origin || 'http://localhost:3000'}/profile`
+    });
+
+    res.json({ session });
+  } catch (err: any) {
+    console.error("Erreur génération de portail Stripe:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Endpoint to send onboarding email (Contract & Payment)
 app.post("/api/send-onboarding-email", async (req, res) => {
   try {

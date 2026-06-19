@@ -1,5 +1,7 @@
 
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { Card, Input, Button } from './UI';
 import { RegistrationForm } from './RegistrationForm';
 import { ClubRegistration } from './ClubRegistration';
@@ -133,6 +135,17 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
       <div className="min-h-screen flex items-center justify-center px-4 bg-transparent relative overflow-hidden">
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
         
+        {/* Back to site button */}
+        <div className="absolute top-6 left-6 z-20">
+          <Link 
+            to="/" 
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-zinc-650 hover:text-zinc-950 bg-white border border-zinc-150 rounded-full shadow-sm transition-all group"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-emerald-600 animate-pulse" />
+            Retour au site
+          </Link>
+        </div>
+        
         <div className="w-full max-w-[380px] space-y-10 py-12 animate-in fade-in duration-1000 relative z-10">
           <div className="text-center">
             <AppLogo />
@@ -172,6 +185,17 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
       {/* Ambient background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
       
+      {/* Back to site button */}
+      <div className="absolute top-6 left-6 z-20">
+        <Link 
+          to="/" 
+          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-zinc-650 hover:text-zinc-950 bg-white border border-zinc-150 rounded-full shadow-sm transition-all group"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-emerald-600 animate-pulse" />
+          Retour au site
+        </Link>
+      </div>
+
       <div className="w-full max-w-[380px] space-y-10 py-12 animate-in fade-in duration-1000 relative z-10">
         <div className="text-center">
           <AppLogo />
