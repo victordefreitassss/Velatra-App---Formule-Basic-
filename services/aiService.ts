@@ -16,7 +16,17 @@ export class GoogleGenAI {
           const contentType = res.headers.get("content-type");
           if (contentType && contentType.includes("application/json")) {
             const err = await res.json();
-            if (err && err.error) errorMsg = err.error;
+            if (err) {
+              if (typeof err.error === "string") {
+                errorMsg = err.error;
+              } else if (err.error && typeof err.error === "object") {
+                errorMsg = err.error.message || JSON.stringify(err.error);
+              } else if (err.message) {
+                errorMsg = err.message;
+              } else {
+                errorMsg = JSON.stringify(err);
+              }
+            }
           } else {
             const text = await res.text();
             errorMsg = `Server error (${res.status}): ${text.substring(0, 200)}`;
@@ -56,7 +66,17 @@ export class GoogleGenAI {
               const contentType = res.headers.get("content-type");
               if (contentType && contentType.includes("application/json")) {
                 const err = await res.json();
-                if (err && err.error) errorMsg = err.error;
+                if (err) {
+                  if (typeof err.error === "string") {
+                    errorMsg = err.error;
+                  } else if (err.error && typeof err.error === "object") {
+                    errorMsg = err.error.message || JSON.stringify(err.error);
+                  } else if (err.message) {
+                    errorMsg = err.message;
+                  } else {
+                    errorMsg = JSON.stringify(err);
+                  }
+                }
               } else {
                 const text = await res.text();
                 errorMsg = `Server error (${res.status}): ${text.substring(0, 200)}`;
