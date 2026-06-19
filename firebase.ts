@@ -59,8 +59,17 @@ if (typeof window !== 'undefined') {
   } else if (localStorageOverride === 'default') {
     dbIdToUse = undefined;
   } else {
-    // By default, connect to the standard historical (default) database where all your clubs and members live.
-    dbIdToUse = undefined;
+    // By default, connect to the isolated database in development/AI Studio preview
+    // so that connection tests and rules work correctly out-of-the-box.
+    const isDevelopment = window.location.hostname.includes('ais-') || 
+                          window.location.hostname.includes('localhost') || 
+                          window.location.hostname.includes('127.0.0.1');
+    if (isDevelopment && (config.firestoreDatabaseId || env.VITE_FIREBASE_FIRESTORE_DATABASE_ID)) {
+      dbIdToUse = config.firestoreDatabaseId || env.VITE_FIREBASE_FIRESTORE_DATABASE_ID;
+    } else {
+      // On production domain, default to the standard historical (default) database where all live clubs live.
+      dbIdToUse = undefined;
+    }
   }
 } else {
   dbIdToUse = undefined;

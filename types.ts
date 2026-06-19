@@ -116,6 +116,7 @@ export interface User {
   pointsFidelite: number;
   planRequested?: boolean;
   firebaseUid?: string;
+  isSuspended?: boolean;
   status?: 'active' | 'paused';
   integrations?: {
     appleHealth?: boolean;

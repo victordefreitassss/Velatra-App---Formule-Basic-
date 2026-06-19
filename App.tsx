@@ -34,13 +34,75 @@ const isGcpBillingOrSuspendedError = (error: any): boolean => {
   );
 };
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+const getRefPath = (ref: any): string | null => {
+  if (!ref) return null;
+  if (typeof ref.path === 'string') return ref.path;
+  if (ref._query && ref._query.path && typeof ref._query.path.toString === 'function') {
+    return ref._query.path.toString();
+  }
+  if (ref.collection && typeof ref.collection.path === 'string') {
+    return ref.collection.path;
+  }
+  return null;
+};
+
+const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+};
+
 const onSnapshot = (ref: any, callback: any) => {
   return originalOnSnapshot(ref, callback, (error: any) => {
     console.error("Firestore onSnapshot error:", error);
+    const path = getRefPath(ref);
     if (isGcpBillingOrSuspendedError(error)) {
       const errMsg = error?.message || String(error);
       window.dispatchEvent(new CustomEvent('gcp-billing-error', { detail: errMsg }));
     }
+    // Standard error throwing wrapper
+    handleFirestoreError(error, OperationType.GET, path);
   });
 };
 
@@ -82,11 +144,33 @@ import { EvolutionGalleryPage } from './pages/EvolutionGalleryPage';
 import { GuidePage } from './pages/GuidePage';
 import { Onboarding } from './components/Onboarding';
 
+// Routing & Marketing Pages
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+import { PageTransition } from './components/PageTransition';
+import LandingLayout from './components/LandingLayout';
+import HomePage from './pages/HomePage';
+import FeaturesPage from './pages/FeaturesPage';
+import PricingPage from './pages/PricingPage';
+import AboutPageMarketing from './pages/AboutPageMarketing';
+import SolutionsPage from './pages/UseCases';
+import HelpCenterPage from './pages/HelpCenter';
+import BlogPage from './pages/Blog';
+import BlogPostPage from './pages/BlogPost';
+import { ContactPage } from './pages/ContactPage';
+import { MentionsLegales, CGV, Confidentialite } from './pages/Legal';
+
 const getInitialFromCache = (key: string, defaultValue: any) => {
   if (typeof window === 'undefined') return defaultValue;
   try {
     const item = localStorage.getItem(`velatra_cache_${key}`);
-    return item ? JSON.parse(item) : defaultValue;
+    const data = item ? JSON.parse(item) : defaultValue;
+    if (key === 'user' && data) {
+      if (data.role === 'superadmin' && data.email !== 'victor.defreitas.pro@gmail.com') {
+        data.role = 'member';
+      }
+    }
+    return data;
   } catch (e) {
     return defaultValue;
   }
@@ -169,6 +253,33 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [connectionTested, setConnectionTested] = useState(false);
   const [gcpBillingError, setGcpBillingError] = useState<string | null>(null);
+  const [authResolved, setAuthResolved] = useState(false);
+
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (state.user) {
+      if (location.pathname === '/login' || location.pathname === '/register') {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [state.user, location.pathname, navigate]);
+
+  const [adminPerspective, setAdminPerspective] = useState<'superadmin' | 'coach' | 'member'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('velatra_admin_perspective');
+      if (saved === 'superadmin' || saved === 'coach' || saved === 'member') {
+        return saved;
+      }
+    }
+    return 'superadmin';
+  });
+
+  const handlePerspectiveChange = (p: 'superadmin' | 'coach' | 'member') => {
+    setAdminPerspective(p);
+    localStorage.setItem('velatra_admin_perspective', p);
+  };
 
   useEffect(() => {
     const handleBillingError = (e: Event) => {
@@ -308,6 +419,7 @@ export default function App() {
     let unsubUserDoc: () => void;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setAuthResolved(true);
       if (firebaseUser) {
         const userDocRef = doc(db, "users", firebaseUser.uid);
         
@@ -320,6 +432,11 @@ export default function App() {
             if (firebaseUser.email === 'victor.defreitas.pro@gmail.com' && userData.role !== 'superadmin') {
               await updateDoc(userDocRef, { role: 'superadmin' });
               userData.role = 'superadmin';
+            }
+            
+            // Enforce that only victor.defreitas.pro@gmail.com can hold superadmin role
+            if (userData.role === 'superadmin' && firebaseUser.email !== 'victor.defreitas.pro@gmail.com') {
+              userData.role = 'member';
             }
             
             const cachedUser = { ...userData, id: Number(userData.id), firebaseUid: firebaseUser.uid };
@@ -412,7 +529,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!state.user || !state.user.clubId) return;
+    if (!authResolved) return;
+    if (!auth.currentUser || !state.user || String(state.user.id) !== auth.currentUser.uid || !state.user.clubId) return;
 
     // Check for onboarding success/cancel in URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -946,7 +1064,7 @@ export default function App() {
       unsubTasks(); unsubBookings(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubFixedCosts(); unsubNutritionPlans(); unsubNutritionLogs();
       unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects(); unsubDriveFiles(); unsubDriveFolders(); unsubNotifications(); unsubProgressPhotos();
     };
-  }, [state.user?.clubId]);
+  }, [state.user?.clubId, authResolved]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setState(prev => ({ ...prev, toast: { message, type } }));
@@ -1017,8 +1135,11 @@ export default function App() {
     const isClassic = currentPlan === 'classic' || currentPlan === 'premium';
     const isPremium = currentPlan === 'premium';
 
-    if (user.role === 'superadmin' || user.role === 'coach' || user.role === 'owner') {
-      if (user.role !== 'superadmin' && state.currentClub?.isActive === false) {
+    const isReallySuperAdmin = user.role === 'superadmin' && user.email === 'victor.defreitas.pro@gmail.com';
+    const effectiveRole = isReallySuperAdmin ? adminPerspective : (user.role === 'superadmin' ? 'member' : user.role);
+
+    if (effectiveRole === 'superadmin' || effectiveRole === 'coach' || effectiveRole === 'owner') {
+      if (effectiveRole !== 'superadmin' && state.currentClub?.isActive === false) {
         return (
           <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center">
             <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
@@ -1034,7 +1155,7 @@ export default function App() {
         );
       }
 
-      if (user.role === 'superadmin' && page === 'admin') {
+      if (effectiveRole === 'superadmin') {
         return <AdminDashboard showToast={showToast} />;
       }
 
@@ -1087,7 +1208,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (state.user?.id && messaging && 'Notification' in window) {
+    if (!authResolved) return;
+    if (!auth.currentUser || !state.user || String(state.user.id) !== auth.currentUser.uid) return;
+    if (messaging && 'Notification' in window) {
       const requestPushPermission = async () => {
         try {
           const permission = await Notification.requestPermission();
@@ -1120,7 +1243,7 @@ export default function App() {
 
       return () => unsubscribe();
     }
-  }, [state.user?.id]);
+  }, [state.user?.id, authResolved]);
 
   useEffect(() => {
     if (state.user && (state.tasks || []).length > 0 && !hasNotifiedTasks.current && 'Notification' in window && Notification.permission === 'granted') {
@@ -1199,153 +1322,210 @@ export default function App() {
     </div>
   );
 
-  if (!state.user) return (
-    <div className="min-h-screen flex flex-col">
-      {renderBillingBanner()}
-      {renderOfflineBanner()}
-      <div className="flex-1">
-        <Login />
-      </div>
-    </div>
-  );
+  const unreadMessagesCount = state.user ? (state.messages || []).filter(m => !m.read && m.to === state.user?.id).length : 0;
+  const unreadNotificationsCount = state.user ? (state.notifications || []).filter(n => !n.read && n.userId === state.user?.id).length : 0;
 
-  if (state.user.role === 'member' && !state.user.onboardingCompleted) {
-    return (
-      <div className="min-h-screen flex flex-col">
-        {renderBillingBanner()}
-        {renderOfflineBanner()}
-        <div className="flex-1 animate-fadeIn">
-          <Onboarding user={state.user} club={state.currentClub} subscriptions={state.subscriptions} plans={state.plans} onComplete={() => {
-            setState(prev => prev.user ? { ...prev, user: { ...prev.user, onboardingCompleted: true } } : prev);
-          }} />
-        </div>
-      </div>
-    );
-  }
-
-  const unreadMessagesCount = (state.messages || []).filter(m => !m.read && m.to === state.user?.id).length;
-  const unreadNotificationsCount = (state.notifications || []).filter(n => !n.read && n.userId === state.user?.id).length;
+  const isReallySuperAdmin = state.user?.role === 'superadmin' && state.user?.email === 'victor.defreitas.pro@gmail.com';
+  const effectiveRole = isReallySuperAdmin ? adminPerspective : (state.user?.role === 'superadmin' ? 'member' : state.user?.role);
 
   return (
-    <ErrorBoundary>
-      {renderBillingBanner()}
-      {renderOfflineBanner()}
-      <Layout 
-        user={state.user} 
-        club={state.currentClub} 
-        activePage={state.page} 
-        onPageChange={(p) => setState(s => ({ ...s, page: p }))} 
-        onLogout={handleLogout} 
-        unreadMessagesCount={unreadMessagesCount} 
-        unreadNotificationsCount={unreadNotificationsCount}
-        logs={state.logs || []}
-        payments={state.payments || []}
-        users={state.users || []}
-      >
-        {renderActivePageContent(state.user)}
-      </Layout>
-      
-      {state.toast && <Toast message={state.toast.message} type={state.toast.type} />}
-      {state.workout && state.workoutMember && (
-        (state.user?.role === 'coach' || state.user?.role === 'owner' || state.user?.role === 'superadmin') ? (
-          <CoachingSessionView 
-            program={state.workout} 
-            member={state.workoutMember} 
-            state={state}
-            showToast={showToast}
-            isProgramSession={state.workoutIsProgramSession}
-            onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }))}
-            onComplete={async (log, perfs) => {
-              const logWithClub = { ...log, clubId: state.user?.clubId };
-              const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
-              
-              try {
-                if (!navigatorOnline || isOfflineBackupActive || gcpBillingError) {
-                  throw new Error("offline");
-                }
-                await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
-                for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
-                
-                if (state.workout?.isPlannedSession) {
-                  await deleteDoc(doc(db, "programs", state.workout.id.toString()));
-                }
-                
-                if (state.workout?.bookingId) {
-                  await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
-                }
-                
-                setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
-                showToast("Séance de coaching enregistrée !");
-              } catch (err) {
-                console.warn("Offline/failed save, caching coaching logs locally:", err);
-                queueForSync('logs', logWithClub);
-                queueForSync('performances', perfsWithClub);
-                
-                if (state.workout?.isPlannedSession) {
-                  const pid = state.workout.id;
-                  setState(prev => ({
-                    ...prev,
-                    programs: prev.programs.filter(p => p.id !== pid)
-                  }));
-                  queueForSync('delete_program', { id: pid });
-                }
-                
-                setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
-                showToast("Séance sauvegardée localement en cache (Hors-ligne) !", "info");
-              }
-            }}
-          />
-        ) : (
-          <WorkoutView 
-            program={state.workout} 
-            member={state.workoutMember} 
-            state={state}
-            setState={setState}
-            showToast={showToast}
-            isCoachView={false}
-            onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null }))}
-            onComplete={async (log, perfs) => {
-              const logWithClub = { ...log, clubId: state.user?.clubId };
-              const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
-              
-              try {
-                if (!navigatorOnline || isOfflineBackupActive || gcpBillingError) {
-                  throw new Error("offline");
-                }
-                await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
-                for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        {/* Landing Layout / Marketing Routes */}
+        <Route element={<LandingLayout />}>
+          <Route path="/" element={<PageTransition><HomePage /></PageTransition>} />
+          <Route path="/fonctionnalites" element={<PageTransition><FeaturesPage /></PageTransition>} />
+          <Route path="/tarifs" element={<PageTransition><PricingPage /></PageTransition>} />
+          <Route path="/solutions" element={<PageTransition><SolutionsPage /></PageTransition>} />
+          <Route path="/centre-d-aide" element={<PageTransition><HelpCenterPage /></PageTransition>} />
+          <Route path="/blog" element={<PageTransition><BlogPage /></PageTransition>} />
+          <Route path="/blog/:slug" element={<PageTransition><BlogPostPage /></PageTransition>} />
+          <Route path="/a-propos" element={<PageTransition><AboutPageMarketing /></PageTransition>} />
+          <Route path="/contact" element={<PageTransition><ContactPage /></PageTransition>} />
+          <Route path="/mentions-legales" element={<PageTransition><MentionsLegales /></PageTransition>} />
+          <Route path="/cgv" element={<PageTransition><CGV /></PageTransition>} />
+          <Route path="/confidentialite" element={<PageTransition><Confidentialite /></PageTransition>} />
+        </Route>
 
-                if (state.workout?.isPlannedSession) {
-                  await deleteDoc(doc(db, "programs", state.workout.id.toString()));
-                }
-                
-                if (state.workout?.bookingId) {
-                  await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
-                }
+        {/* Auth Routes */}
+        <Route path="/login" element={
+          state.user ? <Navigate to="/dashboard" replace /> : (
+            <PageTransition>
+              <div className="min-h-screen flex flex-col bg-[#ffffff]">
+                {renderBillingBanner()}
+                {renderOfflineBanner()}
+                <div className="flex-1">
+                  <Login initialMode="login" />
+                </div>
+              </div>
+            </PageTransition>
+          )
+        } />
 
-                setState(s => ({ ...s, workout: null, workoutMember: null }));
-                showToast("Séance enregistrée !");
-              } catch (err) {
-                console.warn("Offline/failed save, caching member logs locally:", err);
-                queueForSync('logs', logWithClub);
-                queueForSync('performances', perfsWithClub);
-                
-                if (state.workout?.isPlannedSession) {
-                  const pid = state.workout.id;
-                  setState(prev => ({
-                    ...prev,
-                    programs: prev.programs.filter(p => p.id !== pid)
-                  }));
-                  queueForSync('delete_program', { id: pid });
-                }
+        <Route path="/register" element={
+          state.user ? <Navigate to="/dashboard" replace /> : (
+            <PageTransition>
+              <div className="min-h-screen flex flex-col bg-[#ffffff]">
+                {renderBillingBanner()}
+                {renderOfflineBanner()}
+                <div className="flex-1">
+                  <Login initialMode="register" />
+                </div>
+              </div>
+            </PageTransition>
+          )
+        } />
 
-                setState(s => ({ ...s, workout: null, workoutMember: null }));
-                showToast("Séance sauvegardée localement en cache (Hors-ligne) !", "info");
-              }
-            }}
-          />
-        )
-      )}
-    </ErrorBoundary>
+        {/* Private Dashboard Route */}
+        <Route path="/dashboard" element={
+          !state.user ? <Navigate to="/login" replace /> : (
+            (state.user.role === 'member' && !state.user.onboardingCompleted) ? (
+              <PageTransition>
+                <div className="min-h-screen flex flex-col bg-[#ffffff]">
+                  {renderBillingBanner()}
+                  {renderOfflineBanner()}
+                  <div className="flex-1">
+                    <Onboarding user={state.user} club={state.currentClub} subscriptions={state.subscriptions} plans={state.plans} onComplete={() => {
+                      setState(prev => prev.user ? { ...prev, user: { ...prev.user, onboardingCompleted: true } } : prev);
+                    }} />
+                  </div>
+                </div>
+              </PageTransition>
+            ) : (
+              <PageTransition>
+                <ErrorBoundary>
+                  {renderBillingBanner()}
+                  {renderOfflineBanner()}
+                  <Layout 
+                    user={state.user} 
+                    club={state.currentClub} 
+                    activePage={state.page} 
+                    onPageChange={(p) => setState(s => ({ ...s, page: p }))} 
+                    onLogout={handleLogout} 
+                    unreadMessagesCount={unreadMessagesCount} 
+                    unreadNotificationsCount={unreadNotificationsCount}
+                    logs={state.logs || []}
+                    payments={state.payments || []}
+                    users={state.users || []}
+                    adminPerspective={adminPerspective}
+                    onChangePerspective={(p) => {
+                      handlePerspectiveChange(p as any);
+                      setState(s => ({ ...s, page: p === 'superadmin' ? 'admin' : 'home' }));
+                    }}
+                  >
+                    {renderActivePageContent(state.user)}
+                  </Layout>
+                  
+                  {state.toast && <Toast message={state.toast.message} type={state.toast.type} />}
+                  {state.workout && state.workoutMember && (
+                    (effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'superadmin') ? (
+                      <CoachingSessionView 
+                        program={state.workout} 
+                        member={state.workoutMember} 
+                        state={state}
+                        showToast={showToast}
+                        isProgramSession={state.workoutIsProgramSession}
+                        onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }))}
+                        onComplete={async (log, perfs) => {
+                          const logWithClub = { ...log, clubId: state.user?.clubId };
+                          const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
+                          
+                          try {
+                            if (!navigatorOnline || isOfflineBackupActive || gcpBillingError) {
+                              throw new Error("offline");
+                            }
+                            await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
+                            for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
+                            
+                            if (state.workout?.isPlannedSession) {
+                              await deleteDoc(doc(db, "programs", state.workout.id.toString()));
+                            }
+                            
+                            if (state.workout?.bookingId) {
+                              await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
+                            }
+                            
+                            setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
+                            showToast("Séance de coaching enregistrée !");
+                          } catch (err) {
+                            console.warn("Offline/failed save, caching coaching logs locally:", err);
+                            queueForSync('logs', logWithClub);
+                            queueForSync('performances', perfsWithClub);
+                            
+                            if (state.workout?.isPlannedSession) {
+                              const pid = state.workout.id;
+                              setState(prev => ({
+                                ...prev,
+                                programs: prev.programs.filter(p => p.id !== pid)
+                              }));
+                              queueForSync('delete_program', { id: pid });
+                            }
+                            
+                            setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
+                            showToast("Séance sauvegardée localement en cache (Hors-ligne) !", "info");
+                          }
+                        }}
+                      />
+                    ) : (
+                      <WorkoutView 
+                        program={state.workout} 
+                        member={state.workoutMember} 
+                        state={state}
+                        setState={setState}
+                        showToast={showToast}
+                        isCoachView={false}
+                        onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null }))}
+                        onComplete={async (log, perfs) => {
+                          const logWithClub = { ...log, clubId: state.user?.clubId };
+                          const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
+                          
+                          try {
+                            if (!navigatorOnline || isOfflineBackupActive || gcpBillingError) {
+                              throw new Error("offline");
+                            }
+                            await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
+                            for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
+
+                            if (state.workout?.isPlannedSession) {
+                              await deleteDoc(doc(db, "programs", state.workout.id.toString()));
+                            }
+                            
+                            if (state.workout?.bookingId) {
+                              await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
+                            }
+
+                            setState(s => ({ ...s, workout: null, workoutMember: null }));
+                            showToast("Séance enregistrée !");
+                          } catch (err) {
+                            console.warn("Offline/failed save, caching member logs locally:", err);
+                            queueForSync('logs', logWithClub);
+                            queueForSync('performances', perfsWithClub);
+                            
+                            if (state.workout?.isPlannedSession) {
+                              const pid = state.workout.id;
+                              setState(prev => ({
+                                ...prev,
+                                programs: prev.programs.filter(p => p.id !== pid)
+                              }));
+                              queueForSync('delete_program', { id: pid });
+                            }
+
+                            setState(s => ({ ...s, workout: null, workoutMember: null }));
+                            showToast("Séance sauvegardée localement en cache (Hors-ligne) !", "info");
+                          }
+                        }}
+                      />
+                    )
+                  )}
+                </ErrorBoundary>
+              </PageTransition>
+            )
+          )
+        } />
+
+        {/* Catch-all to / */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </AnimatePresence>
   );
 }
