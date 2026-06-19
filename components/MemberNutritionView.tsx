@@ -199,7 +199,7 @@ export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: s
 Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une phrase courte. Ne mets pas d'introduction ou de conclusion.`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-2.5-flash",
         contents: prompt
       });
 
