@@ -11,9 +11,20 @@ export class GoogleGenAI {
         body: JSON.stringify(params)
       });
       if (!res.ok) {
-        let err;
-        try { err = await res.json(); } catch(e) {}
-        throw new Error((err && err.error) || "Failed to call Gemini via server");
+        let errorMsg = "Failed to call Gemini via server";
+        try {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const err = await res.json();
+            if (err && err.error) errorMsg = err.error;
+          } else {
+            const text = await res.text();
+            errorMsg = `Server error (${res.status}): ${text.substring(0, 200)}`;
+          }
+        } catch (e: any) {
+          errorMsg = `Server error (${res.status}): ${e.message}`;
+        }
+        throw new Error(errorMsg);
       }
       const data = await res.json();
       return { text: data.text };
@@ -40,9 +51,20 @@ export class GoogleGenAI {
             })
           });
           if (!res.ok) {
-            let err;
-            try { err = await res.json(); } catch(e) {}
-            throw new Error((err && err.error) || "Failed to call Gemini via server");
+            let errorMsg = "Failed to call Gemini via server";
+            try {
+              const contentType = res.headers.get("content-type");
+              if (contentType && contentType.includes("application/json")) {
+                const err = await res.json();
+                if (err && err.error) errorMsg = err.error;
+              } else {
+                const text = await res.text();
+                errorMsg = `Server error (${res.status}): ${text.substring(0, 200)}`;
+              }
+            } catch (e: any) {
+              errorMsg = `Server error (${res.status}): ${e.message}`;
+            }
+            throw new Error(errorMsg);
           }
           const data = await res.json();
           const responseText = data.text;
