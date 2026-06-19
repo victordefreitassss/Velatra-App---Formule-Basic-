@@ -3,7 +3,6 @@ import path from "path";
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
 import Stripe from "stripe";
-import { GoogleGenAI } from "@google/genai";
 
 const app = express();
 const PORT = parseInt(process.env.PORT as string) || 3000;
@@ -436,16 +435,69 @@ app.post("/api/gemini/generateContent", async (req, res) => {
     }
     const apiKey = rawApiKey.replace(/[^\x20-\x7E]/g, '').trim();
 
-    const ai = new GoogleGenAI({ apiKey });
     const { model, contents, config } = req.body;
+    const targetModel = model || "gemini-2.5-flash";
 
-    const response = await ai.models.generateContent({
-      model: model || "gemini-2.5-flash",
-      contents,
-      config
+    // Map systemInstruction from client config format to REST API format
+    let systemInstruction = undefined;
+    if (config && config.systemInstruction) {
+      if (typeof config.systemInstruction === 'string') {
+        systemInstruction = {
+          parts: [{ text: config.systemInstruction }]
+        };
+      } else {
+        systemInstruction = config.systemInstruction;
+      }
+    }
+
+    // Map other generation settings from client config format to REST API format
+    const generationConfig: any = {};
+    if (config) {
+      if (config.temperature !== undefined) generationConfig.temperature = config.temperature;
+      if (config.responseMimeType !== undefined) generationConfig.responseMimeType = config.responseMimeType;
+      if (config.responseSchema !== undefined) generationConfig.responseSchema = config.responseSchema;
+      if (config.topP !== undefined) generationConfig.topP = config.topP;
+      if (config.topK !== undefined) generationConfig.topK = config.topK;
+      if (config.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = config.maxOutputTokens;
+      if (config.stopSequences !== undefined) generationConfig.stopSequences = config.stopSequences;
+    }
+
+    // Construct the actual JSON request body for Google's REST API
+    const payload: any = {
+      contents: contents || []
+    };
+    if (systemInstruction) {
+      payload.systemInstruction = systemInstruction;
+    }
+    if (Object.keys(generationConfig).length > 0) {
+      payload.generationConfig = generationConfig;
+    }
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
+
+    console.log(`[Gemini Proxy] Calling REST API for model: ${targetModel}`);
+
+    const apiRes = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
     });
 
-    res.json({ text: response.text });
+    if (!apiRes.ok) {
+      const status = apiRes.status;
+      let errorText = "";
+      try {
+        errorText = await apiRes.text();
+      } catch (e) {}
+      throw new Error(`Gemini API returned status ${status}: ${errorText}`);
+    }
+
+    const data = await apiRes.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    res.json({ text });
   } catch (error: any) {
     console.error("Error proxying Gemini request:", error);
     let errorMsg = "Failed to call Gemini";
