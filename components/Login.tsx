@@ -139,9 +139,9 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
         <div className="absolute top-6 left-6 z-20">
           <Link 
             to="/" 
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-zinc-650 hover:text-zinc-950 bg-white border border-zinc-150 rounded-full shadow-sm transition-all group"
+            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white bg-white/95 dark:bg-zinc-900/80 hover:bg-white dark:hover:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/50 rounded-full shadow-md backdrop-blur-md transition-all group"
           >
-            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-emerald-600 animate-pulse" />
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-emerald-500" />
             Retour au site
           </Link>
         </div>
@@ -189,9 +189,9 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
       <div className="absolute top-6 left-6 z-20">
         <Link 
           to="/" 
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-zinc-650 hover:text-zinc-950 bg-white border border-zinc-150 rounded-full shadow-sm transition-all group"
+          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white bg-white/95 dark:bg-zinc-900/80 hover:bg-white dark:hover:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/50 rounded-full shadow-md backdrop-blur-md transition-all group"
         >
-          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-emerald-600 animate-pulse" />
+          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-emerald-500" />
           Retour au site
         </Link>
       </div>

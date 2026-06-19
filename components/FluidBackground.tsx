@@ -3,46 +3,46 @@ import { motion } from 'framer-motion';
 
 export const FluidBackground: React.FC = () => {
   return (
-    <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none bg-[#09090b]">
-      {/* Soft gradient balls that drift and animate softly with luxurious contrast */}
+    <div className="fixed inset-0 -z-50 overflow-hidden pointer-events-none bg-zinc-50 dark:bg-zinc-950 transition-colors duration-500">
+      {/* Soft gradient balls that drift and animate softly */}
       <motion.div
         animate={{
           x: [0, 100, -80, 0],
           y: [0, -120, 80, 0],
-          scale: [1, 1.25, 0.9, 1],
+          scale: [1, 1.2, 0.9, 1],
         }}
         transition={{
-          duration: 22,
+          duration: 25,
           repeat: Infinity,
           ease: "easeInOut"
         }}
-        className="absolute top-[-25%] left-[-15%] w-[600px] h-[600px] rounded-full bg-emerald-500/12 blur-[140px]"
+        className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-400/20 dark:bg-emerald-500/10 blur-[120px]"
       />
       <motion.div
         animate={{
-          x: [0, -140, 120, 0],
-          y: [0, 100, -140, 0],
-          scale: [1, 0.85, 1.2, 1],
+          x: [0, -120, 100, 0],
+          y: [0, 80, -120, 0],
+          scale: [1, 0.85, 1.15, 1],
         }}
         transition={{
-          duration: 28,
+          duration: 30,
           repeat: Infinity,
           ease: "easeInOut"
         }}
-        className="absolute bottom-[-20%] right-[-15%] w-[700px] h-[700px] rounded-full bg-teal-500/10 blur-[160px]"
+        className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-teal-400/20 dark:bg-teal-500/10 blur-[130px]"
       />
       <motion.div
         animate={{
-          x: [0, 80, -80, 0],
-          y: [0, 80, -80, 0],
-          scale: [1, 1.15, 0.85, 1],
+          x: [0, 60, -60, 0],
+          y: [0, 60, -60, 0],
+          scale: [1, 1.1, 0.9, 1],
         }}
         transition={{
-          duration: 18,
+          duration: 20,
           repeat: Infinity,
           ease: "easeInOut"
         }}
-        className="absolute top-[30%] left-[20%] w-[450px] h-[450px] rounded-full bg-emerald-600/5 blur-[120px]"
+        className="absolute top-[35%] left-[25%] w-[400px] h-[400px] rounded-full bg-indigo-400/10 dark:bg-indigo-500/5 blur-[100px]"
       />
     </div>
   );

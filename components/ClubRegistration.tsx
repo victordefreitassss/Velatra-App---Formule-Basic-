@@ -1,218 +1,266 @@
+
 import React, { useState } from 'react';
-import { Card, Button, Input } from './UI';
-import { db, setDoc, doc, auth, createUserWithEmailAndPassword } from '../firebase';
-import { ShieldAlert, Club as ClubIcon, Mail, User, Lock, MapPin } from 'lucide-react';
+import { Card, Input, Button } from './UI';
+import { auth, db, createUserWithEmailAndPassword, setDoc, doc, getDoc, getDocs, query, collection, where } from '../firebase';
+import { Club, User } from '../types';
+import { Info } from 'lucide-react';
 
 interface ClubRegistrationProps {
   onSuccess: () => void;
   onCancel: () => void;
 }
 
-export const ClubRegistration: React.FC<ClubRegistrationProps> = ({
-  onSuccess,
-  onCancel
-}) => {
-  const [clubName, setClubName] = useState("");
-  const [ownerName, setOwnerName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [address, setAddress] = useState("");
+export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  const [accountType, setAccountType] = useState<'coach' | 'club'>('coach');
+  const [showBetaInfo, setShowBetaInfo] = useState(false);
+  
+  const [clubName, setClubName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [ownerName, setOwnerName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
 
-  const handleClubRegister = async (e: React.FormEvent) => {
+  const [createdClubId, setCreatedClubId] = useState<string | null>(null);
+
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clubName || !ownerName || !email || !password) return;
+    if (!clubName || !email || !password || !ownerName || !inviteCode) {
+      setError("Veuillez remplir tous les champs.");
+      return;
+    }
+
+    if (inviteCode.toLowerCase().replace(/\s/g, '') !== "velatra2026") {
+      setError("Code d'invitation invalide. L'inscription est actuellement sur invitation uniquement.");
+      return;
+    }
 
     setLoading(true);
     setError("");
 
     try {
-      // 1. Create coach account in Auth
+      // Generate a unique 6-digit club code
+      let generatedClubCode = "";
+      let isUnique = false;
+      while (!isUnique) {
+        generatedClubCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const clubDoc = await getDoc(doc(db, "clubs", generatedClubCode));
+        if (!clubDoc.exists()) {
+          isUnique = true;
+        }
+      }
+
+      // 1. Create Firebase Auth User
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const uid = userCredential.user.uid;
+      const firebaseUid = userCredential.user.uid;
 
-      const clubId = `club_${Date.now()}`;
-
-      // 2. Create club entry in Firestore
-      const newClub = {
+      // 2. Create Club Document
+      const clubId = generatedClubCode;
+      const newClub: Club = {
         id: clubId,
         name: clubName,
-        ownerId: uid,
+        ownerId: firebaseUid,
         email: email,
         phone: "",
-        address: address,
-        description: "Enregistrement de club en ligne",
-        horaires: "Lun-Dim: 06:00 - 23:00",
-        createdAt: new Date().toLocaleDateString(),
-        plan: 'basic'
+        address: "",
+        description: accountType === 'coach' ? `Espace de coaching de ${clubName}` : `Bienvenue chez ${clubName}`,
+        horaires: "",
+        createdAt: new Date().toISOString()
       };
-
       await setDoc(doc(db, "clubs", clubId), newClub);
 
-      // 3. Create coach user linked to club
-      const newCoachUser = {
+      // 3. Create User Document (Owner)
+      const newUser: User = {
         id: Date.now(),
         clubId: clubId,
-        code: "COACH",
-        pwd: password,
+        code: "", // Not used anymore
+        pwd: "", // We use Firebase Auth
         name: ownerName,
-        email: email,
-        phone: "",
-        role: "owner" as const,
-        avatar: "",
-        gender: "M" as const,
+        role: "owner",
+        avatar: ownerName.substring(0, 2).toUpperCase(),
+        gender: "M",
         age: 30,
         weight: 80,
         height: 180,
         objectifs: ["Performance sportive"],
-        notes: "Propriétaire fondateur",
-        createdAt: new Date().toLocaleDateString(),
-        xp: 100,
-        streak: 1,
+        notes: accountType === 'coach' ? "Coach Indépendant" : "Propriétaire du club",
+        createdAt: new Date().toISOString(),
+        xp: 0,
+        streak: 0,
         pointsFidelite: 0,
-        firebaseUid: uid
+        firebaseUid: firebaseUid
       };
+      await setDoc(doc(db, "users", firebaseUid), newUser);
 
-      await setDoc(doc(db, "users", uid), newCoachUser);
-      onSuccess();
-    } catch (e: any) {
-      console.error(e);
-      setError(e.message || "Impossible d'enregistrer le club.");
+      setCreatedClubId(clubId);
+    } catch (err: any) {
+      console.error("Registration Error:", err);
+      if (err.code === 'auth/email-already-in-use') {
+        setError("Cette adresse email est déjà utilisée par un autre compte.");
+      } else {
+        setError(err.message || "Une erreur est survenue lors de l'inscription.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  if (createdClubId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 bg-transparent">
+        <div className="w-full max-w-[400px] space-y-8 py-12">
+          <Card className="p-8 space-y-6  ring-1  text-center bg-zinc-50/60 backdrop-blur-3xl">
+            <h2 className="text-2xl font-black text-zinc-900 italic tracking-tighter">FÉLICITATIONS !</h2>
+            <p className="text-zinc-500 text-xs uppercase tracking-widest font-bold">Votre espace a été créé avec succès.</p>
+            
+            <div className="bg-white p-6 rounded-2xl border border-zinc-200">
+              <p className="text-[10px] uppercase tracking-widest font-black text-emerald-500 mb-2">
+                {accountType === 'coach' ? "VOTRE CODE D'ACCÈS COACH" : "VOTRE CODE D'ACCÈS CLUB"}
+              </p>
+              <p className="text-4xl font-black tracking-widest text-zinc-900">{createdClubId}</p>
+            </div>
+            
+            <p className="text-xs text-zinc-500">
+              {accountType === 'coach' 
+                ? "Gardez ce code précieusement. Vos élèves/adhérents en auront besoin pour s'inscrire et vous rejoindre."
+                : "Gardez ce code précieusement. Vos adhérents en auront besoin pour s'inscrire et rejoindre votre club."}
+            </p>
+            
+            <Button fullWidth onClick={onSuccess} className="!py-4 shadow-xl mt-4">
+              ACCÉDER À MON ESPACE
+            </Button>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Card className="w-full max-w-md p-6 bg-zinc-950/80 border border-zinc-900 mx-auto select-none">
-      <form onSubmit={handleClubRegister} className="space-y-4">
-        <div className="text-center pb-2">
-          <h2 className="text-lg font-bold text-white tracking-tight flex items-center justify-center gap-2">
-            <ClubIcon className="w-5 h-5 text-emerald-400" />
-            Créer un espace Club
+    <div className="min-h-screen flex items-center justify-center px-4 bg-transparent">
+      <div className="w-full max-w-[400px] space-y-8 py-12 animate-in fade-in duration-500">
+        <div className="text-center">
+          <h2 className="text-3xl font-black text-zinc-900 italic tracking-tighter uppercase">
+            Créer votre <span className="text-emerald-500">{accountType === 'coach' ? "Espace Coach" : "Espace Club"}</span>
           </h2>
-          <p className="text-xs text-zinc-500 mt-1">Configurez votre club et commencez à encadrer vos athlètes.</p>
-        </div>
-
-        {error && (
-          <div className="bg-rose-500/10 text-rose-400 border border-rose-500/15 p-3 rounded-xl text-xs font-semibold flex items-center gap-2">
-            <ShieldAlert className="w-4 h-4 shrink-0" />
-            <span className="leading-normal">{error}</span>
-          </div>
-        )}
-
-        <div className="space-y-1.5">
-          <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Nom du Club / de la Salle</label>
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-650">
-              <ClubIcon className="w-4 h-4" />
-            </span>
-            <Input 
-              type="text"
-              required
-              value={clubName}
-              onChange={(e) => setClubName(e.target.value)}
-              placeholder="Ex. Elite Performance Center"
-              className="pl-10"
-              disabled={loading}
-            />
+          <p className="text-zinc-500 text-xs mt-2 uppercase tracking-widest font-bold">Lancez votre plateforme SaaS Fitness</p>
+          <div className="bg-red-500/10 text-red-500 p-2.5 text-[10px] uppercase font-bold mt-4 rounded-xl border border-red-500/20">
+            Réservé au coach et club. Ne pas utiliser si vous êtes adhérent.
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Adresse Physique</label>
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-650">
-              <MapPin className="w-4 h-4" />
-            </span>
-            <Input 
-              type="text"
-              required
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Ex. 14 Rue de la Paix, Paris"
-              className="pl-10"
-              disabled={loading}
-            />
+        <Card className="p-8 space-y-6  ring-1  bg-zinc-50/60 backdrop-blur-3xl">
+          {/* Sélectionneur Coach / Club */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-zinc-200/50 rounded-xl">
+            <button
+              type="button"
+              onClick={() => {
+                setAccountType('coach');
+                setError("");
+              }}
+              className={`py-2 text-[10px] font-black rounded-lg uppercase tracking-widest transition-all ${
+                accountType === 'coach'
+                  ? 'bg-emerald-500 text-white shadow-sm font-bold'
+                  : 'text-zinc-500 hover:text-zinc-900'
+              }`}
+            >
+              Coach
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAccountType('club');
+                setError("");
+              }}
+              className={`py-2 text-[10px] font-black rounded-lg uppercase tracking-widest transition-all ${
+                accountType === 'club'
+                  ? 'bg-emerald-500 text-white shadow-sm font-bold'
+                  : 'text-zinc-500 hover:text-zinc-900'
+              }`}
+            >
+              Club / Association
+            </button>
           </div>
-        </div>
 
-        <div className="space-y-1.5">
-          <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Nom du Gérant / Coach En Chef</label>
-          <div className="relative">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-650">
-              <User className="w-4 h-4" />
-            </span>
-            <Input 
-              type="text"
-              required
-              value={ownerName}
-              onChange={(e) => setOwnerName(e.target.value)}
-              placeholder="Ex. Jean Dupont"
-              className="pl-10"
-              disabled={loading}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Email Manager</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-650">
-                <Mail className="w-4 h-4" />
-              </span>
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-500 ml-1">
+                {accountType === 'coach' ? "Nom du Coach" : "Nom du Club / Studio"}
+              </label>
               <Input 
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Ex. manager@club.com"
-                className="pl-10"
-                disabled={loading}
+                placeholder={accountType === 'coach' ? "Ex: Pierre L. Coaching" : "Ex: Elite Fitness Studio"} 
+                value={clubName} 
+                onChange={e => setClubName(e.target.value)} 
+                required 
+                className="!bg-white border-zinc-200" 
               />
             </div>
-          </div>
 
-          <div className="space-y-1.5">
-            <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Mot de passe</label>
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-650">
-                <Lock className="w-4 h-4" />
-              </span>
-              <Input 
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="pl-10"
-                disabled={loading}
-              />
+            <div className="space-y-1">
+              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-500 ml-1">Nom du Responsable</label>
+              <Input placeholder="Votre nom complet" value={ownerName} onChange={e => setOwnerName(e.target.value)} required className="!bg-white border-zinc-200" />
             </div>
-          </div>
-        </div>
 
-        <div className="pt-4 flex flex-col gap-2">
-          <Button 
-            type="submit" 
-            disabled={loading || !clubName || !ownerName || !email || !password}
-            fullWidth
-          >
-            {loading ? "ENREGISTREMENT EN COURS..." : "CRÉER MON CLUB"}
-          </Button>
+            <div className="space-y-1">
+              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-500 ml-1">Email Professionnel</label>
+              <Input type="email" placeholder="contact@votreclub.com" value={email} onChange={e => setEmail(e.target.value)} required className="!bg-zinc-50 border-zinc-200" />
+            </div>
 
-          <Button 
-            variant="ghost" 
-            fullWidth 
-            onClick={onCancel}
-            disabled={loading}
-          >
-            Annuler
-          </Button>
-        </div>
-      </form>
-    </Card>
+            <div className="space-y-1">
+              <label className="text-[9px] uppercase tracking-widest font-black text-zinc-500 ml-1">Mot de passe</label>
+              <Input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="!bg-zinc-50 border-zinc-200" />
+            </div>
+
+            <div className="space-y-1 relative group/tooltip">
+              <div className="flex items-center gap-1.5 mb-1">
+                <label className="text-[9px] uppercase tracking-widest font-black text-emerald-500 ml-1">
+                  Code d'invitation (Bêta)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowBetaInfo(!showBetaInfo)}
+                  className="text-emerald-500 hover:text-emerald-600 transition-colors p-0.5 rounded focus:outline-none"
+                  title="Qu'est-ce que c'est ?"
+                >
+                  <Info size={11} className="inline-block shrink-0" />
+                </button>
+                
+                {/* Desktop hover tooltip */}
+                <span className="hidden md:inline-block pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-zinc-900 text-white text-[10px] p-2.5 rounded-xl shadow-lg leading-normal opacity-0 group-hover\/tooltip:opacity-100 transition-opacity duration-300 z-50">
+                  Le code bêta valide votre participation exclusive à la phase de test Velatra. Contactez-nous pour en obtenir un.
+                </span>
+              </div>
+              
+              <Input 
+                placeholder="Code requis" 
+                value={inviteCode} 
+                onChange={e => setInviteCode(e.target.value)} 
+                required 
+                className="!bg-white border-emerald-500/30 focus:border-emerald-500" 
+              />
+              
+              {/* Mobile expansion tooltip info box */}
+              {showBetaInfo && (
+                <div className="p-3 bg-emerald-50 border border-emerald-100/50 rounded-xl text-[10px] text-emerald-800 leading-normal mt-1 animate-in fade-in duration-200">
+                  <strong>Code Validation Bêta requise</strong><br />
+                  Ce code sécurise l'accès de création de club/coach sur Velatra pendant notre programme pilote fermé. Entrez votre code d'activation fourni par notre équipe.
+                </div>
+              )}
+            </div>
+
+            {error && <p className="text-[10px] text-emerald-500 font-bold text-center bg-emerald-500/5 py-2 rounded-lg">{error}</p>}
+
+            <Button type="submit" fullWidth disabled={loading} className="!py-4 shadow-xl">
+              {loading ? "CRÉATION EN COURS..." : "CRÉER MON ESPACE"}
+            </Button>
+          </form>
+
+          <button onClick={onCancel} className="w-full text-[9px] font-black text-zinc-500 hover:text-zinc-900 transition-colors tracking-widest uppercase text-center">
+            Retour à la connexion
+          </button>
+        </Card>
+      </div>
+    </div>
   );
 };
