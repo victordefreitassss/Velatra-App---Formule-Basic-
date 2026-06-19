@@ -431,9 +431,17 @@ app.post("/api/gemini/generateContent", async (req, res) => {
   try {
     const rawApiKey = process.env.GEMINI_API_KEY;
     if (!rawApiKey) {
-      return res.status(500).json({ error: "Clé API Gemini côté serveur manquante." });
+      console.warn("[Gemini Proxy] Access failed: GEMINI_API_KEY is not defined in environment variables.");
+      return res.status(500).json({ error: "Clé API Gemini côté serveur manquante. Veuillez configurer l'environnement variable 'GEMINI_API_KEY' dans Vercel." });
     }
-    const apiKey = rawApiKey.replace(/[^\x20-\x7E]/g, '').trim();
+    const apiKey = rawApiKey.replace(/[^\x20-\x7E]/g, '').trim().replace(/^['"]|['"]$/g, '');
+    
+    console.log(`[Gemini Proxy] Parsing API Key. Raw Length: ${rawApiKey.length}, Cleaned Length: ${apiKey.length}`);
+    if (apiKey.length > 5) {
+      console.log(`[Gemini Proxy] Key starts with: ${apiKey.substring(0, 6)}... and ends with: ...${apiKey.substring(apiKey.length - 4)}`);
+    } else {
+      console.warn(`[Gemini Proxy] Warning: API key is extremely short! (${apiKey.length} characters)`);
+    }
 
     const { model, contents, config } = req.body;
     const targetModel = model || "gemini-2.5-flash";
@@ -503,19 +511,41 @@ app.post("/api/gemini/generateContent", async (req, res) => {
     let errorMsg = "Failed to call Gemini";
     
     const errText = error.message ? String(error.message) : "";
+    
+    // Parse Google REST error response if it's JSON inside the thrown Error
+    let googleErrorMessage = "";
+    const jsonStart = errText.indexOf("{");
+    if (jsonStart !== -1) {
+      try {
+        const jsonStr = errText.substring(jsonStart);
+        const parsed = JSON.parse(jsonStr);
+        if (parsed.error && parsed.error.message) {
+          googleErrorMessage = parsed.error.message;
+        }
+      } catch (e) {}
+    }
+
     const isSuspended = error.status === 403 || 
+                        errText.includes("status 403") ||
                         errText.includes("suspended") || 
-                        errText.includes("suspended") ||
                         errText.includes("Consumer 'api_key") ||
-                        errText.includes("PERMISSION_DENIED");
+                        errText.includes("PERMISSION_DENIED") ||
+                        (googleErrorMessage && (
+                          googleErrorMessage.toLowerCase().includes("suspended") ||
+                          googleErrorMessage.toLowerCase().includes("permission_denied") ||
+                          googleErrorMessage.toLowerCase().includes("disabled")
+                        ));
                         
     if (isSuspended) {
       errorMsg = "La clé API Gemini par défaut est actuellement inactive ou suspendue. Pour utiliser les fonctionnalités d'IA (générateur de programmes, nutrition, recettes, stagnation, etc.), veuillez configurer votre propre clé 'GEMINI_API_KEY' dans les paramètres (Settings) de votre projet Google AI Studio.";
-    } else if (error.status === 429 || errText.includes("quota")) {
+    } else if (error.status === 429 || errText.includes("quota") || (googleErrorMessage && googleErrorMessage.toLowerCase().includes("quota"))) {
       errorMsg = "Quota dépassé ou clé API invalide.";
+    } else if (googleErrorMessage) {
+      errorMsg = `Erreur Google API : ${googleErrorMessage}`;
     } else if (error.message) {
       errorMsg = error.message;
     }
+    
     // Prevent sending massive JSON strings if error.message is stringified JSON
     if (errorMsg.startsWith("{")) {
        try {
