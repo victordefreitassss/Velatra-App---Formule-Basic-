@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppState, ProgressPhoto } from '../types';
 import { CameraIcon, PlusIcon, Trash2Icon as TrashIcon, ImageIcon, CalendarIcon, XIcon, EyeIcon, ShieldIcon } from '../components/Icons';
-import { db } from '../firebase';
-import { collection, addDoc, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { addDoc, db, updateDoc } from '../firebase';
+import { collection, deleteDoc, doc } from 'firebase/firestore';
 
 interface EvolutionGalleryPageProps {
   state: AppState;

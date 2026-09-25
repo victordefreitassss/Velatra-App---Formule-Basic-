@@ -116,6 +116,8 @@ export interface User {
   pointsFidelite: number;
   planRequested?: boolean;
   firebaseUid?: string;
+  assignedCoachUid?: string;
+  assignedMemberIds?: number[];
   isSuspended?: boolean;
   status?: 'active' | 'paused';
   integrations?: {

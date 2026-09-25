@@ -70,6 +70,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   useEffect(() => {
     if (selectedProfile) {
       setMemberTab('overview');
+      setCoachAssignment(selectedProfile.assignedCoachUid || '');
     }
   }, [selectedProfile?.id]);
 
@@ -82,6 +83,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [newScan, setNewScan] = useState({ weight: "", fat: "", muscle: "" });
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editInfoData, setEditInfoData] = useState<Partial<User>>({});
+  const [coachAssignment, setCoachAssignment] = useState('');
+  const [isSavingCoachAssignment, setIsSavingCoachAssignment] = useState(false);
   const [isAssigningPlan, setIsAssigningPlan] = useState(false);
   const [isEditingSub, setIsEditingSub] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState('');
@@ -337,6 +340,31 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     } catch (err) {
       console.error("Error updating member info:", err);
       showToast("Erreur lors de la mise à jour", "error");
+    }
+  };
+
+  const handleAssignCoach = async () => {
+    if (!selectedProfile?.firebaseUid) return;
+    setIsSavingCoachAssignment(true);
+    try {
+      const response = await apiFetch('/api/assign-member-coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberUid: selectedProfile.firebaseUid, coachUid: coachAssignment || null })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "L'affectation n'a pas pu être enregistrée.");
+      const assignedCoachUid = result.assignedCoachUid || undefined;
+      setSelectedProfile(previous => previous ? { ...previous, assignedCoachUid } : previous);
+      setState((previous: AppState) => ({
+        ...previous,
+        users: previous.users.map(user => user.firebaseUid === selectedProfile.firebaseUid ? { ...user, assignedCoachUid } : user)
+      }));
+      showToast(assignedCoachUid ? 'Coach affecté à cet adhérent.' : 'Adhérent retiré de son affectation.');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "L'affectation n'a pas pu être enregistrée.", 'error');
+    } finally {
+      setIsSavingCoachAssignment(false);
     }
   };
 
@@ -3920,6 +3948,28 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
               </div>
+
+              {(state.user?.role === 'owner' || state.user?.role === 'superadmin') && (
+                <div className="space-y-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <label className="text-xs font-black uppercase text-zinc-500 tracking-widest">Coach responsable</label>
+                  <div className="flex gap-2">
+                    <select
+                      className="min-w-0 flex-1 bg-white border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 focus:border-emerald-500 outline-none"
+                      value={coachAssignment}
+                      onChange={event => setCoachAssignment(event.target.value)}
+                    >
+                      <option value="">Aucun coach affecté</option>
+                      {state.users.filter(user => user.role === 'coach').map(coach => (
+                        <option key={coach.firebaseUid} value={coach.firebaseUid}>{coach.name}</option>
+                      ))}
+                    </select>
+                    <Button variant="secondary" onClick={handleAssignCoach} disabled={isSavingCoachAssignment}>
+                      {isSavingCoachAssignment ? 'Enregistrement…' : 'Affecter'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-zinc-500">Seul le propriétaire et le coach affecté pourront consulter les programmes et le suivi de cet adhérent.</p>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Objectifs</label>
