@@ -10,7 +10,7 @@ import {
   INIT_EXERCISES, CLUB_INFO, COACHES, CATEGORY_MEDIA, getExerciseMedia 
 } from './constants';
 import { 
-  auth, db, messaging, firebaseConfig,
+  apiFetch, auth, db, messaging, firebaseConfig,
   onAuthStateChanged, signOut, 
   doc, getDoc, getDocFromServer, setDoc, onSnapshot as originalOnSnapshot, updateDoc, collection, deleteDoc, query, where, getDocs,
   getToken, onMessage
@@ -19,18 +19,14 @@ import {
 const isGcpBillingOrSuspendedError = (error: any): boolean => {
   if (!error) return false;
   const errMsg = (error?.message || String(error)).toLowerCase();
-  const errCode = error?.code || "";
-  
-  return (
-    errCode === 'failed-precondition' ||
-    errCode === 'permission-denied' ||
-    errMsg.includes('billing') || 
-    errMsg.includes('suspended') || 
-    errMsg.includes('disabled') || 
-    errMsg.includes('resource-exhausted') || 
-    errMsg.includes('bad state') ||
-    errMsg.includes('quota') ||
-    errMsg.includes('permission')
+  const mentionsBilling = errMsg.includes('billing');
+  return errMsg.includes('suspended') || (
+    mentionsBilling && (
+      errMsg.includes('disabled') ||
+      errMsg.includes('not enabled') ||
+      errMsg.includes('required') ||
+      errMsg.includes('closed')
+    )
   );
 };
 
@@ -41,23 +37,6 @@ enum OperationType {
   LIST = 'list',
   GET = 'get',
   WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
-  }
 }
 
 const getRefPath = (ref: any): string | null => {
@@ -73,36 +52,21 @@ const getRefPath = (ref: any): string | null => {
 };
 
 const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
-    },
-    operationType,
-    path
-  };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  const code = (error as any)?.code || 'unknown';
+  const collectionName = path?.split('/')[0] || 'query';
+  console.error('Firestore listener failed', { code, operationType, collection: collectionName });
+  return code;
 };
 
 const onSnapshot = (ref: any, callback: any) => {
   return originalOnSnapshot(ref, callback, (error: any) => {
-    console.error("Firestore onSnapshot error:", error);
     const path = getRefPath(ref);
+    const code = handleFirestoreError(error, OperationType.GET, path);
     if (isGcpBillingOrSuspendedError(error)) {
-      const errMsg = error?.message || String(error);
-      window.dispatchEvent(new CustomEvent('gcp-billing-error', { detail: errMsg }));
+      window.dispatchEvent(new CustomEvent('gcp-billing-error'));
+    } else {
+      window.dispatchEvent(new CustomEvent('firestore-listener-error', { detail: { code } }));
     }
-    // Standard error throwing wrapper
-    handleFirestoreError(error, OperationType.GET, path);
   });
 };
 
@@ -110,91 +74,71 @@ const onSnapshot = (ref: any, callback: any) => {
 import { Layout } from './components/Layout';
 import { Login } from './components/Login';
 import { Toast } from './components/Toast';
-import { WorkoutView } from './components/WorkoutView';
-import { CoachingSessionView } from './components/CoachingSessionView';
-import { ProgramEditor } from './components/Editor';
-
-// Pages
-import { CoachDashboard } from './components/CoachDashboard';
-import { MemberDashboard } from './components/MemberDashboard';
-import { MembersPage } from './pages/MembersPage';
-import { CoachingPage } from './pages/CoachingPage';
-import { PresetsPage } from './pages/PresetsPage';
-import { ExercisesPage } from './pages/ExercisesPage';
-import { MessagesPage } from './pages/MessagesPage';
-import { AboutPage } from './pages/AboutPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { StatsPage } from './pages/StatsPage';
-import { CalendarPage } from './pages/CalendarPage';
-import { TrophyPage } from './pages/TrophyPage';
-import { HistoryPage } from './pages/HistoryPage';
-import { AICoachPage } from './pages/AICoachPage';
-import { ProspectFlowPage } from './pages/ProspectFlowPage';
-import { TasksPage } from './pages/TasksPage';
-import { FinancesPage } from './pages/FinancesPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { PlanningPage } from './pages/PlanningPage';
-import { NutritionPage } from './pages/NutritionPage';
-import { MemberNutritionPage } from './pages/MemberNutritionPage';
-import { MarketingPage } from './pages/MarketingPage';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { MemberSupplementsPage } from './pages/MemberSupplementsPage';
-import { DrivePage } from './pages/DrivePage';
-import { EvolutionGalleryPage } from './pages/EvolutionGalleryPage';
-import { GuidePage } from './pages/GuidePage';
 import { Onboarding } from './components/Onboarding';
 
 // Routing & Marketing Pages
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import LandingLayout from './components/LandingLayout';
-import HomePage from './pages/HomePage';
-import FeaturesPage from './pages/FeaturesPage';
-import PricingPage from './pages/PricingPage';
-import AboutPageMarketing from './pages/AboutPageMarketing';
-import SolutionsPage from './pages/UseCases';
-import HelpCenterPage from './pages/HelpCenter';
-import BlogPage from './pages/Blog';
-import BlogPostPage from './pages/BlogPost';
-import { ContactPage } from './pages/ContactPage';
-import { MentionsLegales, CGV, Confidentialite } from './pages/Legal';
 
-const getInitialFromCache = (key: string, defaultValue: any) => {
-  if (typeof window === 'undefined') return defaultValue;
-  try {
-    const item = localStorage.getItem(`velatra_cache_${key}`);
-    const data = item ? JSON.parse(item) : defaultValue;
-    if (key === 'user' && data) {
-      if (data.role === 'superadmin' && data.email !== 'victor.defreitas.pro@gmail.com') {
-        data.role = 'member';
-      }
-    }
-    return data;
-  } catch (e) {
-    return defaultValue;
-  }
-};
+const lazyNamed = <T extends object>(load: () => Promise<T>, exportName: keyof T) =>
+  React.lazy(async () => ({ default: (await load())[exportName] as React.ComponentType<any> }));
 
-const saveToLocalCache = (key: string, data: any) => {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(`velatra_cache_${key}`, JSON.stringify(data));
-  } catch (err) {
-    console.error(`Failed to save ${key} to local cache:`, err);
-  }
-};
+const WorkoutView = lazyNamed(() => import('./components/WorkoutView'), 'WorkoutView');
+const CoachingSessionView = lazyNamed(() => import('./components/CoachingSessionView'), 'CoachingSessionView');
+const ProgramEditor = lazyNamed(() => import('./components/Editor'), 'ProgramEditor');
+const CoachDashboard = lazyNamed(() => import('./components/CoachDashboard'), 'CoachDashboard');
+const MemberDashboard = lazyNamed(() => import('./components/MemberDashboard'), 'MemberDashboard');
+const MembersPage = lazyNamed(() => import('./pages/MembersPage'), 'MembersPage');
+const CoachingPage = lazyNamed(() => import('./pages/CoachingPage'), 'CoachingPage');
+const PresetsPage = lazyNamed(() => import('./pages/PresetsPage'), 'PresetsPage');
+const ExercisesPage = lazyNamed(() => import('./pages/ExercisesPage'), 'ExercisesPage');
+const MessagesPage = lazyNamed(() => import('./pages/MessagesPage'), 'MessagesPage');
+const AboutPage = lazyNamed(() => import('./pages/AboutPage'), 'AboutPage');
+const SettingsPage = lazyNamed(() => import('./pages/SettingsPage'), 'SettingsPage');
+const StatsPage = lazyNamed(() => import('./pages/StatsPage'), 'StatsPage');
+const CalendarPage = lazyNamed(() => import('./pages/CalendarPage'), 'CalendarPage');
+const TrophyPage = lazyNamed(() => import('./pages/TrophyPage'), 'TrophyPage');
+const HistoryPage = lazyNamed(() => import('./pages/HistoryPage'), 'HistoryPage');
+const AICoachPage = lazyNamed(() => import('./pages/AICoachPage'), 'AICoachPage');
+const ProspectFlowPage = lazyNamed(() => import('./pages/ProspectFlowPage'), 'ProspectFlowPage');
+const TasksPage = lazyNamed(() => import('./pages/TasksPage'), 'TasksPage');
+const FinancesPage = lazyNamed(() => import('./pages/FinancesPage'), 'FinancesPage');
+const ProfilePage = lazyNamed(() => import('./pages/ProfilePage'), 'ProfilePage');
+const PlanningPage = lazyNamed(() => import('./pages/PlanningPage'), 'PlanningPage');
+const NutritionPage = lazyNamed(() => import('./pages/NutritionPage'), 'NutritionPage');
+const MemberNutritionPage = lazyNamed(() => import('./pages/MemberNutritionPage'), 'MemberNutritionPage');
+const MarketingPage = lazyNamed(() => import('./pages/MarketingPage'), 'MarketingPage');
+const AdminDashboard = lazyNamed(() => import('./pages/AdminDashboard'), 'AdminDashboard');
+const MemberSupplementsPage = lazyNamed(() => import('./pages/MemberSupplementsPage'), 'MemberSupplementsPage');
+const DrivePage = lazyNamed(() => import('./pages/DrivePage'), 'DrivePage');
+const EvolutionGalleryPage = lazyNamed(() => import('./pages/EvolutionGalleryPage'), 'EvolutionGalleryPage');
+const GuidePage = lazyNamed(() => import('./pages/GuidePage'), 'GuidePage');
+
+const HomePage = React.lazy(() => import('./pages/HomePage'));
+const FeaturesPage = React.lazy(() => import('./pages/FeaturesPage'));
+const PricingPage = React.lazy(() => import('./pages/PricingPage'));
+const AboutPageMarketing = React.lazy(() => import('./pages/AboutPageMarketing'));
+const SolutionsPage = React.lazy(() => import('./pages/UseCases'));
+const HelpCenterPage = React.lazy(() => import('./pages/HelpCenter'));
+const BlogPage = React.lazy(() => import('./pages/Blog'));
+const BlogPostPage = React.lazy(() => import('./pages/BlogPost'));
+const ContactPage = React.lazy(() => import('./pages/ContactPage'));
+const MentionsLegales = lazyNamed(() => import('./pages/Legal'), 'MentionsLegales');
+const CGV = lazyNamed(() => import('./pages/Legal'), 'CGV');
+const Confidentialite = lazyNamed(() => import('./pages/Legal'), 'Confidentialite');
 
 const INITIAL_STATE: AppState = {
-  user: getInitialFromCache('user', null),
-  currentClub: getInitialFromCache('currentClub', null),
+  user: null,
+  currentClub: null,
   users: [],
   exercises: INIT_EXERCISES,
-  programs: getInitialFromCache('programs', []),
+  programs: [],
   presets: [],
   nutritionPresets: [],
-  logs: getInitialFromCache('logs', []),
+  logs: [],
   messages: [],
   bodyData: [],
-  performances: getInitialFromCache('performances', []),
+  performances: [],
   archivedPrograms: [],
   feed: [],
   supplementProducts: [],
@@ -210,8 +154,8 @@ const INITIAL_STATE: AppState = {
   subscriptions: [],
   payments: [],
   newsletters: [],
-  nutritionPlans: getInitialFromCache('nutritionPlans', []),
-  nutritionLogs: getInitialFromCache('nutritionLogs', []),
+  nutritionPlans: [],
+  nutritionLogs: [],
   crmClients: [],
   crmFormulas: [],
   manualStats: [],
@@ -251,6 +195,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [connectionTested, setConnectionTested] = useState(false);
   const [gcpBillingError, setGcpBillingError] = useState<string | null>(null);
+  const [firebaseConnectionIssue, setFirebaseConnectionIssue] = useState<'permission' | 'temporary' | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
 
   const navigate = useNavigate();
@@ -281,13 +226,20 @@ export default function App() {
 
   useEffect(() => {
     const handleBillingError = (e: Event) => {
-      const detail = (e as CustomEvent).detail || "";
-      console.warn("Global GCP/Firebase billing or suspension error caught:", detail);
+      console.warn("Firebase project billing or suspension error caught.");
       setGcpBillingError("suspended");
       setLoading(false);
     };
+    const handleListenerError = (event: Event) => {
+      const code = (event as CustomEvent).detail?.code;
+      setFirebaseConnectionIssue(code === 'permission-denied' ? 'permission' : 'temporary');
+    };
     window.addEventListener('gcp-billing-error', handleBillingError);
-    return () => window.removeEventListener('gcp-billing-error', handleBillingError);
+    window.addEventListener('firestore-listener-error', handleListenerError);
+    return () => {
+      window.removeEventListener('gcp-billing-error', handleBillingError);
+      window.removeEventListener('firestore-listener-error', handleListenerError);
+    };
   }, []);
 
   const [navigatorOnline, setNavigatorOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -396,14 +348,16 @@ export default function App() {
           setLoading(false);
         } catch (error: any) {
           const errMsg = error?.message || String(error);
-          console.error("Firebase connection test result:", errMsg);
           if (errMsg.includes('the client is offline') || !navigator.onLine) {
             console.warn("Client offline detected, entering offline cache backup mode.");
             setIsOfflineBackupActive(true);
             setLoading(false);
+          } else if (isGcpBillingOrSuspendedError(error)) {
+            setGcpBillingError("suspended");
+            setLoading(false);
           } else {
-            const isRestoring = errMsg.toLowerCase().includes('permission') || error?.code === 'permission-denied';
-            setGcpBillingError(isRestoring ? "reactivating" : "suspended");
+            setFirebaseConnectionIssue(error?.code === 'permission-denied' ? 'permission' : 'temporary');
+            console.warn("Firebase connection check failed", { code: error?.code || 'unknown' });
             setLoading(false);
           }
         }
@@ -418,6 +372,12 @@ export default function App() {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setAuthResolved(true);
+      // Never carry locally cached health, program, or club data across sessions.
+      if (typeof window !== 'undefined') {
+        ['user', 'currentClub', 'programs', 'logs', 'performances', 'nutritionPlans', 'nutritionLogs']
+          .forEach(key => localStorage.removeItem(`velatra_cache_${key}`));
+      }
+      setState({ ...INITIAL_STATE, exercises: [...INIT_EXERCISES] });
       if (firebaseUser) {
         const userDocRef = doc(db, "users", firebaseUser.uid);
         
@@ -426,20 +386,30 @@ export default function App() {
           if (userDoc.exists()) {
             const userData = userDoc.data() as User;
             
-            // Auto-assign superadmin role to the developer email
-            if (firebaseUser.email === 'victor.defreitas.pro@gmail.com' && userData.role !== 'superadmin') {
-              await updateDoc(userDocRef, { role: 'superadmin' });
-              userData.role = 'superadmin';
+            // Elevated roles are assigned by the verified server endpoint, never by the browser.
+            if (firebaseUser.email === 'victor.defreitas.pro@gmail.com' && firebaseUser.emailVerified && userData.role !== 'superadmin') {
+              try {
+                await apiFetch('/api/bootstrap-superadmin', { method: 'POST' });
+                return;
+              } catch (error) {
+                console.error("Admin initialization failed", error);
+              }
             }
-            
-            // Enforce that only victor.defreitas.pro@gmail.com can hold superadmin role
-            if (userData.role === 'superadmin' && firebaseUser.email !== 'victor.defreitas.pro@gmail.com') {
+            if (userData.role === 'superadmin' && (firebaseUser.email !== 'victor.defreitas.pro@gmail.com' || !firebaseUser.emailVerified)) {
               userData.role = 'member';
             }
             
             const cachedUser = { ...userData, id: Number(userData.id), firebaseUid: firebaseUser.uid };
             setState(prev => ({ ...prev, user: cachedUser }));
-            saveToLocalCache('user', cachedUser);
+
+            // Move any old Stripe key out of the club document before loading client-readable settings.
+            if (cachedUser.role === 'owner' || cachedUser.role === 'superadmin') {
+              try {
+                await apiFetch('/api/stripe/status');
+              } catch (error) {
+                console.error("Could not migrate legacy Stripe settings.", error);
+              }
+            }
             
             // Fetch Club Data
             if (userData.clubId) {
@@ -447,66 +417,16 @@ export default function App() {
               if (clubDoc.exists()) {
                 const clubData = clubDoc.data() as Club;
                 setState(prev => ({ ...prev, currentClub: clubData }));
-                saveToLocalCache('currentClub', clubData);
               }
             }
           } else {
             // Document not created yet (happens during registration)
             setState(prev => ({ ...prev, user: null }));
             
-            // Admin recovery mode
-            if (firebaseUser.email === 'victor.defreitas.pro@gmail.com') {
+            // Recover the administrator profile through a verified server-side operation.
+            if (firebaseUser.email === 'victor.defreitas.pro@gmail.com' && firebaseUser.emailVerified) {
               try {
-                const usersRef = collection(db, "users");
-                const q = query(usersRef, where("role", "in", ["superadmin", "owner"]));
-                const querySnapshot = await getDocs(q);
-                
-                if (!querySnapshot.empty) {
-                  const oldDoc = querySnapshot.docs[0];
-                  const oldData = oldDoc.data() as User;
-                  
-                  await setDoc(userDocRef, {
-                    ...oldData,
-                    firebaseUid: firebaseUser.uid,
-                    email: firebaseUser.email
-                  });
-                  
-                  await deleteDoc(oldDoc.ref);
-                } else {
-                  const clubsRef = collection(db, "clubs");
-                  const clubsSnapshot = await getDocs(clubsRef);
-                  let clubId = "CLUB123";
-                  if (clubsSnapshot.empty) {
-                    await setDoc(doc(db, "clubs", clubId), {
-                      id: clubId,
-                      name: "Mon Club",
-                      settings: {
-                        payment: {
-                          stripeConnected: false,
-                          stripeSecretKey: ""
-                        }
-                      }
-                    });
-                  } else {
-                    clubId = clubsSnapshot.docs[0].id;
-                  }
-                  
-                  await setDoc(userDocRef, {
-                    id: Date.now(),
-                    clubId: clubId,
-                    code: "admin",
-                    pwd: "",
-                    name: "Victor De Freitas",
-                    email: firebaseUser.email,
-                    role: "superadmin",
-                    avatar: "VD",
-                    gender: "M",
-                    age: 30,
-                    weight: 80,
-                    height: 180,
-                    firebaseUid: firebaseUser.uid
-                  });
-                }
+                await apiFetch('/api/bootstrap-superadmin', { method: 'POST' });
               } catch (err) {
                 console.error("Admin recovery failed", err);
               }
@@ -527,8 +447,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const uid = state.user?.firebaseUid;
+    if (!uid || state.user?.role !== 'coach') return;
+    apiFetch('/api/coach/assigned-members')
+      .then(async response => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Impossible de charger les adhérents affectés.');
+        const assignedMemberIds = Array.isArray(result.assignedMemberIds) ? result.assignedMemberIds.map(Number).filter(Number.isFinite) : [];
+        setState((previous: AppState) => previous.user?.firebaseUid === uid
+          ? { ...previous, user: { ...previous.user, assignedMemberIds } }
+          : previous);
+      })
+      .catch(error => console.error('Coach assignment loading failed:', error));
+  }, [state.user?.firebaseUid, state.user?.role]);
+
+  useEffect(() => {
     if (!authResolved) return;
-    if (!auth.currentUser || !state.user || String(state.user.id) !== auth.currentUser.uid || !state.user.clubId) return;
+    if (!auth.currentUser || !state.user || state.user.firebaseUid !== auth.currentUser.uid || !state.user.clubId) return;
 
     // Check for onboarding success/cancel in URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -542,6 +477,44 @@ export default function App() {
     }
 
     const clubId = state.user.clubId;
+    const isMember = state.user.role === 'member';
+    const isCoach = state.user.role === 'coach';
+    const ownId = Number(state.user.id);
+    const assignedMemberIds = [...new Set((state.user.assignedMemberIds || []).map(Number).filter(Number.isFinite))];
+    const memberRecordQueries = (collectionName: string, ownerField = 'memberId') => {
+      if (isMember) return [query(collection(db, collectionName), where('clubId', '==', clubId), where(ownerField, '==', ownId))];
+      if (isCoach) {
+        return state.user?.firebaseUid
+          ? [query(collection(db, collectionName), where('clubId', '==', clubId), where('assignedCoachUid', '==', state.user.firebaseUid))]
+          : [];
+      }
+      return [query(collection(db, collectionName), where('clubId', '==', clubId))];
+    };
+    const subscribeMemberRecords = (collectionName: string, ownerField: string, callback: (snapshot: any) => void) => {
+      const queries = memberRecordQueries(collectionName, ownerField);
+      if (!queries.length) {
+        callback({ docs: [], forEach: () => {}, docChanges: () => [] });
+        return () => {};
+      }
+      if (queries.length === 1) return onSnapshot(queries[0], callback);
+      const snapshots = new Map<number, any>();
+      const subscriptions = queries.map((recordQuery, index) => onSnapshot(recordQuery, (snapshot: any) => {
+        snapshots.set(index, snapshot);
+        const documents = new Map<string, any>();
+        snapshots.forEach(current => current.forEach((document: any) => documents.set(document.id, document)));
+        callback({
+          docs: [...documents.values()],
+          forEach: (handler: (document: any) => void) => documents.forEach(handler),
+          docChanges: () => snapshot.docChanges()
+        });
+      }));
+      return () => subscriptions.forEach(unsubscribe => unsubscribe());
+    };
+    const skipForMembers = (key: string) => {
+      if (!isMember) return false;
+      setState(prev => ({ ...prev, [key]: [] }));
+      return true;
+    };
 
     const unsubClub = onSnapshot(doc(db, "clubs", clubId), (docSnap) => {
       if (docSnap.exists()) {
@@ -563,7 +536,12 @@ export default function App() {
       }
     });
 
-    const unsubUsers = onSnapshot(query(collection(db, "users"), where("clubId", "==", clubId)), (snap) => {
+    const unsubUsers = isMember ? (() => {
+      setState(prev => ({ ...prev, users: prev.user ? [prev.user] : [] }));
+      return () => {};
+    })() : onSnapshot(isCoach
+      ? query(collection(db, "users"), where("clubId", "==", clubId), where("role", "==", "member"), where("assignedCoachUid", "==", state.user!.firebaseUid))
+      : query(collection(db, "users"), where("clubId", "==", clubId)), (snap) => {
       const allUsers: User[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -580,7 +558,7 @@ export default function App() {
     });
 
     let isInitialProgsLoad = true;
-    const unsubProgs = onSnapshot(query(collection(db, "programs"), where("clubId", "==", clubId)), (snap) => {
+    const unsubProgs = subscribeMemberRecords("programs", "memberId", (snap) => {
       const allProgs: Program[] = [];
       const now = new Date();
       let hasNewProgram = false;
@@ -601,7 +579,7 @@ export default function App() {
           const startDate = new Date(data.startDate);
           const endDate = new Date(startDate.getTime() + data.durationWeeks * 7 * 24 * 60 * 60 * 1000);
           
-          if (now > endDate) {
+          if (now > endDate && !isMember) {
             // Archiver automatiquement le programme expiré
             const archiveRef = doc(db, "archivedPrograms", data.id.toString());
             setDoc(archiveRef, { 
@@ -622,7 +600,6 @@ export default function App() {
         });
       });
       setState(prev => ({ ...prev, programs: allProgs }));
-      saveToLocalCache('programs', allProgs);
 
       if (!isInitialProgsLoad && hasNewProgram && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau programme", {
@@ -645,7 +622,7 @@ export default function App() {
       setState(prev => ({ ...prev, nutritionPresets: allNutritionPresets }));
     });
 
-    const unsubArchives = onSnapshot(query(collection(db, "archivedPrograms"), where("clubId", "==", clubId)), (snap) => {
+    const unsubArchives = subscribeMemberRecords("archivedPrograms", "memberId", (snap) => {
       const allArchives: Program[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -658,7 +635,7 @@ export default function App() {
       setState(prev => ({ ...prev, archivedPrograms: allArchives }));
     });
 
-    const unsubPerfs = onSnapshot(query(collection(db, "performances"), where("clubId", "==", clubId)), (snap) => {
+    const unsubPerfs = subscribeMemberRecords("performances", "memberId", (snap) => {
       const perfs: Performance[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -671,7 +648,6 @@ export default function App() {
         } as Performance);
       });
       setState(prev => ({ ...prev, performances: perfs }));
-      saveToLocalCache('performances', perfs);
     });
 
     const unsubProducts = onSnapshot(query(collection(db, "supplementProducts"), where("clubId", "==", clubId)), (snap) => {
@@ -686,13 +662,13 @@ export default function App() {
       setState(prev => ({ ...prev, products }));
     });
 
-    const unsubOrders = onSnapshot(query(collection(db, "supplementOrders"), where("clubId", "==", clubId)), (snap) => {
+    const unsubOrders = subscribeMemberRecords("supplementOrders", "adherentId", (snap) => {
       const orders: SupplementOrder[] = [];
       snap.forEach(d => orders.push(d.data() as SupplementOrder));
       setState(prev => ({ ...prev, supplementOrders: orders }));
     });
 
-    const unsubLogs = onSnapshot(query(collection(db, "logs"), where("clubId", "==", clubId)), (snap) => {
+    const unsubLogs = subscribeMemberRecords("logs", "memberId", (snap) => {
       const logs: SessionLog[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -703,34 +679,48 @@ export default function App() {
         } as SessionLog);
       });
       setState(prev => ({ ...prev, logs }));
-      saveToLocalCache('logs', logs);
     });
 
     let isInitialMessagesLoad = true;
-    const unsubMessages = onSnapshot(query(collection(db, "messages"), where("clubId", "==", clubId)), (snap) => {
-      const messages: Message[] = [];
+    let initialMessageSnapshots = 0;
+    let messageQueryCount = 0;
+    const messageSnapshots = new Map<string, Message>();
+    const onMessagesChanged = (snap: any) => {
       let hasNewUnread = false;
-      
-      snap.docChanges().forEach(change => {
-        if (change.type === 'added') {
-          const msg = change.doc.data() as Message;
-          if (!msg.read && msg.to === state.user?.id) {
-            hasNewUnread = true;
-          }
+      snap.docChanges().forEach((change: any) => {
+        if (change.type === 'removed') {
+          messageSnapshots.delete(change.doc.id);
+          return;
         }
+        const msg = change.doc.data() as Message;
+        messageSnapshots.set(change.doc.id, msg);
+        if (change.type === 'added' && !msg.read && msg.to === state.user?.id) hasNewUnread = true;
       });
 
-      snap.forEach(d => messages.push(d.data() as Message));
-      setState(prev => ({ ...prev, messages }));
-
+      setState(prev => ({ ...prev, messages: Array.from(messageSnapshots.values()) }));
       if (!isInitialMessagesLoad && hasNewUnread && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau message", {
           body: "Vous avez reçu un nouveau message sur Velatra.",
           icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
         });
       }
-      isInitialMessagesLoad = false;
-    });
+      initialMessageSnapshots += 1;
+      if (initialMessageSnapshots >= messageQueryCount) isInitialMessagesLoad = false;
+    };
+    const messageQueries = isCoach
+      ? [
+          query(collection(db, "messages"), where("clubId", "==", clubId), where("assignedCoachUid", "==", state.user.firebaseUid), where("from", "==", ownId)),
+          query(collection(db, "messages"), where("clubId", "==", clubId), where("assignedCoachUid", "==", state.user.firebaseUid), where("to", "==", ownId))
+        ]
+      : isMember
+        ? [
+            query(collection(db, "messages"), where("clubId", "==", clubId), where("from", "==", ownId)),
+            query(collection(db, "messages"), where("clubId", "==", clubId), where("to", "==", ownId))
+          ]
+        : [query(collection(db, "messages"), where("clubId", "==", clubId))];
+    messageQueryCount = messageQueries.length;
+    const unsubMessageQueries = messageQueries.map(messageQuery => onSnapshot(messageQuery, onMessagesChanged));
+    const unsubMessages = () => unsubMessageQueries.forEach(unsubscribe => unsubscribe());
 
     const unsubFeed = onSnapshot(query(collection(db, "feed"), where("clubId", "==", clubId)), (snap) => {
       const feed: FeedItem[] = [];
@@ -753,7 +743,7 @@ export default function App() {
       setState(prev => ({ ...prev, feed }));
     });
 
-    const unsubBody = onSnapshot(query(collection(db, "bodyData"), where("clubId", "==", clubId)), (snap) => {
+    const unsubBody = subscribeMemberRecords("bodyData", "memberId", (snap) => {
       const bodyData: BodyData[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -770,7 +760,7 @@ export default function App() {
     });
 
     let isInitialProspectsLoad = true;
-    const unsubProspects = onSnapshot(query(collection(db, "prospects"), where("clubId", "==", clubId)), (snap) => {
+    const unsubProspects = skipForMembers('prospects') ? () => {} : onSnapshot(query(collection(db, "prospects"), where("clubId", "==", clubId)), (snap) => {
       const prospects: Prospect[] = [];
       let hasNewProspect = false;
 
@@ -792,14 +782,14 @@ export default function App() {
       isInitialProspectsLoad = false;
     });
 
-    const unsubNewsletters = onSnapshot(query(collection(db, "newsletters"), where("clubId", "==", clubId)), (snap) => {
+    const unsubNewsletters = skipForMembers('newsletters') ? () => {} : onSnapshot(query(collection(db, "newsletters"), where("clubId", "==", clubId)), (snap) => {
       const newsletters: Newsletter[] = [];
       snap.forEach(d => newsletters.push(d.data() as Newsletter));
       setState(prev => ({ ...prev, newsletters: newsletters.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()) }));
     });
 
     let isInitialTasksLoad = true;
-    const unsubTasks = onSnapshot(query(collection(db, "tasks"), where("clubId", "==", clubId)), (snap) => {
+    const unsubTasks = skipForMembers('tasks') ? () => {} : onSnapshot(query(collection(db, "tasks"), where("clubId", "==", clubId)), (snap) => {
       const tasks: Task[] = [];
       let hasNewTask = false;
       let newTaskTitle = "";
@@ -827,7 +817,7 @@ export default function App() {
     });
 
     let isInitialBookingsLoad = true;
-    const unsubBookings = onSnapshot(query(collection(db, "bookings"), where("clubId", "==", clubId)), (snap) => {
+    const unsubBookings = subscribeMemberRecords("bookings", "memberId", (snap) => {
       const bookings: Booking[] = [];
       let hasNewBooking = false;
 
@@ -859,7 +849,7 @@ export default function App() {
     });
 
     let isInitialNutritionPlansLoad = true;
-    const unsubNutritionPlans = onSnapshot(query(collection(db, "nutritionPlans"), where("clubId", "==", clubId)), (snap) => {
+    const unsubNutritionPlans = subscribeMemberRecords("nutritionPlans", "memberId", (snap) => {
       const nutritionPlans: NutritionPlan[] = [];
       let hasNewNutritionPlan = false;
 
@@ -880,7 +870,6 @@ export default function App() {
         } as NutritionPlan);
       });
       setState(prev => ({ ...prev, nutritionPlans }));
-      saveToLocalCache('nutritionPlans', nutritionPlans);
 
       if (!isInitialNutritionPlansLoad && hasNewNutritionPlan && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau plan nutritionnel", {
@@ -891,7 +880,7 @@ export default function App() {
       isInitialNutritionPlansLoad = false;
     });
 
-    const unsubNutritionLogs = onSnapshot(query(collection(db, "nutritionLogs"), where("clubId", "==", clubId)), (snap) => {
+    const unsubNutritionLogs = subscribeMemberRecords("nutritionLogs", "userId", (snap) => {
       const nutritionLogs: NutritionLog[] = [];
       const now = new Date().getTime();
       const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
@@ -911,10 +900,9 @@ export default function App() {
         }
       });
       setState(prev => ({ ...prev, nutritionLogs }));
-      saveToLocalCache('nutritionLogs', nutritionLogs);
     });
 
-    const unsubSubscriptions = onSnapshot(query(collection(db, "subscriptions"), where("clubId", "==", clubId)), (snap) => {
+    const unsubSubscriptions = subscribeMemberRecords("subscriptions", "memberId", (snap) => {
       const subscriptions: Subscription[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -926,7 +914,7 @@ export default function App() {
       setState(prev => ({ ...prev, subscriptions }));
     });
 
-    const unsubPayments = onSnapshot(query(collection(db, "payments"), where("clubId", "==", clubId)), (snap) => {
+    const unsubPayments = subscribeMemberRecords("payments", "memberId", (snap) => {
       const payments: Payment[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -938,13 +926,13 @@ export default function App() {
       setState(prev => ({ ...prev, payments }));
     });
 
-    const unsubExpenses = onSnapshot(query(collection(db, "expenses"), where("clubId", "==", clubId)), (snap) => {
+    const unsubExpenses = skipForMembers('expenses') ? () => {} : onSnapshot(query(collection(db, "expenses"), where("clubId", "==", clubId)), (snap) => {
       const expenses: Expense[] = [];
       snap.forEach(d => expenses.push(d.data() as Expense));
       setState(prev => ({ ...prev, expenses }));
     });
 
-    const unsubInvoices = onSnapshot(query(collection(db, "invoices"), where("clubId", "==", clubId)), (snap) => {
+    const unsubInvoices = skipForMembers('invoices') ? () => {} : onSnapshot(query(collection(db, "invoices"), where("clubId", "==", clubId)), (snap) => {
       const invoices: Invoice[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -956,7 +944,7 @@ export default function App() {
       setState(prev => ({ ...prev, invoices }));
     });
 
-    const unsubFixedCosts = onSnapshot(query(collection(db, "fixedCosts"), where("clubId", "==", clubId)), (snap) => {
+    const unsubFixedCosts = skipForMembers('fixedCosts') ? () => {} : onSnapshot(query(collection(db, "fixedCosts"), where("clubId", "==", clubId)), (snap) => {
       const fixedCosts: any[] = [];
       snap.forEach(d => fixedCosts.push(d.data()));
       setState(prev => ({ ...prev, fixedCosts }));
@@ -1006,49 +994,52 @@ export default function App() {
       setState(prev => ({ ...prev, exercises: enhancedExercises }));
     });
 
-    const unsubCrmClients = onSnapshot(query(collection(db, "crmClients"), where("clubId", "==", clubId)), (snap) => {
+    const unsubCrmClients = skipForMembers('crmClients') ? () => {} : onSnapshot(query(collection(db, "crmClients"), where("clubId", "==", clubId)), (snap) => {
       const crmClients: CRMClient[] = [];
       snap.forEach(d => crmClients.push(d.data() as CRMClient));
       setState(prev => ({ ...prev, crmClients }));
     });
 
-    const unsubCrmFormulas = onSnapshot(query(collection(db, "crmFormulas"), where("clubId", "==", clubId)), (snap) => {
+    const unsubCrmFormulas = skipForMembers('crmFormulas') ? () => {} : onSnapshot(query(collection(db, "crmFormulas"), where("clubId", "==", clubId)), (snap) => {
       const crmFormulas: CRMFormula[] = [];
       snap.forEach(d => crmFormulas.push(d.data() as CRMFormula));
       setState(prev => ({ ...prev, crmFormulas }));
     });
 
-    const unsubManualStats = onSnapshot(query(collection(db, "manualStats"), where("clubId", "==", clubId)), (snap) => {
+    const unsubManualStats = skipForMembers('manualStats') ? () => {} : onSnapshot(query(collection(db, "manualStats"), where("clubId", "==", clubId)), (snap) => {
       const manualStats: ManualStats[] = [];
       snap.forEach(d => manualStats.push(d.data() as ManualStats));
       setState(prev => ({ ...prev, manualStats }));
     });
 
-    const unsubPendingProspects = onSnapshot(query(collection(db, "pendingProspects"), where("clubId", "==", clubId)), (snap) => {
+    const unsubPendingProspects = skipForMembers('pendingProspects') ? () => {} : onSnapshot(query(collection(db, "pendingProspects"), where("clubId", "==", clubId)), (snap) => {
       const pendingProspects: PendingProspect[] = [];
       snap.forEach(d => pendingProspects.push(d.data() as PendingProspect));
       setState(prev => ({ ...prev, pendingProspects }));
     });
 
-    const unsubDriveFiles = onSnapshot(query(collection(db, "driveFiles"), where("clubId", "==", clubId)), (snap) => {
+    const driveFilesQuery = isMember
+      ? query(collection(db, "driveFiles"), where("clubId", "==", clubId), where("sharedWith", "array-contains", ownId))
+      : query(collection(db, "driveFiles"), where("clubId", "==", clubId));
+    const unsubDriveFiles = onSnapshot(driveFilesQuery, (snap) => {
       const driveFiles: DriveFile[] = [];
       snap.forEach(d => driveFiles.push(d.data() as DriveFile));
       setState(prev => ({ ...prev, driveFiles }));
     });
 
-    const unsubDriveFolders = onSnapshot(query(collection(db, "driveFolders"), where("clubId", "==", clubId)), (snap) => {
+    const unsubDriveFolders = skipForMembers('driveFolders') ? () => {} : onSnapshot(query(collection(db, "driveFolders"), where("clubId", "==", clubId)), (snap) => {
       const driveFolders: DriveFolder[] = [];
       snap.forEach(d => driveFolders.push(d.data() as DriveFolder));
       setState(prev => ({ ...prev, driveFolders }));
     });
 
-    const unsubNotifications = onSnapshot(query(collection(db, "notifications"), where("clubId", "==", clubId)), (snap) => {
+    const unsubNotifications = subscribeMemberRecords("notifications", "userId", (snap) => {
       const notifications: Notification[] = [];
       snap.forEach(d => notifications.push(d.data() as Notification));
       setState(prev => ({ ...prev, notifications }));
     });
 
-    const unsubProgressPhotos = onSnapshot(query(collection(db, "progressPhotos"), where("clubId", "==", clubId)), (snap) => {
+    const unsubProgressPhotos = subscribeMemberRecords("progressPhotos", "memberId", (snap) => {
       const progressPhotos: ProgressPhoto[] = [];
       snap.forEach(d => progressPhotos.push({ id: d.id, ...d.data() } as ProgressPhoto));
       setState(prev => ({ ...prev, progressPhotos }));
@@ -1062,7 +1053,7 @@ export default function App() {
       unsubTasks(); unsubBookings(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubFixedCosts(); unsubNutritionPlans(); unsubNutritionLogs();
       unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects(); unsubDriveFiles(); unsubDriveFolders(); unsubNotifications(); unsubProgressPhotos();
     };
-  }, [state.user?.clubId, authResolved]);
+  }, [state.user?.clubId, state.user?.role, state.user?.firebaseUid, state.user?.assignedMemberIds?.join(','), authResolved]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setState(prev => ({ ...prev, toast: { message, type } }));
@@ -1207,7 +1198,7 @@ export default function App() {
 
   useEffect(() => {
     if (!authResolved) return;
-    if (!auth.currentUser || !state.user || String(state.user.id) !== auth.currentUser.uid) return;
+    if (!auth.currentUser || !state.user || state.user.firebaseUid !== auth.currentUser.uid) return;
     if (messaging && 'Notification' in window) {
       const requestPushPermission = async () => {
         try {
@@ -1257,6 +1248,28 @@ export default function App() {
       }
     }
   }, [state.tasks, state.user]);
+
+  const renderFirebaseConnectionIssue = () => {
+    if (!firebaseConnectionIssue) return null;
+    const isPermissionIssue = firebaseConnectionIssue === 'permission';
+
+    return (
+      <div role="alert" className="mx-auto my-3 flex w-[min(100%-2rem,48rem)] flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 sm:flex-row sm:items-center sm:justify-between">
+        <p>
+          {isPermissionIssue
+            ? "L'accès aux données est refusé pour ce compte. Vérifiez les droits de l'utilisateur ou contactez votre administrateur."
+            : "La connexion aux données a échoué. Vérifiez votre connexion Internet puis réessayez."}
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="shrink-0 rounded-lg bg-emerald-500 px-3 py-2 font-semibold text-white transition-colors hover:bg-emerald-600"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  };
 
   const renderBillingBanner = () => {
     return null;
@@ -1327,6 +1340,12 @@ export default function App() {
   const effectiveRole = isReallySuperAdmin ? adminPerspective : (state.user?.role === 'superadmin' ? 'member' : state.user?.role);
 
   return (
+    <React.Suspense fallback={(
+      <div className="flex min-h-screen items-center justify-center bg-white text-sm text-zinc-500">
+        <span className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-zinc-200 border-t-emerald-500" aria-hidden="true" />
+        Chargement de votre espace…
+      </div>
+    )}>
     <Routes>
       {/* Landing Layout / Marketing Routes */}
       <Route element={<LandingLayout />}>
@@ -1348,6 +1367,7 @@ export default function App() {
       <Route path="/login" element={
         state.user ? <Navigate to="/dashboard" replace /> : (
           <div className="min-h-screen flex flex-col bg-[#ffffff]">
+            {renderFirebaseConnectionIssue()}
             {renderBillingBanner()}
             {renderOfflineBanner()}
             <div className="flex-1 animate-fadeIn">
@@ -1360,6 +1380,7 @@ export default function App() {
       <Route path="/register" element={
         state.user ? <Navigate to="/dashboard" replace /> : (
           <div className="min-h-screen flex flex-col bg-[#ffffff]">
+            {renderFirebaseConnectionIssue()}
             {renderBillingBanner()}
             {renderOfflineBanner()}
             <div className="flex-1 animate-fadeIn">
@@ -1374,6 +1395,7 @@ export default function App() {
         !state.user ? <Navigate to="/login" replace /> : (
           (state.user.role === 'member' && !state.user.onboardingCompleted) ? (
             <div className="min-h-screen flex flex-col bg-[#ffffff]">
+              {renderFirebaseConnectionIssue()}
               {renderBillingBanner()}
               {renderOfflineBanner()}
               <div className="flex-1 animate-fadeIn">
@@ -1384,6 +1406,7 @@ export default function App() {
             </div>
           ) : (
             <ErrorBoundary>
+              {renderFirebaseConnectionIssue()}
               {renderBillingBanner()}
               {renderOfflineBanner()}
               <Layout 
@@ -1515,5 +1538,6 @@ export default function App() {
       {/* Catch-all to / */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </React.Suspense>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Prospect, ProspectNote, User } from '../types';
-import { db, doc, updateDoc, setDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from '../firebase';
+import { createMemberProfile, db, doc, updateDoc, setDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from '../firebase';
 import { Plus, Search, Trash2, Mail, Phone, Clock, CheckCircle, XCircle, UserPlus, Users, X, Calendar, AlertCircle, MessageSquare } from 'lucide-react';
 import { format, isToday, isPast, isSameDay, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -185,34 +185,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     showToast("Création du membre...", "info");
     try {
       const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase() + "1!";
-      // Create Firebase Auth user with potential orphaned account cleanup/retry
-      let userCredential;
-      try {
-        userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, randomPassword);
-      } catch (authErr: any) {
-        if (authErr.code === 'auth/email-already-in-use') {
-          try {
-            console.log("Email already in use, attempting cleanup of orphaned auth account:", convertData.email);
-            const cleanupResponse = await fetch('/api/delete-user', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ email: convertData.email }),
-            });
-            if (cleanupResponse.ok) {
-              console.log("Cleanup succeeded, retrying user creation...");
-              userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, randomPassword);
-            } else {
-              throw authErr;
-            }
-          } catch (cleanupErr) {
-            throw authErr;
-          }
-        } else {
-          throw authErr;
-        }
-      }
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, randomPassword);
       const firebaseUid = userCredential.user.uid;
 
       const newUser: User = {
@@ -238,7 +211,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
         firebaseUid: firebaseUid
       };
       
-      await setDoc(doc(db, "users", firebaseUid), newUser);
+      await createMemberProfile(firebaseUid, newUser as unknown as Record<string, unknown>);
       await updateDoc(doc(db, "prospects", convertingProspect.firebaseUid), { status: 'won' });
       await sendPasswordResetEmail(secondaryAuth, convertData.email);
       

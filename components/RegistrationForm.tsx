@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import { Card, Input, Button } from './UI';
 import { ChevronLeftIcon, TargetIcon, InfoIcon } from './Icons';
-import { Goal, Gender, User } from '../types';
+import { Goal, Gender } from '../types';
 import { GOALS } from '../constants';
-import { auth, db, createUserWithEmailAndPassword, doc, setDoc, getDoc } from '../firebase';
+import { apiFetch, auth, createUserWithEmailAndPassword } from '../firebase';
 
 interface RegistrationFormProps {
   onRegister: () => void;
@@ -33,13 +33,8 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, 
   });
 
   const handleSubmit = async () => {
-    if (!formData.email || !formData.password || !formData.name || !formData.clubId) {
+    if (!formData.email.trim() || !formData.password || !formData.name.trim() || !formData.clubId) {
       alert("Veuillez remplir tous les champs, y compris le code du club.");
-      return;
-    }
-
-    if (formData.clubId.toLowerCase().replace(/\s/g, '') === "velatra2026") {
-      alert("Vous avez saisi le code d'invitation BETA pour les coachs ! Pour vous inscrire en tant qu'adhérent, vous devez saisir le code d'accès à 6 chiffres de votre club (votre coach doit vous le fournir).");
       return;
     }
 
@@ -50,51 +45,44 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, 
 
     setLoading(true);
     try {
-      // 1. Check if club exists
-      const clubDoc = await getDoc(doc(db, "clubs", formData.clubId));
-      if (!clubDoc.exists()) {
-        alert("Ce code de club n'existe pas.");
-        setLoading(false);
-        return;
+      // Create the Auth account first, then let the trusted server validate the
+      // club and create a profile with a server-controlled member ID.
+      const currentUser = auth.currentUser;
+      if (currentUser && currentUser.email?.toLowerCase() !== formData.email.trim().toLowerCase()) {
+        throw new Error("Un autre compte est déjà connecté. Déconnectez-vous avant de vous inscrire.");
       }
-
-      // 2. Création du compte Auth
-      const { user } = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-      
-      // 3. Création du profil Firestore
-      const newUser: User = {
-        id: Date.now(),
-        clubId: formData.clubId,
-        code: formData.email.split('@')[0],
-        pwd: "", 
-        name: formData.name,
-        role: "member", // Default to member for registration form
-        avatar: formData.name.substring(0, 2).toUpperCase(),
-        gender: formData.gender,
-        age: formData.age,
-        weight: formData.weight,
-        height: formData.height,
-        objectifs: formData.objectifs,
-        notes: formData.notes,
-        experienceLevel: formData.experienceLevel,
-        trainingDays: formData.trainingDays,
-        sessionDuration: formData.sessionDuration,
-        equipment: formData.equipment,
-        injuries: formData.injuries,
-        createdAt: new Date().toISOString(),
-        xp: 0,
-        streak: 0,
-        pointsFidelite: 0,
-        firebaseUid: user.uid
-      };
-      
-      await setDoc(doc(db, "users", user.uid), newUser);
+      if (!currentUser) {
+        await createUserWithEmailAndPassword(auth, formData.email.trim(), formData.password);
+      }
+      const response = await apiFetch('/api/register-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clubId: formData.clubId,
+          name: formData.name,
+          age: formData.age,
+          weight: formData.weight,
+          height: formData.height,
+          gender: formData.gender,
+          objectifs: formData.objectifs,
+          notes: formData.notes,
+          experienceLevel: formData.experienceLevel,
+          trainingDays: formData.trainingDays,
+          sessionDuration: formData.sessionDuration,
+          equipment: formData.equipment,
+          injuries: formData.injuries
+        })
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || "L'inscription n'a pas pu être finalisée.");
+      }
       onRegister();
     } catch (error: any) {
       if (error.code === 'auth/email-already-in-use') {
         alert("Cette adresse email est déjà utilisée par un autre compte.");
       } else {
-        alert("Erreur lors de la création : " + error.message);
+        alert(error.message || "Une erreur est survenue lors de la création du compte.");
       }
     } finally {
       setLoading(false);

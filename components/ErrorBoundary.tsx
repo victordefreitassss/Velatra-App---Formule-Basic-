@@ -20,15 +20,22 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error:', error, errorInfo);
+    console.error('Uncaught UI error:', { name: error.name, componentStackAvailable: Boolean(errorInfo.componentStack) });
   }
 
   public render() {
     if (this.state.hasError) {
       return (
         <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-600">
-          <h2 className="text-lg font-bold mb-2">Something went wrong.</h2>
-          <pre className="text-xs overflow-auto">{this.state.error?.message}</pre>
+          <h2 className="text-lg font-bold mb-2">Une erreur est survenue.</h2>
+          <p className="mb-4 text-sm">Rechargez la page. Si le problème persiste, contactez le support.</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+          >
+            Recharger la page
+          </button>
         </div>
       );
     }

@@ -1,8 +1,7 @@
 
 import React, { useState } from 'react';
 import { Card, Input, Button } from './UI';
-import { auth, db, createUserWithEmailAndPassword, setDoc, doc, getDoc, getDocs, query, collection, where } from '../firebase';
-import { Club, User } from '../types';
+import { apiFetch, auth, createUserWithEmailAndPassword } from '../firebase';
 import { Info } from 'lucide-react';
 
 interface ClubRegistrationProps {
@@ -32,69 +31,29 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
       return;
     }
 
-    if (inviteCode.toLowerCase().replace(/\s/g, '') !== "velatra2026") {
-      setError("Code d'invitation invalide. L'inscription est actuellement sur invitation uniquement.");
-      return;
-    }
-
     setLoading(true);
     setError("");
 
     try {
-      // Generate a unique 6-digit club code
-      let generatedClubCode = "";
-      let isUnique = false;
-      while (!isUnique) {
-        generatedClubCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const clubDoc = await getDoc(doc(db, "clubs", generatedClubCode));
-        if (!clubDoc.exists()) {
-          isUnique = true;
-        }
+      // Keep the new session if server-side invitation validation fails so the
+      // user can correct the code and retry without creating an orphan account.
+      const currentUser = auth.currentUser;
+      if (currentUser && currentUser.email?.toLowerCase() !== email.trim().toLowerCase()) {
+        throw new Error("Un autre compte est déjà connecté. Déconnectez-vous avant de créer ce club.");
+      }
+      if (!currentUser) {
+        await createUserWithEmailAndPassword(auth, email.trim(), password);
       }
 
-      // 1. Create Firebase Auth User
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUid = userCredential.user.uid;
-
-      // 2. Create Club Document
-      const clubId = generatedClubCode;
-      const newClub: Club = {
-        id: clubId,
-        name: clubName,
-        ownerId: firebaseUid,
-        email: email,
-        phone: "",
-        address: "",
-        description: accountType === 'coach' ? `Espace de coaching de ${clubName}` : `Bienvenue chez ${clubName}`,
-        horaires: "",
-        createdAt: new Date().toISOString()
-      };
-      await setDoc(doc(db, "clubs", clubId), newClub);
-
-      // 3. Create User Document (Owner)
-      const newUser: User = {
-        id: Date.now(),
-        clubId: clubId,
-        code: "", // Not used anymore
-        pwd: "", // We use Firebase Auth
-        name: ownerName,
-        role: "owner",
-        avatar: ownerName.substring(0, 2).toUpperCase(),
-        gender: "M",
-        age: 30,
-        weight: 80,
-        height: 180,
-        objectifs: ["Performance sportive"],
-        notes: accountType === 'coach' ? "Coach Indépendant" : "Propriétaire du club",
-        createdAt: new Date().toISOString(),
-        xp: 0,
-        streak: 0,
-        pointsFidelite: 0,
-        firebaseUid: firebaseUid
-      };
-      await setDoc(doc(db, "users", firebaseUid), newUser);
-
-      setCreatedClubId(clubId);
+      // The server assigns roles and creates both records after verifying this session.
+      const response = await apiFetch("/api/register-club", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clubName, ownerName, accountType, inviteCode })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "La création du club a échoué.");
+      setCreatedClubId(result.clubId);
     } catch (err: any) {
       console.error("Registration Error:", err);
       if (err.code === 'auth/email-already-in-use') {
