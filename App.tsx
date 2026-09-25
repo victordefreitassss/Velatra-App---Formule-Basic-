@@ -122,6 +122,7 @@ const HelpCenterPage = React.lazy(() => import('./pages/HelpCenter'));
 const BlogPage = React.lazy(() => import('./pages/Blog'));
 const BlogPostPage = React.lazy(() => import('./pages/BlogPost'));
 const ContactPage = React.lazy(() => import('./pages/ContactPage'));
+const SeoLandingPage = React.lazy(() => import('./pages/SeoLandingPage'));
 const MentionsLegales = lazyNamed(() => import('./pages/Legal'), 'MentionsLegales');
 const CGV = lazyNamed(() => import('./pages/Legal'), 'CGV');
 const Confidentialite = lazyNamed(() => import('./pages/Legal'), 'Confidentialite');
@@ -1352,6 +1353,12 @@ export default function App() {
         <Route path="/blog/:slug" element={<BlogPostPage />} />
         <Route path="/a-propos" element={<AboutPageMarketing />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/logiciel-coach-sportif" element={<SeoLandingPage />} />
+        <Route path="/logiciel-personal-trainer" element={<SeoLandingPage />} />
+        <Route path="/logiciel-studio-coaching" element={<SeoLandingPage />} />
+        <Route path="/crm-coach-sportif" element={<SeoLandingPage />} />
+        <Route path="/logiciel-suivi-client-coach" element={<SeoLandingPage />} />
+        <Route path="/logiciel-programme-entrainement" element={<SeoLandingPage />} />
         <Route path="/mentions-legales" element={<MentionsLegales />} />
         <Route path="/cgv" element={<CGV />} />
         <Route path="/confidentialite" element={<Confidentialite />} />

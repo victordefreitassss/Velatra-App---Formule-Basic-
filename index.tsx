@@ -2,7 +2,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import App from './App';
+import { HelmetProvider } from 'react-helmet-async';
+import RootApp from './RootApp';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -22,8 +23,10 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
+        <RootApp />
+      </BrowserRouter>
+    </HelmetProvider>
   </React.StrictMode>
 );

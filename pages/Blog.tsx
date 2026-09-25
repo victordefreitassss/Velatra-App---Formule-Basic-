@@ -1,74 +1,39 @@
-import React from 'react';
+import { useMemo, useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import { Calendar, User, ArrowRight } from 'lucide-react';
+import { ArrowRight, CalendarDays, Search } from 'lucide-react';
+
+const posts = [
+  { title: 'Comment structurer le suivi des adhérents dans un studio de coaching', desc: 'Des repères simples pour suivre la présence, les objectifs et les prochaines étapes de vos adhérents.', date: '12 juin 2026', isoDate: '2026-06-12', author: 'Velatra', category: 'Fidélisation', tags: ['Coaching', 'Organisation'], slug: 'optimiser-retention-membres-studio-fitness', read: '5 min' },
+  { title: 'Organiser les paiements de son activité de coach sportif', desc: 'Les informations à rassembler pour suivre les offres, les échéances et les paiements de votre activité.', date: '4 juin 2026', isoDate: '2026-06-04', author: 'Velatra', category: 'Gestion', tags: ['Business', 'Organisation'], slug: 'automatiser-comptabilite-guide-coach-independant', read: '4 min' },
+  { title: 'Mettre en place un suivi de progression utile pour ses adhérents', desc: 'Comment relier les objectifs, les séances et les échanges pour rendre le suivi plus lisible.', date: '28 mai 2026', isoDate: '2026-05-28', author: 'Velatra', category: 'Coaching', tags: ['Fidélisation', 'Organisation'], slug: 'suivi-performance-autonome-motivation-athletes', read: '6 min' },
+  { title: 'Créer un parcours de découverte pour son activité de coaching', desc: 'Organisez les premiers échanges, précisez votre offre et facilitez le suivi de vos prospects.', date: '25 septembre 2026', isoDate: '2026-09-25', author: 'Velatra', category: 'Acquisition', tags: ['Business', 'Marketing'], slug: 'parcours-decouverte-coach-sportif', read: '5 min' },
+];
+const categories = ['Tout', 'Gestion', 'Coaching', 'Business', 'Acquisition', 'Fidélisation', 'Organisation', 'Marketing'];
 
 export default function BlogPage() {
-  const posts = [
-    {
-      title: "Comment optimiser la rétention des membres de votre studio de fitness",
-      desc: "Découvrez les leviers psychologiques et applicatifs pour amener vos athlètes à renouveler leur engagement d'entraînements de façon autonome.",
-      date: "12 Juin 2026",
-      author: "Victor De Freitas",
-      slug: "optimiser-retention-membres-studio-fitness"
-    },
-    {
-      title: "Automatiser sa comptabilité : Le guide ultime pour coach sportif indépendant",
-      desc: "Ne perdez plus 5 heures à relancer les impayés et à générer des invoices manuelles en fin de mois. Intégrez Stripe en 1 clic.",
-      date: "04 Juin 2026",
-      author: "Compta Team",
-      slug: "automatiser-comptabilite-guide-coach-independant"
-    },
-    {
-      title: "Pourquoi le suivi de performance autonome motive d'avantage vos athlètes",
-      desc: "Permettez à vos élèves de consigner facilement leurs charges de séances et courbe de rep-max pour un suivi sportif d'élite motivant.",
-      date: "28 Mai 2026",
-      author: "Velatra Coach",
-      slug: "suivi-performance-autonome-motivation-athletes"
-    }
-  ];
+  const [category, setCategory] = useState('Tout');
+  const [search, setSearch] = useState('');
+  const visiblePosts = useMemo(() => posts.filter((post) => (category === 'Tout' || post.category === category || post.tags.includes(category)) && `${post.title} ${post.desc} ${post.category} ${post.tags.join(' ')}`.toLocaleLowerCase('fr').includes(search.trim().toLocaleLowerCase('fr'))), [category, search]);
+  const featured = posts[0];
 
-  return (
-    <div className="pt-32 pb-24">
-      <div className="max-w-5xl mx-auto px-6">
-        <div className="text-center space-y-4 mb-16">
-          <span className="text-xs font-black uppercase text-emerald-500 tracking-widest block font-bold">BLOG & CONSEILS PRO</span>
-          <h1 className="text-4xl md:text-5xl font-display font-black tracking-tight text-zinc-950 dark:text-white leading-none">
-            L'excellence du personal training digitalisé
-          </h1>
-          <p className="text-zinc-550 dark:text-zinc-400 max-w-xl mx-auto text-sm md:text-base leading-relaxed">
-            Profitez de nos guides stratégiques et retours d'expériences concrets pour développer l'image de marque et l'efficacité de vos entraînements sportifs.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
-          {posts.map((post, idx) => (
-            <div
-              key={idx}
-              className="p-6 bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/50 rounded-3xl flex flex-col justify-between shadow-sm hover:scale-[1.01] transition-all"
-            >
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 text-[10px] text-zinc-450 dark:text-zinc-500 font-mono">
-                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {post.date}</span>
-                  <span className="flex items-center gap-1"><User className="w-3 h-3" /> {post.author}</span>
-                </div>
-                
-                <h3 className="text-base font-bold text-zinc-950 dark:text-white tracking-tight line-clamp-2">{post.title}</h3>
-                <p className="text-xs text-zinc-550 dark:text-zinc-400 leading-relaxed line-clamp-3">{post.desc}</p>
-              </div>
-
-              <div className="pt-6">
-                <Link
-                  to={`/blog/${post.slug}`}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-500 hover:text-emerald-600 transition-colors"
-                >
-                  Lire l'article <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  return <>
+    <Helmet>
+      <title>Blog Velatra — Coaching sportif, organisation et activité</title>
+      <meta name="description" content="Conseils pratiques pour coachs sportifs : suivi des adhérents, programmes, organisation et gestion d’une activité de coaching." />
+      <meta property="og:title" content="Le blog Velatra pour les coachs sportifs" />
+      <meta property="og:description" content="Des repères utiles pour mieux organiser votre activité et accompagner vos adhérents." />
+    </Helmet>
+    <main className="marketing-blog">
+      <section className="marketing-blog-header"><div className="marketing-container"><span className="marketing-kicker">LE JOURNAL VELATRA</span><h1>Des idées claires.<br /><em>Pour coacher sereinement.</em></h1><p>Guides et conseils pour organiser votre activité, structurer le suivi et accompagner vos adhérents.</p></div></section>
+      <section className="marketing-container marketing-blog-content">
+        <article className="marketing-blog-featured"><div><span className="marketing-blog-category">À LA UNE · {featured.category}</span><h2>{featured.title}</h2><p>{featured.desc}</p><div className="marketing-blog-meta"><span><CalendarDays size={13} /> {featured.date}</span><span>{featured.read} de lecture</span></div><Link to={`/blog/${featured.slug}`} className="marketing-button marketing-button-primary">Lire l’article <ArrowRight size={15} /></Link></div><div className="marketing-blog-feature-visual" aria-hidden="true"><div className="marketing-blog-paper"><span>VELATRA · CARNET DE COACH</span><i /><i /><i /><i /><b>Le suivi, en clair.</b></div><span className="marketing-blog-feature-orbit">V</span></div></article>
+        <div className="marketing-blog-toolbar"><div className="marketing-blog-categories" aria-label="Filtrer par catégorie">{categories.map((item) => <button key={item} className={category === item ? 'is-active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div><label className="marketing-blog-search"><Search size={15} /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Rechercher un article" aria-label="Rechercher un article" /></label></div>
+        <div className="marketing-blog-grid">{visiblePosts.map((post) => <article key={post.slug} className="marketing-blog-card"><span className="marketing-blog-card-mark">V<span>·</span></span><div className="marketing-blog-meta"><span>{post.category}</span><span>{post.read}</span></div><h2>{post.title}</h2><p>{post.desc}</p><div className="marketing-blog-card-bottom"><time dateTime={post.isoDate}>{post.date}</time><Link to={`/blog/${post.slug}`} aria-label={`Lire : ${post.title}`}><ArrowRight size={17} /></Link></div></article>)}</div>
+        {visiblePosts.length === 0 && <p className="marketing-blog-empty">Aucun article ne correspond à votre recherche.</p>}
+        <div className="marketing-blog-cta"><div><span className="marketing-kicker">UN ESPACE POUR VOTRE COACHING</span><h2>Vos programmes, votre suivi,<br />votre activité au même endroit.</h2></div><Link to="/register" className="marketing-button marketing-button-primary">Découvrir Velatra <ArrowRight size={15} /></Link></div>
+      </section>
+    </main>
+  </>;
 }
 export { BlogPage };
