@@ -24,6 +24,7 @@ import {
   updateDoc,
   deleteDoc,
   query,
+  or,
   where,
   getDocs,
   addDoc
@@ -130,6 +131,31 @@ export { messaging };
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 export const secondaryAuth = getAuth(secondaryApp);
 
+/** Send Firebase ID tokens with requests to our private server API. */
+export const apiFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error("Vous devez être connecté pour effectuer cette action.");
+  }
+
+  const token = await currentUser.getIdToken();
+  const headers = new Headers(init.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+
+  return fetch(input, { ...init, headers });
+};
+
+export const createMemberProfile = async (uid: string, profile: Record<string, unknown>) => {
+  const response = await apiFetch('/api/create-member-profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, profile })
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Impossible de créer le profil adhérent.");
+  return result;
+};
+
 export { 
   signInWithPopup, 
   signInWithEmailAndPassword, 
@@ -146,6 +172,7 @@ export {
   updateDoc,
   deleteDoc,
   query,
+  or,
   where,
   getDocs,
   addDoc,
