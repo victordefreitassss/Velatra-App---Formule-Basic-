@@ -1,0 +1,132 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function profilePath(uid) {
+      return /databases/(default)/documents/users/$(uid);
+    }
+
+    function profileExists() {
+      return signedIn() && firestore.exists(profilePath(request.auth.uid));
+    }
+
+    function profile() {
+      return firestore.get(profilePath(request.auth.uid)).data;
+    }
+
+    function isSuperAdmin() {
+      return profileExists() && profile().role == 'superadmin' &&
+        'email_verified' in request.auth.token && request.auth.token.email_verified == true &&
+        'email' in request.auth.token && request.auth.token.email == 'victor.defreitas.pro@gmail.com';
+    }
+
+    function staffInClub(clubId) {
+      return profileExists() && (
+        (profile().clubId == clubId && profile().role in ['owner', 'coach']) || isSuperAdmin()
+      );
+    }
+
+    function memberPath(uid) {
+      return /databases/(default)/documents/users/$(uid);
+    }
+
+    function canManageMember(memberUid) {
+      return profileExists() && firestore.exists(memberPath(memberUid)) && (
+        request.auth.uid == memberUid ||
+        (isSuperAdmin() && firestore.get(memberPath(memberUid)).data.role == 'member') ||
+        (firestore.get(memberPath(memberUid)).data.clubId == profile().clubId &&
+          (profile().role == 'owner' ||
+            (profile().role == 'coach' &&
+              firestore.get(memberPath(memberUid)).data.role == 'member' &&
+              firestore.get(memberPath(memberUid)).data.assignedCoachUid == request.auth.uid)))
+      );
+    }
+
+    function imageUpload(maxBytes) {
+      return request.resource != null && request.resource.size <= maxBytes &&
+        request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+    }
+
+    function documentUpload(maxBytes) {
+      return request.resource != null && request.resource.size <= maxBytes &&
+        request.resource.contentType in [
+          'application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'text/plain',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ];
+    }
+
+    match /avatars/{ownerUid}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if canManageMember(ownerUid) && imageUpload(5 * 1024 * 1024);
+      allow delete: if canManageMember(ownerUid);
+    }
+
+    match /users/{memberUid}/documents/{fileName} {
+      allow read: if canManageMember(memberUid);
+      allow create, update: if canManageMember(memberUid) && documentUpload(25 * 1024 * 1024);
+      allow delete: if canManageMember(memberUid);
+    }
+
+    match /contracts/{memberUid}/{fileName} {
+      allow read: if canManageMember(memberUid);
+      allow create, update: if canManageMember(memberUid) && documentUpload(25 * 1024 * 1024);
+      allow delete: if canManageMember(memberUid);
+    }
+
+    match /clubs/{clubId}/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if staffInClub(clubId) && imageUpload(5 * 1024 * 1024);
+      allow delete: if staffInClub(clubId);
+    }
+
+    match /videos/{clubId}/{uploaderUid}/{fileName} {
+      allow read: if signedIn() && (clubId == 'global' || profileExists() && profile().clubId == clubId);
+      allow create, update: if signedIn() && request.auth.uid == uploaderUid &&
+        staffInClub(clubId) && request.resource != null && request.resource.size <= 50 * 1024 * 1024 &&
+        request.resource.contentType.matches('video/.*');
+      allow delete: if signedIn() && request.auth.uid == uploaderUid && staffInClub(clubId);
+    }
+
+    match /drive/{clubId}/{uploaderUid}/{fileId}/{fileName} {
+      function driveFileExists() {
+        return firestore.exists(/databases/(default)/documents/driveFiles/$(fileId));
+      }
+
+      function driveFile() {
+        return firestore.get(/databases/(default)/documents/driveFiles/$(fileId)).data;
+      }
+
+      function canReadDriveFile() {
+        return signedIn() && profileExists() && (profile().clubId == clubId || isSuperAdmin()) && (
+          request.auth.uid == uploaderUid || staffInClub(clubId) ||
+          (driveFileExists() && driveFile().clubId == clubId &&
+            'sharedWith' in driveFile() && driveFile().sharedWith is list &&
+            driveFile().sharedWith.hasAny([profile().id]))
+        );
+      }
+
+      function canDeleteDriveFile() {
+        return signedIn() && profileExists() && (profile().clubId == clubId || isSuperAdmin()) && (
+          request.auth.uid == uploaderUid || isSuperAdmin() ||
+          (driveFileExists() && staffInClub(clubId) &&
+            (profile().role == 'owner' || driveFile().uploadedBy == profile().id))
+        );
+      }
+
+      allow read: if canReadDriveFile();
+      allow create, update: if signedIn() && request.auth.uid == uploaderUid && staffInClub(clubId) &&
+        request.resource != null && request.resource.size <= 25 * 1024 * 1024 &&
+        request.resource.contentType != null;
+      allow delete: if canDeleteDriveFile();
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

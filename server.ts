@@ -9,6 +9,8 @@ import { randomInt } from "node:crypto";
 import { validateMemberRegistration } from "./server/memberRegistration";
 import { validatePublicProspect } from "./server/prospectValidation";
 import { validatePublicContact } from "./server/contactValidation";
+import { calculateCheckInReward, parseDailyCheckInInput } from "./server/memberDailyCheckIn";
+import { parseAIConversation } from "./server/aiConversation";
 
 declare global {
   namespace Express {
@@ -595,6 +597,215 @@ app.post('/api/create-member-profile', async (req: any, res: any) => {
     }
     console.error('Error creating member profile:', error.message);
     return res.status(500).json({ error: "Impossible de créer le profil adhérent." });
+  }
+});
+
+app.get('/api/member/assigned-coach', async (req: any, res: any) => {
+  if (req.profile?.role !== 'member' || !req.profile?.clubId) {
+    return res.status(403).json({ error: "Cette action est réservée aux adhérents." });
+  }
+  const coachUid = typeof req.profile.assignedCoachUid === 'string' ? req.profile.assignedCoachUid : '';
+  if (!coachUid) return res.json({ coach: null });
+
+  try {
+    const coachSnapshot = await admin.firestore().collection('users').doc(coachUid).get();
+    const coach = coachSnapshot.data();
+    if (!coachSnapshot.exists || coach?.role !== 'coach' || coach?.clubId !== req.profile.clubId) {
+      return res.status(404).json({ error: "Le coach affecté à votre compte est introuvable." });
+    }
+    const coachId = Number(coach.id);
+    if (!Number.isSafeInteger(coachId) || coachId <= 0) {
+      return res.status(409).json({ error: "Le profil du coach n'est pas prêt pour la messagerie." });
+    }
+    return res.json({
+      coach: {
+        id: coachId,
+        clubId: req.profile.clubId,
+        firebaseUid: coachUid,
+        role: 'coach',
+        name: String(coach.name || 'Coach'),
+        avatar: String(coach.avatar || '')
+      }
+    });
+  } catch (error: any) {
+    console.error('Assigned member coach lookup failed:', { code: error?.code || 'unknown' });
+    return res.status(500).json({ error: "Impossible de charger les coordonnées de votre coach." });
+  }
+});
+
+app.get('/api/member/daily-checkin/today', async (req: any, res: any) => {
+  if (req.profile?.role !== 'member') {
+    return res.status(403).json({ error: "Cette action est réservée aux adhérents." });
+  }
+  if (!admin.apps.length) return res.status(503).json({ error: "Le suivi quotidien est temporairement indisponible." });
+
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const snapshot = await admin.firestore().collection('dailyCheckIns').doc(`${req.auth.uid}_${today}`).get();
+    if (!snapshot.exists) return res.json({ checkIn: null });
+    const data = snapshot.data() || {};
+    if (data.userUid !== req.auth.uid || data.clubId !== req.profile.clubId) {
+      return res.status(404).json({ error: "Le suivi du jour est introuvable." });
+    }
+    return res.json({
+      checkIn: {
+        date: data.date,
+        waterLitres: data.waterLitres,
+        sleepHours: data.sleepHours,
+        proteinTargetMet: data.proteinTargetMet,
+        mood: data.mood
+      }
+    });
+  } catch (error: any) {
+    console.error('Daily check-in read failed:', error?.code || 'unknown');
+    return res.status(500).json({ error: "Impossible de charger le suivi du jour." });
+  }
+});
+
+app.post('/api/member/daily-checkin', async (req: any, res: any) => {
+  if (req.profile?.role !== 'member') {
+    return res.status(403).json({ error: "Cette action est réservée aux adhérents." });
+  }
+  if (!admin.apps.length) return res.status(503).json({ error: "Le suivi quotidien est temporairement indisponible." });
+
+  const input = parseDailyCheckInInput(req.body);
+  if (!input) return res.status(400).json({ error: "Vérifiez l'eau, le sommeil, l'objectif protéines et l'humeur." });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const db = admin.firestore();
+  const profileRef = db.collection('users').doc(req.auth.uid);
+  const checkInRef = db.collection('dailyCheckIns').doc(`${req.auth.uid}_${today}`);
+  try {
+    const result = await db.runTransaction(async (transaction) => {
+      const [profileSnapshot, checkInSnapshot] = await Promise.all([
+        transaction.get(profileRef),
+        transaction.get(checkInRef)
+      ]);
+      if (!profileSnapshot.exists || profileSnapshot.data()?.role !== 'member' || profileSnapshot.data()?.clubId !== req.profile.clubId) {
+        throw new Error('MEMBER_PROFILE_CHANGED');
+      }
+      if (checkInSnapshot.exists) {
+        const existing = checkInSnapshot.data() || {};
+        return {
+          alreadyCompleted: true,
+          checkIn: {
+            date: today,
+            waterLitres: existing.waterLitres,
+            sleepHours: existing.sleepHours,
+            proteinTargetMet: existing.proteinTargetMet,
+            mood: existing.mood
+          },
+          xp: Number(profileSnapshot.data()?.xp) || 0,
+          streak: Number(profileSnapshot.data()?.streak) || 0
+        };
+      }
+
+      const profile = profileSnapshot.data() || {};
+      const reward = calculateCheckInReward(profile, today);
+      const checkIn = {
+        userUid: req.auth.uid,
+        memberId: profile.id,
+        clubId: profile.clubId,
+        ...(typeof profile.assignedCoachUid === 'string' ? { assignedCoachUid: profile.assignedCoachUid } : {}),
+        date: today,
+        ...input,
+        createdAt: new Date().toISOString()
+      };
+      transaction.create(checkInRef, checkIn);
+      transaction.update(profileRef, reward);
+      return { alreadyCompleted: false, checkIn, xp: reward.xp, streak: reward.streak };
+    });
+    return res.json({ success: true, ...result });
+  } catch (error: any) {
+    if (error?.message === 'MEMBER_PROFILE_CHANGED') {
+      return res.status(409).json({ error: "Le profil adhérent a changé. Rechargez l'application." });
+    }
+    console.error('Daily check-in save failed:', error?.code || 'unknown');
+    return res.status(500).json({ error: "Impossible d'enregistrer le suivi du jour." });
+  }
+});
+
+async function resolveAIConversationScope(req: any, rawMemberId: unknown) {
+  const role = req.profile?.role;
+  const uid = req.auth?.uid;
+  if (!uid || !['member', 'coach', 'owner', 'superadmin'].includes(role)) {
+    return { error: "L'assistant IA n'est pas disponible pour ce profil.", status: 403 } as const;
+  }
+
+  if (rawMemberId == null || rawMemberId === '') {
+    return { ownerUid: uid, clubId: req.profile.clubId, role, memberId: null, key: `${uid}_general` } as const;
+  }
+  if (!['coach', 'owner', 'superadmin'].includes(role)) {
+    return { error: "Vous ne pouvez pas ouvrir une conversation au nom d'un adhérent.", status: 403 } as const;
+  }
+  const memberId = Number(rawMemberId);
+  if (!Number.isSafeInteger(memberId) || memberId <= 0) {
+    return { error: "Adhérent invalide.", status: 400 } as const;
+  }
+
+  const memberSnapshot = await admin.firestore().collection('users').where('id', '==', memberId).limit(1).get();
+  const member = memberSnapshot.docs[0]?.data();
+  if (!member || member.role !== 'member' || member.clubId !== req.profile.clubId) {
+    return { error: "Cet adhérent n'est pas accessible dans votre club.", status: 404 } as const;
+  }
+  if (role === 'coach' && member.assignedCoachUid !== uid) {
+    return { error: "Cet adhérent ne vous est pas affecté.", status: 403 } as const;
+  }
+  return { ownerUid: uid, clubId: req.profile.clubId, role, memberId, key: `${uid}_${memberId}` } as const;
+}
+
+app.get('/api/ai/conversation', async (req: any, res: any) => {
+  try {
+    const scope = await resolveAIConversationScope(req, req.query.memberId);
+    if ('error' in scope) return res.status(scope.status).json({ error: scope.error });
+    const snapshot = await admin.firestore().collection('aiConversations').doc(scope.key).get();
+    if (!snapshot.exists) return res.json({ messages: [] });
+    const data = snapshot.data() || {};
+    if (data.ownerUid !== scope.ownerUid || data.clubId !== scope.clubId || data.memberId !== scope.memberId) {
+      return res.json({ messages: [] });
+    }
+    return res.json({ messages: parseAIConversation(data.messages) || [] });
+  } catch (error: any) {
+    console.error('AI conversation read failed:', error?.code || 'unknown');
+    return res.status(500).json({ error: "Impossible de charger l'historique IA." });
+  }
+});
+
+app.put('/api/ai/conversation', async (req: any, res: any) => {
+  try {
+    const scope = await resolveAIConversationScope(req, req.body?.memberId);
+    if ('error' in scope) return res.status(scope.status).json({ error: scope.error });
+    const messages = parseAIConversation(req.body?.messages);
+    if (!messages) return res.status(400).json({ error: "L'historique de conversation est invalide ou trop volumineux." });
+    await admin.firestore().collection('aiConversations').doc(scope.key).set({
+      ownerUid: scope.ownerUid,
+      clubId: scope.clubId,
+      role: scope.role,
+      memberId: scope.memberId,
+      messages,
+      updatedAt: new Date().toISOString()
+    });
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error('AI conversation save failed:', error?.code || 'unknown');
+    return res.status(500).json({ error: "Impossible d'enregistrer l'historique IA." });
+  }
+});
+
+app.delete('/api/ai/conversation', async (req: any, res: any) => {
+  try {
+    const scope = await resolveAIConversationScope(req, req.query.memberId);
+    if ('error' in scope) return res.status(scope.status).json({ error: scope.error });
+    const reference = admin.firestore().collection('aiConversations').doc(scope.key);
+    const snapshot = await reference.get();
+    const data = snapshot.data();
+    if (snapshot.exists && data?.ownerUid === scope.ownerUid && data?.clubId === scope.clubId && data?.memberId === scope.memberId) {
+      await reference.delete();
+    }
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error('AI conversation delete failed:', error?.code || 'unknown');
+    return res.status(500).json({ error: "Impossible d'effacer l'historique IA." });
   }
 });
 

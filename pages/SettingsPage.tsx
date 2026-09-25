@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AppState, Plan } from '../types';
 import { Card, Button, Input } from '../components/UI';
 import { SettingsIcon, SaveIcon, PlusIcon, Edit2Icon, Trash2Icon, CheckIcon, XIcon, TargetIcon } from '../components/Icons';
-import { apiFetch, db, doc, updateDoc, setDoc, deleteDoc, storage } from '../firebase';
+import { apiFetch, db, doc, updateDoc, setDoc, deleteDoc, getStorageClient } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ExercisesPage } from './ExercisesPage';
 
@@ -388,6 +388,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                     if (file && state.currentClub) {
                       try {
                         showToast("Téléchargement du logo...", "success");
+                        const storage = await getStorageClient();
                         const logoRef = ref(storage, `clubs/${state.currentClub.id}/logo_${Date.now()}`);
                         await uploadBytes(logoRef, file);
                         const url = await getDownloadURL(logoRef);

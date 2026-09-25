@@ -14,7 +14,7 @@ export default function SolutionsPage() {
       desc: "Idéal pour piloter l'entraînement de 5 à 40 athlètes à distance ou à domicile. Centralisez vos plans d'exercices, simplifiez vos diagnostics de nutrition et protégez votre temps précieux.",
       problem: "Perdre 12 heures par semaine à envoyer des fichiers PDF sur WhatsApp, courir après les virement bancaires manuels, et mélanger sa vie privée de sa vie pro.",
       solution: "Un espace client mobile autonome où l'athlète consigne ses charges, accède à ses séances vidéo illustrées de saison, et règle son abonnement Stripe récurrent.",
-      metrics: "98% d'élèves satisfaits • +4h de temps libre par jour",
+      metrics: "Programmes centralisés • Suivi des progrès au même endroit",
       features: [
         "Création de fiches d'exercices en 3 clics",
         "Modèles de nutrition & calories clonables",
@@ -28,7 +28,7 @@ export default function SolutionsPage() {
       desc: "Simplifiez le contrôle d'accès et l'agenda de réservation de vos séances en petit groupe. Donnez une image de marque d'élite pour fidéliser vos adhérents sur le long terme.",
       problem: "Les clients qui annulent à la dernière minute par SMS, les conflits d'horaires sur les créneaux, et l'impossibilité de limiter la capacité de matériel.",
       solution: "Un planificateur réactif intelligent où le membre réserve sa place en 3 secondes. Les annulations tardives sont créditées automatiquement suivant vos règles de studio.",
-      metrics: "0 conflit d'agenda • Rétention d'élèves doublée",
+      metrics: "Réservations regroupées • Créneaux et capacités visibles",
       features: [
         "Verrous de capacité par créneau de coaching",
         "Gestion d'absence automatique paramétrable",
@@ -42,7 +42,7 @@ export default function SolutionsPage() {
       desc: "Gérez vos WODs collectifs de haute intensité. Donnez vos instructions de séances quotidiennes et permettez à vos athlètes de comparer leurs performances en direct.",
       problem: "Difficulté de suivre la régularité physique de dizaines de membres, matériels surchargés, et comptabilisation artisanale des forfaits de crédits de séances.",
       solution: "Une interface communautaire d'unification avec consignation de rep-max de référence (Squat, Snatch, Handstand) et des dashboards d'occupation horaire réels.",
-      metrics: "Trésorerie garantie à 100% • Surcharges résolues",
+      metrics: "Séances et résultats regroupés • Suivi des forfaits",
       features: [
         "Calculateur automatique du niveau de force athlète",
         "Tableau de score pour les records de référence du club",
@@ -56,7 +56,7 @@ export default function SolutionsPage() {
       desc: "Automatisez la comptabilité de vos centaines d'élèves, contrôlez les transactions Stripe en temps réel, et harmonisez le travail de votre équipe multi-coachs.",
       problem: "Paiements rejetés non contestés, manque de visibilité sur les performances de chaque coach externe, et données sensibles éparpillées.",
       solution: "Un centre de contrôle de super-administration sécurisé. Droits restreints par collaborateur, alertes de paiement automatique Stripe, et graphiques de marge brute.",
-      metrics: "+35% profits compta • Migration fichiers incluse",
+      metrics: "Gestion multi-activités • Documents partagés avec contrôle d'accès",
       features: [
         "Portails multi-coachs aux droits d'accès étanches",
         "CRM prospects connecté pour capturer de nouveaux leads",

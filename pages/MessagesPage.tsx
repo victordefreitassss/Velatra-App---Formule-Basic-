@@ -1,9 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { AppState, Message } from '../types';
+import { AppState, Message, User } from '../types';
 import { Card, Button, Input, Textarea } from '../components/UI';
 import { MessageCircleIcon, PlusIcon, ChevronLeftIcon, FileIcon, DownloadIcon } from '../components/Icons';
-import { db, doc, setDoc, addDoc, collection, updateDoc } from '../firebase';
+import { apiFetch, db, doc, setDoc, addDoc, collection, updateDoc } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast: any, embedded?: boolean }> = ({ state, setState, showToast, embedded }) => {
@@ -13,13 +13,44 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
   const [searchContact, setSearchContact] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const user = state.user!;
+  const [memberCoach, setMemberCoach] = useState<User | null>(null);
+  const [memberCoachLoading, setMemberCoachLoading] = useState(user.role === 'member');
+  const [memberCoachError, setMemberCoachError] = useState<string | null>(null);
 
-  // Pour le coach : selectionner un destinataire
+  // A member can only message the coach explicitly assigned to their account.
   const [selectedDest, setSelectedDest] = useState<number | null>(user.role === 'member' ? (state.users.find(u => u.role === 'coach' || u.role === 'owner')?.id || null) : null);
+
+  useEffect(() => {
+    if (user.role !== 'member') return;
+    let active = true;
+    setMemberCoachLoading(true);
+    apiFetch('/api/member/assigned-coach')
+      .then(async response => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Impossible de charger votre coach.");
+        if (!active) return;
+        if (result.coach) {
+          const coach = result.coach as User;
+          setMemberCoach(coach);
+          setSelectedDest(Number(coach.id));
+        } else {
+          setMemberCoach(null);
+          setSelectedDest(null);
+        }
+      })
+      .catch(error => {
+        if (!active) return;
+        setMemberCoachError(error instanceof Error ? error.message : "Impossible de charger votre coach.");
+      })
+      .finally(() => {
+        if (active) setMemberCoachLoading(false);
+      });
+    return () => { active = false; };
+  }, [user.role, user.firebaseUid]);
 
   const contacts = (user.role === 'coach' || user.role === 'owner') 
     ? state.users.filter(u => u.role === 'member' && u.name.toLowerCase().includes(searchContact.toLowerCase())) 
-    : state.users.filter(u => u.role === 'coach' || u.role === 'owner');
+    : memberCoach ? [memberCoach] : [];
 
   const thread = state.messages.filter(m => 
     (m.from === user.id && m.to === selectedDest) || 
@@ -43,12 +74,36 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
     }
   }, [thread, user.id]);
 
+  if (user.role === 'member' && memberCoachLoading) {
+    return <div className="flex min-h-64 items-center justify-center text-sm text-zinc-500">Chargement de votre coach…</div>;
+  }
+
+  if (user.role === 'member' && !memberCoach) {
+    return (
+      <div className="flex min-h-64 items-center justify-center p-6">
+        <div className="max-w-md rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm">
+          <MessageCircleIcon size={28} className="mx-auto mb-3 text-emerald-600" />
+          <h2 className="font-display text-xl font-semibold text-zinc-900">Votre coach n’est pas encore affecté</h2>
+          <p className="mt-2 text-sm text-zinc-600">
+            {memberCoachError || "Demandez au responsable du club de vous affecter un coach pour démarrer une conversation."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const sendMessage = async () => {
     if ((!text && !fileData) || !selectedDest) return;
     const messageId = Date.now().toString();
+    const assignedCoachUid = user.role === 'member'
+      ? memberCoach?.firebaseUid
+      : user.role === 'coach'
+        ? user.firebaseUid
+        : state.users.find(contact => contact.id === selectedDest)?.assignedCoachUid;
     const newMessage: Message = {
       id: Date.now(),
       clubId: user.clubId,
+      ...(assignedCoachUid ? { assignedCoachUid } : {}),
       from: user.id,
       to: selectedDest,
       text: text || (fileData ? "Fichier joint" : ""),
@@ -60,17 +115,21 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
     try {
       await setDoc(doc(db, "messages", messageId), newMessage);
       
-      // Create notification for the recipient
-      await addDoc(collection(db, 'notifications'), {
-        clubId: user.clubId,
-        userId: selectedDest,
-        title: 'Nouveau message',
-        message: `Vous avez reçu un nouveau message de ${user.name}.`,
-        type: 'info',
-        read: false,
-        createdAt: new Date().toISOString(),
-        link: 'messages'
-      });
+      // Staff can create a recipient notification for an assigned member.
+      // Member messages remain private and are delivered by the message listener.
+      if (user.role !== 'member') {
+        await addDoc(collection(db, 'notifications'), {
+          clubId: user.clubId,
+          ...(assignedCoachUid ? { assignedCoachUid } : {}),
+          userId: selectedDest,
+          title: 'Nouveau message',
+          message: `Vous avez reçu un nouveau message de ${user.name}.`,
+          type: 'info',
+          read: false,
+          createdAt: new Date().toISOString(),
+          link: 'messages'
+        });
+      }
 
       setText("");
       setFileData(null);

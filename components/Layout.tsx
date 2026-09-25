@@ -33,12 +33,12 @@ const AppLogo: React.FC<{ club: Club | null, user: User, effectiveRole: string }
       <div className="w-10 h-10 rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.1)] overflow-hidden flex items-center justify-center shrink-0 bg-white">
         <img src="https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png" alt="Velatra Logo" className="w-full h-full object-contain scale-[1.4]" />
       </div>
-      <div className="font-display font-bold text-3xl tracking-tight leading-none text-zinc-900 truncate max-w-[180px]">
+      <div className="font-display font-bold text-2xl tracking-tight leading-none text-zinc-900 truncate max-w-[180px]">
         VELA<span className="text-emerald-500">TRA</span>
       </div>
     </div>
-    <div className="text-[10px] tracking-[2px] text-zinc-500 font-bold uppercase mt-1 pl-12 opacity-80">
-      APPLICATION NUMÉRO 1
+    <div className="text-[10px] tracking-[1.2px] text-zinc-500 font-semibold uppercase mt-1 pl-12">
+      SPORT · NUTRITION · SUIVI
     </div>
     {club && (effectiveRole === 'coach' || effectiveRole === 'owner') && (
       <div className="mt-4 p-3 bg-white border border-zinc-200 rounded-xl backdrop-blur-sm">
@@ -72,35 +72,35 @@ export const Layout: React.FC<LayoutProps> = ({
   const coachItems = React.useMemo(() => {
     return [
       { id: 'home', icon: HomeIcon, label: 'Accueil' },
-      { id: 'users', icon: UsersIcon, label: 'Membres', category: '👥 Suivi des Athlètes' },
-      { id: 'coaching', icon: ActivityIcon, label: 'Coaching', category: '🏋️ Contenus & Modèles' },
-      { id: 'chat', icon: MessageCircleIcon, label: 'Discussion', category: '👥 Suivi des Athlètes' },
-      ...(planningEnabled ? [{ id: 'calendar', icon: CalendarIcon, label: 'Planning des Cours', category: '👥 Suivi des Athlètes' }] : []),
-      { id: 'presets', icon: LayersIcon, label: "Programme", category: '🏋️ Contenus & Modèles' },
-      { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: '🏋️ Contenus & Modèles' },
-      { id: 'drive', icon: FolderIcon, label: 'Documents', category: '🏋️ Contenus & Modèles' },
-      { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances & Ventes', category: '💼 CRM & Comptabilité' },
-      { id: 'crm_pipeline', icon: TargetIcon, label: 'Tunnels de Ventes', category: '💼 CRM & Comptabilité' },
-      { id: 'marketing', icon: MegaphoneIcon, label: 'Marketing Auto', category: '💼 CRM & Comptabilité' },
-      { id: 'guide', icon: InfoIcon, label: 'Guides Vidéos', category: '⚙️ Configuration & Aide' },
-      { id: 'about', icon: InfoIcon, label: 'Fiche du Club', category: '⚙️ Configuration & Aide' },
-      { id: 'settings', icon: SettingsIcon, label: 'Paramètres Club', category: '⚙️ Configuration & Aide' },
+      { id: 'users', icon: UsersIcon, label: 'Membres', category: 'Suivi des adhérents' },
+      { id: 'coaching', icon: ActivityIcon, label: 'Coaching', category: 'Programmes & ressources' },
+      { id: 'chat', icon: MessageCircleIcon, label: 'Messages', category: 'Suivi des adhérents' },
+      ...(planningEnabled ? [{ id: 'calendar', icon: CalendarIcon, label: 'Planning des cours', category: 'Suivi des adhérents' }] : []),
+      { id: 'presets', icon: LayersIcon, label: 'Programmes', category: 'Programmes & ressources' },
+      { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Programmes & ressources' },
+      { id: 'drive', icon: FolderIcon, label: 'Documents', category: 'Programmes & ressources' },
+      { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances', category: 'Gestion du club' },
+      { id: 'crm_pipeline', icon: TargetIcon, label: 'Prospects', category: 'Gestion du club' },
+      { id: 'marketing', icon: MegaphoneIcon, label: 'Marketing', category: 'Gestion du club' },
+      { id: 'guide', icon: InfoIcon, label: 'Guides vidéo', category: 'Réglages & aide' },
+      { id: 'about', icon: InfoIcon, label: 'Fiche du club', category: 'Réglages & aide' },
+      { id: 'settings', icon: SettingsIcon, label: 'Paramètres', category: 'Réglages & aide' },
     ];
   }, [planningEnabled]);
 
   const memberItems = React.useMemo(() => {
     return [
       { id: 'home', icon: HomeIcon, label: 'Mon Espace' },
-      { id: 'ai_coach', icon: MessageCircleIcon, label: 'Coach Sportif IA', category: '📂 Mon Espace Personnel' },
-      { id: 'calendar', icon: DumbbellIcon, label: 'Lancer ma Séance', category: '💪 Entraînement & Logs' },
-      ...(planningEnabled ? [{ id: 'planning', icon: CalendarIcon, label: 'Réserver un cours', category: '💪 Entraînement & Logs' }] : []),
-      { id: 'performances', icon: BarChartIcon, label: 'Mes Records (PR)', category: '💪 Entraînement & Logs' },
-      { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: '🥗 Nutrition & Boutique' },
-      { id: 'drive', icon: FolderIcon, label: 'Documents', category: '📂 Mon Espace Personnel' },
-      { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique Shaker', category: '🥗 Nutrition & Boutique' },
-      { id: 'evolution', icon: ImageIcon, label: 'Photos Évolution', category: '💪 Entraînement & Logs' },
-      { id: 'profile', icon: UserIcon, label: 'Mes Objectifs', category: '📂 Mon Espace Personnel' },
-      { id: 'about', icon: InfoIcon, label: 'Infos du Club', category: '📂 Mon Espace Personnel' },
+      { id: 'ai_coach', icon: MessageCircleIcon, label: 'Coach IA', category: 'Mon espace' },
+      { id: 'calendar', icon: DumbbellIcon, label: 'Mes séances', category: 'Entraînement' },
+      ...(planningEnabled ? [{ id: 'planning', icon: CalendarIcon, label: 'Réserver un cours', category: 'Entraînement' }] : []),
+      { id: 'performances', icon: BarChartIcon, label: 'Mes performances', category: 'Entraînement' },
+      { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Nutrition' },
+      { id: 'drive', icon: FolderIcon, label: 'Documents', category: 'Mon espace' },
+      { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', category: 'Nutrition' },
+      { id: 'evolution', icon: ImageIcon, label: 'Mon évolution', category: 'Entraînement' },
+      { id: 'profile', icon: UserIcon, label: 'Mes objectifs', category: 'Mon espace' },
+      { id: 'about', icon: InfoIcon, label: 'Infos du club', category: 'Mon espace' },
     ];
   }, [planningEnabled]);
 
@@ -264,6 +264,10 @@ export const Layout: React.FC<LayoutProps> = ({
 
   const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({});
 
+  React.useEffect(() => {
+    setExpandedCategories(Object.fromEntries(Object.keys(groupedItems).map(category => [category, true])));
+  }, [groupedItems]);
+
   const toggleCategory = (cat: string) => {
     setExpandedCategories(prev => ({
       ...prev,
@@ -288,7 +292,7 @@ export const Layout: React.FC<LayoutProps> = ({
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-transparent">
       {/* Sidebar Desktop */}
-      <aside className="hidden md:flex flex-col w-[240px] lg:w-[280px] bg-white/80 backdrop-blur-xl border-r border-zinc-200 h-screen fixed left-0 top-0 py-10 lg:py-12 px-4 lg:px-6 z-40 shadow-2xl">
+      <aside className="hidden md:flex flex-col w-64 bg-white border-r border-zinc-200 h-screen fixed left-0 top-0 py-7 px-4 z-40 shadow-sm">
         <div className="mb-6 px-4">
            <AppLogo club={club} user={user} effectiveRole={effectiveRole} />
         </div>
@@ -296,7 +300,7 @@ export const Layout: React.FC<LayoutProps> = ({
         {/* Super Admin Perspective switcher */}
         {isReallySuperAdmin && onChangePerspective && (
           <div className="px-4 mb-6">
-            <div className="p-3 bg-zinc-950 text-white rounded-2xl border border-zinc-850 shadow-xl relative overflow-hidden backdrop-blur-md">
+            <div className="p-3 bg-zinc-950 text-white rounded-2xl border border-zinc-800 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-2xl"></div>
               
               <div className="text-[10px] font-black uppercase tracking-wider text-emerald-400 mb-2.5 flex items-center gap-1.5 z-10 relative">
@@ -348,18 +352,18 @@ export const Layout: React.FC<LayoutProps> = ({
           <button 
             type="button"
             onClick={() => setShowCommandPalette(true)}
-            className="flex items-center justify-between w-full px-4 py-3 bg-zinc-50 border border-zinc-200 hover:border-zinc-300 rounded-2xl text-left text-zinc-400 hover:text-zinc-500 transition-all text-xs font-bold shadow-inner"
+            className="flex items-center justify-between w-full px-3.5 py-2.5 bg-zinc-50 border border-zinc-200 hover:border-zinc-300 rounded-xl text-left text-zinc-500 hover:text-zinc-800 transition-all text-sm font-medium"
           >
-            <span className="flex items-center gap-2 uppercase tracking-wider text-[9px] font-black">
+            <span className="flex items-center gap-2">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-zinc-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
               Rechercher...
             </span>
-            <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-[8px] font-black tracking-widest text-zinc-400 bg-zinc-200 border border-zinc-350 rounded-lg">⌘K</kbd>
+            <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 bg-white border border-zinc-200 rounded-md">⌘K</kbd>
           </button>
         </div>
 
         
-        <nav className="flex-1 space-y-4 overflow-y-auto no-scrollbar px-2 pb-6">
+        <nav className="flex-1 space-y-3 overflow-y-auto no-scrollbar px-1 pb-6">
           {/* Top Level Items */}
           {topLevelItems.length > 0 && (
             <div className="space-y-1">
@@ -383,7 +387,7 @@ export const Layout: React.FC<LayoutProps> = ({
                     )}
                     <div className="flex items-center gap-3 relative z-10">
                       <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-emerald-600' : 'group-hover:scale-110 transition-transform duration-300'} />
-                      <span className="text-[11px] font-black uppercase tracking-[1.5px]">{item.label}</span>
+                      <span className="text-sm font-semibold">{item.label}</span>
                       {item.id === 'chat' && unreadMessagesCount > 0 && (
                         <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
                       )}
@@ -411,12 +415,12 @@ export const Layout: React.FC<LayoutProps> = ({
                   type="button"
                   onClick={() => toggleCategory(category)}
                   className={`flex items-center justify-between w-full px-4 py-2.5 rounded-xl transition-all outline-none select-none ${
-                    hasActiveItem 
-                      ? 'bg-zinc-100/70 border border-zinc-200/50 text-zinc-900 font-extrabold shadow-sm' 
-                      : 'text-zinc-400 hover:text-zinc-600'
+                    hasActiveItem
+                      ? 'text-emerald-700 font-semibold'
+                      : 'text-zinc-500 hover:text-zinc-800'
                   }`}
                 >
-                  <span className={`text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 ${hasActiveItem ? 'text-emerald-600' : ''}`}>
+                  <span className="text-xs font-semibold flex items-center gap-1.5">
                     {category}
                   </span>
                   <svg 
@@ -461,8 +465,8 @@ export const Layout: React.FC<LayoutProps> = ({
                               />
                             )}
                             <div className="flex items-center gap-3 relative z-10 pl-2">
-                              <item.icon size={16} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-emerald-600' : 'group-hover:scale-110 transition-transform duration-300 text-zinc-400 group-hover:text-zinc-605'} />
-                              <span className="text-[11px] font-black uppercase tracking-[1.5px] truncate max-w-[170px]">{item.label}</span>
+                              <item.icon size={16} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-emerald-600' : 'group-hover:scale-110 transition-transform duration-300 text-zinc-400 group-hover:text-zinc-600'} />
+                              <span className="text-[13px] font-medium truncate max-w-[170px]">{item.label}</span>
                               {item.id === 'chat' && unreadMessagesCount > 0 && (
                                 <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
                               )}
@@ -488,11 +492,11 @@ export const Layout: React.FC<LayoutProps> = ({
               onClick={() => setShowTimer(!showTimer)}
               className={`
                 flex items-center gap-3 px-4 py-3 rounded-xl w-full transition-all duration-300 group
-                ${showTimer ? 'bg-zinc-100 text-zinc-900 shadow-inner' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}
+                ${showTimer ? 'bg-emerald-50 text-emerald-800' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}
               `}
             >
               <TimerIcon size={18} className="group-hover:rotate-12 transition-transform duration-300" />
-              <span className="text-[11px] font-bold uppercase tracking-[1.5px]">Timer</span>
+              <span className="text-sm font-medium">Chronomètre</span>
             </button>
           </div>
         </nav>
@@ -500,13 +504,13 @@ export const Layout: React.FC<LayoutProps> = ({
         <div className="px-2">
           <button onClick={onLogout} className="mt-4 flex items-center gap-3 px-4 py-3 rounded-xl w-full text-zinc-500 hover:text-red-500 transition-all hover:bg-red-50 group">
             <LogOutIcon size={18} className="group-hover:translate-x-1 transition-transform duration-300" />
-            <span className="text-[11px] font-bold uppercase tracking-[1.5px]">Quitter</span>
+            <span className="text-sm font-medium">Se déconnecter</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 md:ml-[240px] lg:ml-[280px] min-h-screen relative overflow-hidden">
+      <main className="flex-1 md:ml-64 min-h-screen relative overflow-hidden">
         
         {/* Dynamic Platform Banners */}
         {visibleAnnouncements.length > 0 && (
@@ -516,7 +520,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 let textCol = 'text-teal-950';
                 let bgCol = 'bg-teal-50/90 border-teal-200 backdrop-blur';
                 let iconCol = 'text-teal-600';
-                let accentCol = 'border-teal-305';
+                let accentCol = 'border-teal-200';
                 
                 if (ann.category === 'critical') {
                   textCol = 'text-red-950';
@@ -593,7 +597,7 @@ export const Layout: React.FC<LayoutProps> = ({
             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
             exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="px-3 py-4 md:p-12 max-w-none pb-32 md:pb-12 w-full"
+            className="px-4 py-5 md:px-9 md:py-8 max-w-none pb-32 md:pb-10 w-full"
           >
             {children}
           </motion.div>
@@ -614,12 +618,16 @@ export const Layout: React.FC<LayoutProps> = ({
         )}
 
         {/* Mobile Navigation Tab Bar */}
-        <nav className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 w-[92%] h-16 bg-white/85 backdrop-blur-xl border border-zinc-200 rounded-full flex items-center justify-around z-50 px-4 shadow-xl shadow-zinc-350/15">
+        <nav aria-label="Navigation principale" className="md:hidden fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-md h-16 bg-white/95 backdrop-blur-xl border border-zinc-200 rounded-2xl flex items-center justify-around z-50 px-3 shadow-lg shadow-zinc-900/10">
           {menuItems.slice(0, 4).map(item => {
             const isActive = activePage === item.id;
             return (
               <button 
                 key={item.id}
+                type="button"
+                aria-label={item.label}
+                aria-current={isActive ? 'page' : undefined}
+                title={item.label}
                 onClick={() => {
                   onPageChange(item.id as Page);
                   setShowMobileMenu(false);
@@ -647,6 +655,9 @@ export const Layout: React.FC<LayoutProps> = ({
           })}
           
           <button 
+            type="button"
+            aria-label={showMobileMenu ? 'Fermer le menu' : 'Ouvrir le menu'}
+            aria-expanded={showMobileMenu}
             onClick={() => setShowMobileMenu(!showMobileMenu)}
             className={`relative flex items-center justify-center w-11 h-11 rounded-full transition-all duration-300 ${showMobileMenu ? 'text-emerald-950 scale-110' : 'text-zinc-500 hover:text-zinc-900'}`}
           >

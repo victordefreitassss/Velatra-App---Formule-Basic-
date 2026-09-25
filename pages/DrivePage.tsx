@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { AppState, DriveFile, DriveFolder } from '../types';
 import { FolderIcon, DownloadIcon, PlusIcon, FileIcon, Trash2Icon, ShareIcon, EyeIcon, ArrowLeftIcon, UploadIcon, XIcon } from '../components/Icons';
 import { Button, Input } from '../components/UI';
-import { db, storage } from '../firebase';
+import { auth, db, getStorageClient } from '../firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { addDoc, setDoc, updateDoc } from '../firebase';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -82,11 +82,12 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
 
     const totalFiles = files.length;
     const fileProgresses = new Array(totalFiles).fill(0);
+    const storage = await getStorageClient();
 
     const uploadPromises = Array.from(files).map((file, index) => {
       return new Promise<void>((resolve, reject) => {
         const fileId = doc(collection(db, 'driveFiles')).id;
-        const storageRef = ref(storage, `drive/${state.currentClub!.id}/${fileId}_${file.name}`);
+        const storageRef = ref(storage, `drive/${state.currentClub!.id}/${auth.currentUser!.uid}/${fileId}/${file.name}`);
         
         const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -173,6 +174,7 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
     if (!file) return;
 
     try {
+      const storage = await getStorageClient();
       const storageRef = ref(storage, file.path);
       await deleteObject(storageRef);
       await deleteDoc(doc(db, 'driveFiles', file.id));

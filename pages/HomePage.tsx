@@ -7,41 +7,6 @@ import {
   Check, ChevronDown, RefreshCw, BarChart4, Compass, Award, FileText
 } from 'lucide-react';
 
-// STATS SECTION
-const StatsSection = () => {
-  const stats = [
-    { value: '+15h', label: 'Gagnées par semaine', desc: 'Grâce aux automatisations et au planning en un clic' },
-    { value: '-45%', label: 'Coûts administratifs', desc: 'Remplacement de 5 outils différents par une solution d’élite' },
-    { value: 'x2.4', label: 'Taux de rétention', desc: 'Des clients plus impliqués grâce au suivi de performance autonome' },
-    { value: '98%', label: 'Des coachs satisfaits', desc: 'Recommandent Velatra pour la gestion de leur activité pro' }
-  ];
-
-  return (
-    <section className="py-20 relative bg-zinc-50/50 dark:bg-zinc-900/20">
-      <div className="max-w-5xl mx-auto px-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {stats.map((stat, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 15 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: idx * 0.1, duration: 0.5 }}
-              className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200/55 dark:border-zinc-800/50 shadow-md group hover:border-emerald-500/20 transition-all hover:shadow-lg"
-            >
-              <div className="text-3xl md:text-4xl font-display font-black text-emerald-500 dark:text-emerald-450 mb-2">
-                {stat.value}
-              </div>
-              <h4 className="text-sm font-bold text-zinc-900 dark:text-white tracking-tight">{stat.label}</h4>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-relaxed">{stat.desc}</p>
-            </motion.div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-};
-
 // BEFORE / AFTER SLIDER SECTION
 const BeforeAfterSection = () => {
   return (
@@ -111,12 +76,12 @@ const BeforeAfterSection = () => {
                 </li>
                 <li className="flex items-start gap-2.5">
                   <span className="text-emerald-500 font-bold mt-0.5">✓</span>
-                  <span>Paiements automatisés par Stripe (zéro chèque sans provision)</span>
+                  <span>Suivi des paiements et liens Stripe selon votre configuration</span>
                 </li>
               </ul>
             </div>
             <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
-              Résultat : Une image de marque d’élite et 100% de temps dédié à vos athlètes.
+              Résultat : Une image de marque professionnelle et plus de temps pour accompagner vos athlètes.
             </div>
           </div>
         </div>
