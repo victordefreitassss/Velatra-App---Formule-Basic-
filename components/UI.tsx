@@ -6,7 +6,7 @@ import { LockIcon } from './Icons';
 export const Card: React.FC<{ children: React.ReactNode, className?: string, onClick?: () => void }> = ({ children, className = "", onClick }) => (
   <div 
     onClick={onClick}
-    className={`glass-card rounded-3xl p-6 transition-all duration-500 ${className} ${onClick ? 'cursor-pointer hover:border-emerald-500/40 hover:shadow-[0_0_40px_-15px_rgba(16,185,129,0.3)] hover:-translate-y-1 active:scale-[0.98]' : ''}`}
+    className={`glass-card rounded-2xl p-5 transition-all duration-200 ${className} ${onClick ? 'cursor-pointer hover:border-emerald-500/40 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99]' : ''}`}
   >
     {children}
   </div>
@@ -23,7 +23,7 @@ export const StatBox: React.FC<{ label: string, value: string | number, classNam
       </div>
     )}
     {icon && <div className="text-emerald-500 mb-3 opacity-90">{icon}</div>}
-    <span className="text-[10px] uppercase tracking-[3px] font-black text-zinc-500 mb-1">{label}</span>
+    <span className="text-xs uppercase tracking-[1.2px] font-semibold text-zinc-500 mb-1">{label}</span>
     <span className={`text-3xl font-display font-black text-zinc-900 tracking-tight ${locked ? 'opacity-20 blur-[2px]' : ''}`}>{value}</span>
   </div>
 );
@@ -33,7 +33,7 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
   fullWidth?: boolean
 }> = ({ children, variant = 'primary', className = "", fullWidth, ...props }) => {
   const variants = {
-    primary: 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-zinc-900 shadow-md hover:shadow-lg border border-transparent',
+    primary: 'bg-emerald-500 hover:bg-emerald-600 text-zinc-950 shadow-sm hover:shadow-md border border-transparent',
     secondary: 'bg-white text-zinc-900 border border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300',
     danger: 'bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 hover:border-red-500/40',
     success: 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/40',
@@ -46,8 +46,8 @@ export const Button: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
     <button 
       {...props}
       className={`
-        px-3 sm:px-6 py-3 sm:py-4 rounded-2xl font-black text-[10px] sm:text-[13px] tracking-wider sm:tracking-widest uppercase
-        flex items-center justify-center text-center transition-all duration-300 ease-out
+        px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl font-semibold text-xs sm:text-sm tracking-normal
+        flex items-center justify-center text-center transition-all duration-200 ease-out
         disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.99]
         ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className}
       `}

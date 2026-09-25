@@ -5,7 +5,7 @@ import { Card, StatBox, Button, Badge, Input } from './UI';
 import { getLevel, formatDate } from '../utils';
 import { CalendarIcon, RefreshCwIcon, TargetIcon, BarChartIcon, TrophyIcon, FlameIcon, SparklesIcon, MessageCircleIcon, ShoppingCartIcon, GiftIcon, MegaphoneIcon, BotIcon, SendIcon } from './Icons';
 import { BodyHeatmap } from './BodyHeatmap';
-import { db, doc, updateDoc, setDoc } from '../firebase';
+import { apiFetch, db, doc, updateDoc, setDoc } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenAI } from '../services/aiService';
 import confetti from 'canvas-confetti';
@@ -83,60 +83,76 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
   const [sleep, setSleep] = useState(7.5);
   const [proteinOk, setProteinOk] = useState(false);
   const [mood, setMood] = useState(4);
+  const [savedCheckInDate, setSavedCheckInDate] = useState<string | null>(null);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [showLevelUpModal, setShowLevelUpModal] = useState<number | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const isCheckedInToday = user.lastCheckInDate === todayStr;
+  const isCheckedInToday = user.lastCheckInDate === todayStr || savedCheckInDate === todayStr;
+
+  useEffect(() => {
+    let current = true;
+    apiFetch('/api/member/daily-checkin/today')
+      .then(async response => {
+        if (!response.ok) throw new Error('Impossible de charger le suivi du jour.');
+        const result = await response.json();
+        if (!current || !result.checkIn) return;
+        setWater(Number(result.checkIn.waterLitres) || 0);
+        setSleep(Number(result.checkIn.sleepHours) || 0);
+        setProteinOk(Boolean(result.checkIn.proteinTargetMet));
+        setMood(Number(result.checkIn.mood) || 4);
+        setSavedCheckInDate(String(result.checkIn.date || todayStr));
+      })
+      .catch(error => console.warn('Daily check-in could not be loaded:', error));
+    return () => { current = false; };
+  }, [user.firebaseUid, todayStr]);
 
   const handleDailyCheckIn = async () => {
     if (isCheckedInToday || isCheckingIn) return;
     setIsCheckingIn(true);
     try {
-      confetti({
-        particleCount: 120,
-        spread: 70,
-        origin: { y: 0.6 }
+      const response = await apiFetch('/api/member/daily-checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          waterLitres: water,
+          sleepHours: sleep,
+          proteinTargetMet: proteinOk,
+          mood
+        })
       });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Impossible d'enregistrer le suivi du jour.");
 
-      const prevXp = user.xp || 0;
-      const newXp = prevXp + 50;
-
-      const currentLvl = Math.floor(prevXp / 1000) + 1;
+      const newXp = Number(result.xp) || 0;
+      const newStreak = Number(result.streak) || 0;
+      const prevXp = Number(user.xp) || 0;
       const newLvl = Math.floor(newXp / 1000) + 1;
-      const didLevelUp = newLvl > currentLvl;
+      const didLevelUp = !result.alreadyCompleted && newLvl > Math.floor(prevXp / 1000) + 1;
+      setSavedCheckInDate(todayStr);
 
-      // Streak calculation
-      let newStreak = user.streak || 0;
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-      if (user.lastCheckInDate === yesterdayStr) {
-        newStreak += 1;
-      } else if (user.lastCheckInDate !== todayStr) {
-        newStreak = 1;
+      if (!result.alreadyCompleted) {
+        confetti({ particleCount: 120, spread: 70, origin: { y: 0.6 } });
       }
 
-      const userRef = doc(db, "users", (user as any).firebaseUid);
-      await updateDoc(userRef, {
-        xp: newXp,
-        streak: newStreak,
-        lastCheckInDate: todayStr
-      });
-
       // Send to Feed
-      const feedId = `checkin_${user.id}_${Date.now()}`;
-      const newFeedItem: FeedItem = {
-        id: Date.now(),
-        clubId: user.clubId,
-        userId: user.id,
-        userName: user.name,
-        type: 'session',
-        title: `🔥 Rituel Quotidien : ${user.name} a validé son rituel de forme du jour ! (Série de ${newStreak} jours)`,
-        date: new Date().toISOString()
-      };
-      await setDoc(doc(db, "feed", feedId), newFeedItem);
+      if (!result.alreadyCompleted) {
+        try {
+          const feedId = `checkin_${user.id}_${Date.now()}`;
+          const newFeedItem: FeedItem = {
+            id: Date.now(),
+            clubId: user.clubId,
+            userId: user.id,
+            userName: user.name,
+            type: 'session',
+            title: `🔥 Rituel quotidien validé ! (Série de ${newStreak} jours)`,
+            date: new Date().toISOString()
+          };
+          await setDoc(doc(db, "feed", feedId), newFeedItem);
+        } catch (feedError) {
+          console.warn('Check-in saved; feed announcement was skipped.', feedError);
+        }
+      }
 
       setState(prev => {
         const cachedUser = { 
@@ -157,7 +173,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
         };
       });
 
-      showToast("Rituel du jour complété ! +50 XP 🔥", "success");
+      showToast(result.alreadyCompleted ? "Ton rituel du jour est déjà enregistré." : "Rituel du jour complété ! +50 XP 🔥", "success");
 
       if (didLevelUp) {
         setShowLevelUpModal(newLvl);
@@ -213,42 +229,31 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
     }
     setIsSavingRemark(true);
     try {
-      // 1. Mise à jour du champ dans le programme pour l'éditeur coach
-      await updateDoc(doc(db, "programs", program.id.toString()), { 
-        memberRemarks: remark 
-      });
+      const response = await apiFetch('/api/member/assigned-coach');
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Impossible de charger votre coach.");
+      if (!result.coach) throw new Error("Aucun coach n'est affecté à votre compte. Contactez le responsable du club.");
 
-      // 2. Envoi d'un message privé automatique au coach (ID 1 par défaut pour le coach principal)
+      // Keep the remark private in the assigned coach's conversation. Members
+      // cannot write to the coach-owned program document under the Firestore rules.
       const messageId = Date.now().toString();
       const newMessage: Message = {
         id: Date.now(),
         clubId: user.clubId,
+        assignedCoachUid: result.coach.firebaseUid,
         from: user.id,
-        to: 1, // Coach principal
+        to: Number(result.coach.id),
         text: `[REMARQUE PROGRAMME] : ${remark}`,
         date: new Date().toISOString(),
         read: false,
         file: null
       };
       await setDoc(doc(db, "messages", messageId), newMessage);
-
-      // 3. Création d'une alerte dans le flux d'activité (Feed)
-      const feedId = (Date.now() + 1).toString();
-      const newFeedItem: FeedItem = {
-        id: Date.now() + 1,
-        clubId: user.clubId,
-        userId: user.id,
-        userName: user.name,
-        type: 'session',
-        title: `Alerte Feedback : ${user.name} a laissé une remarque sur son plan.`,
-        date: new Date().toISOString()
-      };
-      await setDoc(doc(db, "feed", feedId), newFeedItem);
-
+      setRemark("");
       showToast("Remarque transmise au coach !");
     } catch (err) {
       console.error("Error saving remark:", err);
-      showToast("Erreur d'envoi. Réessayez.", "error");
+      showToast(err instanceof Error ? err.message : "Erreur d'envoi. Réessayez.", "error");
     } finally {
       setIsSavingRemark(false);
     }

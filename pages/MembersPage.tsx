@@ -7,8 +7,8 @@ import {
   SearchIcon, InfoIcon, UserIcon, ActivityIcon, DollarSignIcon,
   XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon, MailIcon, ImageIcon, SparklesIcon, PlusIcon, PlayCircleIcon, SettingsIcon, PhoneIcon
 } from '../components/Icons';
-import { apiFetch, createMemberProfile, db, doc, setDoc, updateDoc, deleteDoc, auth, secondaryAuth, createUserWithEmailAndPassword, sendPasswordResetEmail, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage, addDoc } from '../firebase';
-import { uploadBytesResumable, deleteObject } from 'firebase/storage';
+import { apiFetch, createMemberProfile, db, doc, setDoc, updateDoc, deleteDoc, auth, secondaryAuth, createUserWithEmailAndPassword, sendPasswordResetEmail, collection, query, where, getDocs, getStorageClient, addDoc } from '../firebase';
+import { ref, uploadBytes, getDownloadURL, uploadBytesResumable, deleteObject } from 'firebase/storage';
 import { GOALS } from '../constants';
 import { calculateNutritionPlan, updateNutritionPlanForWeight } from '../utils';
 import { 
@@ -596,6 +596,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     const file = files[0]; // Only handle one at a time for explicit categorization
 
     try {
+      const storage = await getStorageClient();
       const fileId = Math.random().toString(36).substring(2, 15);
       const storageRef = ref(storage, `users/${selectedProfile.firebaseUid}/documents/${fileId}_${file.name}`);
       
@@ -668,11 +669,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
     const totalFiles = files.length;
     let completedFiles = 0;
+    const storage = await getStorageClient();
 
     const uploadPromises = Array.from(files).map((file) => {
       return new Promise<void>((resolve, reject) => {
         const fileId = doc(collection(db, 'driveFiles')).id;
-        const storageRef = ref(storage, `drive/${state.currentClub!.id}/${fileId}_${file.name}`);
+        const storageRef = ref(storage, `drive/${state.currentClub!.id}/${auth.currentUser!.uid}/${fileId}/${file.name}`);
         
         const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -745,6 +747,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     if (!file) return;
 
     try {
+      const storage = await getStorageClient();
       const storageRef = ref(storage, file.path);
       await deleteObject(storageRef);
       await deleteDoc(doc(db, 'driveFiles', file.id));
@@ -1378,7 +1381,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     if (!file || !selectedProfile) return;
 
     try {
-      const storageRef = ref(storage, `contracts/${selectedProfile.id}_${Date.now()}_${file.name}`);
+      if (!selectedProfile.firebaseUid) throw new Error('Le compte adhérent n’est pas relié à une identité Firebase.');
+      const storage = await getStorageClient();
+      const storageRef = ref(storage, `contracts/${selectedProfile.firebaseUid}/${Date.now()}_${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
       setSubContractUrl(url);
@@ -1725,8 +1730,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       showToast("Ce membre n'a pas de numéro de téléphone enregistré.", "error");
       return;
     }
-    const paymentLink = isStripeConnected ? " Vous pouvez régler directement via ce lien sécurisé : https://buy.stripe.com/test_mock_link." : "";
-    const msg = `Bonjour ${member.name}, sauf erreur de notre part, nous sommes en attente du règlement de ${payment.amount}€ pour votre abonnement.${paymentLink} Merci !`;
+    const paymentGuidance = isStripeConnected
+      ? " Pour régler, utilisez le lien de paiement sécurisé transmis par votre club."
+      : " Contactez votre coach pour connaître les modalités de règlement.";
+    const msg = `Bonjour ${member.name}, sauf erreur de notre part, nous sommes en attente du règlement de ${payment.amount}€ pour votre abonnement.${paymentGuidance} Merci !`;
     window.open(`https://wa.me/${member.phone.replace(/\s+/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -3875,7 +3882,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         if (file && selectedProfile) {
                           try {
                             showToast("Téléchargement de la photo...", "success");
-                            const avatarRef = ref(storage, `avatars/${selectedProfile.id}_${Date.now()}`);
+                            if (!selectedProfile.firebaseUid) throw new Error('Le compte adhérent n’est pas relié à une identité Firebase.');
+                            const storage = await getStorageClient();
+                            const avatarRef = ref(storage, `avatars/${selectedProfile.firebaseUid}/${Date.now()}`);
                             await uploadBytes(avatarRef, file);
                             const url = await getDownloadURL(avatarRef);
                             setEditInfoData({...editInfoData, avatar: url});

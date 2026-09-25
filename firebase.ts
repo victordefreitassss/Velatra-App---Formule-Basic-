@@ -29,8 +29,6 @@ import {
   getDocs,
   addDoc as firestoreAddDoc
 } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 declare const __FIREBASE_APPLET_CONFIG__: any;
 
@@ -115,18 +113,31 @@ if (typeof dbIdToUse !== 'undefined') {
 }
 
 export const db = localDb;
-export const storage = getStorage(app);
+let storageInstance: any = null;
+export const getStorageClient = async () => {
+  if (storageInstance) return storageInstance;
+  const storageSdk = await import('firebase/storage');
+  storageInstance = storageSdk.getStorage(app);
+  return storageInstance;
+};
 export const googleProvider = new GoogleAuthProvider();
 
-let messaging: any = null;
-if (typeof window !== 'undefined' && 'Notification' in window) {
+let messagingInstance: any = null;
+export const getMessagingClient = async () => {
+  if (typeof window === 'undefined' || !('Notification' in window)) return null;
   try {
-    messaging = getMessaging(app);
-  } catch (e) {
-    console.error("Firebase Messaging not supported", e);
+    const messagingSdk = await import('firebase/messaging');
+    messagingInstance ||= messagingSdk.getMessaging(app);
+    return {
+      messaging: messagingInstance,
+      getToken: messagingSdk.getToken,
+      onMessage: messagingSdk.onMessage
+    };
+  } catch (error) {
+    console.warn("Firebase Messaging is not available in this browser.", error);
+    return null;
   }
-}
-export { messaging };
+};
 
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 export const secondaryAuth = getAuth(secondaryApp);
@@ -237,9 +248,4 @@ export {
   or,
   where,
   getDocs,
-  ref,
-  uploadBytes,
-  getDownloadURL,
-  getToken,
-  onMessage
 };

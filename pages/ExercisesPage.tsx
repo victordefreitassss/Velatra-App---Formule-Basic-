@@ -7,7 +7,8 @@ import { PlusIcon, SearchIcon, DumbbellIcon, Trash2Icon, Edit2Icon, XIcon, Check
 import { EXERCISE_CATEGORIES, CATEGORY_MEDIA } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { db, doc, updateDoc, setDoc, deleteDoc, storage, ref, uploadBytes, getDownloadURL } from '../firebase';
+import { auth, db, doc, updateDoc, setDoc, deleteDoc, getStorageClient } from '../firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const containerVariants: import('framer-motion').Variants = {
   hidden: { opacity: 0 },
@@ -344,7 +345,9 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                          }
                          setIsUploadingVideo(true);
                          try {
-                           const videoRef = ref(storage, `videos/${Date.now()}_${file.name}`);
+                           if (!auth.currentUser?.uid || !state.currentClub?.id) throw new Error('Session ou club introuvable.');
+                           const storage = await getStorageClient();
+                           const videoRef = ref(storage, `videos/${state.currentClub.id}/${auth.currentUser.uid}/${Date.now()}_${file.name}`);
                            await uploadBytes(videoRef, file);
                            const url = await getDownloadURL(videoRef);
                            setNewEx({...newEx, videoUrl: url});
@@ -522,7 +525,9 @@ export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast
                          }
                          setIsUploadingVideo(true);
                          try {
-                           const videoRef = ref(storage, `videos/${Date.now()}_${file.name}`);
+                           if (!auth.currentUser?.uid || !state.currentClub?.id) throw new Error('Session ou club introuvable.');
+                           const storage = await getStorageClient();
+                           const videoRef = ref(storage, `videos/${state.currentClub.id}/${auth.currentUser.uid}/${Date.now()}_${file.name}`);
                            await uploadBytes(videoRef, file);
                            const url = await getDownloadURL(videoRef);
                            setEditingEx({...editingEx, videoUrl: url});

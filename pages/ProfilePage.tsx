@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { AppState, User, SessionLog } from '../types';
 import { Card, Badge, Button } from '../components/UI';
 import { UserIcon, MailIcon, ActivityIcon, DumbbellIcon, TargetIcon, Edit2Icon, SaveIcon, LogOutIcon, PhoneIcon, CreditCardIcon, ExternalLinkIcon, CalendarIcon, MessageCircleIcon } from 'lucide-react';
-import { apiFetch, doc, updateDoc, db, storage } from '../firebase';
+import { apiFetch, auth, doc, updateDoc, db, getStorageClient } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { motion } from 'framer-motion';
 import { updateNutritionPlanForWeight } from '../utils';
@@ -181,7 +181,9 @@ export const ProfilePage: React.FC<{
                       if (file) {
                         try {
                           showToast("Téléchargement de la photo...", "success");
-                          const avatarRef = ref(storage, `avatars/${user.id}_${Date.now()}`);
+                          if (!auth.currentUser?.uid) throw new Error('Session Firebase introuvable.');
+                          const storage = await getStorageClient();
+                          const avatarRef = ref(storage, `avatars/${auth.currentUser.uid}/${Date.now()}`);
                           await uploadBytes(avatarRef, file);
                           const url = await getDownloadURL(avatarRef);
                           
