@@ -4,14 +4,29 @@ import { Mail, Phone, MapPin, Send } from 'lucide-react';
 export default function ContactPage() {
   const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
+    setSending(true);
+    setError('');
+    try {
+      const response = await fetch('/api/public/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Le message n'a pas pu être envoyé.");
+      setSubmitted(true);
       setFormData({ name: '', email: '', subject: '', message: '' });
-    }, 3000);
+      setTimeout(() => setSubmitted(false), 4000);
+    } catch (err: any) {
+      setError(err.message || "Le message n'a pas pu être envoyé.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -80,6 +95,7 @@ export default function ContactPage() {
                   <input
                     type="text"
                     required
+                    maxLength={100}
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-4 py-3 text-xs md:text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
@@ -91,6 +107,7 @@ export default function ContactPage() {
                   <input
                     type="email"
                     required
+                    maxLength={254}
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-4 py-3 text-xs md:text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
@@ -104,6 +121,7 @@ export default function ContactPage() {
                 <input
                   type="text"
                   required
+                  maxLength={120}
                   value={formData.subject}
                   onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                   className="w-full px-4 py-3 text-xs md:text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
@@ -115,6 +133,7 @@ export default function ContactPage() {
                 <label className="text-xs font-bold text-zinc-550 dark:text-zinc-400">Message</label>
                 <textarea
                   required
+                  maxLength={5000}
                   rows={4}
                   value={formData.message}
                   onChange={(e) => setFormData({ ...formData, message: e.target.value })}
@@ -125,11 +144,14 @@ export default function ContactPage() {
 
               <button
                 type="submit"
+                disabled={sending}
                 className="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl text-xs md:text-sm shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
               >
-                Envoyer <Send className="w-4 h-4" />
+                {sending ? 'Envoi…' : 'Envoyer'} <Send className="w-4 h-4" />
               </button>
             </form>
+
+            {error && <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>}
 
             {submitted && (
               <div className="absolute inset-0 bg-white dark:bg-zinc-900 rounded-[32px] flex flex-col items-center justify-center p-6 text-center">

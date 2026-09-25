@@ -19,18 +19,14 @@ import {
 const isGcpBillingOrSuspendedError = (error: any): boolean => {
   if (!error) return false;
   const errMsg = (error?.message || String(error)).toLowerCase();
-  const errCode = error?.code || "";
-  
-  return (
-    errCode === 'failed-precondition' ||
-    errCode === 'permission-denied' ||
-    errMsg.includes('billing') || 
-    errMsg.includes('suspended') || 
-    errMsg.includes('disabled') || 
-    errMsg.includes('resource-exhausted') || 
-    errMsg.includes('bad state') ||
-    errMsg.includes('quota') ||
-    errMsg.includes('permission')
+  const mentionsBilling = errMsg.includes('billing');
+  return errMsg.includes('suspended') || (
+    mentionsBilling && (
+      errMsg.includes('disabled') ||
+      errMsg.includes('not enabled') ||
+      errMsg.includes('required') ||
+      errMsg.includes('closed')
+    )
   );
 };
 
@@ -41,23 +37,6 @@ enum OperationType {
   LIST = 'list',
   GET = 'get',
   WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
-    emailVerified?: boolean | null;
-    isAnonymous?: boolean | null;
-    tenantId?: string | null;
-    providerInfo?: {
-      providerId?: string | null;
-      email?: string | null;
-    }[];
-  }
 }
 
 const getRefPath = (ref: any): string | null => {
@@ -73,36 +52,21 @@ const getRefPath = (ref: any): string | null => {
 };
 
 const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData?.map(provider => ({
-        providerId: provider.providerId,
-        email: provider.email,
-      })) || []
-    },
-    operationType,
-    path
-  };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
+  const code = (error as any)?.code || 'unknown';
+  const collectionName = path?.split('/')[0] || 'query';
+  console.error('Firestore listener failed', { code, operationType, collection: collectionName });
+  return code;
 };
 
 const onSnapshot = (ref: any, callback: any) => {
   return originalOnSnapshot(ref, callback, (error: any) => {
-    console.error("Firestore onSnapshot error:", error);
     const path = getRefPath(ref);
+    const code = handleFirestoreError(error, OperationType.GET, path);
     if (isGcpBillingOrSuspendedError(error)) {
-      const errMsg = error?.message || String(error);
-      window.dispatchEvent(new CustomEvent('gcp-billing-error', { detail: errMsg }));
+      window.dispatchEvent(new CustomEvent('gcp-billing-error'));
+    } else {
+      window.dispatchEvent(new CustomEvent('firestore-listener-error', { detail: { code } }));
     }
-    // Standard error throwing wrapper
-    handleFirestoreError(error, OperationType.GET, path);
   });
 };
 
@@ -110,53 +74,58 @@ const onSnapshot = (ref: any, callback: any) => {
 import { Layout } from './components/Layout';
 import { Login } from './components/Login';
 import { Toast } from './components/Toast';
-import { WorkoutView } from './components/WorkoutView';
-import { CoachingSessionView } from './components/CoachingSessionView';
-import { ProgramEditor } from './components/Editor';
-
-// Pages
-import { CoachDashboard } from './components/CoachDashboard';
-import { MemberDashboard } from './components/MemberDashboard';
-import { MembersPage } from './pages/MembersPage';
-import { CoachingPage } from './pages/CoachingPage';
-import { PresetsPage } from './pages/PresetsPage';
-import { ExercisesPage } from './pages/ExercisesPage';
-import { MessagesPage } from './pages/MessagesPage';
-import { AboutPage } from './pages/AboutPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { StatsPage } from './pages/StatsPage';
-import { CalendarPage } from './pages/CalendarPage';
-import { TrophyPage } from './pages/TrophyPage';
-import { HistoryPage } from './pages/HistoryPage';
-import { AICoachPage } from './pages/AICoachPage';
-import { ProspectFlowPage } from './pages/ProspectFlowPage';
-import { TasksPage } from './pages/TasksPage';
-import { FinancesPage } from './pages/FinancesPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { PlanningPage } from './pages/PlanningPage';
-import { NutritionPage } from './pages/NutritionPage';
-import { MemberNutritionPage } from './pages/MemberNutritionPage';
-import { MarketingPage } from './pages/MarketingPage';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { MemberSupplementsPage } from './pages/MemberSupplementsPage';
-import { DrivePage } from './pages/DrivePage';
-import { EvolutionGalleryPage } from './pages/EvolutionGalleryPage';
-import { GuidePage } from './pages/GuidePage';
 import { Onboarding } from './components/Onboarding';
 
 // Routing & Marketing Pages
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import LandingLayout from './components/LandingLayout';
-import HomePage from './pages/HomePage';
-import FeaturesPage from './pages/FeaturesPage';
-import PricingPage from './pages/PricingPage';
-import AboutPageMarketing from './pages/AboutPageMarketing';
-import SolutionsPage from './pages/UseCases';
-import HelpCenterPage from './pages/HelpCenter';
-import BlogPage from './pages/Blog';
-import BlogPostPage from './pages/BlogPost';
-import { ContactPage } from './pages/ContactPage';
-import { MentionsLegales, CGV, Confidentialite } from './pages/Legal';
+
+const lazyNamed = <T extends object>(load: () => Promise<T>, exportName: keyof T) =>
+  React.lazy(async () => ({ default: (await load())[exportName] as React.ComponentType<any> }));
+
+const WorkoutView = lazyNamed(() => import('./components/WorkoutView'), 'WorkoutView');
+const CoachingSessionView = lazyNamed(() => import('./components/CoachingSessionView'), 'CoachingSessionView');
+const ProgramEditor = lazyNamed(() => import('./components/Editor'), 'ProgramEditor');
+const CoachDashboard = lazyNamed(() => import('./components/CoachDashboard'), 'CoachDashboard');
+const MemberDashboard = lazyNamed(() => import('./components/MemberDashboard'), 'MemberDashboard');
+const MembersPage = lazyNamed(() => import('./pages/MembersPage'), 'MembersPage');
+const CoachingPage = lazyNamed(() => import('./pages/CoachingPage'), 'CoachingPage');
+const PresetsPage = lazyNamed(() => import('./pages/PresetsPage'), 'PresetsPage');
+const ExercisesPage = lazyNamed(() => import('./pages/ExercisesPage'), 'ExercisesPage');
+const MessagesPage = lazyNamed(() => import('./pages/MessagesPage'), 'MessagesPage');
+const AboutPage = lazyNamed(() => import('./pages/AboutPage'), 'AboutPage');
+const SettingsPage = lazyNamed(() => import('./pages/SettingsPage'), 'SettingsPage');
+const StatsPage = lazyNamed(() => import('./pages/StatsPage'), 'StatsPage');
+const CalendarPage = lazyNamed(() => import('./pages/CalendarPage'), 'CalendarPage');
+const TrophyPage = lazyNamed(() => import('./pages/TrophyPage'), 'TrophyPage');
+const HistoryPage = lazyNamed(() => import('./pages/HistoryPage'), 'HistoryPage');
+const AICoachPage = lazyNamed(() => import('./pages/AICoachPage'), 'AICoachPage');
+const ProspectFlowPage = lazyNamed(() => import('./pages/ProspectFlowPage'), 'ProspectFlowPage');
+const TasksPage = lazyNamed(() => import('./pages/TasksPage'), 'TasksPage');
+const FinancesPage = lazyNamed(() => import('./pages/FinancesPage'), 'FinancesPage');
+const ProfilePage = lazyNamed(() => import('./pages/ProfilePage'), 'ProfilePage');
+const PlanningPage = lazyNamed(() => import('./pages/PlanningPage'), 'PlanningPage');
+const NutritionPage = lazyNamed(() => import('./pages/NutritionPage'), 'NutritionPage');
+const MemberNutritionPage = lazyNamed(() => import('./pages/MemberNutritionPage'), 'MemberNutritionPage');
+const MarketingPage = lazyNamed(() => import('./pages/MarketingPage'), 'MarketingPage');
+const AdminDashboard = lazyNamed(() => import('./pages/AdminDashboard'), 'AdminDashboard');
+const MemberSupplementsPage = lazyNamed(() => import('./pages/MemberSupplementsPage'), 'MemberSupplementsPage');
+const DrivePage = lazyNamed(() => import('./pages/DrivePage'), 'DrivePage');
+const EvolutionGalleryPage = lazyNamed(() => import('./pages/EvolutionGalleryPage'), 'EvolutionGalleryPage');
+const GuidePage = lazyNamed(() => import('./pages/GuidePage'), 'GuidePage');
+
+const HomePage = React.lazy(() => import('./pages/HomePage'));
+const FeaturesPage = React.lazy(() => import('./pages/FeaturesPage'));
+const PricingPage = React.lazy(() => import('./pages/PricingPage'));
+const AboutPageMarketing = React.lazy(() => import('./pages/AboutPageMarketing'));
+const SolutionsPage = React.lazy(() => import('./pages/UseCases'));
+const HelpCenterPage = React.lazy(() => import('./pages/HelpCenter'));
+const BlogPage = React.lazy(() => import('./pages/Blog'));
+const BlogPostPage = React.lazy(() => import('./pages/BlogPost'));
+const ContactPage = React.lazy(() => import('./pages/ContactPage'));
+const MentionsLegales = lazyNamed(() => import('./pages/Legal'), 'MentionsLegales');
+const CGV = lazyNamed(() => import('./pages/Legal'), 'CGV');
+const Confidentialite = lazyNamed(() => import('./pages/Legal'), 'Confidentialite');
 
 const INITIAL_STATE: AppState = {
   user: null,
@@ -226,6 +195,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [connectionTested, setConnectionTested] = useState(false);
   const [gcpBillingError, setGcpBillingError] = useState<string | null>(null);
+  const [firebaseConnectionIssue, setFirebaseConnectionIssue] = useState<'permission' | 'temporary' | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
 
   const navigate = useNavigate();
@@ -256,13 +226,20 @@ export default function App() {
 
   useEffect(() => {
     const handleBillingError = (e: Event) => {
-      const detail = (e as CustomEvent).detail || "";
-      console.warn("Global GCP/Firebase billing or suspension error caught:", detail);
+      console.warn("Firebase project billing or suspension error caught.");
       setGcpBillingError("suspended");
       setLoading(false);
     };
+    const handleListenerError = (event: Event) => {
+      const code = (event as CustomEvent).detail?.code;
+      setFirebaseConnectionIssue(code === 'permission-denied' ? 'permission' : 'temporary');
+    };
     window.addEventListener('gcp-billing-error', handleBillingError);
-    return () => window.removeEventListener('gcp-billing-error', handleBillingError);
+    window.addEventListener('firestore-listener-error', handleListenerError);
+    return () => {
+      window.removeEventListener('gcp-billing-error', handleBillingError);
+      window.removeEventListener('firestore-listener-error', handleListenerError);
+    };
   }, []);
 
   const [navigatorOnline, setNavigatorOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
@@ -371,14 +348,16 @@ export default function App() {
           setLoading(false);
         } catch (error: any) {
           const errMsg = error?.message || String(error);
-          console.error("Firebase connection test result:", errMsg);
           if (errMsg.includes('the client is offline') || !navigator.onLine) {
             console.warn("Client offline detected, entering offline cache backup mode.");
             setIsOfflineBackupActive(true);
             setLoading(false);
+          } else if (isGcpBillingOrSuspendedError(error)) {
+            setGcpBillingError("suspended");
+            setLoading(false);
           } else {
-            const isRestoring = errMsg.toLowerCase().includes('permission') || error?.code === 'permission-denied';
-            setGcpBillingError(isRestoring ? "reactivating" : "suspended");
+            setFirebaseConnectionIssue(error?.code === 'permission-denied' ? 'permission' : 'temporary');
+            console.warn("Firebase connection check failed", { code: error?.code || 'unknown' });
             setLoading(false);
           }
         }
@@ -1221,6 +1200,28 @@ export default function App() {
     }
   }, [state.tasks, state.user]);
 
+  const renderFirebaseConnectionIssue = () => {
+    if (!firebaseConnectionIssue) return null;
+    const isPermissionIssue = firebaseConnectionIssue === 'permission';
+
+    return (
+      <div role="alert" className="mx-auto my-3 flex w-[min(100%-2rem,48rem)] flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 sm:flex-row sm:items-center sm:justify-between">
+        <p>
+          {isPermissionIssue
+            ? "L'accès aux données est refusé pour ce compte. Vérifiez les droits de l'utilisateur ou contactez votre administrateur."
+            : "La connexion aux données a échoué. Vérifiez votre connexion Internet puis réessayez."}
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="shrink-0 rounded-lg bg-emerald-500 px-3 py-2 font-semibold text-white transition-colors hover:bg-emerald-600"
+        >
+          Réessayer
+        </button>
+      </div>
+    );
+  };
+
   const renderBillingBanner = () => {
     return null;
   };
@@ -1290,6 +1291,12 @@ export default function App() {
   const effectiveRole = isReallySuperAdmin ? adminPerspective : (state.user?.role === 'superadmin' ? 'member' : state.user?.role);
 
   return (
+    <React.Suspense fallback={(
+      <div className="flex min-h-screen items-center justify-center bg-white text-sm text-zinc-500">
+        <span className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-zinc-200 border-t-emerald-500" aria-hidden="true" />
+        Chargement de votre espace…
+      </div>
+    )}>
     <Routes>
       {/* Landing Layout / Marketing Routes */}
       <Route element={<LandingLayout />}>
@@ -1311,6 +1318,7 @@ export default function App() {
       <Route path="/login" element={
         state.user ? <Navigate to="/dashboard" replace /> : (
           <div className="min-h-screen flex flex-col bg-[#ffffff]">
+            {renderFirebaseConnectionIssue()}
             {renderBillingBanner()}
             {renderOfflineBanner()}
             <div className="flex-1 animate-fadeIn">
@@ -1323,6 +1331,7 @@ export default function App() {
       <Route path="/register" element={
         state.user ? <Navigate to="/dashboard" replace /> : (
           <div className="min-h-screen flex flex-col bg-[#ffffff]">
+            {renderFirebaseConnectionIssue()}
             {renderBillingBanner()}
             {renderOfflineBanner()}
             <div className="flex-1 animate-fadeIn">
@@ -1337,6 +1346,7 @@ export default function App() {
         !state.user ? <Navigate to="/login" replace /> : (
           (state.user.role === 'member' && !state.user.onboardingCompleted) ? (
             <div className="min-h-screen flex flex-col bg-[#ffffff]">
+              {renderFirebaseConnectionIssue()}
               {renderBillingBanner()}
               {renderOfflineBanner()}
               <div className="flex-1 animate-fadeIn">
@@ -1347,6 +1357,7 @@ export default function App() {
             </div>
           ) : (
             <ErrorBoundary>
+              {renderFirebaseConnectionIssue()}
               {renderBillingBanner()}
               {renderOfflineBanner()}
               <Layout 
@@ -1478,5 +1489,6 @@ export default function App() {
       {/* Catch-all to / */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </React.Suspense>
   );
 }
