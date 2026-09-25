@@ -10,7 +10,7 @@ import {
   INIT_EXERCISES, CLUB_INFO, COACHES, CATEGORY_MEDIA, getExerciseMedia 
 } from './constants';
 import { 
-  auth, db, messaging, firebaseConfig,
+  apiFetch, auth, db, messaging, firebaseConfig,
   onAuthStateChanged, signOut, 
   doc, getDoc, getDocFromServer, setDoc, onSnapshot as originalOnSnapshot, updateDoc, collection, deleteDoc, query, where, getDocs,
   getToken, onMessage
@@ -158,43 +158,18 @@ import BlogPostPage from './pages/BlogPost';
 import { ContactPage } from './pages/ContactPage';
 import { MentionsLegales, CGV, Confidentialite } from './pages/Legal';
 
-const getInitialFromCache = (key: string, defaultValue: any) => {
-  if (typeof window === 'undefined') return defaultValue;
-  try {
-    const item = localStorage.getItem(`velatra_cache_${key}`);
-    const data = item ? JSON.parse(item) : defaultValue;
-    if (key === 'user' && data) {
-      if (data.role === 'superadmin' && data.email !== 'victor.defreitas.pro@gmail.com') {
-        data.role = 'member';
-      }
-    }
-    return data;
-  } catch (e) {
-    return defaultValue;
-  }
-};
-
-const saveToLocalCache = (key: string, data: any) => {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(`velatra_cache_${key}`, JSON.stringify(data));
-  } catch (err) {
-    console.error(`Failed to save ${key} to local cache:`, err);
-  }
-};
-
 const INITIAL_STATE: AppState = {
-  user: getInitialFromCache('user', null),
-  currentClub: getInitialFromCache('currentClub', null),
+  user: null,
+  currentClub: null,
   users: [],
   exercises: INIT_EXERCISES,
-  programs: getInitialFromCache('programs', []),
+  programs: [],
   presets: [],
   nutritionPresets: [],
-  logs: getInitialFromCache('logs', []),
+  logs: [],
   messages: [],
   bodyData: [],
-  performances: getInitialFromCache('performances', []),
+  performances: [],
   archivedPrograms: [],
   feed: [],
   supplementProducts: [],
@@ -210,8 +185,8 @@ const INITIAL_STATE: AppState = {
   subscriptions: [],
   payments: [],
   newsletters: [],
-  nutritionPlans: getInitialFromCache('nutritionPlans', []),
-  nutritionLogs: getInitialFromCache('nutritionLogs', []),
+  nutritionPlans: [],
+  nutritionLogs: [],
   crmClients: [],
   crmFormulas: [],
   manualStats: [],
@@ -418,6 +393,12 @@ export default function App() {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setAuthResolved(true);
+      // Never carry locally cached health, program, or club data across sessions.
+      if (typeof window !== 'undefined') {
+        ['user', 'currentClub', 'programs', 'logs', 'performances', 'nutritionPlans', 'nutritionLogs']
+          .forEach(key => localStorage.removeItem(`velatra_cache_${key}`));
+      }
+      setState({ ...INITIAL_STATE, exercises: [...INIT_EXERCISES] });
       if (firebaseUser) {
         const userDocRef = doc(db, "users", firebaseUser.uid);
         
@@ -426,20 +407,30 @@ export default function App() {
           if (userDoc.exists()) {
             const userData = userDoc.data() as User;
             
-            // Auto-assign superadmin role to the developer email
-            if (firebaseUser.email === 'victor.defreitas.pro@gmail.com' && userData.role !== 'superadmin') {
-              await updateDoc(userDocRef, { role: 'superadmin' });
-              userData.role = 'superadmin';
+            // Elevated roles are assigned by the verified server endpoint, never by the browser.
+            if (firebaseUser.email === 'victor.defreitas.pro@gmail.com' && firebaseUser.emailVerified && userData.role !== 'superadmin') {
+              try {
+                await apiFetch('/api/bootstrap-superadmin', { method: 'POST' });
+                return;
+              } catch (error) {
+                console.error("Admin initialization failed", error);
+              }
             }
-            
-            // Enforce that only victor.defreitas.pro@gmail.com can hold superadmin role
-            if (userData.role === 'superadmin' && firebaseUser.email !== 'victor.defreitas.pro@gmail.com') {
+            if (userData.role === 'superadmin' && (firebaseUser.email !== 'victor.defreitas.pro@gmail.com' || !firebaseUser.emailVerified)) {
               userData.role = 'member';
             }
             
             const cachedUser = { ...userData, id: Number(userData.id), firebaseUid: firebaseUser.uid };
             setState(prev => ({ ...prev, user: cachedUser }));
-            saveToLocalCache('user', cachedUser);
+
+            // Move any old Stripe key out of the club document before loading client-readable settings.
+            if (cachedUser.role === 'owner' || cachedUser.role === 'superadmin') {
+              try {
+                await apiFetch('/api/stripe/status');
+              } catch (error) {
+                console.error("Could not migrate legacy Stripe settings.", error);
+              }
+            }
             
             // Fetch Club Data
             if (userData.clubId) {
@@ -447,66 +438,16 @@ export default function App() {
               if (clubDoc.exists()) {
                 const clubData = clubDoc.data() as Club;
                 setState(prev => ({ ...prev, currentClub: clubData }));
-                saveToLocalCache('currentClub', clubData);
               }
             }
           } else {
             // Document not created yet (happens during registration)
             setState(prev => ({ ...prev, user: null }));
             
-            // Admin recovery mode
-            if (firebaseUser.email === 'victor.defreitas.pro@gmail.com') {
+            // Recover the administrator profile through a verified server-side operation.
+            if (firebaseUser.email === 'victor.defreitas.pro@gmail.com' && firebaseUser.emailVerified) {
               try {
-                const usersRef = collection(db, "users");
-                const q = query(usersRef, where("role", "in", ["superadmin", "owner"]));
-                const querySnapshot = await getDocs(q);
-                
-                if (!querySnapshot.empty) {
-                  const oldDoc = querySnapshot.docs[0];
-                  const oldData = oldDoc.data() as User;
-                  
-                  await setDoc(userDocRef, {
-                    ...oldData,
-                    firebaseUid: firebaseUser.uid,
-                    email: firebaseUser.email
-                  });
-                  
-                  await deleteDoc(oldDoc.ref);
-                } else {
-                  const clubsRef = collection(db, "clubs");
-                  const clubsSnapshot = await getDocs(clubsRef);
-                  let clubId = "CLUB123";
-                  if (clubsSnapshot.empty) {
-                    await setDoc(doc(db, "clubs", clubId), {
-                      id: clubId,
-                      name: "Mon Club",
-                      settings: {
-                        payment: {
-                          stripeConnected: false,
-                          stripeSecretKey: ""
-                        }
-                      }
-                    });
-                  } else {
-                    clubId = clubsSnapshot.docs[0].id;
-                  }
-                  
-                  await setDoc(userDocRef, {
-                    id: Date.now(),
-                    clubId: clubId,
-                    code: "admin",
-                    pwd: "",
-                    name: "Victor De Freitas",
-                    email: firebaseUser.email,
-                    role: "superadmin",
-                    avatar: "VD",
-                    gender: "M",
-                    age: 30,
-                    weight: 80,
-                    height: 180,
-                    firebaseUid: firebaseUser.uid
-                  });
-                }
+                await apiFetch('/api/bootstrap-superadmin', { method: 'POST' });
               } catch (err) {
                 console.error("Admin recovery failed", err);
               }
@@ -528,7 +469,7 @@ export default function App() {
 
   useEffect(() => {
     if (!authResolved) return;
-    if (!auth.currentUser || !state.user || String(state.user.id) !== auth.currentUser.uid || !state.user.clubId) return;
+    if (!auth.currentUser || !state.user || state.user.firebaseUid !== auth.currentUser.uid || !state.user.clubId) return;
 
     // Check for onboarding success/cancel in URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -542,6 +483,17 @@ export default function App() {
     }
 
     const clubId = state.user.clubId;
+    const isMember = state.user.role === 'member';
+    const ownId = Number(state.user.id);
+    const memberRecordQuery = (collectionName: string, ownerField = 'memberId') =>
+      isMember
+        ? query(collection(db, collectionName), where('clubId', '==', clubId), where(ownerField, '==', ownId))
+        : query(collection(db, collectionName), where('clubId', '==', clubId));
+    const skipForMembers = (key: string) => {
+      if (!isMember) return false;
+      setState(prev => ({ ...prev, [key]: [] }));
+      return true;
+    };
 
     const unsubClub = onSnapshot(doc(db, "clubs", clubId), (docSnap) => {
       if (docSnap.exists()) {
@@ -563,7 +515,10 @@ export default function App() {
       }
     });
 
-    const unsubUsers = onSnapshot(query(collection(db, "users"), where("clubId", "==", clubId)), (snap) => {
+    const unsubUsers = isMember ? (() => {
+      setState(prev => ({ ...prev, users: prev.user ? [prev.user] : [] }));
+      return () => {};
+    })() : onSnapshot(query(collection(db, "users"), where("clubId", "==", clubId)), (snap) => {
       const allUsers: User[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -580,7 +535,7 @@ export default function App() {
     });
 
     let isInitialProgsLoad = true;
-    const unsubProgs = onSnapshot(query(collection(db, "programs"), where("clubId", "==", clubId)), (snap) => {
+    const unsubProgs = onSnapshot(memberRecordQuery("programs"), (snap) => {
       const allProgs: Program[] = [];
       const now = new Date();
       let hasNewProgram = false;
@@ -601,7 +556,7 @@ export default function App() {
           const startDate = new Date(data.startDate);
           const endDate = new Date(startDate.getTime() + data.durationWeeks * 7 * 24 * 60 * 60 * 1000);
           
-          if (now > endDate) {
+          if (now > endDate && !isMember) {
             // Archiver automatiquement le programme expiré
             const archiveRef = doc(db, "archivedPrograms", data.id.toString());
             setDoc(archiveRef, { 
@@ -622,7 +577,6 @@ export default function App() {
         });
       });
       setState(prev => ({ ...prev, programs: allProgs }));
-      saveToLocalCache('programs', allProgs);
 
       if (!isInitialProgsLoad && hasNewProgram && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau programme", {
@@ -645,7 +599,7 @@ export default function App() {
       setState(prev => ({ ...prev, nutritionPresets: allNutritionPresets }));
     });
 
-    const unsubArchives = onSnapshot(query(collection(db, "archivedPrograms"), where("clubId", "==", clubId)), (snap) => {
+    const unsubArchives = onSnapshot(memberRecordQuery("archivedPrograms"), (snap) => {
       const allArchives: Program[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -658,7 +612,7 @@ export default function App() {
       setState(prev => ({ ...prev, archivedPrograms: allArchives }));
     });
 
-    const unsubPerfs = onSnapshot(query(collection(db, "performances"), where("clubId", "==", clubId)), (snap) => {
+    const unsubPerfs = onSnapshot(memberRecordQuery("performances"), (snap) => {
       const perfs: Performance[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -671,7 +625,6 @@ export default function App() {
         } as Performance);
       });
       setState(prev => ({ ...prev, performances: perfs }));
-      saveToLocalCache('performances', perfs);
     });
 
     const unsubProducts = onSnapshot(query(collection(db, "supplementProducts"), where("clubId", "==", clubId)), (snap) => {
@@ -686,13 +639,13 @@ export default function App() {
       setState(prev => ({ ...prev, products }));
     });
 
-    const unsubOrders = onSnapshot(query(collection(db, "supplementOrders"), where("clubId", "==", clubId)), (snap) => {
+    const unsubOrders = onSnapshot(memberRecordQuery("supplementOrders", "adherentId"), (snap) => {
       const orders: SupplementOrder[] = [];
       snap.forEach(d => orders.push(d.data() as SupplementOrder));
       setState(prev => ({ ...prev, supplementOrders: orders }));
     });
 
-    const unsubLogs = onSnapshot(query(collection(db, "logs"), where("clubId", "==", clubId)), (snap) => {
+    const unsubLogs = onSnapshot(memberRecordQuery("logs"), (snap) => {
       const logs: SessionLog[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -703,34 +656,43 @@ export default function App() {
         } as SessionLog);
       });
       setState(prev => ({ ...prev, logs }));
-      saveToLocalCache('logs', logs);
     });
 
     let isInitialMessagesLoad = true;
-    const unsubMessages = onSnapshot(query(collection(db, "messages"), where("clubId", "==", clubId)), (snap) => {
-      const messages: Message[] = [];
+    let initialMessageSnapshots = 0;
+    let messageQueryCount = 0;
+    const messageSnapshots = new Map<string, Message>();
+    const onMessagesChanged = (snap: any) => {
       let hasNewUnread = false;
-      
-      snap.docChanges().forEach(change => {
-        if (change.type === 'added') {
-          const msg = change.doc.data() as Message;
-          if (!msg.read && msg.to === state.user?.id) {
-            hasNewUnread = true;
-          }
+      snap.docChanges().forEach((change: any) => {
+        if (change.type === 'removed') {
+          messageSnapshots.delete(change.doc.id);
+          return;
         }
+        const msg = change.doc.data() as Message;
+        messageSnapshots.set(change.doc.id, msg);
+        if (change.type === 'added' && !msg.read && msg.to === state.user?.id) hasNewUnread = true;
       });
 
-      snap.forEach(d => messages.push(d.data() as Message));
-      setState(prev => ({ ...prev, messages }));
-
+      setState(prev => ({ ...prev, messages: Array.from(messageSnapshots.values()) }));
       if (!isInitialMessagesLoad && hasNewUnread && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau message", {
           body: "Vous avez reçu un nouveau message sur Velatra.",
           icon: "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
         });
       }
-      isInitialMessagesLoad = false;
-    });
+      initialMessageSnapshots += 1;
+      if (initialMessageSnapshots >= messageQueryCount) isInitialMessagesLoad = false;
+    };
+    const messageQueries = isMember
+      ? [
+          query(collection(db, "messages"), where("clubId", "==", clubId), where("from", "==", ownId)),
+          query(collection(db, "messages"), where("clubId", "==", clubId), where("to", "==", ownId))
+        ]
+      : [query(collection(db, "messages"), where("clubId", "==", clubId))];
+    messageQueryCount = messageQueries.length;
+    const unsubMessageQueries = messageQueries.map(messageQuery => onSnapshot(messageQuery, onMessagesChanged));
+    const unsubMessages = () => unsubMessageQueries.forEach(unsubscribe => unsubscribe());
 
     const unsubFeed = onSnapshot(query(collection(db, "feed"), where("clubId", "==", clubId)), (snap) => {
       const feed: FeedItem[] = [];
@@ -753,7 +715,7 @@ export default function App() {
       setState(prev => ({ ...prev, feed }));
     });
 
-    const unsubBody = onSnapshot(query(collection(db, "bodyData"), where("clubId", "==", clubId)), (snap) => {
+    const unsubBody = onSnapshot(memberRecordQuery("bodyData"), (snap) => {
       const bodyData: BodyData[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -770,7 +732,7 @@ export default function App() {
     });
 
     let isInitialProspectsLoad = true;
-    const unsubProspects = onSnapshot(query(collection(db, "prospects"), where("clubId", "==", clubId)), (snap) => {
+    const unsubProspects = skipForMembers('prospects') ? () => {} : onSnapshot(query(collection(db, "prospects"), where("clubId", "==", clubId)), (snap) => {
       const prospects: Prospect[] = [];
       let hasNewProspect = false;
 
@@ -792,14 +754,14 @@ export default function App() {
       isInitialProspectsLoad = false;
     });
 
-    const unsubNewsletters = onSnapshot(query(collection(db, "newsletters"), where("clubId", "==", clubId)), (snap) => {
+    const unsubNewsletters = skipForMembers('newsletters') ? () => {} : onSnapshot(query(collection(db, "newsletters"), where("clubId", "==", clubId)), (snap) => {
       const newsletters: Newsletter[] = [];
       snap.forEach(d => newsletters.push(d.data() as Newsletter));
       setState(prev => ({ ...prev, newsletters: newsletters.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()) }));
     });
 
     let isInitialTasksLoad = true;
-    const unsubTasks = onSnapshot(query(collection(db, "tasks"), where("clubId", "==", clubId)), (snap) => {
+    const unsubTasks = skipForMembers('tasks') ? () => {} : onSnapshot(query(collection(db, "tasks"), where("clubId", "==", clubId)), (snap) => {
       const tasks: Task[] = [];
       let hasNewTask = false;
       let newTaskTitle = "";
@@ -827,7 +789,7 @@ export default function App() {
     });
 
     let isInitialBookingsLoad = true;
-    const unsubBookings = onSnapshot(query(collection(db, "bookings"), where("clubId", "==", clubId)), (snap) => {
+    const unsubBookings = onSnapshot(memberRecordQuery("bookings"), (snap) => {
       const bookings: Booking[] = [];
       let hasNewBooking = false;
 
@@ -859,7 +821,7 @@ export default function App() {
     });
 
     let isInitialNutritionPlansLoad = true;
-    const unsubNutritionPlans = onSnapshot(query(collection(db, "nutritionPlans"), where("clubId", "==", clubId)), (snap) => {
+    const unsubNutritionPlans = onSnapshot(memberRecordQuery("nutritionPlans"), (snap) => {
       const nutritionPlans: NutritionPlan[] = [];
       let hasNewNutritionPlan = false;
 
@@ -880,7 +842,6 @@ export default function App() {
         } as NutritionPlan);
       });
       setState(prev => ({ ...prev, nutritionPlans }));
-      saveToLocalCache('nutritionPlans', nutritionPlans);
 
       if (!isInitialNutritionPlansLoad && hasNewNutritionPlan && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau plan nutritionnel", {
@@ -891,7 +852,7 @@ export default function App() {
       isInitialNutritionPlansLoad = false;
     });
 
-    const unsubNutritionLogs = onSnapshot(query(collection(db, "nutritionLogs"), where("clubId", "==", clubId)), (snap) => {
+    const unsubNutritionLogs = onSnapshot(memberRecordQuery("nutritionLogs", "userId"), (snap) => {
       const nutritionLogs: NutritionLog[] = [];
       const now = new Date().getTime();
       const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
@@ -911,10 +872,9 @@ export default function App() {
         }
       });
       setState(prev => ({ ...prev, nutritionLogs }));
-      saveToLocalCache('nutritionLogs', nutritionLogs);
     });
 
-    const unsubSubscriptions = onSnapshot(query(collection(db, "subscriptions"), where("clubId", "==", clubId)), (snap) => {
+    const unsubSubscriptions = onSnapshot(memberRecordQuery("subscriptions"), (snap) => {
       const subscriptions: Subscription[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -926,7 +886,7 @@ export default function App() {
       setState(prev => ({ ...prev, subscriptions }));
     });
 
-    const unsubPayments = onSnapshot(query(collection(db, "payments"), where("clubId", "==", clubId)), (snap) => {
+    const unsubPayments = onSnapshot(memberRecordQuery("payments"), (snap) => {
       const payments: Payment[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -938,13 +898,13 @@ export default function App() {
       setState(prev => ({ ...prev, payments }));
     });
 
-    const unsubExpenses = onSnapshot(query(collection(db, "expenses"), where("clubId", "==", clubId)), (snap) => {
+    const unsubExpenses = skipForMembers('expenses') ? () => {} : onSnapshot(query(collection(db, "expenses"), where("clubId", "==", clubId)), (snap) => {
       const expenses: Expense[] = [];
       snap.forEach(d => expenses.push(d.data() as Expense));
       setState(prev => ({ ...prev, expenses }));
     });
 
-    const unsubInvoices = onSnapshot(query(collection(db, "invoices"), where("clubId", "==", clubId)), (snap) => {
+    const unsubInvoices = skipForMembers('invoices') ? () => {} : onSnapshot(query(collection(db, "invoices"), where("clubId", "==", clubId)), (snap) => {
       const invoices: Invoice[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -956,7 +916,7 @@ export default function App() {
       setState(prev => ({ ...prev, invoices }));
     });
 
-    const unsubFixedCosts = onSnapshot(query(collection(db, "fixedCosts"), where("clubId", "==", clubId)), (snap) => {
+    const unsubFixedCosts = skipForMembers('fixedCosts') ? () => {} : onSnapshot(query(collection(db, "fixedCosts"), where("clubId", "==", clubId)), (snap) => {
       const fixedCosts: any[] = [];
       snap.forEach(d => fixedCosts.push(d.data()));
       setState(prev => ({ ...prev, fixedCosts }));
@@ -1006,49 +966,52 @@ export default function App() {
       setState(prev => ({ ...prev, exercises: enhancedExercises }));
     });
 
-    const unsubCrmClients = onSnapshot(query(collection(db, "crmClients"), where("clubId", "==", clubId)), (snap) => {
+    const unsubCrmClients = skipForMembers('crmClients') ? () => {} : onSnapshot(query(collection(db, "crmClients"), where("clubId", "==", clubId)), (snap) => {
       const crmClients: CRMClient[] = [];
       snap.forEach(d => crmClients.push(d.data() as CRMClient));
       setState(prev => ({ ...prev, crmClients }));
     });
 
-    const unsubCrmFormulas = onSnapshot(query(collection(db, "crmFormulas"), where("clubId", "==", clubId)), (snap) => {
+    const unsubCrmFormulas = skipForMembers('crmFormulas') ? () => {} : onSnapshot(query(collection(db, "crmFormulas"), where("clubId", "==", clubId)), (snap) => {
       const crmFormulas: CRMFormula[] = [];
       snap.forEach(d => crmFormulas.push(d.data() as CRMFormula));
       setState(prev => ({ ...prev, crmFormulas }));
     });
 
-    const unsubManualStats = onSnapshot(query(collection(db, "manualStats"), where("clubId", "==", clubId)), (snap) => {
+    const unsubManualStats = skipForMembers('manualStats') ? () => {} : onSnapshot(query(collection(db, "manualStats"), where("clubId", "==", clubId)), (snap) => {
       const manualStats: ManualStats[] = [];
       snap.forEach(d => manualStats.push(d.data() as ManualStats));
       setState(prev => ({ ...prev, manualStats }));
     });
 
-    const unsubPendingProspects = onSnapshot(query(collection(db, "pendingProspects"), where("clubId", "==", clubId)), (snap) => {
+    const unsubPendingProspects = skipForMembers('pendingProspects') ? () => {} : onSnapshot(query(collection(db, "pendingProspects"), where("clubId", "==", clubId)), (snap) => {
       const pendingProspects: PendingProspect[] = [];
       snap.forEach(d => pendingProspects.push(d.data() as PendingProspect));
       setState(prev => ({ ...prev, pendingProspects }));
     });
 
-    const unsubDriveFiles = onSnapshot(query(collection(db, "driveFiles"), where("clubId", "==", clubId)), (snap) => {
+    const driveFilesQuery = isMember
+      ? query(collection(db, "driveFiles"), where("clubId", "==", clubId), where("sharedWith", "array-contains", ownId))
+      : query(collection(db, "driveFiles"), where("clubId", "==", clubId));
+    const unsubDriveFiles = onSnapshot(driveFilesQuery, (snap) => {
       const driveFiles: DriveFile[] = [];
       snap.forEach(d => driveFiles.push(d.data() as DriveFile));
       setState(prev => ({ ...prev, driveFiles }));
     });
 
-    const unsubDriveFolders = onSnapshot(query(collection(db, "driveFolders"), where("clubId", "==", clubId)), (snap) => {
+    const unsubDriveFolders = skipForMembers('driveFolders') ? () => {} : onSnapshot(query(collection(db, "driveFolders"), where("clubId", "==", clubId)), (snap) => {
       const driveFolders: DriveFolder[] = [];
       snap.forEach(d => driveFolders.push(d.data() as DriveFolder));
       setState(prev => ({ ...prev, driveFolders }));
     });
 
-    const unsubNotifications = onSnapshot(query(collection(db, "notifications"), where("clubId", "==", clubId)), (snap) => {
+    const unsubNotifications = onSnapshot(memberRecordQuery("notifications", "userId"), (snap) => {
       const notifications: Notification[] = [];
       snap.forEach(d => notifications.push(d.data() as Notification));
       setState(prev => ({ ...prev, notifications }));
     });
 
-    const unsubProgressPhotos = onSnapshot(query(collection(db, "progressPhotos"), where("clubId", "==", clubId)), (snap) => {
+    const unsubProgressPhotos = onSnapshot(memberRecordQuery("progressPhotos"), (snap) => {
       const progressPhotos: ProgressPhoto[] = [];
       snap.forEach(d => progressPhotos.push({ id: d.id, ...d.data() } as ProgressPhoto));
       setState(prev => ({ ...prev, progressPhotos }));
@@ -1207,7 +1170,7 @@ export default function App() {
 
   useEffect(() => {
     if (!authResolved) return;
-    if (!auth.currentUser || !state.user || String(state.user.id) !== auth.currentUser.uid) return;
+    if (!auth.currentUser || !state.user || state.user.firebaseUid !== auth.currentUser.uid) return;
     if (messaging && 'Notification' in window) {
       const requestPushPermission = async () => {
         try {

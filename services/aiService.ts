@@ -1,11 +1,12 @@
 /// <reference types="vite/client" />
 import { Type } from "@google/genai";
 import { User, BodyData } from "../types";
+import { apiFetch } from "../firebase";
 
 export class GoogleGenAI {
   models = {
     generateContent: async (params: any) => {
-      const res = await fetch("/api/gemini/generateContent", {
+      const res = await apiFetch("/api/gemini/generateContent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(params)
@@ -51,7 +52,7 @@ export class GoogleGenAI {
              textMsg = msg[0].text;
           }
           const newHistory = [...history, { role: "user", parts: [{ text: textMsg }] }];
-          const res = await fetch("/api/gemini/generateContent", {
+          const res = await apiFetch("/api/gemini/generateContent", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
