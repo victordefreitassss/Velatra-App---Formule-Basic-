@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Card, Input, Button } from './UI';
 import { ChevronLeftIcon, CheckIcon } from './Icons';
 import { AddressAutocomplete } from './AddressAutocomplete';
-import { addDoc, collection, doc, getDoc, db } from '../firebase';
 
 interface Props {
   onCancel: () => void;
@@ -82,22 +81,16 @@ export const DiscoverySessionForm: React.FC<Props> = ({ onCancel, onSuccess }) =
 
     setLoading(true);
     try {
-      const clubDoc = await getDoc(doc(db, "clubs", clubCode));
-      if (!clubDoc.exists()) {
-        alert("Ce code de club n'existe pas.");
-        setLoading(false);
+      const response = await fetch('/api/public/prospects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clubCode, formData })
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        alert(result.error || "La demande n'a pas pu être envoyée.");
         return;
       }
-
-      await addDoc(collection(db, "prospects"), {
-        clubId: clubCode,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        date: new Date().toISOString(),
-        status: 'pending',
-        answers: { ...formData }
-      });
       alert("Demande envoyée ! Le club prendra contact avec vous rapidement.");
       onSuccess();
     } catch (err) {

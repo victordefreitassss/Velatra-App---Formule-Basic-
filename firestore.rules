@@ -80,11 +80,9 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isSelf(userId) || (resource != null && staffInClub(resource.data.clubId));
-      // Public sign-up can only create a member profile for the signed-in account.
-      // Owner and coach roles are created by the trusted server API.
-      allow create: if isSelf(userId) && request.resource.data.role == 'member' &&
-        request.resource.data.firebaseUid == request.auth.uid &&
-        exists(/databases/$(database)/documents/clubs/$(request.resource.data.clubId));
+      // All profiles, including public member sign-ups, are created by the
+      // server so clients cannot choose their own legacy numeric member ID.
+      allow create: if false;
       allow update: if (
         isSelf(userId) &&
         request.resource.data.role == resource.data.role &&
@@ -106,10 +104,9 @@ service cloud.firestore {
     }
 
     match /clubs/{clubId} {
-      // Members may look up a club code during sign-up, but legacy secret-bearing
-      // club documents stay hidden until the owner migrates the key server-side.
-      allow get: if noLegacyStripeSecret(resource.data) &&
-        (isSameClub(clubId) || !profileExists() || staffInClub(clubId));
+      // Public onboarding validates club codes through a server endpoint and
+      // returns no club profile fields to unauthenticated visitors.
+      allow get: if noLegacyStripeSecret(resource.data) && (isSameClub(clubId) || staffInClub(clubId));
       allow list: if isSuperAdmin() || isSuperAdminEmail();
       allow create: if false;
       allow update: if staffInClub(clubId) && (isSuperAdmin() || isSuperAdminEmail() ||
@@ -137,7 +134,8 @@ service cloud.firestore {
     }
 
     match /prospects/{prospectId} {
-      allow create: if true;
+      // Public discovery requests are written by the validated server endpoint.
+      allow create: if staffInClub(request.resource.data.clubId);
       allow read, update, delete: if resource != null && staffInClub(resource.data.clubId);
     }
 
