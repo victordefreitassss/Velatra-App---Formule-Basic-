@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import {
@@ -59,6 +60,11 @@ function ProductContent({ view }: { view: ProductView }) {
         <span>11:00</span><div /><div className="vh-event is-ink">Bilan · Hugo</div><div /><div className="vh-event is-green">Mila · Séance</div><div />
         <span>14:00</span><div className="vh-event is-sand">Appel découverte</div><div /><div className="vh-event is-green">Sarah · Séance</div><div /><div />
       </div>
+      <div className="vh-schedule-mobile" aria-label="Aperçu du planning">
+        <article><time>09:00</time><div><b>Mila Laurent</b><span>Séance · Force & mobilité</span></div><small>45 min</small></article>
+        <article><time>11:30</time><div><b>Point de suivi</b><span>Visioconférence · Théo</span></div><small>30 min</small></article>
+        <article><time>16:00</time><div><b>Préparer le programme</b><span>Sarah André</span></div><small>À faire</small></article>
+      </div>
     </div>;
   }
 
@@ -76,6 +82,12 @@ function ProductContent({ view }: { view: ProductView }) {
   }
 
   return <div className="vh-overview">
+    <div className="vh-overview-mobile">
+      <div className="vh-mobile-summary"><span>À L’AGENDA · CETTE SEMAINE</span><b>3 rendez-vous</b></div>
+      <article className="vh-mobile-appointment"><span className="vh-mobile-time">09:00</span><i /><div><b>Mila Laurent</b><span>Séance · Force & mobilité</span></div><small>45 min</small></article>
+      <article className="vh-mobile-appointment"><span className="vh-mobile-time">11:30</span><i className="is-sand" /><div><b>Point de suivi</b><span>Visioconférence · Théo</span></div><small>30 min</small></article>
+      <article className="vh-mobile-appointment"><span className="vh-mobile-time">16:00</span><i className="is-ink" /><div><b>Préparer le programme</b><span>Sarah André</span></div><small>À faire</small></article>
+    </div>
     <div className="vh-overview-metrics">
       <article><span>Adhérents</span><b>24</b></article>
       <article><span>Programmes actifs</span><b>08</b></article>
@@ -95,6 +107,7 @@ function ProductContent({ view }: { view: ProductView }) {
 
 function ProductInterface({ view }: { view: ProductView }) {
   const current = productViews.find((item) => item.key === view) ?? productViews[0];
+  const reduceMotion = useReducedMotion();
   return <div className="vh-product-window" aria-label="Aperçu du produit avec données fictives">
     <div className="vh-product-chrome">
       <div className="vh-chrome-dots" aria-hidden="true"><i /><i /><i /></div>
@@ -103,7 +116,7 @@ function ProductInterface({ view }: { view: ProductView }) {
     </div>
     <div className="vh-product-app">
       <aside className="vh-product-sidebar">
-        <div className="vh-product-brand"><span>V</span><b>VELATRA</b></div>
+        <div className="vh-product-brand"><span className="vh-logo-crop" aria-hidden="true" /><b>VELATRA</b></div>
         <span className="vh-sidebar-caption">ESPACE COACH</span>
         <nav aria-label="Navigation de l’aperçu">
           {productViews.map((item) => {
@@ -115,7 +128,21 @@ function ProductInterface({ view }: { view: ProductView }) {
       </aside>
       <div className="vh-product-main">
         <div className="vh-product-heading"><div><span>ESPACE COACH <i>/</i> {current.label.toUpperCase()}</span><h2>{current.title}</h2><p>{current.description}</p></div><button type="button" tabIndex={-1} aria-hidden="true">+ Ajouter</button></div>
-        <div className="vh-product-dynamic" key={view}><ProductContent view={view} /></div>
+      <div className="vh-product-dynamic">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            className="vh-product-transition"
+            key={view}
+            layout={!reduceMotion}
+            initial={reduceMotion ? false : { opacity: 0, y: 7 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: [0.2, 0.75, 0.25, 1] }}
+          >
+            <ProductContent view={view} />
+          </motion.div>
+        </AnimatePresence>
+      </div>
       </div>
     </div>
   </div>;
@@ -151,7 +178,7 @@ function ToolConvergence() {
           <span className="vh-tool-chip chip-pdf"><FileText size={18} /> PDF & notes</span>
         </div>
         <div className="vh-convergence-path" aria-hidden="true"><i /><i /><i /><ArrowDown size={20} /></div>
-        <div className="vh-single-space"><span className="vh-space-mark">V</span><div><span>AU MÊME ENDROIT</span><b>Velatra</b><small>Adhérents · programmes · planning · suivi</small></div><MoveRight size={23} aria-hidden="true" /></div>
+        <div className="vh-single-space"><span className="vh-space-mark" aria-hidden="true" /><div><span>AU MÊME ENDROIT</span><b>Velatra</b><small>Adhérents · programmes · planning · suivi</small></div><MoveRight size={23} aria-hidden="true" /></div>
       </div>
     </div>
   </section>;
@@ -178,7 +205,7 @@ function MemberExperience() {
   return <section className="vh-member" id="adherents" aria-labelledby="vh-member-title">
     <div className="vh-wrap vh-member-layout">
       <div className="vh-member-copy"><span className="vh-eyebrow">L’ESPACE DE L’ADHÉRENT</span><h2 id="vh-member-title">Le coaching continue<br /><em>entre les séances.</em></h2><p>Vos adhérents retrouvent les programmes, les séances et les informations que vous partagez avec eux, depuis leur propre espace.</p><ul><li><Check size={17} /> Programmes sportifs et séances</li><li><Check size={17} /> Suivi selon les outils activés par le coach</li><li><Check size={17} /> Espace accessible sur mobile</li></ul><Link to="/fonctionnalites" className="vh-inline-link">Voir l’espace adhérent <ArrowRight size={16} /></Link></div>
-      <div className="vh-member-stage"><div className="vh-member-caption"><span>02</span><span>ESPACE ADHÉRENT · APERÇU FICTIF</span></div><div className="vh-phone"><div className="vh-phone-camera" /><div className="vh-phone-top"><b>VELATRA</b><span>ML</span></div><div className="vh-phone-greeting"><small>VOTRE ESPACE</small><h3>Bonjour, Mila</h3><p>Voici votre prochaine séance.</p></div><div className="vh-phone-feature"><span>PROGRAMME EN COURS</span><b>Force & mobilité</b><small>Cette semaine · 3 séances prévues</small><div><i /></div></div><div className="vh-phone-session"><span><Dumbbell size={17} /></span><div><b>Séance du jour</b><small>Haut du corps · 45 min</small></div><ChevronRight size={16} /></div><div className="vh-phone-session is-light"><span><Activity size={17} /></span><div><b>Mon suivi</b><small>Mis à jour avec votre coach</small></div><ChevronRight size={16} /></div><div className="vh-phone-bottom"><span>Accueil</span><span>Programme</span><span>Suivi</span><span>Profil</span></div></div><div className="vh-member-side-note"><span className="vh-side-note-mark"><MessageCircle size={18} /></span><b>Un espace à eux.</b><small>Des repères faciles à retrouver après chaque séance.</small></div></div>
+      <div className="vh-member-stage"><div className="vh-member-caption"><span>02</span><span>ESPACE ADHÉRENT · APERÇU FICTIF</span></div><div className="vh-phone"><div className="vh-phone-camera" /><div className="vh-phone-top"><span className="vh-phone-brand"><i className="vh-logo-crop" aria-hidden="true" /><b>VELATRA</b></span><span>ML</span></div><div className="vh-phone-greeting"><small>VOTRE ESPACE</small><h3>Bonjour, Mila</h3><p>Voici votre prochaine séance.</p></div><div className="vh-phone-feature"><span>PROGRAMME EN COURS</span><b>Force & mobilité</b><small>Cette semaine · 3 séances prévues</small><div><i /></div></div><div className="vh-phone-session"><span><Dumbbell size={17} /></span><div><b>Séance du jour</b><small>Haut du corps · 45 min</small></div><ChevronRight size={16} /></div><div className="vh-phone-session is-light"><span><Activity size={17} /></span><div><b>Mon suivi</b><small>Mis à jour avec votre coach</small></div><ChevronRight size={16} /></div><div className="vh-phone-bottom"><span>Accueil</span><span>Programme</span><span>Suivi</span><span>Profil</span></div></div><div className="vh-member-side-note"><span className="vh-side-note-mark"><MessageCircle size={18} /></span><b>Un espace à eux.</b><small>Des repères faciles à retrouver après chaque séance.</small></div></div>
     </div>
   </section>;
 }
@@ -217,7 +244,7 @@ export default function HomePage() {
     </Helmet>
     <main className="velatra-home-v2">
       <section className="vh-hero" aria-labelledby="vh-hero-title">
-        <div className="vh-hero-backdrop" aria-hidden="true"><span>V</span><i /></div>
+        <div className="vh-hero-backdrop" aria-hidden="true"><span className="vh-backdrop-plane vh-backdrop-plane-back" /><span className="vh-backdrop-plane vh-backdrop-plane-front" /><i /></div>
         <div className="vh-wrap vh-hero-copy">
           <span className="vh-eyebrow"><i /> LA PLATEFORME TOUT-EN-UN DES COACHS</span>
           <h1 id="vh-hero-title">Gérez votre coaching.<br /><em>Pas vos outils.</em></h1>
@@ -225,7 +252,7 @@ export default function HomePage() {
           <div className="vh-hero-actions"><Link to="/contact" className="vh-button vh-button-primary">Demander un accès bêta <ArrowRight size={17} /></Link><a href="#produit" className="vh-button vh-button-secondary">Voir le produit <ArrowDown size={16} /></a></div>
           <div className="vh-hero-facts"><span>COACH + ADHÉRENT</span><i /><span>SPORT + NUTRITION</span><i /><span>CRM + ORGANISATION</span></div>
         </div>
-        <div className="vh-wrap vh-hero-product"><ProductInterface view="overview" /></div>
+        <div className="vh-wrap vh-hero-product"><ProductInterface view="overview" /><div className="vh-hero-glass-note" aria-hidden="true"><span><CalendarDays size={15} /></span><div><small>PROCHAIN COACHING</small><b>Mila · 14:30</b></div><i /></div></div>
         <div className="vh-hero-scroll"><span>FAITES DÉFILER POUR VOIR COMMENT TOUT SE REJOINT</span><i /></div>
       </section>
       <ToolConvergence />

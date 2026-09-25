@@ -12,7 +12,7 @@ export const Footer: React.FC = () => (
     <div className="marketing-container">
       <div className="marketing-footer-inner">
         <div className="marketing-footer-brand">
-          <Link to="/" className="marketing-logo"><span className="marketing-logo-mark">V</span><span>VELATRA</span></Link>
+          <Link to="/" className="marketing-logo"><span className="marketing-logo-mark" aria-hidden="true" /><span>VELATRA</span></Link>
           <p>La plateforme qui réunit les outils essentiels de votre activité de coaching sportif.</p>
         </div>
         {groups.map((group) => <div key={group.title}><h3>{group.title}</h3><div className="marketing-footer-links">{group.links.map((link) => <Link key={link.label} to={link.to}>{link.label}</Link>)}</div></div>)}
