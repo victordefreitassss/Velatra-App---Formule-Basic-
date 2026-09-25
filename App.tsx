@@ -10,10 +10,9 @@ import {
   INIT_EXERCISES, CLUB_INFO, COACHES, CATEGORY_MEDIA, getExerciseMedia 
 } from './constants';
 import { 
-  apiFetch, auth, db, messaging, firebaseConfig,
+  apiFetch, auth, db, getMessagingClient, firebaseConfig,
   onAuthStateChanged, signOut, 
-  doc, getDoc, getDocFromServer, setDoc, onSnapshot as originalOnSnapshot, updateDoc, collection, deleteDoc, query, where, getDocs,
-  getToken, onMessage
+  doc, getDoc, getDocFromServer, setDoc, onSnapshot as originalOnSnapshot, updateDoc, collection, deleteDoc, query, where, getDocs
 } from './firebase';
 
 const isGcpBillingOrSuspendedError = (error: any): boolean => {
@@ -123,6 +122,7 @@ const HelpCenterPage = React.lazy(() => import('./pages/HelpCenter'));
 const BlogPage = React.lazy(() => import('./pages/Blog'));
 const BlogPostPage = React.lazy(() => import('./pages/BlogPost'));
 const ContactPage = React.lazy(() => import('./pages/ContactPage'));
+const SeoLandingPage = React.lazy(() => import('./pages/SeoLandingPage'));
 const MentionsLegales = lazyNamed(() => import('./pages/Legal'), 'MentionsLegales');
 const CGV = lazyNamed(() => import('./pages/Legal'), 'CGV');
 const Confidentialite = lazyNamed(() => import('./pages/Legal'), 'Confidentialite');
@@ -1191,47 +1191,42 @@ export default function App() {
   const hasNotifiedTasks = useRef(false);
 
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
-
-  useEffect(() => {
     if (!authResolved) return;
     if (!auth.currentUser || !state.user || state.user.firebaseUid !== auth.currentUser.uid) return;
-    if (messaging && 'Notification' in window) {
-      const requestPushPermission = async () => {
-        try {
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted') {
-            const token = await getToken(messaging, {
-              // REMPLACER PAR LA CLÉ VAPID DEPUIS LA CONSOLE FIREBASE
-              vapidKey: 'BH_DNK6qCrM8TNPAXNLnL_vWKM2S6wjzsdoHwG4lKVvkxkJQJIz5E2vL7CF-N_XZy1a27sgZaOnQVjpHUwVa3Lw' 
-            });
-            if (token) {
-              await setDoc(doc(db, "users", state.user.firebaseUid || String(state.user.id)), {
-                fcmToken: token
-              }, { merge: true });
-            }
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    const initializePush = async () => {
+      const pushSdk = await getMessagingClient();
+      if (cancelled || !pushSdk) return;
+      try {
+        const permission = Notification.permission === 'granted'
+          ? 'granted'
+          : await Notification.requestPermission();
+        if (permission === 'granted') {
+          const token = await pushSdk.getToken(pushSdk.messaging, {
+            // Public VAPID key configured in Firebase Cloud Messaging.
+            vapidKey: 'BH_DNK6qCrM8TNPAXNLnL_vWKM2S6wjzsdoHwG4lKVvkxkJQJIz5E2vL7CF-N_XZy1a27sgZaOnQVjpHUwVa3Lw'
+          });
+          if (token && !cancelled) {
+            await setDoc(doc(db, "users", state.user.firebaseUid || String(state.user.id)), { fcmToken: token }, { merge: true });
           }
-        } catch (error) {
-          console.error('Erreur lors de la récupération du token push:', error);
         }
-      };
-
-      requestPushPermission();
-
-      const unsubscribe = onMessage(messaging, (payload) => {
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification(payload.notification?.title || "Nouvelle notification", {
-            body: payload.notification?.body,
-            icon: payload.notification?.icon || "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
+        if (!cancelled) {
+          unsubscribe = pushSdk.onMessage(pushSdk.messaging, (payload) => {
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification(payload.notification?.title || "Nouvelle notification", {
+                body: payload.notification?.body,
+                icon: payload.notification?.icon || "https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png"
+              });
+            }
           });
         }
-      });
-
-      return () => unsubscribe();
-    }
+      } catch (error) {
+        console.error('Erreur lors de la récupération du token push:', error);
+      }
+    };
+    void initializePush();
+    return () => { cancelled = true; unsubscribe?.(); };
   }, [state.user?.id, authResolved]);
 
   useEffect(() => {
@@ -1358,6 +1353,12 @@ export default function App() {
         <Route path="/blog/:slug" element={<BlogPostPage />} />
         <Route path="/a-propos" element={<AboutPageMarketing />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/logiciel-coach-sportif" element={<SeoLandingPage />} />
+        <Route path="/logiciel-personal-trainer" element={<SeoLandingPage />} />
+        <Route path="/logiciel-studio-coaching" element={<SeoLandingPage />} />
+        <Route path="/crm-coach-sportif" element={<SeoLandingPage />} />
+        <Route path="/logiciel-suivi-client-coach" element={<SeoLandingPage />} />
+        <Route path="/logiciel-programme-entrainement" element={<SeoLandingPage />} />
         <Route path="/mentions-legales" element={<MentionsLegales />} />
         <Route path="/cgv" element={<CGV />} />
         <Route path="/confidentialite" element={<Confidentialite />} />

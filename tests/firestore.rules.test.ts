@@ -117,9 +117,31 @@ describe('Firestore coach/member isolation', () => {
     }));
   });
 
+  it('lets an adherent message their assigned coach and blocks coach reassignment spoofing', async () => {
+    const db = testEnv.authenticatedContext('member-a').firestore();
+    await assertSucceeds(setDoc(doc(db, 'messages', 'member-message-a'), {
+      clubId: 'club-a', assignedCoachUid: 'coach-a', from: 101, to: 2, text: 'Bonjour', date: '2026-09-25', read: false
+    }));
+    await assertFails(setDoc(doc(db, 'messages', 'member-message-b'), {
+      clubId: 'club-a', assignedCoachUid: 'coach-b', from: 101, to: 3, text: 'Interdit', date: '2026-09-25', read: false
+    }));
+  });
+
   it('does not let an adherent change their role or assigned coach', async () => {
     const db = testEnv.authenticatedContext('member-a').firestore();
     await assertFails(setDoc(doc(db, 'users', 'member-a'), { ...profiles.memberA, role: 'owner' }));
     await assertFails(setDoc(doc(db, 'users', 'member-a'), { ...profiles.memberA, assignedCoachUid: 'coach-b' }));
+  });
+
+  it('keeps daily check-ins and AI conversation records behind the authenticated server API', async () => {
+    const db = testEnv.authenticatedContext('member-a').firestore();
+    await assertFails(getDoc(doc(db, 'dailyCheckIns', 'member-a_2026-09-25')));
+    await assertFails(setDoc(doc(db, 'dailyCheckIns', 'member-a_2026-09-25'), {
+      userUid: 'member-a', memberId: 101, clubId: 'club-a', date: '2026-09-25'
+    }));
+    await assertFails(getDoc(doc(db, 'aiConversations', 'member-a_general')));
+    await assertFails(setDoc(doc(db, 'aiConversations', 'member-a_general'), {
+      ownerUid: 'member-a', clubId: 'club-a', role: 'member', memberId: null, messages: []
+    }));
   });
 });

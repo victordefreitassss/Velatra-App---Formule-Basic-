@@ -3,10 +3,11 @@ import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { FluidBackground } from './FluidBackground';
 import { CookieBanner } from './CookieBanner';
-import { DemoPopup } from './DemoPopup';
 import { motion, useScroll, useSpring, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { ArrowUp } from 'lucide-react';
+import '../pages/marketing.css';
 
 const ScrollToTopButton = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -44,8 +45,21 @@ const ScrollToTopButton = () => {
 };
 
 export default function LandingLayout() {
+  const location = useLocation();
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, { stiffness: 100, damping: 30 });
+
+  useEffect(() => {
+    if (!location.hash) {
+      window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+      return;
+    }
+    const sectionId = decodeURIComponent(location.hash.slice(1));
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.pathname, location.hash]);
 
   return (
     <div className="min-h-screen selection:bg-emerald-100 selection:text-emerald-900 flex flex-col relative bg-transparent transition-colors duration-500">
@@ -60,7 +74,6 @@ export default function LandingLayout() {
       </div>
       <ScrollToTopButton />
       <CookieBanner />
-      <DemoPopup />
     </div>
   );
 }

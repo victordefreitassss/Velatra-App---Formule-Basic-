@@ -400,6 +400,19 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
         </div>
       </motion.div>
 
+      {members.length === 0 && (
+        <motion.section variants={itemVariants} className="flex flex-col gap-5 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="max-w-2xl">
+            <p className="mb-1 text-xs font-bold uppercase tracking-wider text-emerald-700">Démarrage</p>
+            <h2 className="text-xl font-display font-bold text-zinc-900">Ajoute ton premier adhérent</h2>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-600">Crée son profil, vérifie son affectation à ton compte, puis prépare ses programmes sportifs et alimentaires depuis sa fiche.</p>
+          </div>
+          <Button onClick={() => setState(previous => ({ ...previous, page: 'users' }))} className="shrink-0">
+            Ajouter un adhérent
+          </Button>
+        </motion.section>
+      )}
+
       {/* 2. Bento Shortcuts Grid */}
       <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[

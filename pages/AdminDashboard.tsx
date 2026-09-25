@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { 
   collection, getDocs, doc, updateDoc, deleteDoc, query, where, addDoc, serverTimestamp, orderBy, limit 
 } from 'firebase/firestore';
-import { db, storage } from '../firebase';
+import { db, getStorageClient } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Club, User } from '../types';
 import { Card } from '../components/UI';
@@ -340,6 +340,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
   const handleLogoUpload = async (clubId: string, file: File) => {
     try {
       showToast("Téléchargement du logo en cours...", "success");
+      const storage = await getStorageClient();
       const logoRef = ref(storage, `clubs/${clubId}/logo_${Date.now()}`);
       await uploadBytes(logoRef, file);
       const url = await getDownloadURL(logoRef);

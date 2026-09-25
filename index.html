@@ -3,8 +3,13 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Velatra</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Velatra — Le logiciel de coaching sportif tout-en-un</title>
+    <meta name="description" content="Centralisez vos adhérents, programmes sportifs, suivi, planning et outils de gestion dans Velatra, la plateforme pensée pour les coachs sportifs." />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#f7f9f8" />
+    <meta property="og:title" content="Velatra — Gérez votre coaching. Pas votre administratif." />
+    <meta property="og:description" content="Clients, programmes, planning et suivi : réunissez votre activité de coaching dans Velatra." />
     <link rel="icon" type="image/png" href="https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png" />
     <link rel="apple-touch-icon" href="https://i.postimg.cc/VLMLPbh9/Design-sans-titre.png" />
     <link rel="manifest" href="/manifest.json" />
@@ -15,17 +20,19 @@
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap');
       
       :root {
-        --velatra-red: #10b981;
-        --velatra-red-dark: #059669;
+        --velatra-accent: #10b981;
+        --velatra-accent-dark: #059669;
+        --velatra-page: #f7f9f8;
+        --velatra-border: #e4e9e6;
       }
 
       body {
-        background-color: #ffffff; /* white */
+        background-color: var(--velatra-page);
         color: #18181b; /* zinc-900 */
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        font-size: 13px;
-        letter-spacing: 0.03em;
-        line-height: 1.6;
+        font-size: 15px;
+        letter-spacing: normal;
+        line-height: 1.55;
         font-weight: 400;
         margin: 0;
         -webkit-tap-highlight-color: transparent;
@@ -38,22 +45,20 @@
       }
 
       .premium-gradient {
-        background: linear-gradient(135deg, #ffffff 0%, #f4f4f5 100%);
+        background: linear-gradient(135deg, #ffffff 0%, #f6f8f7 100%);
       }
 
       .glass {
         background: rgba(255, 255, 255, 0.7);
         backdrop-filter: blur(16px);
         -webkit-backdrop-filter: blur(16px);
-        border: 1px solid rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--velatra-border);
       }
 
       .glass-card {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(244, 244, 245, 0.7) 100%);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(0, 0, 0, 0.05);
-        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.1), 0 0 20px rgba(16, 185, 129, 0.03);
+        background: #ffffff;
+        border: 1px solid var(--velatra-border);
+        box-shadow: 0 8px 24px -20px rgba(15, 23, 42, 0.35);
       }
 
       .font-mono-timer {
@@ -85,22 +90,25 @@
         background: rgba(0, 0, 0, 0.2);
       }
 
-      /* Active scaling for buttons */
-      button:active {
-        transform: scale(0.97);
+      :focus-visible {
+        outline: 3px solid rgba(16, 185, 129, 0.55);
+        outline-offset: 2px;
       }
 
-      /* Force full page width for all pages and subpages */
-      main .max-w-7xl,
-      main .max-w-6xl,
-      main .max-w-5xl,
-      main .max-w-4xl,
-      main .max-w-3xl,
-      main .max-w-2xl,
-      main .max-w-[1600px] {
-        max-width: none !important;
-        width: 100% !important;
+      ::selection {
+        color: #064e3b;
+        background: rgba(16, 185, 129, 0.2);
       }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
     </style>
     <script>
       tailwind.config = {
@@ -114,10 +122,10 @@
             },
             colors: {
               velatra: {
-                bg: '#ffffff',
-                bgLight: '#f4f4f5',
+                bg: '#f7f9f8',
+                bgLight: '#f1f5f3',
                 bgCard: '#ffffff',
-                border: '#e4e4e7',
+                border: '#e4e9e6',
                 accent: '#10b981',
                 accentDark: '#059669',
                 textMuted: '#71717a',

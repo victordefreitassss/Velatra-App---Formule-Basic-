@@ -322,6 +322,7 @@ export interface ClubInfo {
 export interface Message {
   id: number;
   clubId: string;
+  assignedCoachUid?: string;
   from: number;
   to: number | null;
   text: string;
