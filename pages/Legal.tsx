@@ -1,45 +1,34 @@
 import React from 'react';
+import { Helmet } from 'react-helmet-async';
+import { Link } from 'react-router-dom';
 
-export const MentionsLegales: React.FC = () => {
-  return (
-    <div className="pt-32 pb-24">
-      <div className="max-w-3xl mx-auto px-6 space-y-6 text-zinc-650 dark:text-zinc-350 text-xs md:text-sm leading-relaxed">
-        <h1 className="text-3xl font-display font-black text-zinc-950 dark:text-white mb-8 tracking-tight">Mentions Légales</h1>
-        <p><strong>Éditeur du site :</strong> Velatra S.A.S, société par actions simplifiée au capital de 10 000 €, dont le siège social est situé à Paris, France. Immatriculée au Registre de Commerce de Paris.</p>
-        <p><strong>Directeur de la publication :</strong> Victor De Freitas, en qualité de Fondateur de Velatra.</p>
-        <p><strong>Hébergeur :</strong> Google Cloud Platform (Europe-West), Google LLC, 1600 Amphitheatre Parkway, Mountain View, CA 94043, USA.</p>
-        <p><strong>Propriété intellectuelle :</strong> Tous les contenus présents sur ce site (dessins, logos, codes sources, icônes, textes) sont la propriété exclusive de Velatra ou de ses partenaires licenciés. Toute copie est strictement interdite.</p>
-      </div>
-    </div>
-  );
-};
+const LegalPageShell = ({ title, description, children }: { title: string; description: string; children: React.ReactNode }) => <>
+  <Helmet>
+    <title>{title} | Velatra</title>
+    <meta name="description" content={description} />
+  </Helmet>
+  <main className="marketing-legal"><div className="marketing-container"><span className="marketing-kicker">INFORMATIONS VELATRA</span><h1>{title}</h1><p className="marketing-legal-intro">{description}</p><div className="marketing-legal-copy">{children}</div><Link className="marketing-text-link" to="/contact">Contacter Velatra <span aria-hidden="true">→</span></Link></div></main>
+</>;
 
-export const CGV: React.FC = () => {
-  return (
-    <div className="pt-32 pb-24">
-      <div className="max-w-3xl mx-auto px-6 space-y-6 text-zinc-650 dark:text-zinc-350 text-xs md:text-sm leading-relaxed">
-        <h1 className="text-3xl font-display font-black text-zinc-950 dark:text-white mb-8 tracking-tight">Conditions Générales de Vente (CGV)</h1>
-        <p>Les présentes Conditions Générales de Vente régissent l'accès et l'utilisation de l'ensemble des modules payants de Velatra par les professionnels du fitness en France.</p>
-        <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase tracking-wider">Plan tarifaire & Abonnements</h3>
-        <p>Les tarifs sont facturés par prélèvements bancaires sécurisés récurrents (mensuels ou annuels). L’accès débute par un essai d’évaluation de 14 jours gratuits.</p>
-        <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase tracking-wider">Résiliation</h3>
-        <p>L’abonnement est libre d’engagement et peut être résilié à tout moment en un clic depuis votre tableau de bord d’administration, sans frais additionnels.</p>
-      </div>
-    </div>
-  );
-};
+export const MentionsLegales: React.FC = () => <LegalPageShell title="Mentions légales" description="Informations sur l’éditeur et l’hébergement du site Velatra.">
+  <h2>Éditeur</h2>
+  <p>La raison sociale, la forme juridique, l’adresse du siège et les informations d’immatriculation de l’éditeur doivent être confirmées et complétées par Velatra avant la commercialisation du service.</p>
+  <p>Pour toute question concernant ce site, vous pouvez contacter Velatra à l’adresse <a href="mailto:support@velatra.app">support@velatra.app</a>.</p>
+  <h2>Hébergement et services techniques</h2>
+  <p>Le site est déployé sur Vercel. L’application utilise des services Firebase et Google Cloud. Les prestataires et les coordonnées juridiques définitives doivent être confirmés dans les informations contractuelles de Velatra.</p>
+</LegalPageShell>;
 
-export const Confidentialite: React.FC = () => {
-  return (
-    <div className="pt-32 pb-24">
-      <div className="max-w-3xl mx-auto px-6 space-y-6 text-zinc-650 dark:text-zinc-350 text-xs md:text-sm leading-relaxed">
-        <h1 className="text-3xl font-display font-black text-zinc-950 dark:text-white mb-8 tracking-tight">Politique de Confidentialité</h1>
-        <p>Chez Velatra, la sécurité et la confidentialité des données personnelles de vos athlètes sont d'une importance capitale.</p>
-        <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase tracking-wider">Collecte des informations</h3>
-        <p>Nous ne collectons que les informations indispensables au bon fonctionnement de l'application (emails, prénoms, plannings, informations de séances d'exercices). Aucun traitement de vos données n'est revendu à des tiers.</p>
-        <h3 className="text-sm font-bold text-zinc-950 dark:text-white uppercase tracking-wider">Infrastructure & Hébergement</h3>
-        <p>Vos bases de données de coaching sont stockées sur Google Firebase Firestore et gérées conformément au cadre général de protection des données (RGPD).</p>
-      </div>
-    </div>
-  );
-};
+export const CGV: React.FC = () => <LegalPageShell title="Conditions de vente" description="Informations relatives aux offres et à la souscription Velatra.">
+  <h2>Offres</h2>
+  <p>Les offres et tarifs actuellement affichés sont présentés sur la page <Link to="/tarifs">Tarifs</Link>. Les modalités complètes de souscription, de facturation, de renouvellement, de résiliation et d’essai doivent être confirmées par l’éditeur avant toute souscription payante.</p>
+  <h2>Avant toute souscription</h2>
+  <p>Les présentes informations ne remplacent pas des conditions contractuelles complètes. L’éditeur doit renseigner et valider les conditions applicables au service avant d’ouvrir la souscription commerciale.</p>
+</LegalPageShell>;
+
+export const Confidentialite: React.FC = () => <LegalPageShell title="Confidentialité" description="Informations relatives aux données traitées par Velatra.">
+  <h2>Traitements réalisés par le service</h2>
+  <p>Velatra peut traiter les informations de compte, les données de coaching et les contenus renseignés par les utilisateurs dans leur espace. L’application se connecte à Firebase et peut utiliser Gemini ainsi que Stripe selon les fonctionnalités activées.</p>
+  <h2>Informations à préciser</h2>
+  <p>Les coordonnées du responsable de traitement, les finalités et bases légales, les durées de conservation, les destinataires, les transferts éventuels et les modalités d’exercice des droits doivent être documentés et confirmés par l’éditeur avant la mise en service commerciale.</p>
+  <p>Pour une question sur vos données, vous pouvez écrire à <a href="mailto:support@velatra.app">support@velatra.app</a>.</p>
+</LegalPageShell>;

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Dumbbell, Zap, Calendar, Users, BarChart4, MessageSquare, 
@@ -9,81 +10,87 @@ export default function FeaturesPage() {
   const [activeTab, setActiveTab] = useState<'coach' | 'athlete' | 'business'>('coach');
 
   const tabs = [
-    { id: 'coach', label: 'Espace Coach & Studio', desc: 'Pilotez l’entraînement de vos membres d’élite', icon: Dumbbell },
-    { id: 'athlete', label: 'Application Mobile Athlète', desc: 'Une expérience d’entraînement autonome', icon: Smartphone },
-    { id: 'business', label: 'Finances & CRM Backoffice', desc: 'Gérez la croissance et la conformité Stripe', icon: BarChart4 }
+    { id: 'coach', label: 'Espace Coach & Studio', desc: 'Organisez les programmes et le suivi', icon: Dumbbell },
+    { id: 'athlete', label: 'Espace Adhérent', desc: 'Retrouvez les contenus de coaching', icon: Smartphone },
+    { id: 'business', label: 'Gestion de l’activité', desc: 'Retrouvez les outils de gestion', icon: BarChart4 }
   ];
 
   const subfeatures = {
     coach: [
       {
-        title: "Générateur de Séance Tactique",
-        desc: "Concevez vos séances en quelques secondes grâce à notre bibliothèque d'exercices vidéos ou importez vos propres tutoriels. Enregistrez des blocs d'entraînement réutilisables (Amrap, Emom, Force) et clonez-les en un clic.",
-        metrics: "Calculateur de 1RM intégré • Vidéos de démo HD"
+        title: "Préparer des séances",
+        desc: "Composez les séances et les programmes sportifs à partager avec vos adhérents depuis l’espace coach.",
+        metrics: "Séances • Programmes • Exercices"
       },
       {
-        title: "Tableau de Bord & Échauffements",
-        desc: "Visualisez d'un coup d'œil l'activité de vos sportifs de la semaine. Détectez instantanément les adhérents qui n'ont pas consigné leurs séances et envoyez un rappel d'attention.",
-        metrics: "Taux de complétion visible • Alertes inactivité"
+        title: "Consulter l’activité",
+        desc: "Retrouvez les informations de suivi renseignées par les adhérents et préparez les prochaines séances.",
+        metrics: "Profils • Activité • Suivi"
       },
       {
-        title: "Planification Connectée",
-        desc: "Définissez des créneaux de coaching en petit groupe ou en libre accès. Configurez des verrous de capacité de matériel, gérez les absences et laissez vos athlètes réserver eux-mêmes.",
-        metrics: "Synchronisation Google Calendar • File d'attente"
+        title: "Organiser le planning",
+        desc: "Consultez les rendez-vous et les séances prévus dans les outils de planning de votre espace.",
+        metrics: "Calendrier • Rendez-vous • Séances"
       },
       {
-        title: "Galerie d’Évolution Corporelle",
-        desc: "Suivez les mensurations (poids, masse grasse, graisse viscérale) et stockez les clichés d'évolution physique de manière ordonnée et strictement confidentielle par élève.",
-        metrics: "Graphiques d'évolution • Stockage hautement chiffré"
+        title: "Suivre les évolutions",
+        desc: "Consultez les mesures, les performances et les éléments d’évolution partagés avec le coach.",
+        metrics: "Historique • Mesures • Performances"
       }
     ],
     athlete: [
       {
-        title: "Journal d'Entraînement Autonome",
-        desc: "Les athlètes ouvrent leur application sur le plateau de musculation pour consigner leurs séries, charges, et temps de repos en direct. L'application calcule les charges théoriques adaptées.",
-        metrics: "Interface ultra-rapide axée toucher • Mode hors-ligne"
+        title: "Retrouver ses séances",
+        desc: "Les adhérents consultent les programmes et séances que leur coach met à leur disposition dans leur espace.",
+        metrics: "Programmes • Séances • Exercices"
       },
       {
-        title: "Suivi de Nutrition & Plan Énergétique",
-        desc: "Configurez des plans caloriques et cibles de macros personnalisés (Protéines, Glucides, Lipides). L'élève complète ses repas quotidiens et surveille sa balance énergétique en temps réel.",
-        metrics: "Répartition automatisée des macros • Alertes hydratation"
+        title: "Consulter le suivi nutritionnel",
+        desc: "Retrouvez les éléments de suivi alimentaire partagés avec votre coach dans votre espace.",
+        metrics: "Plans • Journaux • Suivi"
       },
       {
-        title: "Messagerie Fluide Sécurisée",
-        desc: "Conservez une relation privilégiée avec vos athlètes. Lancez des fils de discussion directs ou des publications générales pour votre club, sans dévoiler vos numéros personnels.",
-        metrics: "Salons d'annonce • Partage de fichiers PDF"
+        title: "Échanger avec son coach",
+        desc: "Utilisez la messagerie de l’application pour retrouver les échanges liés à votre accompagnement.",
+        metrics: "Messagerie • Échanges de fichiers"
       },
       {
-        title: "Tableau des Trophées & Dépassement",
-        desc: "Valorisez l'effort physique en récompensant la régularité et les nouveaux records personnels (RP) sur les exercices de référence (Squat, Deadlift, Clean & Jerk).",
-        metrics: "Niveaux de force • Badges de régularité"
+        title: "Suivre ses progrès",
+        desc: "Consignez l’activité sportive et retrouvez les éléments de progression disponibles dans votre espace.",
+        metrics: "Historique • Performances • Objectifs"
       }
     ],
     business: [
       {
-        title: "Intégration Stripe & Paiements",
-        desc: "Finies les relances embarrassantes pour les impayés. Configurez des forfaits d'abonnement mensuels récurrents ou des forfaits de crédits de séances avec prélèvements sécurisés.",
-        metrics: "Zéro frais Velatra • Factures PDF auto-générées"
+        title: "Suivre les paiements",
+        desc: "Consultez les éléments financiers de votre activité et connectez Stripe depuis les paramètres prévus à cet effet.",
+        metrics: "Suivi financier • Connexion Stripe selon configuration"
       },
       {
-        title: "CRM d'Acquisition & Tunnels",
-        desc: "Un entonnoir d'onboarding complet. Créez des formulaires d'évaluation athlétique élégants à intégrer sur vos réseaux sociaux pour collecter les coordonnées de nouveaux prospects chauds.",
-        metrics: "Relance commerciale assistée • Statuts en temps réel"
+        title: "Organiser vos prospects",
+        desc: "Retrouvez les contacts prospects dans un espace de suivi et organisez les étapes de prise de contact.",
+        metrics: "Fiches prospects • Étapes de suivi"
       },
       {
-        title: "Analyse des Revenus & Marges",
-        desc: "Suivez l'état réel de votre trésorerie, vos bénéfices, vos marges de dépenses et recevez des prédictions financières intelligentes de fin de mois basées sur vos abonnements actifs.",
-        metrics: "Dashboards financiers • Export comptable CSV"
+        title: "Gérer les éléments financiers",
+        desc: "Rassemblez les informations de revenus, paiements et dépenses disponibles dans les outils de gestion.",
+        metrics: "Paiements • Dépenses • Factures"
       },
       {
-        title: "Droits Multi-Coachs Collaboratifs",
-        desc: "Pour les gérants de salle : invitez d'autres entraîneurs sur votre espace, assignez-leur des membres spécifiques, et paramétrez leurs restrictions d'accès financières en direct.",
-        metrics: "Permissions sécurisées • Journal d'actions admin"
+        title: "Travailler avec plusieurs coachs",
+        desc: "Organisez les profils coachs et les adhérents associés selon les rôles configurés dans votre espace.",
+        metrics: "Profils coachs • Adhérents associés"
       }
     ]
   };
 
   return (
+    <>
+    <Helmet>
+      <title>Fonctionnalités Velatra — Coaching, programmes et suivi</title>
+      <meta name="description" content="Découvrez les fonctionnalités de Velatra pour gérer vos adhérents, préparer les programmes sportifs et organiser le suivi de votre activité." />
+      <link rel="canonical" href={`${window.location.origin}/fonctionnalites`} />
+    </Helmet>
     <div className="pt-32 pb-24 relative overflow-hidden bg-transparent">
       {/* Background Gradients */}
       <div className="absolute top-20 left-10 w-80 h-80 bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none"></div>
@@ -97,10 +104,10 @@ export default function FeaturesPage() {
             PUISSANCE FONCTIONNELLE
           </span>
           <h1 className="text-4xl md:text-5xl font-display font-black tracking-tight text-zinc-950 dark:text-white leading-none">
-            Remplacer 5 logiciels par <span className="text-emerald-500 font-extrabold">Velatra</span>
+            Les outils de coaching et de gestion réunis dans <span className="text-emerald-500 font-extrabold">Velatra</span>
           </h1>
           <p className="text-zinc-550 dark:text-zinc-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
-            Un écosystème d’élite unifié et ultra-rapide. Plus besoin de jongler entre WhatsApp pour échanger, Excel pour planifier, Stripe pour facturer et Drive pour stocker.
+            Des outils pour organiser vos adhérents, vos programmes, votre planning et les informations utiles à votre activité.
           </p>
         </div>
 
@@ -170,23 +177,23 @@ export default function FeaturesPage() {
           <div className="relative z-10 max-w-xl mx-auto space-y-4">
             <Sparkles className="w-8 h-8 text-emerald-400 mx-auto" strokeWidth={1.5} />
             <h2 className="text-2xl md:text-3xl font-display font-black tracking-tight text-white leading-tight">
-              Rejoignez les coachs qui gagnent 15h par semaine
+              Moins de dispersion dans votre quotidien de coach
             </h2>
             <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
-              Inscrivez-vous en 1 minute. Sans engagement. Testez l’écosystème gratuitement pendant 14 jours.
+              Découvrez les fonctionnalités de Velatra et choisissez les outils adaptés à votre façon de travailler.
             </p>
             <div className="pt-4 flex justify-center gap-4">
               <a
                 href="/register"
                 className="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl text-xs flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
               >
-                Démarrer l'essai gratuit <ChevronRight className="w-4 h-4" />
+                Créer mon compte <ChevronRight className="w-4 h-4" />
               </a>
               <a
                 href="/contact"
                 className="bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-zinc-200 font-bold py-3 px-6 rounded-xl text-xs transition-colors"
               >
-                Parler à un expert
+                Demander une démonstration
               </a>
             </div>
           </div>
@@ -194,6 +201,7 @@ export default function FeaturesPage() {
 
       </div>
     </div>
+    </>
   );
 }
 
