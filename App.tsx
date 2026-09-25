@@ -447,6 +447,21 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const uid = state.user?.firebaseUid;
+    if (!uid || state.user?.role !== 'coach') return;
+    apiFetch('/api/coach/assigned-members')
+      .then(async response => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Impossible de charger les adhérents affectés.');
+        const assignedMemberIds = Array.isArray(result.assignedMemberIds) ? result.assignedMemberIds.map(Number).filter(Number.isFinite) : [];
+        setState((previous: AppState) => previous.user?.firebaseUid === uid
+          ? { ...previous, user: { ...previous.user, assignedMemberIds } }
+          : previous);
+      })
+      .catch(error => console.error('Coach assignment loading failed:', error));
+  }, [state.user?.firebaseUid, state.user?.role]);
+
+  useEffect(() => {
     if (!authResolved) return;
     if (!auth.currentUser || !state.user || state.user.firebaseUid !== auth.currentUser.uid || !state.user.clubId) return;
 
@@ -463,11 +478,38 @@ export default function App() {
 
     const clubId = state.user.clubId;
     const isMember = state.user.role === 'member';
+    const isCoach = state.user.role === 'coach';
     const ownId = Number(state.user.id);
-    const memberRecordQuery = (collectionName: string, ownerField = 'memberId') =>
-      isMember
-        ? query(collection(db, collectionName), where('clubId', '==', clubId), where(ownerField, '==', ownId))
-        : query(collection(db, collectionName), where('clubId', '==', clubId));
+    const assignedMemberIds = [...new Set((state.user.assignedMemberIds || []).map(Number).filter(Number.isFinite))];
+    const memberRecordQueries = (collectionName: string, ownerField = 'memberId') => {
+      if (isMember) return [query(collection(db, collectionName), where('clubId', '==', clubId), where(ownerField, '==', ownId))];
+      if (isCoach) {
+        return state.user?.firebaseUid
+          ? [query(collection(db, collectionName), where('clubId', '==', clubId), where('assignedCoachUid', '==', state.user.firebaseUid))]
+          : [];
+      }
+      return [query(collection(db, collectionName), where('clubId', '==', clubId))];
+    };
+    const subscribeMemberRecords = (collectionName: string, ownerField: string, callback: (snapshot: any) => void) => {
+      const queries = memberRecordQueries(collectionName, ownerField);
+      if (!queries.length) {
+        callback({ docs: [], forEach: () => {}, docChanges: () => [] });
+        return () => {};
+      }
+      if (queries.length === 1) return onSnapshot(queries[0], callback);
+      const snapshots = new Map<number, any>();
+      const subscriptions = queries.map((recordQuery, index) => onSnapshot(recordQuery, (snapshot: any) => {
+        snapshots.set(index, snapshot);
+        const documents = new Map<string, any>();
+        snapshots.forEach(current => current.forEach((document: any) => documents.set(document.id, document)));
+        callback({
+          docs: [...documents.values()],
+          forEach: (handler: (document: any) => void) => documents.forEach(handler),
+          docChanges: () => snapshot.docChanges()
+        });
+      }));
+      return () => subscriptions.forEach(unsubscribe => unsubscribe());
+    };
     const skipForMembers = (key: string) => {
       if (!isMember) return false;
       setState(prev => ({ ...prev, [key]: [] }));
@@ -497,7 +539,9 @@ export default function App() {
     const unsubUsers = isMember ? (() => {
       setState(prev => ({ ...prev, users: prev.user ? [prev.user] : [] }));
       return () => {};
-    })() : onSnapshot(query(collection(db, "users"), where("clubId", "==", clubId)), (snap) => {
+    })() : onSnapshot(isCoach
+      ? query(collection(db, "users"), where("clubId", "==", clubId), where("role", "==", "member"), where("assignedCoachUid", "==", state.user!.firebaseUid))
+      : query(collection(db, "users"), where("clubId", "==", clubId)), (snap) => {
       const allUsers: User[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -514,7 +558,7 @@ export default function App() {
     });
 
     let isInitialProgsLoad = true;
-    const unsubProgs = onSnapshot(memberRecordQuery("programs"), (snap) => {
+    const unsubProgs = subscribeMemberRecords("programs", "memberId", (snap) => {
       const allProgs: Program[] = [];
       const now = new Date();
       let hasNewProgram = false;
@@ -578,7 +622,7 @@ export default function App() {
       setState(prev => ({ ...prev, nutritionPresets: allNutritionPresets }));
     });
 
-    const unsubArchives = onSnapshot(memberRecordQuery("archivedPrograms"), (snap) => {
+    const unsubArchives = subscribeMemberRecords("archivedPrograms", "memberId", (snap) => {
       const allArchives: Program[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -591,7 +635,7 @@ export default function App() {
       setState(prev => ({ ...prev, archivedPrograms: allArchives }));
     });
 
-    const unsubPerfs = onSnapshot(memberRecordQuery("performances"), (snap) => {
+    const unsubPerfs = subscribeMemberRecords("performances", "memberId", (snap) => {
       const perfs: Performance[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -618,13 +662,13 @@ export default function App() {
       setState(prev => ({ ...prev, products }));
     });
 
-    const unsubOrders = onSnapshot(memberRecordQuery("supplementOrders", "adherentId"), (snap) => {
+    const unsubOrders = subscribeMemberRecords("supplementOrders", "adherentId", (snap) => {
       const orders: SupplementOrder[] = [];
       snap.forEach(d => orders.push(d.data() as SupplementOrder));
       setState(prev => ({ ...prev, supplementOrders: orders }));
     });
 
-    const unsubLogs = onSnapshot(memberRecordQuery("logs"), (snap) => {
+    const unsubLogs = subscribeMemberRecords("logs", "memberId", (snap) => {
       const logs: SessionLog[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -663,12 +707,17 @@ export default function App() {
       initialMessageSnapshots += 1;
       if (initialMessageSnapshots >= messageQueryCount) isInitialMessagesLoad = false;
     };
-    const messageQueries = isMember
+    const messageQueries = isCoach
       ? [
-          query(collection(db, "messages"), where("clubId", "==", clubId), where("from", "==", ownId)),
-          query(collection(db, "messages"), where("clubId", "==", clubId), where("to", "==", ownId))
+          query(collection(db, "messages"), where("clubId", "==", clubId), where("assignedCoachUid", "==", state.user.firebaseUid), where("from", "==", ownId)),
+          query(collection(db, "messages"), where("clubId", "==", clubId), where("assignedCoachUid", "==", state.user.firebaseUid), where("to", "==", ownId))
         ]
-      : [query(collection(db, "messages"), where("clubId", "==", clubId))];
+      : isMember
+        ? [
+            query(collection(db, "messages"), where("clubId", "==", clubId), where("from", "==", ownId)),
+            query(collection(db, "messages"), where("clubId", "==", clubId), where("to", "==", ownId))
+          ]
+        : [query(collection(db, "messages"), where("clubId", "==", clubId))];
     messageQueryCount = messageQueries.length;
     const unsubMessageQueries = messageQueries.map(messageQuery => onSnapshot(messageQuery, onMessagesChanged));
     const unsubMessages = () => unsubMessageQueries.forEach(unsubscribe => unsubscribe());
@@ -694,7 +743,7 @@ export default function App() {
       setState(prev => ({ ...prev, feed }));
     });
 
-    const unsubBody = onSnapshot(memberRecordQuery("bodyData"), (snap) => {
+    const unsubBody = subscribeMemberRecords("bodyData", "memberId", (snap) => {
       const bodyData: BodyData[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -768,7 +817,7 @@ export default function App() {
     });
 
     let isInitialBookingsLoad = true;
-    const unsubBookings = onSnapshot(memberRecordQuery("bookings"), (snap) => {
+    const unsubBookings = subscribeMemberRecords("bookings", "memberId", (snap) => {
       const bookings: Booking[] = [];
       let hasNewBooking = false;
 
@@ -800,7 +849,7 @@ export default function App() {
     });
 
     let isInitialNutritionPlansLoad = true;
-    const unsubNutritionPlans = onSnapshot(memberRecordQuery("nutritionPlans"), (snap) => {
+    const unsubNutritionPlans = subscribeMemberRecords("nutritionPlans", "memberId", (snap) => {
       const nutritionPlans: NutritionPlan[] = [];
       let hasNewNutritionPlan = false;
 
@@ -831,7 +880,7 @@ export default function App() {
       isInitialNutritionPlansLoad = false;
     });
 
-    const unsubNutritionLogs = onSnapshot(memberRecordQuery("nutritionLogs", "userId"), (snap) => {
+    const unsubNutritionLogs = subscribeMemberRecords("nutritionLogs", "userId", (snap) => {
       const nutritionLogs: NutritionLog[] = [];
       const now = new Date().getTime();
       const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
@@ -853,7 +902,7 @@ export default function App() {
       setState(prev => ({ ...prev, nutritionLogs }));
     });
 
-    const unsubSubscriptions = onSnapshot(memberRecordQuery("subscriptions"), (snap) => {
+    const unsubSubscriptions = subscribeMemberRecords("subscriptions", "memberId", (snap) => {
       const subscriptions: Subscription[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -865,7 +914,7 @@ export default function App() {
       setState(prev => ({ ...prev, subscriptions }));
     });
 
-    const unsubPayments = onSnapshot(memberRecordQuery("payments"), (snap) => {
+    const unsubPayments = subscribeMemberRecords("payments", "memberId", (snap) => {
       const payments: Payment[] = [];
       snap.forEach(d => {
         const data = d.data();
@@ -984,13 +1033,13 @@ export default function App() {
       setState(prev => ({ ...prev, driveFolders }));
     });
 
-    const unsubNotifications = onSnapshot(memberRecordQuery("notifications", "userId"), (snap) => {
+    const unsubNotifications = subscribeMemberRecords("notifications", "userId", (snap) => {
       const notifications: Notification[] = [];
       snap.forEach(d => notifications.push(d.data() as Notification));
       setState(prev => ({ ...prev, notifications }));
     });
 
-    const unsubProgressPhotos = onSnapshot(memberRecordQuery("progressPhotos"), (snap) => {
+    const unsubProgressPhotos = subscribeMemberRecords("progressPhotos", "memberId", (snap) => {
       const progressPhotos: ProgressPhoto[] = [];
       snap.forEach(d => progressPhotos.push({ id: d.id, ...d.data() } as ProgressPhoto));
       setState(prev => ({ ...prev, progressPhotos }));
@@ -1004,7 +1053,7 @@ export default function App() {
       unsubTasks(); unsubBookings(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubFixedCosts(); unsubNutritionPlans(); unsubNutritionLogs();
       unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects(); unsubDriveFiles(); unsubDriveFolders(); unsubNotifications(); unsubProgressPhotos();
     };
-  }, [state.user?.clubId, authResolved]);
+  }, [state.user?.clubId, state.user?.role, state.user?.firebaseUid, state.user?.assignedMemberIds?.join(','), authResolved]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setState(prev => ({ ...prev, toast: { message, type } }));

@@ -1,6 +1,8 @@
 import express from "express";
 import path from "path";
-import admin from "firebase-admin";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { FieldValue, getFirestore, type Firestore } from "firebase-admin/firestore";
 import nodemailer from "nodemailer";
 import Stripe from "stripe";
 import { randomInt } from "node:crypto";
@@ -16,6 +18,16 @@ declare global {
     }
   }
 }
+
+// Keep the existing Admin SDK call sites readable while using the modular API
+// required by Firebase Admin SDK 14.
+const admin = {
+  get apps() { return getApps(); },
+  initializeApp,
+  credential: { cert },
+  auth: () => getAuth(),
+  firestore: () => getFirestore()
+};
 
 const app = express();
 app.set('trust proxy', 1);
@@ -258,6 +270,39 @@ const requireUserProfile = async (req: any, res: any, next: any) => {
   }
 };
 
+const MEMBER_SCOPED_COLLECTIONS: Array<[string, string]> = [
+  ['programs', 'memberId'], ['archivedPrograms', 'memberId'], ['performances', 'memberId'],
+  ['logs', 'memberId'], ['bodyData', 'memberId'], ['nutritionPlans', 'memberId'],
+  ['nutritionLogs', 'userId'], ['subscriptions', 'memberId'], ['payments', 'memberId'],
+  ['supplementOrders', 'adherentId'], ['progressPhotos', 'memberId'],
+  ['bookings', 'memberId'], ['notifications', 'userId'], ['messages', 'from,to']
+];
+
+async function syncMemberRecordCoachUid(db: Firestore, clubId: string, memberIds: number[], coachUid: string | null) {
+  if (!memberIds.length) return 0;
+  const writer = db.bulkWriter();
+  let updated = 0;
+  const assignmentValue = coachUid ? coachUid : FieldValue.delete();
+  for (const [collectionName, ownerField] of MEMBER_SCOPED_COLLECTIONS) {
+    for (let offset = 0; offset < memberIds.length; offset += 30) {
+      const idChunk = memberIds.slice(offset, offset + 30);
+      const queryFields = ownerField === 'from,to' ? ['from', 'to'] : [ownerField];
+      const snapshots = await Promise.all(queryFields.map(field => db.collection(collectionName)
+        .where('clubId', '==', clubId)
+        .where(field, 'in', idChunk)
+        .get()));
+      const documents = new Map(snapshots.flatMap(snapshot => snapshot.docs).map(document => [document.id, document]));
+      documents.forEach(document => {
+        if (document.data().assignedCoachUid === coachUid) return;
+        writer.update(document.ref, { assignedCoachUid: assignmentValue });
+        updated += 1;
+      });
+    }
+  }
+  await writer.close();
+  return updated;
+}
+
 // A new club owner has a Firebase session before their server-side profile exists.
 app.post("/api/register-club", verifyFirebaseSession, async (req: any, res: any) => {
   try {
@@ -492,6 +537,7 @@ app.post('/api/create-member-profile', async (req: any, res: any) => {
       return res.status(400).json({ error: "L'adresse e-mail ne correspond pas au compte créé." });
     }
     const userRef = admin.firestore().collection('users').doc(uid);
+    const coachRef = admin.firestore().collection('users').doc(req.auth.uid);
     if ((await userRef.get()).exists) return res.status(409).json({ error: "Un profil existe déjà pour ce compte." });
 
     const allowedFields = [
@@ -514,14 +560,29 @@ app.post('/api/create-member-profile', async (req: any, res: any) => {
 
     let memberId: number | null = null;
     await admin.firestore().runTransaction(async (transaction) => {
-      const latest = await transaction.get(userRef);
+      const [latest, coachSnapshot] = await Promise.all([
+        transaction.get(userRef),
+        requester.role === 'coach' ? transaction.get(coachRef) : Promise.resolve(null)
+      ]);
       if (latest.exists) throw new Error('PROFILE_ALREADY_EXISTS');
+      if (requester.role === 'coach' && (!coachSnapshot?.exists || coachSnapshot.data()?.role !== 'coach' || coachSnapshot.data()?.clubId !== requester.clubId)) {
+        throw new Error('COACH_PROFILE_CHANGED');
+      }
+      const assignedIds: number[] = Array.isArray(coachSnapshot?.data()?.assignedMemberIds)
+        ? coachSnapshot.data()!.assignedMemberIds.map(Number).filter(Number.isFinite)
+        : [];
       for (let attempt = 0; attempt < 8; attempt += 1) {
         const candidateId = randomInt(1_000_000_000_000, 2_000_000_000_000);
         const collision = await transaction.get(admin.firestore().collection('users').where('id', '==', candidateId).limit(1));
         if (collision.empty) {
           memberId = candidateId;
           transaction.create(userRef, { ...cleanProfile, id: candidateId });
+          if (requester.role === 'coach') {
+            transaction.update(coachRef, {
+              assignedMemberIds: [...new Set([...assignedIds, candidateId])],
+              assignmentIndexVersion: 1
+            });
+          }
           return;
         }
       }
@@ -534,6 +595,88 @@ app.post('/api/create-member-profile', async (req: any, res: any) => {
     }
     console.error('Error creating member profile:', error.message);
     return res.status(500).json({ error: "Impossible de créer le profil adhérent." });
+  }
+});
+
+app.get('/api/coach/assigned-members', async (req: any, res: any) => {
+  if (req.profile?.role !== 'coach' || !req.profile?.clubId) {
+    return res.status(403).json({ error: "Cette action est réservée aux coachs." });
+  }
+  try {
+    const db = admin.firestore();
+    const coachRef = db.collection('users').doc(req.auth.uid);
+    const members = await db.collection('users')
+      .where('clubId', '==', req.profile.clubId)
+      .where('role', '==', 'member')
+      .where('assignedCoachUid', '==', req.auth.uid)
+      .get();
+    const assignedMemberIds = [...new Set(members.docs.map(doc => Number(doc.data().id)).filter(Number.isFinite))];
+    await coachRef.update({ assignedMemberIds, assignmentIndexVersion: 1 });
+    const migratedRecords = await syncMemberRecordCoachUid(db, req.profile.clubId, assignedMemberIds, req.auth.uid);
+    return res.json({ assignedMemberIds, migratedRecords });
+  } catch (error: any) {
+    console.error('Coach assignment index sync failed:', { code: error?.code || 'unknown' });
+    return res.status(500).json({ error: "Impossible de charger les adhérents affectés." });
+  }
+});
+
+app.post('/api/assign-member-coach', async (req: any, res: any) => {
+  const trustedSuperAdmin = req.profile?.role === 'superadmin' && req.auth?.email_verified === true && req.auth?.email === 'victor.defreitas.pro@gmail.com';
+  if ((req.profile?.role !== 'owner' && !trustedSuperAdmin) || !req.profile?.clubId) {
+    return res.status(403).json({ error: "Seul le propriétaire du club peut affecter un adhérent." });
+  }
+  const memberUid = typeof req.body?.memberUid === 'string' ? req.body.memberUid : '';
+  const coachUid = req.body?.coachUid === null ? null : (typeof req.body?.coachUid === 'string' ? req.body.coachUid : '');
+  if (!memberUid || (coachUid === '' && req.body?.coachUid !== null) || memberUid === req.auth.uid) {
+    return res.status(400).json({ error: "Les informations d'affectation sont invalides." });
+  }
+  try {
+    const db = admin.firestore();
+    const memberRef = db.collection('users').doc(memberUid);
+    const nextCoachRef = coachUid ? db.collection('users').doc(coachUid) : null;
+    const memberSnapshot = await memberRef.get();
+    if (!memberSnapshot.exists || memberSnapshot.data()?.role !== 'member' || memberSnapshot.data()?.clubId !== req.profile.clubId) {
+      return res.status(404).json({ error: "Cet adhérent n'appartient pas à votre club." });
+    }
+    const oldCoachUid = typeof memberSnapshot.data()?.assignedCoachUid === 'string' ? memberSnapshot.data()!.assignedCoachUid : null;
+    if (nextCoachRef) {
+      const nextCoach = await nextCoachRef.get();
+      if (!nextCoach.exists || nextCoach.data()?.role !== 'coach' || nextCoach.data()?.clubId !== req.profile.clubId) {
+        return res.status(404).json({ error: "Ce coach n'appartient pas à votre club." });
+      }
+    }
+    const oldCoachRef = oldCoachUid ? db.collection('users').doc(oldCoachUid) : null;
+    await db.runTransaction(async transaction => {
+      const refs = [memberRef, ...(oldCoachRef ? [oldCoachRef] : []), ...(nextCoachRef && nextCoachRef.path !== oldCoachRef?.path ? [nextCoachRef] : [])];
+      const snapshots = await Promise.all(refs.map(ref => transaction.get(ref)));
+      const dataByPath = new Map(refs.map((ref, index) => [ref.path, snapshots[index].data()]));
+      const latestMember = dataByPath.get(memberRef.path);
+      if (!latestMember || latestMember.role !== 'member' || latestMember.clubId !== req.profile.clubId || latestMember.assignedCoachUid !== oldCoachUid) {
+        throw new Error('MEMBER_ASSIGNMENT_CHANGED');
+      }
+      if (oldCoachRef) {
+        const oldCoach = dataByPath.get(oldCoachRef.path);
+        if (oldCoach?.role === 'coach' && oldCoach.clubId === req.profile.clubId) {
+          const ids = Array.isArray(oldCoach.assignedMemberIds) ? oldCoach.assignedMemberIds.map(Number) : [];
+          transaction.update(oldCoachRef, { assignedMemberIds: ids.filter(id => id !== Number(latestMember.id)), assignmentIndexVersion: 1 });
+        }
+      }
+      if (nextCoachRef) {
+        const nextCoach = dataByPath.get(nextCoachRef.path);
+        if (!nextCoach || nextCoach.role !== 'coach' || nextCoach.clubId !== req.profile.clubId) throw new Error('COACH_ASSIGNMENT_INVALID');
+        const ids = Array.isArray(nextCoach.assignedMemberIds) ? nextCoach.assignedMemberIds.map(Number).filter(Number.isFinite) : [];
+        transaction.update(nextCoachRef, { assignedMemberIds: [...new Set([...ids, Number(latestMember.id)])], assignmentIndexVersion: 1 });
+        transaction.update(memberRef, { assignedCoachUid: coachUid });
+      } else {
+        transaction.update(memberRef, { assignedCoachUid: FieldValue.delete() });
+      }
+    });
+    const memberId = Number(memberSnapshot.data()!.id);
+    const migratedRecords = await syncMemberRecordCoachUid(db, req.profile.clubId, [memberId], coachUid);
+    return res.json({ success: true, assignedCoachUid: coachUid, migratedRecords });
+  } catch (error: any) {
+    console.error('Member coach assignment failed:', { code: error?.code || 'unknown' });
+    return res.status(409).json({ error: "L'affectation n'a pas pu être modifiée. Actualisez puis réessayez." });
   }
 });
 
@@ -558,7 +701,7 @@ const getStripeClientForRequest = async (req: any, allowMember = false) => {
     secretKey = clubSnapshot.data()?.settings?.payment?.stripeSecretKey;
     if (secretKey) {
       await secretRef.set({ secretKey, clubId: profile.clubId, updatedBy: req.auth.uid, updatedAt: new Date().toISOString() });
-      await clubRef.update({ 'settings.payment.stripeSecretKey': admin.firestore.FieldValue.delete() });
+      await clubRef.update({ 'settings.payment.stripeSecretKey': FieldValue.delete() });
     }
   }
 
@@ -581,7 +724,7 @@ app.get('/api/stripe/status', async (req: any, res: any) => {
       const legacyKey = clubSnapshot.data()?.settings?.payment?.stripeSecretKey;
       if (legacyKey) {
         await secretRef.set({ secretKey: legacyKey, clubId, updatedBy: req.auth.uid, updatedAt: new Date().toISOString() });
-        await clubRef.update({ 'settings.payment.stripeSecretKey': admin.firestore.FieldValue.delete() });
+        await clubRef.update({ 'settings.payment.stripeSecretKey': FieldValue.delete() });
         connected = true;
       }
     }
@@ -682,6 +825,8 @@ app.post("/api/create-staff", async (req, res) => {
       avatar: name.substring(0, 2).toUpperCase(),
       createdAt: new Date().toISOString(),
       firebaseUid: userRecord.uid,
+      assignedMemberIds: [],
+      assignmentIndexVersion: 1,
       // Minimal defaults:
       gender: "M",
       age: 25,

@@ -5,7 +5,8 @@ import { AppState, DriveFile, DriveFolder } from '../types';
 import { FolderIcon, DownloadIcon, PlusIcon, FileIcon, Trash2Icon, ShareIcon, EyeIcon, ArrowLeftIcon, UploadIcon, XIcon } from '../components/Icons';
 import { Button, Input } from '../components/UI';
 import { db, storage } from '../firebase';
-import { collection, doc, setDoc, deleteDoc, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, doc, deleteDoc } from 'firebase/firestore';
+import { addDoc, setDoc, updateDoc } from '../firebase';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
