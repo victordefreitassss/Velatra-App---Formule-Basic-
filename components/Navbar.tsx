@@ -7,7 +7,7 @@ const navigation = [
   { label: 'Solutions', to: '/solutions' },
   { label: 'Fonctionnalités', to: '/fonctionnalites' },
   { label: 'Tarifs', to: '/tarifs' },
-  { label: 'Clients', to: '/#clients' },
+  { label: 'Adhérents', to: '/#adherents' },
   { label: 'Ressources', to: '/centre-d-aide' },
   { label: 'Blog', to: '/blog' },
 ];
@@ -27,7 +27,7 @@ export const Navbar = () => {
         </div>
         <div className="marketing-nav-actions">
           <Link to="/login" className="marketing-login">Connexion</Link>
-          <Link to="/register" className="marketing-nav-cta">Essayer gratuitement <ArrowRight size={14} /></Link>
+          <Link to="/contact" className="marketing-nav-cta">Demander un accès bêta <ArrowRight size={14} /></Link>
         </div>
         <button type="button" className="marketing-mobile-toggle" aria-label={isMobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'} aria-expanded={isMobileMenuOpen} onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
           {isMobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
@@ -36,6 +36,7 @@ export const Navbar = () => {
       {isMobileMenuOpen && <div className="marketing-mobile-nav">
         {navigation.map((item) => <Link key={item.label} to={item.to} onClick={closeMenu}>{item.label}</Link>)}
         <Link to="/login" onClick={closeMenu}>Connexion</Link>
+        <Link to="/contact" className="marketing-mobile-cta" onClick={closeMenu}>Demander un accès bêta <ArrowRight size={14} /></Link>
       </div>}
     </header>
   );

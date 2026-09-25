@@ -397,6 +397,15 @@
 .marketing-blog-card-bottom { display:flex; align-items:center; justify-content:space-between; margin-top:auto; padding-top:11px; border-top:1px solid #edf1ed; color:#8a958d; font:400 8px Inter,sans-serif; }
 .marketing-blog-card-bottom a { display:grid; place-items:center; width:27px; height:27px; border-radius:50%; color:#16845b; background:#edf7f0; }
 .marketing-blog-empty { padding:30px 0; color:#77837a; text-align:center; font:400 11px Inter,sans-serif; }
+
+.marketing-nav-links a:focus-visible,
+.marketing-login:focus-visible,
+.marketing-nav-cta:focus-visible,
+.marketing-mobile-toggle:focus-visible,
+.marketing-mobile-nav a:focus-visible { outline: 3px solid #a64f18; outline-offset: 3px; }
+.marketing-mobile-nav a.marketing-mobile-cta { display: flex; align-items: center; justify-content: space-between; margin-top: 5px; color: #fff; background: #15231d; font-weight: 700; }
+.marketing-mobile-nav a.marketing-mobile-cta:hover { color: #fff; background: #087c5c; }
+.marketing-scroll-to-top:focus-visible { outline: 3px solid #a64f18; outline-offset: 3px; }
 .marketing-blog-cta { margin-top:38px; padding:25px 28px; display:flex; justify-content:space-between; align-items:center; gap:25px; border-radius:12px; color:white; background:#172d22; }
 .marketing-blog-cta .marketing-kicker { color:#a7e3c0; }
 .marketing-blog-cta h2 { margin:10px 0 0; font:600 24px/1.1 Outfit,sans-serif; letter-spacing:-.04em; }

@@ -2,7 +2,6 @@ import { Outlet } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { FluidBackground } from './FluidBackground';
-import { CookieBanner } from './CookieBanner';
 import { motion, useScroll, useSpring, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -11,6 +10,7 @@ import '../pages/marketing.css';
 
 const ScrollToTopButton = () => {
   const [isVisible, setIsVisible] = useState(false);
+  const { pathname } = useLocation();
   const { scrollYProgress, scrollY } = useScroll();
   const pathLength = useSpring(scrollYProgress, { stiffness: 100, damping: 30, restDelta: 0.001 });
 
@@ -24,13 +24,13 @@ const ScrollToTopButton = () => {
 
   return (
     <AnimatePresence>
-      {isVisible && (
+      {isVisible && pathname !== '/' && (
         <motion.button
           initial={{ opacity: 0, y: 20, scale: 0.8 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.8 }}
           onClick={scrollToTop}
-          className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-12 h-12 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white rounded-full shadow-lg hover:scale-110 transition-transform group border border-zinc-200 dark:border-zinc-800"
+          className="marketing-scroll-to-top fixed bottom-6 right-6 z-50 flex items-center justify-center w-12 h-12 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white rounded-full shadow-lg hover:scale-110 transition-transform group border border-zinc-200 dark:border-zinc-800"
           aria-label="Retour en haut"
         >
           <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
@@ -73,7 +73,6 @@ export default function LandingLayout() {
         <Footer />
       </div>
       <ScrollToTopButton />
-      <CookieBanner />
     </div>
   );
 }

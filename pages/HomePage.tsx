@@ -1,138 +1,240 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
 import {
-  Activity, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, Check,
-  ChevronDown, ClipboardList, Dumbbell, MessageCircle,
-  MoveUpRight, Play, Sparkles, Users, Wallet, X
+  Activity, ArrowDown, ArrowRight, ArrowUpRight, CalendarDays, Check,
+  ChevronRight, ClipboardList, Dumbbell, FileSpreadsheet, FileText,
+  MessageCircle, MoveRight, Users
 } from 'lucide-react';
-import './marketing.css';
+import './homepage.css';
 
-type DemoKey = 'clients' | 'crm' | 'programmes' | 'planning' | 'paiements' | 'nutrition';
+type ProductView = 'overview' | 'clients' | 'programs' | 'planning' | 'prospects';
 
-const demos: { key: DemoKey; label: string; icon: typeof Users; title: string; copy: string }[] = [
-  { key: 'clients', label: 'Clients', icon: Users, title: 'Le suivi de vos clients, au même endroit.', copy: 'Retrouvez les profils, les objectifs et les informations utiles de vos adhérents.' },
-  { key: 'crm', label: 'Prospects', icon: Activity, title: 'Un suivi clair, du premier contact à l’inscription.', copy: 'Organisez les prises de contact et gardez une vue d’ensemble sur votre activité commerciale.' },
-  { key: 'programmes', label: 'Programmes', icon: Dumbbell, title: 'Préparez et partagez les programmes.', copy: 'Créez des séances et des programmes que vos adhérents retrouvent dans leur espace.' },
-  { key: 'planning', label: 'Planning', icon: CalendarDays, title: 'Votre planning de coaching en un coup d’œil.', copy: 'Centralisez vos rendez-vous, vos séances et vos créneaux.' },
-  { key: 'paiements', label: 'Paiements', icon: Wallet, title: 'Gardez une vue sur les paiements.', copy: 'Consultez les paiements et gérez vos formules depuis votre espace coach.' },
-  { key: 'nutrition', label: 'Nutrition', icon: ClipboardList, title: 'Prolongez l’accompagnement au quotidien.', copy: 'Préparez un suivi alimentaire et rendez-le accessible à vos adhérents.' },
+const productViews: { key: ProductView; label: string; icon: typeof Users; title: string; description: string }[] = [
+  { key: 'overview', label: 'Vue d’ensemble', icon: Activity, title: 'Gardez le fil de votre activité.', description: 'Les informations utiles réunies dans un espace coach.' },
+  { key: 'clients', label: 'Adhérents', icon: Users, title: 'Chaque adhérent a son espace.', description: 'Objectifs, programmes et suivi restent faciles à retrouver.' },
+  { key: 'programs', label: 'Programmes', icon: Dumbbell, title: 'Préparez les séances.', description: 'Créez des programmes et partagez-les avec vos adhérents.' },
+  { key: 'planning', label: 'Planning', icon: CalendarDays, title: 'Organisez la semaine.', description: 'Retrouvez les rendez-vous et séances au même endroit.' },
+  { key: 'prospects', label: 'Prospects', icon: MessageCircle, title: 'Suivez chaque prise de contact.', description: 'Visualisez les prochaines étapes avant l’inscription.' },
 ];
 
-const faqs = [
-  { q: 'À qui s’adresse Velatra ?', a: 'Velatra s’adresse aux coachs sportifs, personal trainers et structures de coaching qui veulent réunir le suivi des adhérents, les programmes et l’organisation de leur activité.' },
-  { q: 'Que peuvent faire les adhérents dans leur espace ?', a: 'Selon les fonctionnalités activées par leur coach, les adhérents peuvent retrouver leurs programmes, consulter leurs séances et renseigner leur suivi.' },
-  { q: 'Velatra permet-il de gérer des programmes sportifs et alimentaires ?', a: 'Oui. L’application comprend des outils de préparation de programmes d’entraînement et de suivi nutritionnel.' },
-  { q: 'Puis-je utiliser Velatra comme coach indépendant ?', a: 'Oui. L’espace coach permet de gérer les adhérents et les outils de coaching depuis un même compte.' },
-  { q: 'Comment découvrir les tarifs et créer un compte ?', a: 'Consultez la page Tarifs pour les offres affichées, ou créez un compte pour accéder au parcours d’inscription.' },
+const clientSamples = [
+  { initials: 'ML', name: 'Mila Laurent', detail: 'Force · suivi cette semaine', status: 'À jour' },
+  { initials: 'TH', name: 'Théo Henry', detail: 'Mobilité · séance à préparer', status: 'À suivre' },
+  { initials: 'SA', name: 'Sarah André', detail: 'Reprise · programme actif', status: 'En cours' },
 ];
 
-function ProductWindow({ active }: { active: DemoKey }) {
-  const activeDemo = demos.find((demo) => demo.key === active) ?? demos[0];
-  const ActiveIcon = activeDemo.icon;
-  return (
-    <div className="marketing-window" aria-label="Aperçu interactif de l’application Velatra">
-      <div className="marketing-window-top">
-        <div className="marketing-window-brand"><span className="marketing-brand-mark">V</span><span>VELATRA</span></div>
-        <span className="marketing-demo-label"><span /> Aperçu · données de démonstration</span>
-        <div className="marketing-window-avatar">VD</div>
+function ProductContent({ view }: { view: ProductView }) {
+  if (view === 'clients') {
+    return <div className="vh-client-list" aria-label="Liste de démonstration des adhérents">
+      {clientSamples.map((client, index) => <div className="vh-client-row" key={client.initials}>
+        <span className={`vh-client-avatar tone-${index + 1}`}>{client.initials}</span>
+        <span className="vh-client-info"><b>{client.name}</b><small>{client.detail}</small></span>
+        <span className={index === 1 ? 'vh-pill is-warm' : 'vh-pill'}>{client.status}</span>
+        <ChevronRight size={16} aria-hidden="true" />
+      </div>)}
+    </div>;
+  }
+
+  if (view === 'programs') {
+    return <div className="vh-program-list" aria-label="Exemples de programmes">
+      {[
+        ['Force & mobilité', '3 séances · 4 semaines', 'En cours'],
+        ['Reprise progressive', '2 séances · 6 semaines', 'Brouillon'],
+        ['Renforcement général', '3 séances · 5 semaines', 'En cours'],
+      ].map(([name, details, status], index) => <article className="vh-program-row" key={name}>
+        <span className={`vh-program-mark mark-${index + 1}`}><Dumbbell size={17} /></span>
+        <span><b>{name}</b><small>{details}</small></span>
+        <span className="vh-pill">{status}</span>
+        <ArrowUpRight size={15} aria-hidden="true" />
+      </article>)}
+    </div>;
+  }
+
+  if (view === 'planning') {
+    return <div className="vh-schedule" aria-label="Exemple de planning hebdomadaire">
+      <div className="vh-schedule-days"><span>HEURE</span><span>LUN. 21</span><span>MAR. 22</span><span>MER. 23</span><span>JEU. 24</span><span>VEN. 25</span></div>
+      <div className="vh-schedule-grid">
+        <span>09:00</span><div className="vh-event is-green">Mila · Force</div><div /><div className="vh-event is-sand">Théo · Suivi</div><div /><div className="vh-event is-green">Sarah · Mobilité</div>
+        <span>11:00</span><div /><div className="vh-event is-ink">Bilan · Hugo</div><div /><div className="vh-event is-green">Mila · Séance</div><div />
+        <span>14:00</span><div className="vh-event is-sand">Appel découverte</div><div /><div className="vh-event is-green">Sarah · Séance</div><div /><div />
       </div>
-      <div className="marketing-window-body">
-        <aside className="marketing-app-sidebar" aria-label="Menu de démonstration">
-          <p className="marketing-sidebar-caption">ESPACE COACH</p>
-          {demos.map((demo) => {
-            const Icon = demo.icon;
-            return <span key={demo.key} className={active === demo.key ? 'marketing-side-link is-active' : 'marketing-side-link'}><Icon size={15} />{demo.label}</span>;
+    </div>;
+  }
+
+  if (view === 'prospects') {
+    return <div className="vh-pipeline" aria-label="Exemple de suivi de prospects">
+      {[
+        ['Nouveau', 'Camille', 'Demande de contact'],
+        ['À relancer', 'Noah', 'Échange à poursuivre'],
+        ['Rendez-vous', 'Léa', 'Bilan découverte'],
+      ].map(([step, name, note], index) => <article className="vh-pipeline-column" key={step}>
+        <div className="vh-pipeline-title"><span className={`vh-pipeline-dot dot-${index + 1}`} />{step}<span>{index + 1}</span></div>
+        <div className="vh-lead-card"><span className="vh-lead-avatar">{name.slice(0, 1)}</span><b>{name}</b><small>{note}</small><span className="vh-lead-action">Voir le suivi <ArrowUpRight size={12} /></span></div>
+      </article>)}
+    </div>;
+  }
+
+  return <div className="vh-overview">
+    <div className="vh-overview-metrics">
+      <article><span>Adhérents</span><b>24</b></article>
+      <article><span>Programmes actifs</span><b>08</b></article>
+      <article><span>Séances à venir</span><b>12</b></article>
+    </div>
+    <div className="vh-overview-lower">
+      <div className="vh-agenda-card">
+        <div className="vh-card-heading"><b>À l’agenda</b><span>Cette semaine <ChevronRight size={14} /></span></div>
+        <div className="vh-agenda-row"><time>09:00</time><i /><span><b>Mila Laurent</b><small>Séance · Force & mobilité</small></span><span className="vh-agenda-duration">45 min</span></div>
+        <div className="vh-agenda-row"><time>11:30</time><i className="is-sand" /><span><b>Point de suivi</b><small>Visioconférence · Théo</small></span><span className="vh-agenda-duration">30 min</span></div>
+        <div className="vh-agenda-row"><time>16:00</time><i className="is-ink" /><span><b>Préparer le programme</b><small>Sarah André</small></span><span className="vh-agenda-duration">À faire</span></div>
+      </div>
+      <div className="vh-next-card"><span className="vh-next-label">PROCHAINE ÉTAPE</span><span className="vh-next-icon"><MessageCircle size={17} /></span><b>Reprendre le fil du suivi</b><p>Retrouvez les programmes et les informations utiles de vos adhérents dans leur espace.</p><span className="vh-next-link">Ouvrir les adhérents <ArrowRight size={13} /></span></div>
+    </div>
+  </div>;
+}
+
+function ProductInterface({ view }: { view: ProductView }) {
+  const current = productViews.find((item) => item.key === view) ?? productViews[0];
+  return <div className="vh-product-window" aria-label="Aperçu du produit avec données fictives">
+    <div className="vh-product-chrome">
+      <div className="vh-chrome-dots" aria-hidden="true"><i /><i /><i /></div>
+      <span className="vh-chrome-url">velatra.app / espace-coach</span>
+      <span className="vh-demo-mark"><span /> APERÇU · DONNÉES FICTIVES</span>
+    </div>
+    <div className="vh-product-app">
+      <aside className="vh-product-sidebar">
+        <div className="vh-product-brand"><span>V</span><b>VELATRA</b></div>
+        <span className="vh-sidebar-caption">ESPACE COACH</span>
+        <nav aria-label="Navigation de l’aperçu">
+          {productViews.map((item) => {
+            const Icon = item.icon;
+            return <span key={item.key} className={view === item.key ? 'is-active' : ''}><Icon size={16} />{item.label}</span>;
           })}
-          <div className="marketing-sidebar-bottom"><span className="marketing-sidebar-avatar">VD</span><span><b>Votre espace</b><small>Compte coach</small></span></div>
-        </aside>
-        <div className="marketing-app-content">
-          <div className="marketing-app-heading"><div><span className="marketing-app-eyebrow">TABLEAU DE BORD</span><h3>{active === 'crm' ? 'Suivi des prospects' : activeDemo.label}</h3></div><button type="button" className="marketing-app-add"><span>＋</span> Ajouter</button></div>
-          <div className="marketing-app-welcome"><div><p>VOTRE ACTIVITÉ, EN UN SEUL ESPACE</p><h4>{activeDemo.title}</h4><span>{activeDemo.copy}</span></div><span className="marketing-app-icon"><ActiveIcon size={21} /></span></div>
-          <div className="marketing-app-stats">
-            <div><span>Adhérents</span><strong>24</strong><small><Users size={12} /> Espace clients</small></div>
-            <div><span>Programmes</span><strong>08</strong><small><Dumbbell size={12} /> En préparation</small></div>
-            <div><span>Cette semaine</span><strong>12</strong><small><CalendarDays size={12} /> Séances prévues</small></div>
-          </div>
-          <div className="marketing-app-lower">
-            <div className="marketing-app-panel"><div className="marketing-panel-head"><b>{active === 'crm' ? 'Pipeline commercial' : 'À suivre'}</b><span>Cette semaine <ChevronDown size={13} /></span></div>
-              {active === 'crm' ? <div className="marketing-mini-pipeline"><span>Nouveau contact<i /></span><span>À recontacter<i /></span><span>Rendez-vous<i /></span></div> : <div className="marketing-client-row"><span className="marketing-person-avatar">LM</span><span><b>Lucie Martin</b><small>Programme · Force & mobilité</small></span><span className="marketing-status">En cours</span></div>}
-              <div className="marketing-client-row"><span className="marketing-person-avatar is-sand">AB</span><span><b>Alex Bernard</b><small>Dernière activité · cette semaine</small></span><span className="marketing-status">À suivre</span></div>
-            </div>
-            <div className="marketing-app-note"><span className="marketing-note-icon"><MessageCircle size={16} /></span><b>Un espace pensé pour le coaching</b><p>Des outils pour le coach. Un espace clair pour l’adhérent.</p><span className="marketing-note-link">Découvrir les fonctionnalités <ArrowUpRight size={13} /></span></div>
-          </div>
-        </div>
+        </nav>
+        <div className="vh-sidebar-profile"><span>VC</span><div><b>Votre espace</b><small>Compte coach</small></div></div>
+      </aside>
+      <div className="vh-product-main">
+        <div className="vh-product-heading"><div><span>ESPACE COACH <i>/</i> {current.label.toUpperCase()}</span><h2>{current.title}</h2><p>{current.description}</p></div><button type="button" tabIndex={-1} aria-hidden="true">+ Ajouter</button></div>
+        <div className="vh-product-dynamic" key={view}><ProductContent view={view} /></div>
       </div>
     </div>
-  );
+  </div>;
 }
 
-function DemoSection() {
-  const [active, setActive] = useState<DemoKey>('clients');
-  const current = demos.find((demo) => demo.key === active) ?? demos[0];
-  return (
-    <section className="marketing-section marketing-demo-section" id="demo">
-      <div className="marketing-container">
-        <div className="marketing-section-heading marketing-section-heading-split"><div><span className="marketing-kicker">UN APERÇU DU PRODUIT</span><h2>Votre activité de coaching.<br /><em>Enfin réunie.</em></h2></div><p>Explorez les espaces qui accompagnent le quotidien d’un coach, de la préparation des programmes au suivi des adhérents.</p></div>
-        <div className="marketing-demo-tabs" role="tablist" aria-label="Fonctionnalités Velatra">
-          {demos.map((demo) => { const Icon = demo.icon; return <button key={demo.key} type="button" role="tab" aria-selected={active === demo.key} className={active === demo.key ? 'marketing-demo-tab is-active' : 'marketing-demo-tab'} onClick={() => setActive(demo.key)}><Icon size={15} />{demo.label}</button>; })}
+function ToolConvergence() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+  useEffect(() => {
+    const node = sectionRef.current;
+    if (!node || !('IntersectionObserver' in window)) {
+      setIsVisible(true);
+      return;
+    }
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.18 });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return <section className={`vh-convergence ${isVisible ? 'is-visible' : ''}`} ref={sectionRef} aria-labelledby="vh-convergence-title">
+    <div className="vh-wrap vh-convergence-wrap">
+      <div className="vh-convergence-copy"><span className="vh-eyebrow">D’OUTILS ÉPARPILLÉS À UN ESPACE CLAIR</span><h2 id="vh-convergence-title">Le coaching est votre métier.<br /><em>Pas la gestion de cinq outils.</em></h2><p>Tableurs, messages, calendrier, documents : vos journées ne devraient pas se passer à chercher la bonne information.</p></div>
+      <div className="vh-convergence-scene" aria-label="Des outils courants réunis dans l’espace Velatra">
+        <div className="vh-tool-cluster">
+          <span className="vh-tool-chip chip-sheet"><FileSpreadsheet size={18} /> Tableur</span>
+          <span className="vh-tool-chip chip-message"><MessageCircle size={18} /> Messages</span>
+          <span className="vh-tool-chip chip-calendar"><CalendarDays size={18} /> Calendrier</span>
+          <span className="vh-tool-chip chip-pdf"><FileText size={18} /> PDF & notes</span>
         </div>
-        <div className="marketing-demo-grid"><div className="marketing-demo-copy"><span className="marketing-step">0{demos.findIndex((demo) => demo.key === active) + 1} / 06</span><h3>{current.title}</h3><p>{current.copy}</p><Link to="/fonctionnalites" className="marketing-text-link">Voir toutes les fonctionnalités <ArrowRight size={16} /></Link><div className="marketing-demo-controls"><button aria-label="Fonction précédente" onClick={() => setActive(demos[(demos.findIndex((demo) => demo.key === active) + demos.length - 1) % demos.length].key)}>←</button><button aria-label="Fonction suivante" onClick={() => setActive(demos[(demos.findIndex((demo) => demo.key === active) + 1) % demos.length].key)}>→</button></div></div><ProductWindow active={active} /></div>
+        <div className="vh-convergence-path" aria-hidden="true"><i /><i /><i /><ArrowDown size={20} /></div>
+        <div className="vh-single-space"><span className="vh-space-mark">V</span><div><span>AU MÊME ENDROIT</span><b>Velatra</b><small>Adhérents · programmes · planning · suivi</small></div><MoveRight size={23} aria-hidden="true" /></div>
       </div>
-    </section>
-  );
+    </div>
+  </section>;
 }
 
-function FAQSection() {
-  const [open, setOpen] = useState<number | null>(0);
-  return <section className="marketing-section marketing-faq" id="faq"><div className="marketing-container marketing-faq-layout"><div><span className="marketing-kicker">QUESTIONS FRÉQUENTES</span><h2>Vous voulez en savoir plus ?</h2><p>Les réponses essentielles avant de commencer.</p><Link to="/contact" className="marketing-text-link">Une autre question ? Contactez-nous <ArrowRight size={16} /></Link></div><div className="marketing-faq-list">{faqs.map((faq, index) => <article className={open === index ? 'marketing-faq-item is-open' : 'marketing-faq-item'} key={faq.q}><button type="button" aria-expanded={open === index} onClick={() => setOpen(open === index ? null : index)}><span>{faq.q}</span><span className="marketing-faq-toggle">{open === index ? <X size={15} /> : <ChevronDown size={16} />}</span></button>{open === index && <p>{faq.a}</p>}</article>)}</div></div></section>;
+function ProductTour() {
+  const [view, setView] = useState<ProductView>('overview');
+  const current = productViews.find((item) => item.key === view) ?? productViews[0];
+  return <section className="vh-tour" id="produit" aria-labelledby="vh-tour-title">
+    <div className="vh-wrap">
+      <div className="vh-tour-intro"><div><span className="vh-eyebrow">VOTRE ACTIVITÉ, AU MÊME ENDROIT</span><h2 id="vh-tour-title">Un seul espace.<br /><em>Toute votre activité.</em></h2></div><p>Clients, CRM, programmes et planning : voyez concrètement comment Velatra rassemble les outils du coach.</p></div>
+      <div className="vh-tour-tabs" aria-label="Choisir un aperçu du produit">
+        {productViews.map((item) => { const Icon = item.icon; return <button key={item.key} type="button" aria-pressed={view === item.key} onClick={() => setView(item.key)}><Icon size={16} />{item.label}</button>; })}
+      </div>
+      <div className="vh-tour-layout">
+        <div className="vh-tour-copy" aria-live="polite"><span className="vh-tour-index">0{productViews.findIndex((item) => item.key === view) + 1} <i>/</i> 05</span><h3>{current.title}</h3><p>{current.description}</p><Link to="/fonctionnalites" className="vh-inline-link">Explorer les fonctionnalités <ArrowRight size={16} /></Link></div>
+        <div className="vh-tour-screen"><ProductInterface view={view} /></div>
+      </div>
+    </div>
+  </section>;
+}
+
+function MemberExperience() {
+  return <section className="vh-member" id="adherents" aria-labelledby="vh-member-title">
+    <div className="vh-wrap vh-member-layout">
+      <div className="vh-member-copy"><span className="vh-eyebrow">L’ESPACE DE L’ADHÉRENT</span><h2 id="vh-member-title">Le coaching continue<br /><em>entre les séances.</em></h2><p>Vos adhérents retrouvent les programmes, les séances et les informations que vous partagez avec eux, depuis leur propre espace.</p><ul><li><Check size={17} /> Programmes sportifs et séances</li><li><Check size={17} /> Suivi selon les outils activés par le coach</li><li><Check size={17} /> Espace accessible sur mobile</li></ul><Link to="/fonctionnalites" className="vh-inline-link">Voir l’espace adhérent <ArrowRight size={16} /></Link></div>
+      <div className="vh-member-stage"><div className="vh-member-caption"><span>02</span><span>ESPACE ADHÉRENT · APERÇU FICTIF</span></div><div className="vh-phone"><div className="vh-phone-camera" /><div className="vh-phone-top"><b>VELATRA</b><span>ML</span></div><div className="vh-phone-greeting"><small>VOTRE ESPACE</small><h3>Bonjour, Mila</h3><p>Voici votre prochaine séance.</p></div><div className="vh-phone-feature"><span>PROGRAMME EN COURS</span><b>Force & mobilité</b><small>Cette semaine · 3 séances prévues</small><div><i /></div></div><div className="vh-phone-session"><span><Dumbbell size={17} /></span><div><b>Séance du jour</b><small>Haut du corps · 45 min</small></div><ChevronRight size={16} /></div><div className="vh-phone-session is-light"><span><Activity size={17} /></span><div><b>Mon suivi</b><small>Mis à jour avec votre coach</small></div><ChevronRight size={16} /></div><div className="vh-phone-bottom"><span>Accueil</span><span>Programme</span><span>Suivi</span><span>Profil</span></div></div><div className="vh-member-side-note"><span className="vh-side-note-mark"><MessageCircle size={18} /></span><b>Un espace à eux.</b><small>Des repères faciles à retrouver après chaque séance.</small></div></div>
+    </div>
+  </section>;
+}
+
+function PricingPreview() {
+  return <section className="vh-pricing" aria-labelledby="vh-pricing-title"><div className="vh-wrap vh-pricing-inner">
+    <div><span className="vh-eyebrow">DES FORMULES SELON VOTRE ACTIVITÉ</span><h2 id="vh-pricing-title">Choisissez votre espace.</h2><p>Comparez les outils inclus et les conditions avant de souscrire.</p></div>
+    <div className="vh-price-options"><div><span>STARTER COACH</span><b>39 € <small>/ mois</small></b><p>Tarif mensuel équivalent en facturation annuelle · jusqu’à 15 adhérents actifs.</p></div><div><span>CLUB & STUDIO</span><b>79 € <small>/ mois</small></b><p>Tarif mensuel équivalent en facturation annuelle · pour une activité en équipe.</p></div></div>
+    <Link to="/tarifs" className="vh-inline-link">Voir les tarifs et conditions <ArrowRight size={16} /></Link>
+  </div></section>;
+}
+
+const faqs = [
+  { question: 'À qui s’adresse Velatra ?', answer: 'Velatra s’adresse aux coachs sportifs indépendants, personal trainers et structures de coaching qui veulent réunir leurs outils de suivi et d’organisation.' },
+  { question: 'Que peuvent consulter les adhérents ?', answer: 'Selon les fonctionnalités activées par leur coach, les adhérents retrouvent leurs programmes, leurs séances et les informations de suivi partagées.' },
+  { question: 'Comment demander un accès ?', answer: 'La création d’un espace coach nécessite actuellement un code d’invitation bêta. Contactez-nous pour connaître les conditions d’accès.' },
+  { question: 'Où voir les prix et les fonctions de chaque formule ?', answer: 'La page Tarifs détaille les montants selon la période de facturation, le nombre d’adhérents et les fonctionnalités affichées.' },
+];
+
+function ClosingSection() {
+  const [open, setOpen] = useState<number | null>(null);
+  return <section className="vh-closing" aria-labelledby="vh-closing-title"><div className="vh-wrap vh-closing-layout">
+    <div className="vh-closing-cta"><span className="vh-eyebrow">REPRENEZ LE FIL DE VOTRE ACTIVITÉ</span><h2 id="vh-closing-title">Vous êtes devenu coach<br /><em>pour coacher.</em></h2><p>Votre activité mérite un espace pensé pour la suivre au quotidien.</p><Link to="/contact" className="vh-button vh-button-primary">Demander un accès bêta <ArrowRight size={17} /></Link><Link to="/tarifs" className="vh-secondary-link">Voir les tarifs</Link><div className="vh-closing-rule"><span>VELATRA · ESPACE COACH</span><i /></div></div>
+    <div className="vh-faq"><span className="vh-eyebrow">QUESTIONS FRÉQUENTES</span><h3>Avant de vous lancer.</h3>{faqs.map((item, index) => <article key={item.question} className={open === index ? 'is-open' : ''}><button type="button" aria-expanded={open === index} onClick={() => setOpen(open === index ? null : index)}><span>{item.question}</span><span aria-hidden="true">{open === index ? '−' : '+'}</span></button>{open === index && <p>{item.answer}</p>}</article>)}<Link to="/contact" className="vh-inline-link">Une autre question ? Écrivez-nous <ArrowRight size={15} /></Link></div>
+  </div></section>;
 }
 
 export default function HomePage() {
-  return (
-    <>
-      <Helmet>
-        <title>Velatra — Le logiciel de coaching sportif tout-en-un</title>
-        <meta name="description" content="Centralisez vos adhérents, programmes sportifs, suivi, planning et outils de gestion dans Velatra, la plateforme pensée pour les coachs sportifs." />
-        <meta property="og:title" content="Velatra — Gérez votre coaching. Pas votre administratif." />
-        <meta property="og:description" content="Clients, programmes, planning et suivi : réunissez votre activité de coaching dans Velatra." />
-        <meta property="og:type" content="website" />
-      </Helmet>
-      <div className="marketing-home">
-        <section className="marketing-hero">
-          <div className="marketing-hero-grid" aria-hidden="true" />
-          <div className="marketing-container marketing-hero-copy">
-            <span className="marketing-kicker"><span className="marketing-kicker-dot" /> LA PLATEFORME DES COACHS SPORTIFS</span>
-            <h1>Gérez votre coaching.<br /><span>Pas votre administratif.</span></h1>
-            <p className="marketing-hero-subtitle">Vos adhérents, leurs programmes et votre activité. Au même endroit, pour vous laisser vous concentrer sur l’essentiel : coacher.</p>
-            <div className="marketing-hero-actions"><Link to="/register" className="marketing-button marketing-button-primary">Essayer Velatra gratuitement <ArrowRight size={17} /></Link><a href="#demo" className="marketing-button marketing-button-secondary"><Play size={15} fill="currentColor" /> Voir le produit</a></div>
-            <div className="marketing-hero-reassurance"><span><Check size={14} /> Espace coach et adhérent</span><span><Check size={14} /> Programmes et suivi</span><span><Check size={14} /> Gestion centralisée</span></div>
-          </div>
-          <div className="marketing-container marketing-hero-product"><ProductWindow active="clients" /><div className="marketing-float-chip marketing-float-chip-left"><span><Dumbbell size={17} /></span><div><b>Programmes</b><small>Prêts à partager</small></div></div><div className="marketing-float-chip marketing-float-chip-right"><span><Activity size={17} /></span><div><b>Suivi adhérent</b><small>Dans son espace</small></div></div></div>
-          <div className="marketing-container marketing-hero-scroll"><span>FAIT POUR ACCOMPAGNER LES COACHS AU QUOTIDIEN</span><span className="marketing-scroll-line" /></div>
-        </section>
-
-        <section className="marketing-capabilities" aria-label="Les principaux outils Velatra"><div className="marketing-container"><span>UNE SEULE PLATEFORME POUR</span><div><b>Vos adhérents</b><i /> <b>Vos programmes</b><i /> <b>Votre planning</b><i /> <b>Votre suivi</b><i /> <b>Votre activité</b></div></div></section>
-
-        <section className="marketing-section marketing-problem" id="produit"><div className="marketing-container"><div className="marketing-section-heading"><span className="marketing-kicker">QUAND TOUT EST ÉPARPILLÉ</span><h2>Le coaching est votre métier.<br /><em>Le tableur ne devrait pas l’être.</em></h2><p>Les informations dans un fichier. Les séances dans un autre. Les échanges ailleurs. Velatra rassemble vos outils de coaching et de gestion dans un espace unique.</p></div><div className="marketing-converge"><div className="marketing-tools" aria-label="Outils souvent dispersés"><span className="marketing-tool"><i>W</i> Messages</span><span className="marketing-tool"><i>▤</i> Tableurs</span><span className="marketing-tool"><i>▧</i> PDF</span><span className="marketing-tool"><i>◷</i> Calendrier</span><span className="marketing-tool"><i>✎</i> Notes</span></div><div className="marketing-converge-mark"><span>V</span><b>VELATRA</b><small>VOTRE ESPACE COACHING</small></div><div className="marketing-outputs"><span><Users size={16} /> Adhérents</span><span><Dumbbell size={16} /> Programmes</span><span><CalendarDays size={16} /> Planning</span><span><Activity size={16} /> Suivi</span></div><p className="marketing-converge-caption">Réunissez vos outils pour garder le fil de votre accompagnement.</p></div></div></section>
-
-        <DemoSection />
-
-        <section className="marketing-section marketing-benefits" id="fonctionnalites"><div className="marketing-container"><div className="marketing-section-heading marketing-section-heading-split"><div><span className="marketing-kicker">DU QUOTIDIEN AU DÉVELOPPEMENT</span><h2>Moins de gestion.<br /><em>Plus de coaching.</em></h2></div><p>Des outils qui suivent votre façon de travailler, que vous accompagniez quelques adhérents ou organisiez l’activité d’un studio.</p></div><div className="marketing-benefit-grid"><article className="marketing-benefit-card marketing-benefit-dark"><span className="marketing-benefit-number">01 — ACCOMPAGNER</span><div className="marketing-benefit-icon"><Users size={19} /></div><h3>Chaque adhérent<br />a son espace.</h3><p>Partagez les programmes et suivez l’activité de vos adhérents dans un espace dédié.</p><Link to="/fonctionnalites" aria-label="Découvrir le suivi des adhérents"><MoveUpRight size={19} /></Link><div className="marketing-benefit-orbit" /></article><article className="marketing-benefit-card"><span className="marketing-benefit-number">02 — ORGANISER</span><div className="marketing-benefit-icon"><ClipboardList size={19} /></div><h3>Votre coaching,<br />mieux structuré.</h3><p>Préparez les séances, les programmes sportifs et le suivi nutritionnel dans Velatra.</p><Link to="/fonctionnalites" aria-label="Découvrir les outils de coaching"><MoveUpRight size={19} /></Link><div className="marketing-benefit-lines" /></article><article className="marketing-benefit-card"><span className="marketing-benefit-number">03 — PILOTER</span><div className="marketing-benefit-icon"><Activity size={19} /></div><h3>Une vue claire<br />sur votre activité.</h3><p>Gardez vos prospects, votre planning et les informations de gestion au même endroit.</p><Link to="/solutions" aria-label="Découvrir les solutions Velatra"><MoveUpRight size={19} /></Link><div className="marketing-benefit-chart"><i /><i /><i /><i /><i /><i /><i /></div></article></div></div></section>
-
-        <section className="marketing-section marketing-crm"><div className="marketing-container marketing-crm-layout"><div className="marketing-crm-copy"><span className="marketing-kicker">DU PREMIER ÉCHANGE AU SUIVI</span><h2>Gardez le lien.<br /><em>À chaque étape.</em></h2><p>Le suivi d’un prospect commence avant son inscription. Organisez les étapes de prise de contact, puis retrouvez vos adhérents et leur accompagnement dans Velatra.</p><Link to="/solutions" className="marketing-button marketing-button-primary">Découvrir les solutions <ArrowRight size={16} /></Link></div><div className="marketing-pipeline" aria-label="Exemple de parcours de prospect"><div className="marketing-pipeline-top"><span>UN PARCOURS PLUS LISIBLE</span><span>VOTRE PIPELINE <ArrowUpRight size={13} /></span></div><div className="marketing-pipeline-stage"><span className="marketing-stage-index">01</span><div><b>Nouveau contact</b><small>Le prospect entre dans votre suivi</small></div><ArrowDownRight size={16} /></div><div className="marketing-pipeline-stage"><span className="marketing-stage-index">02</span><div><b>Prise de contact</b><small>Vous planifiez la prochaine étape</small></div><ArrowDownRight size={16} /></div><div className="marketing-pipeline-stage"><span className="marketing-stage-index">03</span><div><b>Rendez-vous</b><small>Vous échangez sur ses objectifs</small></div><ArrowDownRight size={16} /></div><div className="marketing-pipeline-stage is-last"><span className="marketing-stage-index">04</span><div><b>Adhérent</b><small>Le suivi se poursuit dans son espace</small></div><Check size={16} /></div><div className="marketing-pipeline-rail" /></div></div></section>
-
-        <section className="marketing-section marketing-member"><div className="marketing-container marketing-member-layout"><div className="marketing-phone-scene"><div className="marketing-phone-glow" /><div className="marketing-phone"><div className="marketing-phone-notch" /><div className="marketing-phone-head"><span>VELATRA</span><span className="marketing-phone-user">LM</span></div><div className="marketing-phone-greeting"><small>ESPACE ADHÉRENT</small><h3>Bonjour Lucie</h3><p>Prête pour votre prochaine séance ?</p></div><div className="marketing-phone-session"><span>VOTRE PROGRAMME</span><b>Force & mobilité</b><small>3 séances · Cette semaine</small><div className="marketing-phone-progress"><i /></div><em>Progression du programme</em></div><div className="marketing-phone-workout"><span><Dumbbell size={15} /></span><div><b>Séance du jour</b><small>Haut du corps · 45 min</small></div><ArrowRight size={15} /></div><div className="marketing-phone-nav"><span>⌂<small>Accueil</small></span><span>▤<small>Programme</small></span><span>◉<small>Suivi</small></span><span>☺<small>Profil</small></span></div></div><span className="marketing-phone-caption">APERÇU DE L’ESPACE ADHÉRENT</span></div><div className="marketing-member-copy"><span className="marketing-kicker">AUSSI POUR VOS ADHÉRENTS</span><h2>Un accompagnement qui se poursuit <em>entre les séances.</em></h2><p>Vos adhérents accèdent à leur espace pour retrouver les programmes, les séances et les informations de suivi partagées par leur coach.</p><ul><li><Check size={15} /> Programmes sportifs et séances</li><li><Check size={15} /> Suivi au fil de l’accompagnement</li><li><Check size={15} /> Une expérience adaptée au mobile</li></ul><Link to="/fonctionnalites" className="marketing-text-link">Découvrir l’espace adhérent <ArrowRight size={16} /></Link></div></div></section>
-
-        <section className="marketing-section marketing-audience" id="clients"><div className="marketing-container"><div className="marketing-section-heading"><span className="marketing-kicker">UNE PLATEFORME, PLUSIEURS FAÇONS DE COACHER</span><h2>À votre échelle.<br /><em>À votre façon.</em></h2></div><div className="marketing-audience-grid"><Link to="/logiciel-coach-sportif" className="marketing-audience-card"><span>01</span><Dumbbell size={20} /><b>Coach indépendant</b><small>Gérez les adhérents, les programmes et les séances depuis un seul espace.</small><ArrowUpRight size={16} /></Link><Link to="/logiciel-personal-trainer" className="marketing-audience-card"><span>02</span><Activity size={20} /><b>Personal trainer</b><small>Structurez le suivi individuel et retrouvez l’historique utile à chaque adhérent.</small><ArrowUpRight size={16} /></Link><Link to="/logiciel-studio-coaching" className="marketing-audience-card"><span>03</span><Users size={20} /><b>Studio de coaching</b><small>Réunissez votre planning, votre équipe et vos outils d’accompagnement.</small><ArrowUpRight size={16} /></Link></div></div></section>
-
-        <section className="marketing-final-cta"><div className="marketing-container marketing-final-inner"><span className="marketing-kicker"><Sparkles size={14} /> À VOUS DE JOUER</span><h2>Vous avez choisi d’être coach.<br /><em>Faites-en votre priorité.</em></h2><p>Découvrez comment Velatra peut accompagner votre activité au quotidien.</p><div className="marketing-hero-actions"><Link to="/register" className="marketing-button marketing-button-primary">Essayer Velatra gratuitement <ArrowRight size={17} /></Link><Link to="/contact" className="marketing-button marketing-button-ghost">Demander une démonstration <ArrowUpRight size={16} /></Link></div><span className="marketing-final-note">Vous pouvez aussi <Link to="/tarifs">consulter les tarifs</Link> ou <Link to="/contact">nous contacter</Link>.</span></div><div className="marketing-final-decoration" aria-hidden="true">V</div></section>
-
-        <FAQSection />
-        <section className="marketing-resources"><div className="marketing-container"><div><span className="marketing-kicker">POUR ALLER PLUS LOIN</span><h2>Des idées pour faire grandir votre activité.</h2></div><div className="marketing-resource-links"><Link to="/blog">Lire le blog <ArrowRight size={15} /></Link><Link to="/centre-d-aide">Centre d’aide <ArrowRight size={15} /></Link><Link to="/contact">Parler à l’équipe <ArrowRight size={15} /></Link></div></div></section>
-      </div>
-    </>
-  );
+  return <>
+    <Helmet>
+      <title>Velatra — Gérez votre coaching, pas vos outils</title>
+      <meta name="description" content="Réunissez adhérents, programmes, suivi, planning et prospects dans Velatra, l’espace de travail conçu pour les coachs sportifs." />
+      <meta property="og:title" content="Velatra — Gérez votre coaching. Pas vos outils." />
+      <meta property="og:description" content="Adhérents, programmes, planning et suivi : voyez comment Velatra rassemble votre activité de coach." />
+      <meta property="og:type" content="website" />
+    </Helmet>
+    <main className="velatra-home-v2">
+      <section className="vh-hero" aria-labelledby="vh-hero-title">
+        <div className="vh-hero-backdrop" aria-hidden="true"><span>V</span><i /></div>
+        <div className="vh-wrap vh-hero-copy">
+          <span className="vh-eyebrow"><i /> LA PLATEFORME TOUT-EN-UN DES COACHS</span>
+          <h1 id="vh-hero-title">Gérez votre coaching.<br /><em>Pas vos outils.</em></h1>
+          <p>Clients, programmes, planning, paiements et CRM. Velatra rassemble toute votre activité dans une seule plateforme.</p>
+          <div className="vh-hero-actions"><Link to="/contact" className="vh-button vh-button-primary">Demander un accès bêta <ArrowRight size={17} /></Link><a href="#produit" className="vh-button vh-button-secondary">Voir le produit <ArrowDown size={16} /></a></div>
+          <div className="vh-hero-facts"><span>COACH + ADHÉRENT</span><i /><span>SPORT + NUTRITION</span><i /><span>CRM + ORGANISATION</span></div>
+        </div>
+        <div className="vh-wrap vh-hero-product"><ProductInterface view="overview" /></div>
+        <div className="vh-hero-scroll"><span>FAITES DÉFILER POUR VOIR COMMENT TOUT SE REJOINT</span><i /></div>
+      </section>
+      <ToolConvergence />
+      <ProductTour />
+      <MemberExperience />
+      <PricingPreview />
+      <ClosingSection />
+    </main>
+  </>;
 }
 
 export { HomePage };

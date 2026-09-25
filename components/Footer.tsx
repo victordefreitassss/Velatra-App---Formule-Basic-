@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 const groups = [
   { title: 'PRODUIT', links: [{ label: 'Fonctionnalités', to: '/fonctionnalites' }, { label: 'Solutions', to: '/solutions' }, { label: 'Tarifs', to: '/tarifs' }] },
   { title: 'RESSOURCES', links: [{ label: 'Blog', to: '/blog' }, { label: 'Centre d’aide', to: '/centre-d-aide' }, { label: 'Contact', to: '/contact' }] },
-  { title: 'VELATRA', links: [{ label: 'À propos', to: '/a-propos' }, { label: 'Connexion', to: '/login' }, { label: 'Créer un compte', to: '/register' }] },
+  { title: 'VELATRA', links: [{ label: 'À propos', to: '/a-propos' }, { label: 'Connexion', to: '/login' }, { label: 'Demander un accès bêta', to: '/contact' }] },
 ];
 
 export const Footer: React.FC = () => (
