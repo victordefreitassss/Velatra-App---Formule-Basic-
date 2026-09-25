@@ -3,6 +3,10 @@ import path from "path";
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
 import Stripe from "stripe";
+import { randomInt } from "node:crypto";
+import { validateMemberRegistration } from "./server/memberRegistration";
+import { validatePublicProspect } from "./server/prospectValidation";
+import { validatePublicContact } from "./server/contactValidation";
 
 declare global {
   namespace Express {
@@ -14,8 +18,10 @@ declare global {
 }
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = parseInt(process.env.PORT as string) || 3000;
 const geminiRequestsByUser = new Map<string, number[]>();
+const prospectRequestsByIp = new Map<string, number[]>();
 
 // Initialize Firebase Admin first because webhook will need it
 if (process.env.FIREBASE_SERVICE_ACCOUNT) {
@@ -137,6 +143,87 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 });
 
 app.use(express.json());
+
+app.post('/api/public/contact', async (req: any, res: any) => {
+  const contact = validatePublicContact(req.body);
+  if (!contact) return res.status(400).json({ error: "Vérifiez votre adresse e-mail et le contenu du message." });
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    return res.status(503).json({ error: "Le formulaire de contact est temporairement indisponible. Écrivez-nous par e-mail." });
+  }
+
+  const now = Date.now();
+  const ip = String(req.ip || 'unknown').slice(0, 80);
+  const recent = (prospectRequestsByIp.get(ip) || []).filter((timestamp) => now - timestamp < 10 * 60_000);
+  if (recent.length >= 5) return res.status(429).json({ error: "Trop de demandes ont été envoyées. Réessayez un peu plus tard." });
+  if (prospectRequestsByIp.size > 5000) {
+    for (const [knownIp, timestamps] of prospectRequestsByIp) {
+      if (!timestamps.some((timestamp) => now - timestamp < 10 * 60_000)) prospectRequestsByIp.delete(knownIp);
+    }
+  }
+  recent.push(now);
+  prospectRequestsByIp.set(ip, recent);
+
+  const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[char] as string));
+  try {
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    });
+    const safeMessage = escapeHtml(contact.message).replace(/\n/g, '<br>');
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || '"Velatra" <noreply@velatra.app>',
+      to: process.env.CONTACT_EMAIL || process.env.SMTP_USER,
+      replyTo: contact.email,
+      subject: `[Velatra] ${contact.subject}`,
+      text: `De : ${contact.name} <${contact.email}>\nSujet : ${contact.subject}\n\n${contact.message}`,
+      html: `<h2>Demande de contact Velatra</h2><p><strong>Nom :</strong> ${escapeHtml(contact.name)}</p><p><strong>E-mail :</strong> ${escapeHtml(contact.email)}</p><p><strong>Sujet :</strong> ${escapeHtml(contact.subject)}</p><p>${safeMessage}</p>`
+    });
+    return res.status(202).json({ success: true });
+  } catch (error: any) {
+    console.error('Public contact email failed', { code: error?.code || 'unknown' });
+    return res.status(503).json({ error: "Le message n'a pas pu être envoyé. Réessayez plus tard ou contactez-nous par e-mail." });
+  }
+});
+
+app.post('/api/public/prospects', async (req: any, res: any) => {
+  try {
+    const submission = validatePublicProspect(req.body);
+    if (!submission) return res.status(400).json({ error: "Vérifiez les informations du formulaire et réessayez." });
+    if (!admin.apps.length) return res.status(503).json({ error: "Le formulaire est temporairement indisponible." });
+
+    const now = Date.now();
+    const ip = String(req.ip || 'unknown').slice(0, 80);
+    const recent = (prospectRequestsByIp.get(ip) || []).filter((timestamp) => now - timestamp < 10 * 60_000);
+    if (recent.length >= 5) return res.status(429).json({ error: "Trop de demandes ont été envoyées. Réessayez un peu plus tard." });
+    if (prospectRequestsByIp.size > 5000) {
+      for (const [knownIp, timestamps] of prospectRequestsByIp) {
+        if (!timestamps.some((timestamp) => now - timestamp < 10 * 60_000)) prospectRequestsByIp.delete(knownIp);
+      }
+    }
+    recent.push(now);
+    prospectRequestsByIp.set(ip, recent);
+
+    const club = await admin.firestore().collection('clubs').doc(submission.clubId).get();
+    if (!club.exists) return res.status(404).json({ error: "Ce code de club n'existe pas." });
+    await admin.firestore().collection('prospects').add({
+      clubId: submission.clubId,
+      name: submission.name,
+      email: submission.email,
+      phone: submission.answers.phone || '',
+      date: new Date(now).toISOString(),
+      status: 'pending',
+      answers: submission.answers
+    });
+    return res.status(201).json({ success: true });
+  } catch (error: any) {
+    console.error('Public prospect submission failed', { code: error?.code || 'unknown' });
+    return res.status(500).json({ error: "La demande n'a pas pu être envoyée. Réessayez." });
+  }
+});
 
 // API routes FIRST
 app.get("/api/health", (req, res) => {
@@ -296,6 +383,94 @@ app.post("/api/bootstrap-superadmin", verifyFirebaseSession, async (req: any, re
   }
 });
 
+// Public member registration still requires a valid Firebase identity, but the
+// profile and its numeric application ID are created only by this trusted API.
+app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: any) => {
+  try {
+    if (!admin.apps.length) {
+      return res.status(503).json({ error: "L'inscription est temporairement indisponible." });
+    }
+
+    const input = validateMemberRegistration(req.body);
+    if (!input) {
+      return res.status(400).json({ error: "Vérifiez les informations saisies et réessayez." });
+    }
+
+    const db = admin.firestore();
+    const userRef = db.collection('users').doc(req.auth.uid);
+    const clubRef = db.collection('clubs').doc(input.clubId);
+    const [account, clubSnapshot, profileSnapshot] = await Promise.all([
+      admin.auth().getUser(req.auth.uid),
+      clubRef.get(),
+      userRef.get()
+    ]);
+    const email = String(account.email || '').trim().toLowerCase();
+    if (!email || email !== String(req.auth.email || '').trim().toLowerCase()) {
+      return res.status(403).json({ error: "L'adresse e-mail du compte n'a pas pu être vérifiée." });
+    }
+    if (!clubSnapshot.exists) {
+      return res.status(404).json({ error: "Ce code de club n'existe pas." });
+    }
+    if (profileSnapshot.exists) {
+      const existing = profileSnapshot.data();
+      if (existing?.role === 'member' && existing?.clubId === input.clubId) {
+        return res.json({ success: true, alreadyRegistered: true });
+      }
+      return res.status(409).json({ error: "Un profil existe déjà pour ce compte." });
+    }
+
+    const displayName = input.name;
+    let memberId: number | null = null;
+    const profile = {
+      clubId: input.clubId,
+      code: email.split('@')[0].slice(0, 40),
+      pwd: '',
+      name: displayName,
+      email,
+      role: 'member',
+      avatar: displayName.substring(0, 2).toUpperCase(),
+      gender: input.gender,
+      age: input.age,
+      weight: input.weight,
+      height: input.height,
+      objectifs: input.objectifs,
+      notes: input.notes,
+      experienceLevel: input.experienceLevel,
+      trainingDays: input.trainingDays,
+      sessionDuration: input.sessionDuration,
+      equipment: input.equipment,
+      injuries: input.injuries,
+      createdAt: new Date().toISOString(),
+      xp: 0,
+      streak: 0,
+      pointsFidelite: 0,
+      firebaseUid: req.auth.uid
+    };
+
+    await db.runTransaction(async (transaction) => {
+      const latest = await transaction.get(userRef);
+      if (latest.exists) throw new Error('PROFILE_ALREADY_EXISTS');
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const candidateId = randomInt(1_000_000_000_000, 2_000_000_000_000);
+        const collision = await transaction.get(db.collection('users').where('id', '==', candidateId).limit(1));
+        if (collision.empty) {
+          memberId = candidateId;
+          transaction.create(userRef, { ...profile, id: candidateId });
+          return;
+        }
+      }
+      throw new Error('MEMBER_ID_ALLOCATION_FAILED');
+    });
+    return res.status(201).json({ success: true, memberId });
+  } catch (error: any) {
+    if (error?.message === 'PROFILE_ALREADY_EXISTS') {
+      return res.status(409).json({ error: "Un profil existe déjà pour ce compte." });
+    }
+    console.error('Member registration failed', { code: error?.code || 'unknown' });
+    return res.status(500).json({ error: "L'inscription a échoué. Réessayez dans quelques instants." });
+  }
+});
+
 // All remaining API routes require a verified session and a server-side profile.
 app.use("/api", verifyFirebaseSession, requireUserProfile);
 
@@ -329,7 +504,6 @@ app.post('/api/create-member-profile', async (req: any, res: any) => {
     for (const field of allowedFields) {
       if (Object.prototype.hasOwnProperty.call(submitted, field)) cleanProfile[field] = submitted[field];
     }
-    cleanProfile.id = Number.isFinite(Number(submitted.id)) ? Number(submitted.id) : Date.now();
     cleanProfile.pwd = '';
     cleanProfile.email = account.email;
     cleanProfile.clubId = requester.clubId;
@@ -338,9 +512,26 @@ app.post('/api/create-member-profile', async (req: any, res: any) => {
     cleanProfile.createdAt = cleanProfile.createdAt || new Date().toISOString();
     if (requester.role === 'coach') cleanProfile.assignedCoachUid = req.auth.uid;
 
-    await userRef.create(cleanProfile);
-    return res.json({ success: true, uid });
+    let memberId: number | null = null;
+    await admin.firestore().runTransaction(async (transaction) => {
+      const latest = await transaction.get(userRef);
+      if (latest.exists) throw new Error('PROFILE_ALREADY_EXISTS');
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const candidateId = randomInt(1_000_000_000_000, 2_000_000_000_000);
+        const collision = await transaction.get(admin.firestore().collection('users').where('id', '==', candidateId).limit(1));
+        if (collision.empty) {
+          memberId = candidateId;
+          transaction.create(userRef, { ...cleanProfile, id: candidateId });
+          return;
+        }
+      }
+      throw new Error('MEMBER_ID_ALLOCATION_FAILED');
+    });
+    return res.json({ success: true, uid, memberId });
   } catch (error: any) {
+    if (error?.message === 'PROFILE_ALREADY_EXISTS') {
+      return res.status(409).json({ error: "Un profil existe déjà pour ce compte." });
+    }
     console.error('Error creating member profile:', error.message);
     return res.status(500).json({ error: "Impossible de créer le profil adhérent." });
   }
