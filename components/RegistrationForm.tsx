@@ -38,11 +38,6 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, 
       return;
     }
 
-    if (formData.clubId.toLowerCase().replace(/\s/g, '') === "velatra2026") {
-      alert("Vous avez saisi le code d'invitation BETA pour les coachs ! Pour vous inscrire en tant qu'adhérent, vous devez saisir le code d'accès à 6 chiffres de votre club (votre coach doit vous le fournir).");
-      return;
-    }
-
     if (!/^\d{6}$/.test(formData.clubId)) {
       alert("Le code du club doit contenir exactement 6 chiffres.");
       return;
