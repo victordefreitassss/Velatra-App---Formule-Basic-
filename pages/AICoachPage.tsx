@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppState } from '../types';
 import { Card, Input, Textarea } from '../components/UI';
 import { SendIcon, BotIcon, UserIcon, MessageCircleIcon } from '../components/Icons';
-import { CLUB_INFO, COACHES, INIT_SUPPLEMENTS } from '../constants';
+import { CLUB_INFO } from '../constants';
 import Markdown from 'react-markdown';
 import { MessagesPage } from './MessagesPage';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,7 +11,9 @@ import { GoogleGenAI } from '../services/aiService';
 export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [activeTab, setActiveTab] = useState<'ai' | 'human'>('ai');
   const [messages, setMessages] = useState<{ role: 'user' | 'model', text: string }[]>([
-    { role: 'model', text: `Salut ${(state.user?.name || 'Membre').split(' ')[0]} ! Je suis l'IA de VELATRA. Je connais tout sur le club, tes entraînements et nos compléments. Comment puis-je t'aider aujourd'hui ?` }
+    { role: 'model', text: state.user?.role === 'member'
+      ? `Salut ${(state.user?.name || 'Membre').split(' ')[0]} ! Je suis l'assistant IA de VELATRA. Je peux t'aider à comprendre les informations de ton profil et répondre à tes questions générales. Comment puis-je t'aider ?`
+      : `Bonjour ${(state.user?.name || 'Coach').split(' ')[0]} ! Je suis l'assistant IA de VELATRA. Je peux t'aider à préparer des idées de séances et de programmes à vérifier avant de les proposer. Que souhaites-tu préparer ?` }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,19 +29,19 @@ export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: 
     try {
       const ai = new GoogleGenAI({ apiKey: 'PROXY' });
       
-      const systemInstruction = `Tu es l'assistant IA virtuel de l'application numéro 1 "VELATRA".
-Tu t'adresses à l'adhérent nommé ${state.user?.name}.
-Son profil : Âge ${state.user?.age}, Poids ${state.user?.weight}kg, Objectifs : ${(state.user?.objectifs || []).join(', ')}.
-Informations sur le club : ${JSON.stringify(CLUB_INFO)}.
-Coachs du club : ${JSON.stringify(COACHES)}.
-Boutique de compléments : ${JSON.stringify(INIT_SUPPLEMENTS.map(s => s.nom))}.
-Ton rôle est de conseiller l'adhérent sur ses entraînements, la nutrition, les compléments de la boutique, et de répondre à ses questions sur le club.
-Sois motivant, professionnel, empathique et utilise un ton "Application numéro 1" (tutoiement autorisé et encouragé).
-Fais des réponses concises et structurées en Markdown.
-
-RÈGLES DE REDIRECTION IMPORTANTES :
-1. Si l'adhérent pose une question commerciale complexe (tarifs spécifiques, résiliation, facturation, abonnement complexe), tu dois lui répondre poliment que tu ne peux pas traiter cette demande et le rediriger vers Victor (Conseiller Sportif) au numéro de téléphone : 07 43 10 37 90.
-2. Si l'adhérent pose une question sportive trop complexe, médicale, ou nécessitant une analyse approfondie (blessure, douleur, programme très spécifique), tu dois le rediriger vers les coachs sportifs (Thomas, Tristan ou Evan) lors de sa prochaine séance ou via la messagerie de l'application.`;
+      const isMember = state.user?.role === 'member';
+      const systemInstruction = isMember
+        ? `Tu es l'assistant de coaching de VELATRA. Tu t'adresses à l'adhérent ${state.user?.name || ''}.
+Informations de profil disponibles : âge ${state.user?.age ?? 'non renseigné'}, poids ${state.user?.weight ?? 'non renseigné'} kg, objectifs ${(state.user?.objectifs || []).join(', ') || 'non renseignés'}.
+Informations du club : ${JSON.stringify(state.currentClub ? { name: state.currentClub.name, description: state.currentClub.description, phone: state.currentClub.phone, email: state.currentClub.email, horaires: state.currentClub.horaires, address: state.currentClub.address } : CLUB_INFO)}.
+Tu peux expliquer ces informations et donner des conseils généraux, prudents et concis. Tu n'as pas accès à ses séances ni à son programme actuel : ne prétends pas les connaître et demande à l'adhérent de les partager s'il souhaite une explication précise.
+Ne pose pas de diagnostic et ne remplace pas un médecin ou un diététicien. Pour une douleur, blessure, maladie, grossesse ou trouble alimentaire, recommande de consulter un professionnel de santé et de contacter le coach. Pour les tarifs, résiliations ou factures, oriente vers le coach ou la messagerie de l'application.
+Réponds en français, avec un ton professionnel, empathique et motivant. Utilise un Markdown simple.`
+        : `Tu es l'assistant IA de VELATRA pour le coach ${state.user?.name || ''}.
+Informations du club : ${JSON.stringify(state.currentClub ? { name: state.currentClub.name, description: state.currentClub.description, phone: state.currentClub.phone, email: state.currentClub.email, horaires: state.currentClub.horaires, address: state.currentClub.address } : CLUB_INFO)}.
+Aide à réfléchir à des séances et à des programmes sportifs ou alimentaires de façon générale. Tu ne connais pas les données des adhérents ni leur programme, sauf si le coach les décrit explicitement dans sa demande. Ne présente jamais une proposition comme déjà attribuée ou enregistrée : le coach doit la vérifier et la valider lui-même.
+Ne pose pas de diagnostic et ne remplace pas un médecin ou un diététicien. Pour une blessure, douleur, maladie ou question clinique, recommande l'avis d'un professionnel de santé.
+Réponds en français, de façon concise, professionnelle et structurée en Markdown.`;
 
       chatRef.current = ai.chats.create({
         model: "gemini-2.5-flash",
@@ -52,7 +54,7 @@ RÈGLES DE REDIRECTION IMPORTANTES :
       console.error("Erreur initialisation IA:", error);
       setInitError(error.message || "Erreur inconnue lors de l'initialisation");
     }
-  }, [state.user]);
+  }, [state.user, state.currentClub]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });

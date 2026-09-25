@@ -7,7 +7,7 @@ import {
   SearchIcon, InfoIcon, UserIcon, ActivityIcon, DollarSignIcon,
   XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon, MailIcon, ImageIcon, SparklesIcon, PlusIcon, PlayCircleIcon, SettingsIcon, PhoneIcon
 } from '../components/Icons';
-import { db, doc, setDoc, updateDoc, deleteDoc, auth, secondaryAuth, createUserWithEmailAndPassword, sendPasswordResetEmail, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage, addDoc } from '../firebase';
+import { apiFetch, createMemberProfile, db, doc, setDoc, updateDoc, deleteDoc, auth, secondaryAuth, createUserWithEmailAndPassword, sendPasswordResetEmail, collection, query, where, getDocs, ref, uploadBytes, getDownloadURL, storage, addDoc } from '../firebase';
 import { uploadBytesResumable, deleteObject } from 'firebase/storage';
 import { GOALS } from '../constants';
 import { calculateNutritionPlan, updateNutritionPlanForWeight } from '../utils';
@@ -31,6 +31,11 @@ const itemVariants: any = {
 };
 
 import { ErrorBoundary } from '../components/ErrorBoundary';
+
+const createTemporaryPassword = () => {
+  const randomBytes = crypto.getRandomValues(new Uint8Array(32));
+  return `${Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('')}aA1!`;
+};
 
 export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [search, setSearch] = useState("");
@@ -65,6 +70,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   useEffect(() => {
     if (selectedProfile) {
       setMemberTab('overview');
+      setCoachAssignment(selectedProfile.assignedCoachUid || '');
     }
   }, [selectedProfile?.id]);
 
@@ -77,6 +83,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [newScan, setNewScan] = useState({ weight: "", fat: "", muscle: "" });
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editInfoData, setEditInfoData] = useState<Partial<User>>({});
+  const [coachAssignment, setCoachAssignment] = useState('');
+  const [isSavingCoachAssignment, setIsSavingCoachAssignment] = useState(false);
   const [isAssigningPlan, setIsAssigningPlan] = useState(false);
   const [isEditingSub, setIsEditingSub] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState('');
@@ -179,31 +187,16 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       if (!client || !client.email) continue;
       
       try {
-        const dummyPwd = Math.random().toString(36).slice(-8) + "Velatra123!";
+        const dummyPwd = createTemporaryPassword();
         let userCred;
         try {
           userCred = await createUserWithEmailAndPassword(secondaryAuth, client.email, dummyPwd);
         } catch (authErr: any) {
           if (authErr.code === 'auth/email-already-in-use') {
-            try {
-              const cleanupResponse = await fetch('/api/delete-user', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email: client.email }),
-              });
-              if (cleanupResponse.ok) {
-                userCred = await createUserWithEmailAndPassword(secondaryAuth, client.email, dummyPwd);
-              } else {
-                throw authErr;
-              }
-            } catch (cleanupErr) {
-              throw authErr;
-            }
-          } else {
-            throw authErr;
+            duplicateCount++;
+            continue;
           }
+          throw authErr;
         }
         
         const newUser: User = {
@@ -233,7 +226,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         };
 
         // Create doc in users
-        await setDoc(doc(db, "users", userCred.user.uid), newUser);
+        await createMemberProfile(userCred.user.uid, newUser as unknown as Record<string, unknown>);
         
         // Immediately send reset email via primary auth so they can set their password
         await sendPasswordResetEmail(auth, client.email);
@@ -350,6 +343,31 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
+  const handleAssignCoach = async () => {
+    if (!selectedProfile?.firebaseUid) return;
+    setIsSavingCoachAssignment(true);
+    try {
+      const response = await apiFetch('/api/assign-member-coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberUid: selectedProfile.firebaseUid, coachUid: coachAssignment || null })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "L'affectation n'a pas pu être enregistrée.");
+      const assignedCoachUid = result.assignedCoachUid || undefined;
+      setSelectedProfile(previous => previous ? { ...previous, assignedCoachUid } : previous);
+      setState((previous: AppState) => ({
+        ...previous,
+        users: previous.users.map(user => user.firebaseUid === selectedProfile.firebaseUid ? { ...user, assignedCoachUid } : user)
+      }));
+      showToast(assignedCoachUid ? 'Coach affecté à cet adhérent.' : 'Adhérent retiré de son affectation.');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "L'affectation n'a pas pu être enregistrée.", 'error');
+    } finally {
+      setIsSavingCoachAssignment(false);
+    }
+  };
+
   const handleSaveCoachingNotes = async () => {
     if (!selectedProfile || !selectedProfile.firebaseUid) return;
     if (!coachingNotes.trim()) {
@@ -422,36 +440,20 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const confirmDeleteMember = async () => {
     if (!confirmDeleteMemberId) return;
     try {
-      // 1. Delete from Firestore
-      await deleteDoc(doc(db, "users", confirmDeleteMemberId));
-      
-      // 2. Delete from Firebase Auth via our backend API
-      try {
-        const response = await fetch('/api/delete-user', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ uid: confirmDeleteMemberId, email: selectedProfile?.email }),
-        });
-        
-        const data = await response.json();
-        if (!response.ok) {
-          console.warn("Could not delete auth user:", data.error);
-          showToast(`Le profil est supprimé, mais le compte de connexion n'a pas pu être supprimé : ${data.error}`, "error");
-        } else {
-          showToast("Membre et compte de connexion supprimés avec succès", "success");
-        }
-      } catch (apiErr) {
-        console.error("Error calling delete-user API:", apiErr);
-        showToast("Erreur de communication avec le serveur pour supprimer le compte", "error");
-      }
+      const response = await apiFetch('/api/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uid: confirmDeleteMemberId, email: selectedProfile?.email })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "La suppression du compte a échoué.");
+      showToast("Membre et compte de connexion supprimés avec succès", "success");
 
       setIsEditingInfo(false);
       closeProfile();
     } catch (err) {
       console.error("Error deleting member:", err);
-      showToast("Erreur lors de la suppression", "error");
+      showToast(err instanceof Error ? err.message : "Erreur lors de la suppression", "error");
     } finally {
       setConfirmDeleteMemberId(null);
     }
@@ -1324,7 +1326,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
     setIsSendingOnboardingEmail(true);
     try {
-      const response = await fetch('/api/send-onboarding-email', {
+      const response = await apiFetch('/api/send-onboarding-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1405,6 +1407,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       // Assume header is: Nom, Email, Telephone
       let successCount = 0;
       let errorCount = 0;
+      let passwordSetupEmailErrorCount = 0;
 
       showToast("Importation en cours...", "info");
 
@@ -1436,32 +1439,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         if (!name || !email || !email.includes('@')) continue;
 
         try {
-          // Create Firebase Auth user with a default password
-          const defaultPassword = "VelatraUser2026!";
+          // Create each imported account with a unique, undisclosed temporary password.
+          const temporaryPassword = createTemporaryPassword();
           let userCredential;
           try {
-            userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, defaultPassword);
+            userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, temporaryPassword);
           } catch (authErr: any) {
-            if (authErr.code === 'auth/email-already-in-use') {
-              try {
-                const cleanupResponse = await fetch('/api/delete-user', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({ email: email }),
-                });
-                if (cleanupResponse.ok) {
-                  userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, defaultPassword);
-                } else {
-                  throw authErr;
-                }
-              } catch (cleanupErr) {
-                throw authErr;
-              }
-            } else {
-              throw authErr;
-            }
+            throw authErr;
           }
           const firebaseUid = userCredential.user.uid;
 
@@ -1490,15 +1474,23 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             notes: ''
           };
 
-          await setDoc(doc(db, "users", firebaseUid), newUser);
+          await createMemberProfile(firebaseUid, newUser as unknown as Record<string, unknown>);
           successCount++;
+          try {
+            await sendPasswordResetEmail(secondaryAuth, email);
+          } catch {
+            passwordSetupEmailErrorCount++;
+          }
         } catch (err) {
           console.error(`Error importing user ${email}:`, err);
           errorCount++;
         }
       }
 
-      showToast(`Import terminé : ${successCount} ajoutés, ${errorCount} erreurs`, successCount > 0 ? "success" : "error");
+      const passwordSetupNotice = passwordSetupEmailErrorCount > 0
+        ? `, ${passwordSetupEmailErrorCount} e-mail(s) de création de mot de passe non envoyé(s)`
+        : "";
+      showToast(`Import terminé : ${successCount} ajoutés, ${errorCount} erreurs${passwordSetupNotice}`, successCount > 0 ? "success" : "error");
       // Reset file input
       e.target.value = '';
     };
@@ -1517,28 +1509,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       try {
         userCredential = await createUserWithEmailAndPassword(secondaryAuth, newMemberData.email, newMemberData.password);
       } catch (authErr: any) {
-        if (authErr.code === 'auth/email-already-in-use') {
-          try {
-            console.log("Email already in use, attempting cleanup of orphaned auth account:", newMemberData.email);
-            const cleanupResponse = await fetch('/api/delete-user', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ email: newMemberData.email }),
-            });
-            if (cleanupResponse.ok) {
-              console.log("Cleanup succeeded, retrying user creation...");
-              userCredential = await createUserWithEmailAndPassword(secondaryAuth, newMemberData.email, newMemberData.password);
-            } else {
-              throw authErr;
-            }
-          } catch (cleanupErr) {
-            throw authErr;
-          }
-        } else {
-          throw authErr;
-        }
+        throw authErr;
       }
       const firebaseUid = userCredential.user.uid;
 
@@ -1578,7 +1549,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         firebaseUid: firebaseUid
       };
 
-      await setDoc(doc(db, "users", firebaseUid), newUser);
+      await createMemberProfile(firebaseUid, newUser as unknown as Record<string, unknown>);
       showToast(`Membre créé avec succès !`);
       setIsAddingMember(false);
       setNewMemberData({ name: '', email: '', password: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: '' });
@@ -1590,9 +1561,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
-  const isStripeConnected = state.currentClub?.settings?.payment?.stripeConnected || 
-    (state.currentClub?.settings?.payment?.stripeSecretKey?.startsWith('sk') || 
-     state.currentClub?.settings?.payment?.stripeSecretKey?.startsWith('rk'));
+  const isStripeConnected = Boolean(state.currentClub?.settings?.payment?.stripeConnected);
 
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
 
@@ -1616,12 +1585,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
     setIsGeneratingLink(true);
     try {
-      const stripeSecretKey = state.currentClub?.settings?.payment?.stripeSecretKey;
-      const res = await fetch('/api/stripe/payment-link', {
+      const res = await apiFetch('/api/stripe/payment-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stripeSecretKey,
           priceId: plan.stripePriceId
         })
       });
@@ -1659,14 +1626,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
     setIsGeneratingLinkForPayment(payment.id);
     try {
-      const stripeSecretKey = state.currentClub?.settings?.payment?.stripeSecretKey;
-      
       // We create a one-off product and price for this specific payment
-      const resPrice = await fetch('/api/stripe/create-plan', {
+      const resPrice = await apiFetch('/api/stripe/create-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stripeSecretKey,
           name: payment.category === 'subscription' ? 'Abonnement' : payment.category === 'coaching' ? 'Coaching' : 'Paiement',
           price: payment.amount,
           billingCycle: 'once',
@@ -1677,11 +1641,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       if (!resPrice.ok) throw new Error("Erreur lors de la création du prix Stripe");
       const priceData = await resPrice.json();
 
-      const resLink = await fetch('/api/stripe/payment-link', {
+      const resLink = await apiFetch('/api/stripe/payment-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stripeSecretKey,
           priceId: priceData.priceId
         })
       });
@@ -1721,12 +1684,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
     setIsCharging(payment.id);
     try {
-      const stripeSecretKey = state.currentClub?.settings?.payment?.stripeSecretKey;
-      const res = await fetch('/api/stripe/charge-customer', {
+      const res = await apiFetch('/api/stripe/charge-customer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stripeSecretKey,
           customerId: member.stripeCustomerId,
           amount: payment.amount,
           description: `Paiement pour ${payment.category || 'service'}`
@@ -3987,6 +3948,28 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   />
                 </div>
               </div>
+
+              {(state.user?.role === 'owner' || state.user?.role === 'superadmin') && (
+                <div className="space-y-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+                  <label className="text-xs font-black uppercase text-zinc-500 tracking-widest">Coach responsable</label>
+                  <div className="flex gap-2">
+                    <select
+                      className="min-w-0 flex-1 bg-white border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 focus:border-emerald-500 outline-none"
+                      value={coachAssignment}
+                      onChange={event => setCoachAssignment(event.target.value)}
+                    >
+                      <option value="">Aucun coach affecté</option>
+                      {state.users.filter(user => user.role === 'coach').map(coach => (
+                        <option key={coach.firebaseUid} value={coach.firebaseUid}>{coach.name}</option>
+                      ))}
+                    </select>
+                    <Button variant="secondary" onClick={handleAssignCoach} disabled={isSavingCoachAssignment}>
+                      {isSavingCoachAssignment ? 'Enregistrement…' : 'Affecter'}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-zinc-500">Seul le propriétaire et le coach affecté pourront consulter les programmes et le suivi de cet adhérent.</p>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Objectifs</label>

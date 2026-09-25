@@ -2,146 +2,400 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-    
-    function isAuthenticated() {
+    function signedIn() {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+    function userPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
     }
 
-    function getUserData() {
-      let oauthEmail = isAuthenticated() && ('email' in request.auth.token) ? request.auth.token.email : null;
-      let userPath = isAuthenticated() ? /databases/$(database)/documents/users/$(request.auth.uid) : null;
-      return (userPath != null && exists(userPath)) ? get(userPath).data : null;
+    function profileExists() {
+      return signedIn() && exists(userPath());
     }
 
-    function isSameClub(docClubId) {
-      let userData = getUserData();
-      return isAuthenticated() && userData != null && ('clubId' in userData) && userData.clubId == docClubId;
-    }
-
-    function isAdmin() {
-      let userData = getUserData();
-      return isAuthenticated() && userData != null && ('role' in userData) && (userData.role == 'superadmin' || userData.role == 'owner' || userData.role == 'coach');
-    }
-
-    function isSuperAdmin() {
-      let userData = getUserData();
-      return isAuthenticated() && userData != null && ('role' in userData) && userData.role == 'superadmin';
+    function profile() {
+      return profileExists() ? get(userPath()).data : null;
     }
 
     function isSuperAdminEmail() {
-      return isAuthenticated() && ('email' in request.auth.token) && request.auth.token.email == 'victor.defreitas.pro@gmail.com';
+      return signedIn() && 'email' in request.auth.token && 'email_verified' in request.auth.token &&
+        request.auth.token.email_verified == true && request.auth.token.email == 'victor.defreitas.pro@gmail.com';
     }
 
-    // ===============================================================
-    // Rules
-    // ===============================================================
+    function isSuperAdmin() {
+      return isSuperAdminEmail() && profileExists() && profile().role == 'superadmin';
+    }
 
-    match /test/connection {
-      allow read: if true;
+    function isStaff() {
+      return profileExists() && profile().role in ['superadmin', 'owner', 'coach'];
+    }
+
+    function isCoach() {
+      return profileExists() && profile().role == 'coach';
+    }
+
+    function isClubManager(clubId) {
+      return profileExists() && profile().clubId == clubId &&
+        (profile().role == 'owner' || (profile().role == 'superadmin' && isSuperAdminEmail()));
+    }
+
+    function isSameClub(clubId) {
+      return profileExists() && profile().clubId == clubId;
+    }
+
+    function staffInClub(clubId) {
+      return isStaff() && (isSuperAdmin() || isSuperAdminEmail() || isSameClub(clubId));
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isOwnId(value) {
+      return profileExists() && (value == request.auth.uid || value == profile().id);
+    }
+
+    function ownsRecord(data) {
+      return profileExists() && (
+        ('memberId' in data && isOwnId(data.memberId)) ||
+        ('userId' in data && isOwnId(data.userId)) ||
+        ('adherentId' in data && isOwnId(data.adherentId)) ||
+        ('from' in data && isOwnId(data.from)) ||
+        ('to' in data && isOwnId(data.to))
+      );
+    }
+
+    function hasAssignedMember(memberId) {
+      return profileExists() && profile().role == 'coach' &&
+        'assignedMemberIds' in profile() && profile().assignedMemberIds is list &&
+        profile().assignedMemberIds.hasAny([memberId]);
+    }
+
+    function coachAssignedRecord(data) {
+      return profileExists() && profile().role == 'coach' && isSameClub(data.clubId) &&
+        data.assignedCoachUid == request.auth.uid;
+    }
+
+    function coachCanManageAssignedRecord(data) {
+      return profileExists() && profile().role == 'coach' && profile().clubId == data.clubId &&
+        data.assignedCoachUid == request.auth.uid && 'assignedMemberIds' in profile() &&
+        profile().assignedMemberIds is list && (
+          ('memberId' in data && profile().assignedMemberIds.hasAny([data.memberId])) ||
+          ('userId' in data && profile().assignedMemberIds.hasAny([data.userId])) ||
+          ('adherentId' in data && profile().assignedMemberIds.hasAny([data.adherentId]))
+        );
+    }
+
+    function coachOwnsConversation(data) {
+      return profileExists() && profile().role == 'coach' && profile().clubId == data.clubId &&
+        data.assignedCoachUid == request.auth.uid &&
+        ((data.from == profile().id && hasAssignedMember(data.to)) ||
+          (data.to == profile().id && hasAssignedMember(data.from)));
+    }
+
+    function canManageMemberRecord(data) {
+      return profileExists() && data.clubId == profile().clubId &&
+        (profile().role == 'owner' ||
+          (profile().role == 'superadmin' && isSuperAdminEmail()) ||
+          coachCanManageAssignedRecord(data));
+    }
+
+    function canReadUser(userId, data) {
+      return isSelf(userId) || isClubManager(data.clubId) ||
+        (profileExists() && profile().role == 'coach' &&
+          data.clubId == profile().clubId && data.role == 'member' &&
+          'assignedCoachUid' in data && data.assignedCoachUid == request.auth.uid);
+    }
+
+    function canReadMemberRecord(data) {
+      return isClubManager(data.clubId) ||
+        (isSameClub(data.clubId) && ownsRecord(data)) || coachAssignedRecord(data);
+    }
+
+    function canWriteClubRecord(data) {
+      return staffInClub(data.clubId);
+    }
+
+    function canCreateOwnRecord(data) {
+      return isSameClub(data.clubId) && ownsRecord(data) &&
+        (!('assignedCoachUid' in data) ||
+          ('assignedCoachUid' in profile() && data.assignedCoachUid == profile().assignedCoachUid));
+    }
+
+    function noLegacyStripeSecret(data) {
+      return !('settings' in data) || !('payment' in data.settings) || !('stripeSecretKey' in data.settings.payment);
+    }
+
+    match /test/{documentId} {
+      allow get: if documentId == 'connection';
+      allow list, write: if false;
     }
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || 
-                     isSuperAdmin() || 
-                     isSuperAdminEmail() || 
-                     (resource != null && 'email' in resource.data && ('email' in request.auth.token) && resource.data.email == request.auth.token.email) || 
-                     (resource != null && 'clubId' in resource.data && isSameClub(resource.data.clubId));
-      allow create: if isAuthenticated();
-      allow update: if isOwner(userId) || 
-                     isSuperAdmin() || 
-                     isSuperAdminEmail() || 
-                     (resource != null && 'clubId' in resource.data && isAdmin() && isSameClub(resource.data.clubId));
-      allow delete: if isSuperAdmin() || 
-                     isSuperAdminEmail() || 
-                     (resource != null && 'clubId' in resource.data && isAdmin() && isSameClub(resource.data.clubId));
+      allow read: if resource != null && canReadUser(userId, resource.data);
+      // All profiles, including public member sign-ups, are created by the
+      // server so clients cannot choose their own legacy numeric member ID.
+      allow create: if false;
+      allow update: if (
+        isSelf(userId) &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.clubId == resource.data.clubId &&
+        request.resource.data.firebaseUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'avatar', 'gender', 'age', 'weight', 'height', 'objectifs', 'notes',
+          'experienceLevel', 'trainingDays', 'sessionDuration', 'equipment', 'injuries',
+          'blessures', 'birthDate', 'phone', 'address', 'measurements', 'onboardingCompleted',
+          'planRequested', 'fcmToken', 'updatedAt'
+        ])
+      ) || (resource != null && !isSelf(userId) && isClubManager(resource.data.clubId) && (
+        isSuperAdmin() || isSuperAdminEmail() ||
+        (request.resource.data.role == resource.data.role &&
+          request.resource.data.clubId == resource.data.clubId &&
+          request.resource.data.firebaseUid == resource.data.firebaseUid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name', 'avatar', 'gender', 'age', 'weight', 'height', 'objectifs', 'notes',
+            'experienceLevel', 'trainingDays', 'sessionDuration', 'equipment', 'injuries',
+            'blessures', 'birthDate', 'phone', 'address', 'measurements', 'status',
+            'isSuspended', 'credits', 'sessionCredits', 'paymentStatus', 'planRequested',
+            'onboardingCompleted', 'documents', 'updatedAt'
+          ]))
+      )) || (resource != null && !isSelf(userId) && profileExists() && profile().role == 'coach' &&
+        resource.data.role == 'member' && resource.data.assignedCoachUid == request.auth.uid &&
+        isSameClub(resource.data.clubId) && hasAssignedMember(resource.data.id) &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.clubId == resource.data.clubId &&
+        request.resource.data.firebaseUid == resource.data.firebaseUid &&
+        request.resource.data.assignedCoachUid == resource.data.assignedCoachUid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'avatar', 'gender', 'age', 'weight', 'height', 'objectifs', 'notes',
+          'experienceLevel', 'trainingDays', 'sessionDuration', 'equipment', 'injuries',
+          'blessures', 'birthDate', 'phone', 'address', 'measurements', 'status',
+          'onboardingCompleted', 'planRequested', 'updatedAt'
+        ]));
+      allow delete: if resource != null && isClubManager(resource.data.clubId);
     }
 
     match /clubs/{clubId} {
-      allow get: if true;
-      allow list: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if isSuperAdmin() || isSuperAdminEmail() || isSameClub(clubId);
+      // Public onboarding validates club codes through a server endpoint and
+      // returns no club profile fields to unauthenticated visitors.
+      allow get: if noLegacyStripeSecret(resource.data) && (isSameClub(clubId) || staffInClub(clubId));
+      allow list: if isSuperAdmin() || isSuperAdminEmail();
+      allow create: if false;
+      allow update: if staffInClub(clubId) && (isSuperAdmin() || isSuperAdminEmail() ||
+        (profile().role == 'owner' && request.resource.data.ownerId == resource.data.ownerId && noLegacyStripeSecret(request.resource.data)));
+      allow delete: if isSuperAdmin() || isSuperAdminEmail();
     }
 
     match /driveFiles/{fileId} {
-      allow read: if isAuthenticated() && (
-        (resource != null && 'clubId' in resource.data && isSameClub(resource.data.clubId)) || 
-        (resource != null && 'sharedWith' in resource.data && getUserData() != null && ('id' in getUserData()) && resource.data.sharedWith.hasAny([getUserData().id])) || 
-        isSuperAdminEmail()
-      );
-      allow create: if isAuthenticated() && (
-        (request.resource != null && 'clubId' in request.resource.data && isSameClub(request.resource.data.clubId)) || 
-        isSuperAdminEmail()
-      );
-      allow update: if isAuthenticated() && (
-        (resource != null && 'clubId' in resource.data && isSameClub(resource.data.clubId) && (('createdBy' in resource.data && isOwner(resource.data.createdBy)) || isAdmin())) || 
-        isSuperAdminEmail()
-      );
-      allow delete: if isAuthenticated() && (
-        (resource != null && 'clubId' in resource.data && isSameClub(resource.data.clubId) && (('createdBy' in resource.data && isOwner(resource.data.createdBy)) || isAdmin())) || 
-        isSuperAdminEmail()
-      );
+      allow read: if staffInClub(resource.data.clubId) ||
+        (isSameClub(resource.data.clubId) && profileExists() && 'sharedWith' in resource.data && resource.data.sharedWith.hasAny([profile().id]));
+      allow create: if canWriteClubRecord(request.resource.data);
+      allow update, delete: if resource != null && canWriteClubRecord(resource.data) &&
+        (isSuperAdmin() || isSuperAdminEmail() || resource.data.createdBy == profile().id);
     }
 
     match /driveFolders/{folderId} {
-      allow read: if isAuthenticated() && (
-        (resource != null && 'clubId' in resource.data && isSameClub(resource.data.clubId)) || 
-        isSuperAdminEmail()
-      );
-      allow create: if isAuthenticated() && (
-        (request.resource != null && 'clubId' in request.resource.data && isSameClub(request.resource.data.clubId)) || 
-        isSuperAdminEmail()
-      );
-      allow update: if isAuthenticated() && (
-        (resource != null && 'clubId' in resource.data && isSameClub(resource.data.clubId) && (('createdBy' in resource.data && isOwner(resource.data.createdBy)) || isAdmin())) || 
-        isSuperAdminEmail()
-      );
-      allow delete: if isAuthenticated() && (
-        (resource != null && 'clubId' in resource.data && isSameClub(resource.data.clubId) && (('createdBy' in resource.data && isOwner(resource.data.createdBy)) || isAdmin())) || 
-        isSuperAdminEmail()
-      );
+      allow read, update, delete: if resource != null && staffInClub(resource.data.clubId);
+      allow create: if staffInClub(request.resource.data.clubId);
     }
 
     match /exercises/{exerciseId} {
-      allow read: if isAuthenticated();
-      allow write: if isSuperAdmin() || 
-                     isSuperAdminEmail() || 
-                     (resource != null && 'clubId' in resource.data && isAdmin() && isSameClub(resource.data.clubId));
+      allow read: if signedIn() && (resource.data.clubId == 'global' || isSameClub(resource.data.clubId));
+      allow create: if staffInClub(request.resource.data.clubId);
+      allow update, delete: if resource != null && staffInClub(resource.data.clubId);
     }
 
     match /prospects/{prospectId} {
-      allow create: if true;
-      allow read, update, delete: if isAuthenticated() && (
-        (resource != null && 'clubId' in resource.data && isSameClub(resource.data.clubId)) || 
-        isSuperAdminEmail()
-      );
+      // Public discovery requests are written by the validated server endpoint.
+      allow create: if staffInClub(request.resource.data.clubId);
+      allow read, update, delete: if resource != null && staffInClub(resource.data.clubId);
     }
 
-    match /test/{docId} {
-      allow read: if true;
+    match /programs/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data);
+      allow update: if canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data);
+      allow delete: if canManageMemberRecord(resource.data);
+    }
+    match /archivedPrograms/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data);
+      allow update: if canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data);
+      allow delete: if canManageMemberRecord(resource.data);
+    }
+    match /performances/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data) || canCreateOwnRecord(request.resource.data);
+      allow update: if (canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
+        (canCreateOwnRecord(resource.data) && canCreateOwnRecord(request.resource.data));
+      allow delete: if canManageMemberRecord(resource.data) || canCreateOwnRecord(resource.data);
+    }
+    match /logs/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data) || canCreateOwnRecord(request.resource.data);
+      allow update: if (canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
+        (canCreateOwnRecord(resource.data) && canCreateOwnRecord(request.resource.data));
+      allow delete: if canManageMemberRecord(resource.data) || canCreateOwnRecord(resource.data);
+    }
+    match /bodyData/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data) || canCreateOwnRecord(request.resource.data);
+      allow update: if (canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
+        (canCreateOwnRecord(resource.data) && canCreateOwnRecord(request.resource.data));
+      allow delete: if canManageMemberRecord(resource.data) || canCreateOwnRecord(resource.data);
+    }
+    match /nutritionPlans/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data);
+      allow update: if canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data);
+      allow delete: if canManageMemberRecord(resource.data);
+    }
+    match /nutritionLogs/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data) || canCreateOwnRecord(request.resource.data);
+      allow update: if (canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
+        (canCreateOwnRecord(resource.data) && canCreateOwnRecord(request.resource.data));
+      allow delete: if canManageMemberRecord(resource.data) || canCreateOwnRecord(resource.data);
+    }
+    match /subscriptions/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data);
+      allow update: if canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data);
+      allow delete: if canManageMemberRecord(resource.data);
+    }
+    match /payments/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data);
+      allow update: if canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data);
+      allow delete: if canManageMemberRecord(resource.data);
+    }
+    match /supplementOrders/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data) || canCreateOwnRecord(request.resource.data);
+      allow update: if canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data);
+      allow delete: if canManageMemberRecord(resource.data);
+    }
+    match /progressPhotos/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data) || canCreateOwnRecord(request.resource.data);
+      allow update: if (canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
+        (canCreateOwnRecord(resource.data) && canCreateOwnRecord(request.resource.data));
+      allow delete: if canManageMemberRecord(resource.data) || canCreateOwnRecord(resource.data);
+    }
+    match /messages/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if isCoach()
+        ? coachOwnsConversation(request.resource.data)
+        : canManageMemberRecord(request.resource.data) ||
+          (canCreateOwnRecord(request.resource.data) && request.resource.data.from == profile().id);
+      allow update: if isCoach()
+        ? (coachOwnsConversation(resource.data) && coachOwnsConversation(request.resource.data) &&
+            request.resource.data.from == resource.data.from && request.resource.data.to == resource.data.to &&
+            request.resource.data.clubId == resource.data.clubId)
+        : (canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
+          (canCreateOwnRecord(resource.data) && canCreateOwnRecord(request.resource.data) &&
+            request.resource.data.from == resource.data.from && request.resource.data.to == resource.data.to &&
+            request.resource.data.clubId == resource.data.clubId);
+      allow delete: if isCoach() ? coachOwnsConversation(resource.data) : canManageMemberRecord(resource.data);
+    }
+    match /bookings/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data) || canCreateOwnRecord(request.resource.data);
+      allow update: if (canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
+        (canCreateOwnRecord(resource.data) && canCreateOwnRecord(request.resource.data) &&
+          request.resource.data.memberId == resource.data.memberId && request.resource.data.clubId == resource.data.clubId &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']));
+      allow delete: if canManageMemberRecord(resource.data);
+    }    match /notifications/{documentId} {
+      allow read: if canReadMemberRecord(resource.data);
+      allow create: if canManageMemberRecord(request.resource.data);
+      allow update: if (canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
+        (canCreateOwnRecord(resource.data) && canCreateOwnRecord(request.resource.data));
+      allow delete: if canManageMemberRecord(resource.data) || canCreateOwnRecord(resource.data);
+    }
+    match /presets/{documentId} {
+      allow read: if signedIn() && (resource.data.clubId == 'global' || isSameClub(resource.data.clubId));
+      allow create: if canWriteClubRecord(request.resource.data);
+      allow update, delete: if resource != null && canWriteClubRecord(resource.data);
+    }
+    match /nutritionPresets/{documentId} {
+      allow read: if signedIn() && (resource.data.clubId == 'global' || isSameClub(resource.data.clubId));
+      allow create: if canWriteClubRecord(request.resource.data);
+      allow update, delete: if resource != null && canWriteClubRecord(resource.data);
+    }
+    match /supplementProducts/{documentId} {
+      allow read: if signedIn() && isSameClub(resource.data.clubId);
+      allow create: if canWriteClubRecord(request.resource.data);
+      allow update, delete: if resource != null && canWriteClubRecord(resource.data);
+    }
+    match /products/{documentId} {
+      allow read: if signedIn() && isSameClub(resource.data.clubId);
+      allow create: if canWriteClubRecord(request.resource.data);
+      allow update, delete: if resource != null && canWriteClubRecord(resource.data);
+    }
+    match /plans/{documentId} {
+      allow read: if signedIn() && isSameClub(resource.data.clubId);
+      allow create: if canWriteClubRecord(request.resource.data);
+      allow update, delete: if resource != null && canWriteClubRecord(resource.data.clubId);
+    }
+    match /feed/{documentId} {
+      allow read: if signedIn() && isSameClub(resource.data.clubId);
+      allow create: if canCreateOwnRecord(request.resource.data) || canWriteClubRecord(request.resource.data);
+      allow update, delete: if resource != null && (canWriteClubRecord(resource.data) || canCreateOwnRecord(resource.data));
     }
 
-    // Default rule for all other collections
+    match /tasks/{documentId} {
+      allow read, update, delete: if resource != null && staffInClub(resource.data.clubId);
+      allow create: if staffInClub(request.resource.data.clubId);
+    }
+    match /newsletters/{documentId} {
+      allow read, update, delete: if resource != null && staffInClub(resource.data.clubId);
+      allow create: if staffInClub(request.resource.data.clubId);
+    }
+    match /expenses/{documentId} {
+      allow read, update, delete: if resource != null && staffInClub(resource.data.clubId);
+      allow create: if staffInClub(request.resource.data.clubId);
+    }
+    match /invoices/{documentId} {
+      allow read, update, delete: if resource != null && staffInClub(resource.data.clubId);
+      allow create: if staffInClub(request.resource.data.clubId);
+    }
+    match /fixedCosts/{documentId} {
+      allow read, update, delete: if resource != null && staffInClub(resource.data.clubId);
+      allow create: if staffInClub(request.resource.data.clubId);
+    }
+    match /crmClients/{documentId} {
+      allow read, update, delete: if resource != null && staffInClub(resource.data.clubId);
+      allow create: if staffInClub(request.resource.data.clubId);
+    }
+    match /crmFormulas/{documentId} {
+      allow read, update, delete: if resource != null && staffInClub(resource.data.clubId);
+      allow create: if staffInClub(request.resource.data.clubId);
+    }
+    match /manualStats/{documentId} {
+      allow read, update, delete: if resource != null && staffInClub(resource.data.clubId);
+      allow create: if staffInClub(request.resource.data.clubId);
+    }
+    match /pendingProspects/{documentId} {
+      allow read, update, delete: if resource != null && staffInClub(resource.data.clubId);
+      allow create: if staffInClub(request.resource.data.clubId);
+    }
+
+    match /system_announcements/{documentId} {
+      allow read: if signedIn();
+      allow write: if isSuperAdmin() || isSuperAdminEmail();
+    }
+    match /admin_audit_logs/{documentId} {
+      allow read, write: if isSuperAdmin() || isSuperAdminEmail();
+    }
+    match /stripeSecrets/{documentId} {
+      allow read, write: if false;
+    }
+
+    // New collections must receive explicit access rules before clients can use them.
     match /{document=**} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && (
-        isSameClub(request.resource.data.clubId) || 
-        isSuperAdmin() ||
-        isSuperAdminEmail()
-      );
-      allow delete: if isAuthenticated() && (
-        isSameClub(resource.data.clubId) || 
-        isSuperAdmin() ||
-        isSuperAdminEmail()
-      );
+      allow read, write: if false;
     }
   }
 }

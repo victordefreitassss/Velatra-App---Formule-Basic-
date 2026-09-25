@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Hero } from '../components/Hero';
-import { TrustedBy } from '../components/TrustedBy';
 import { 
   Dumbbell, TrendingUp, Users, Calendar, Calculator, ShieldCheck, 
   MessageSquare, Star, ArrowRight, HelpCircle, Mail,
@@ -237,32 +236,32 @@ const CoreFeatures = () => {
     {
       icon: Dumbbell,
       title: "Générateur de Séance Intelligent",
-      desc: "Concevez et modifiez des entraînements instantanément. Vos adhérents reçoivent leur séance illustrée en vidéo directement sur leur appli mobile."
+      desc: "Créez et ajustez les programmes sportifs. Les adhérents retrouvent leurs séances et peuvent enregistrer leur activité depuis leur espace."
     },
     {
       icon: Users,
       title: "CRM Sportif & Fiches Prospects",
-      desc: "Centralisez vos échanges, configurez des processus d’inscription et relancez automatiquement les nouveaux prospects pour planifier des essais."
+      desc: "Retrouvez les fiches de vos adhérents et les demandes de séance découverte dans votre espace coach."
     },
     {
       icon: Calculator,
       title: "Suivi Compta & Devis Faciles",
-      desc: "Exportez les factures, suivez vos statistiques financières réelles, et gérez les relances de paiements automatiques en partenariat avec Stripe."
+      desc: "Suivez les éléments financiers et les factures. Les paiements en ligne nécessitent la configuration du compte Stripe du club."
     },
     {
       icon: TrendingUp,
       title: "Nutrition & Analyse Corporelle",
-      desc: "Intégrez des plans alimentaires complets de saison, et dessinez les courbes de poids, masse grasse et de rep-max de vos athlètes."
+      desc: "Préparez des plans alimentaires et consultez les mesures et performances que l’adhérent renseigne dans son suivi."
     },
     {
       icon: Calendar,
       title: "Planning Interactif Réactif",
-      desc: "Limitez le nombre d’équipements et d’athlètes par créneau pour les coachings collectifs ou les séances individuelles personnalisées."
+      desc: "Organisez les rendez-vous et les séances de coaching dans un calendrier partagé avec votre espace."
     },
     {
       icon: MessageSquare,
       title: "Chat Privé & Notifications Push",
-      desc: "Envoyez des messages directs en toute confidentialité, sans dévoiler votre numéro personnel. Alertes instantanées de séances ou de rappels."
+      desc: "Échangez depuis la messagerie intégrée et recevez des notifications lorsque votre navigateur et vos réglages le permettent."
     }
   ];
 
@@ -271,11 +270,12 @@ const CoreFeatures = () => {
       <div className="max-w-5xl mx-auto px-6">
         <div className="text-center space-y-3 mb-16">
           <span className="text-xs font-black uppercase text-emerald-500 tracking-widest block">Fonctionnalités Clés</span>
+          <span id="fonctionnalites" className="block scroll-mt-24" aria-hidden="true" />
           <h2 className="text-3xl md:text-4xl font-display font-black text-zinc-950 dark:text-white tracking-tight">
-            Tout ce qu'un studio de fitness de haut niveau exige
+            Un espace de travail pour le coaching au quotidien
           </h2>
           <p className="text-zinc-500 dark:text-zinc-400 max-w-xl mx-auto text-sm md:text-base">
-            Aucun compromis. Velatra réunit le meilleur d’un CRM client, d’un planificateur d'activités physiques et d’un tracker d’objectifs sportifs.
+            Préparez les séances, suivez les progrès et gardez les échanges avec les adhérents au même endroit.
           </p>
         </div>
 
@@ -435,20 +435,20 @@ const FAQSection = () => {
 
   const questions = [
     {
-      q: "Est-ce que je peux essayer l’application gratuitement ?",
-      a: "Oui, la création d'un compte est gratuite. Vous bénéficiez d'un essai de 14 jours complet et sans engagement avec toutes les fonctionnalités avancées actives."
+      q: "Comment créer mon espace coach ?",
+      a: "La création d'un espace coach demande un code d'invitation. Demandez-le à la personne qui gère votre accès Velatra. Les adhérents rejoignent ensuite leur club avec le code transmis par leur coach."
     },
     {
       q: "Dois-je installer une application sur mon téléphone ?",
-      a: "Non. Velatra est une plateforme d'élite conçue sur le protocole PWA (Progressive Web App). Elle s'installe en un clic sur le bureau de votre iPhone ou Android pour être accessible hors-ligne de manière ultra-fluide."
+      a: "Non. Vous pouvez ouvrir Velatra dans le navigateur de votre ordinateur ou de votre téléphone. La disponibilité de certaines notifications dépend du navigateur et des autorisations de l'appareil."
     },
     {
       q: "Mes données d'athlètes et de facturation sont-elles sécurisées ?",
-      a: "Absolument. Nos bases de données sont hébergées sur l'infrastructure Google Firebase hautement sécurisée, avec des chiffrements de pointe. De plus, toutes les transactions passent par le protocole Stripe, leader mondial du marché."
+      a: "Velatra utilise Firebase pour l'authentification et les données, et Stripe peut être configuré pour les paiements. Avant d'y stocker des données réelles, il faut vérifier les règles Firebase déployées et les accès de chaque rôle."
     },
     {
       q: "Je viens d'un autre logiciel, comment importer mes données ?",
-      a: "L'importation de vos adhérents est ultra simple ! Vous pouvez nous envoyer un simple fichier CSV ou Excel et notre support prioritaire configure vos comptes de coaching en moins d'une heure."
+      a: "Un import CSV est disponible dans l'espace membres. Vérifiez le fichier et testez l'import sur des données non réelles avant d'ajouter les dossiers de votre club."
     }
   ];
 
@@ -460,7 +460,7 @@ const FAQSection = () => {
           Questions Fréquentes
         </h2>
         <p className="text-zinc-500 text-xs md:text-sm">
-          Pour toute autre demande spécifique, contactez directement notre assistance réactive.
+          Pour une question, envoyez-nous un message depuis le formulaire de contact.
         </p>
       </div>
 
@@ -502,16 +502,35 @@ const FAQSection = () => {
 
 // NEWSLETTER / CONTACT SECTION
 const ContactSection = () => {
+  const [name, setName] = useState('');
   const [mail, setMail] = useState('');
   const [msg, setMsg] = useState('');
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSuccess(true);
-    setMail('');
-    setMsg('');
-    setTimeout(() => setSuccess(false), 3000);
+    setSending(true);
+    setError('');
+    try {
+      const response = await fetch('/api/public/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email: mail, subject: 'Demande depuis la page d’accueil', message: msg })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || "Le message n'a pas pu être envoyé.");
+      setSuccess(true);
+      setName('');
+      setMail('');
+      setMsg('');
+      setTimeout(() => setSuccess(false), 4000);
+    } catch (err: any) {
+      setError(err.message || "Le message n'a pas pu être envoyé.");
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -525,7 +544,7 @@ const ContactSection = () => {
             Prêt à transformer votre entreprise de coaching ?
           </h2>
           <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed">
-            Pour toute demande d’informations, de projets sur-mesure ou de partenariats commerciaux, notre équipe commerciale est à votre disposition constante.
+            Une question sur votre espace ou sur les fonctionnalités ? Envoyez-nous votre demande et nous vous répondrons par e-mail.
           </p>
         </div>
 
@@ -533,8 +552,18 @@ const ContactSection = () => {
           <h3 className="text-lg font-bold text-zinc-950 dark:text-white mb-4">Contactez-nous</h3>
           <form onSubmit={handleContactSubmit} className="space-y-4">
             <input
+              type="text"
+              required
+              maxLength={100}
+              placeholder="Votre nom"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-3 text-xs rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all text-zinc-900 dark:text-white"
+            />
+            <input
               type="email"
               required
+              maxLength={254}
               placeholder="Votre email professionnel"
               value={mail}
               onChange={(e) => setMail(e.target.value)}
@@ -542,6 +571,7 @@ const ContactSection = () => {
             />
             <textarea
               required
+              maxLength={5000}
               rows={3}
               placeholder="Votre message..."
               value={msg}
@@ -550,11 +580,13 @@ const ContactSection = () => {
             />
             <button
               type="submit"
+              disabled={sending}
               className="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl text-xs shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
             >
-              Envoyer la demande <Mail className="w-4 h-4" />
+              {sending ? 'Envoi…' : 'Envoyer la demande'} <Mail className="w-4 h-4" />
             </button>
           </form>
+          {error && <p role="alert" className="mt-3 text-xs text-red-600">{error}</p>}
 
           <AnimatePresence>
             {success && (
@@ -566,7 +598,7 @@ const ContactSection = () => {
               >
                 <span className="text-3xl">✉️</span>
                 <h4 className="text-sm font-bold text-zinc-900 dark:text-white mt-2">Message envoyé !</h4>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Notre équipe vous répondra sous quelques heures.</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Votre demande a bien été transmise.</p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -714,14 +746,7 @@ export default function HomePage() {
   return (
     <div className="space-y-4 pb-12">
       <Hero />
-      <TrustedBy />
-      <StatsSection />
-      <BeforeAfterSection />
-      <ComparisonSection />
-      <ROICalculator />
       <CoreFeatures />
-      <SuccessStoriesSection />
-      <PricingSection />
       <FAQSection />
       <ContactSection />
     </div>

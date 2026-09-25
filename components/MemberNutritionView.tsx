@@ -602,7 +602,8 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                   const allChecked = plan.liste_courses.every((i: any) => i.checked);
                   const newList = plan.liste_courses.map((i: any) => ({ ...i, checked: !allChecked }));
                   try {
-                    const { doc, setDoc } = await import('firebase/firestore');
+                    const { doc } = await import('firebase/firestore');
+                    const { setDoc } = await import('../firebase');
                     const { db } = await import('../firebase');
                     await setDoc(doc(db, "nutritionPlans", plan.id.toString()), {
                       ...plan,
@@ -631,7 +632,8 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                     const newList = [...(plan.liste_courses || [])];
                     newList[idx].checked = e.target.checked;
                     try {
-                      const { doc, setDoc } = await import('firebase/firestore');
+                      const { doc } = await import('firebase/firestore');
+                      const { setDoc } = await import('../firebase');
                       const { db } = await import('../firebase');
                       await setDoc(doc(db, "nutritionPlans", plan.id.toString()), {
                         ...plan,

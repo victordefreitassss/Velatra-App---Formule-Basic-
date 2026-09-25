@@ -3,12 +3,16 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "dev": "tsx server.ts",
     "start": "node server.ts",
     "build": "NODE_OPTIONS=--max_old_space_size=4096 vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@google/genai": "^1.40.0",
@@ -21,12 +25,12 @@
     "date-fns": "^4.1.0",
     "express": "^5.2.1",
     "firebase": "^12.9.0",
-    "firebase-admin": "^13.7.0",
+    "firebase-admin": "^14.5.0",
     "framer-motion": "^12.34.3",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.575.0",
-    "nodemailer": "^8.0.4",
+    "nodemailer": "^10.0.10",
     "papaparse": "^5.5.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -39,6 +43,7 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@types/canvas-confetti": "^1.9.0",
     "@types/express": "^5.0.6",
     "@types/node": "^22.14.0",

@@ -16,17 +16,18 @@ import {
   persistentLocalCache,
   persistentMultipleTabManager,
   doc, 
-  setDoc, 
+  setDoc as firestoreSetDoc,
   getDoc, 
   getDocFromServer,
   onSnapshot, 
   collection, 
-  updateDoc,
+  updateDoc as firestoreUpdateDoc,
   deleteDoc,
   query,
+  or,
   where,
   getDocs,
-  addDoc
+  addDoc as firestoreAddDoc
 } from "firebase/firestore";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
@@ -130,6 +131,95 @@ export { messaging };
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 export const secondaryAuth = getAuth(secondaryApp);
 
+const MEMBER_RECORD_COLLECTIONS = new Set([
+  'programs', 'archivedPrograms', 'performances', 'logs', 'bodyData', 'nutritionPlans',
+  'nutritionLogs', 'subscriptions', 'payments', 'supplementOrders', 'progressPhotos',
+  'bookings', 'notifications', 'messages'
+]);
+
+async function withMemberCoachAssignment(reference: any, submittedData: Record<string, any>, readExisting = false) {
+  const collectionName = reference?.parent?.id || reference?.id;
+  if (!MEMBER_RECORD_COLLECTIONS.has(collectionName)) return submittedData;
+
+  let existing: Record<string, any> = {};
+  if (readExisting) {
+    const snapshot = await getDoc(reference);
+    if (snapshot.exists()) existing = snapshot.data();
+  }
+  const data = { ...existing, ...submittedData };
+  const current = auth.currentUser;
+  if (!current) return submittedData;
+  const currentSnapshot = await getDoc(doc(db, 'users', current.uid));
+  if (!currentSnapshot.exists()) return submittedData;
+  const currentProfile = currentSnapshot.data();
+  const ownNumericId = Number(currentProfile.id);
+  const messagePeerId = Number(data.from) === ownNumericId ? data.to : data.from;
+  const memberIdValue = data.memberId ?? data.userId ?? data.adherentId ?? (collectionName === 'messages' && messagePeerId != null ? messagePeerId : undefined);
+  const memberId = Number(memberIdValue);
+  if (!Number.isFinite(memberId)) return submittedData;
+  let memberProfile: Record<string, any> | undefined;
+
+  if (currentProfile.role === 'member' && Number(currentProfile.id) === memberId) {
+    memberProfile = currentProfile;
+  } else if (currentProfile.role === 'coach') {
+    const assignedIds = Array.isArray(currentProfile.assignedMemberIds) ? currentProfile.assignedMemberIds.map(Number) : [];
+    if (!assignedIds.includes(memberId)) {
+      throw new Error('Vous ne pouvez pas modifier les données d’un adhérent qui ne vous est pas affecté.');
+    }
+    memberProfile = { assignedCoachUid: current.uid };
+  } else if (currentProfile.clubId && ['owner', 'superadmin'].includes(currentProfile.role)) {
+    const memberQuery = query(collection(db, 'users'), where('clubId', '==', currentProfile.clubId), where('id', '==', memberId), where('role', '==', 'member'));
+    const members = await getDocs(memberQuery);
+    memberProfile = members.docs[0]?.data();
+  }
+
+  const assignedCoachUid = memberProfile?.assignedCoachUid;
+  if (typeof assignedCoachUid === 'string' && assignedCoachUid.length > 0) {
+    return { ...submittedData, assignedCoachUid };
+  }
+  return submittedData;
+}
+
+export const setDoc = async (reference: any, data: Record<string, any>, options?: any) => {
+  const safeData = await withMemberCoachAssignment(reference, data);
+  return options ? firestoreSetDoc(reference, safeData, options) : firestoreSetDoc(reference, safeData);
+};
+
+export const updateDoc = async (reference: any, data: Record<string, any>) => {
+  const safeData = await withMemberCoachAssignment(reference, data, true);
+  return firestoreUpdateDoc(reference, safeData);
+};
+
+export const addDoc = async (collectionReference: any, data: Record<string, any>) => {
+  const safeData = await withMemberCoachAssignment({ parent: collectionReference }, data);
+  return firestoreAddDoc(collectionReference, safeData);
+};
+
+/** Send Firebase ID tokens with requests to our private server API. */
+export const apiFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error("Vous devez être connecté pour effectuer cette action.");
+  }
+
+  const token = await currentUser.getIdToken();
+  const headers = new Headers(init.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+
+  return fetch(input, { ...init, headers });
+};
+
+export const createMemberProfile = async (uid: string, profile: Record<string, unknown>) => {
+  const response = await apiFetch('/api/create-member-profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, profile })
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "Impossible de créer le profil adhérent.");
+  return result;
+};
+
 export { 
   signInWithPopup, 
   signInWithEmailAndPassword, 
@@ -138,17 +228,15 @@ export {
   onAuthStateChanged,
   sendPasswordResetEmail,
   doc,
-  setDoc,
   getDoc,
   getDocFromServer,
   onSnapshot,
   collection,
-  updateDoc,
   deleteDoc,
   query,
+  or,
   where,
   getDocs,
-  addDoc,
   ref,
   uploadBytes,
   getDownloadURL,
