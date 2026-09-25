@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { AppState, User, SessionLog } from '../types';
 import { Card, Badge, Button } from '../components/UI';
 import { UserIcon, MailIcon, ActivityIcon, DumbbellIcon, TargetIcon, Edit2Icon, SaveIcon, LogOutIcon, PhoneIcon, CreditCardIcon, ExternalLinkIcon, CalendarIcon, MessageCircleIcon } from 'lucide-react';
-import { doc, updateDoc, db, storage } from '../firebase';
+import { apiFetch, doc, updateDoc, db, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { motion } from 'framer-motion';
 import { updateNutritionPlanForWeight } from '../utils';
@@ -57,7 +57,6 @@ export const ProfilePage: React.FC<{
         weight: Number(formData.weight),
         experienceLevel: formData.experienceLevel,
         equipment: formData.equipment,
-        email: formData.email,
         phone: formData.phone,
         measurements: {
           chest: Number(formData.chest),
@@ -84,7 +83,6 @@ export const ProfilePage: React.FC<{
           weight: Number(formData.weight),
           experienceLevel: formData.experienceLevel as any,
           equipment: formData.equipment as any,
-          email: formData.email,
           phone: formData.phone,
           measurements: {
             chest: Number(formData.chest),
@@ -107,19 +105,17 @@ export const ProfilePage: React.FC<{
   };
 
   const handleManageSubscription = async () => {
-    if (!state.currentClub?.settings?.payment?.stripeSecretKey || !user.stripeCustomerId) {
+    if (!state.currentClub?.settings?.payment?.stripeConnected || !user.stripeCustomerId) {
       showToast("Impossible de gérer l'abonnement pour le moment.", "error");
       return;
     }
 
     try {
       showToast("Redirection vers le portail...", "success");
-      const res = await fetch(`${window.location.origin}/api/stripe/portal`, {
+      const res = await apiFetch(`${window.location.origin}/api/stripe/portal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stripeSecretKey: state.currentClub.settings.payment.stripeSecretKey,
-          customerId: user.stripeCustomerId,
           returnUrl: window.location.href
         })
       });
@@ -218,7 +214,7 @@ export const ProfilePage: React.FC<{
                       <input 
                         type="email" 
                         value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                        disabled
                         className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                       />
                     </div>
@@ -486,7 +482,7 @@ export const ProfilePage: React.FC<{
                 </div>
                 <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Abonnement</h3>
               </div>
-              {state.currentClub?.settings?.payment?.stripeSecretKey && user.stripeCustomerId && (
+              {state.currentClub?.settings?.payment?.stripeConnected && user.stripeCustomerId && (
                 <Button variant="secondary" onClick={handleManageSubscription} className="text-sm">
                   Gérer mon abonnement <ExternalLinkIcon size={14} className="ml-2" />
                 </Button>

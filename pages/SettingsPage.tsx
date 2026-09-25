@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AppState, Plan } from '../types';
 import { Card, Button, Input } from '../components/UI';
 import { SettingsIcon, SaveIcon, PlusIcon, Edit2Icon, Trash2Icon, CheckIcon, XIcon, TargetIcon } from '../components/Icons';
-import { db, doc, updateDoc, setDoc, deleteDoc, storage } from '../firebase';
+import { apiFetch, db, doc, updateDoc, setDoc, deleteDoc, storage } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ExercisesPage } from './ExercisesPage';
 
@@ -12,7 +12,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   const [activeTab, setActiveTab] = useState<'info' | 'exercises'>('info');
   const [defaultDuration, setDefaultDuration] = useState(state.currentClub?.settings?.defaultProgramDuration || 7);
   const [stripeConnected, setStripeConnected] = useState(state.currentClub?.settings?.payment?.stripeConnected || false);
-  const [stripeSecretKey, setStripeSecretKey] = useState(state.currentClub?.settings?.payment?.stripeSecretKey || '');
+  const [stripeSecretKey, setStripeSecretKey] = useState('');
   const [acceptedMethods, setAcceptedMethods] = useState<string[]>(state.currentClub?.settings?.payment?.acceptedMethods || ['card', 'cash']);
 
   const [planningEnabled, setPlanningEnabled] = useState(state.currentClub?.settings?.booking?.enabled ?? true);
@@ -41,7 +41,6 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     if (state.currentClub?.settings) {
       setDefaultDuration(state.currentClub.settings.defaultProgramDuration || 7);
       setStripeConnected(state.currentClub.settings.payment?.stripeConnected || false);
-      setStripeSecretKey(state.currentClub.settings.payment?.stripeSecretKey || '');
       setAcceptedMethods(state.currentClub.settings.payment?.acceptedMethods || ['card', 'cash']);
       
       if (state.currentClub.settings.booking) {
@@ -58,6 +57,14 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     }
   }, [state.currentClub]);
 
+  useEffect(() => {
+    if (!state.currentClub?.id) return;
+    apiFetch('/api/stripe/status')
+      .then(response => response.ok ? response.json() : { connected: false })
+      .then(result => setStripeConnected(Boolean(result.connected)))
+      .catch(() => setStripeConnected(Boolean(state.currentClub?.settings?.payment?.stripeConnected)));
+  }, [state.currentClub?.id]);
+
   const [isSaving, setIsSaving] = useState(false);
 
   const [isEditingPlan, setIsEditingPlan] = useState(false);
@@ -67,17 +74,12 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     if (!state.user?.clubId) return;
     setIsSaving(true);
     
-    const key = stripeSecretKey.trim();
-    const isKeyValid = key.startsWith('sk') || key.startsWith('rk');
-    const finalStripeConnected = stripeConnected || isKeyValid;
-
     try {
       await setDoc(doc(db, "clubs", state.user.clubId), {
         settings: {
           defaultProgramDuration: defaultDuration,
           payment: {
-            stripeConnected: finalStripeConnected,
-            stripeSecretKey: key,
+            stripeConnected,
             acceptedMethods,
             autoCollection: true
           },
@@ -120,27 +122,25 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
 
   const handleConnectStripe = async () => {
     const key = stripeSecretKey.trim();
-    if (!key.startsWith('sk') && !key.startsWith('rk')) {
-      showToast("Clé secrète invalide. Elle doit commencer par sk ou rk", "error");
+    if (!key) {
+      showToast("Saisissez votre clé Stripe pour continuer.", "error");
       return;
     }
-    setStripeConnected(true);
-    if (state.user?.clubId) {
-      try {
-        await setDoc(doc(db, "clubs", state.user.clubId), {
-          settings: {
-            payment: {
-              stripeConnected: true,
-              stripeSecretKey: key
-            }
-          }
-        }, { merge: true });
-        showToast("Compte Stripe connecté avec succès !");
-      } catch (error) {
-        console.error("Error connecting Stripe:", error);
-        showToast("Erreur lors de la connexion à Stripe", "error");
-        setStripeConnected(false); // Revert UI
-      }
+    try {
+      const response = await apiFetch('/api/stripe/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secretKey: key })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Erreur lors de la connexion Stripe.");
+      setStripeConnected(true);
+      setStripeSecretKey('');
+      showToast("Compte Stripe connecté de façon sécurisée !");
+    } catch (error: any) {
+      console.error("Error connecting Stripe:", error);
+      showToast(error.message || "Erreur lors de la connexion à Stripe", "error");
+      setStripeConnected(false);
     }
   };
 
@@ -160,7 +160,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     }
     setIsAddingStaff(true);
     try {
-      const res = await fetch("/api/create-staff", {
+      const res = await apiFetch("/api/create-staff", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -193,21 +193,22 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   };
 
   const confirmDisconnect = async () => {
-    setStripeConnected(false);
-    setStripeSecretKey('');
     const newMethods = acceptedMethods.filter(m => !['card', 'sepa'].includes(m));
-    setAcceptedMethods(newMethods);
     if (state.user?.clubId) {
       try {
+        const response = await apiFetch('/api/stripe/connect', { method: 'DELETE' });
+        if (!response.ok) throw new Error('La déconnexion Stripe a échoué.');
         await setDoc(doc(db, "clubs", state.user.clubId), {
           settings: {
             payment: {
               stripeConnected: false,
-              stripeSecretKey: '',
               acceptedMethods: newMethods
             }
           }
         }, { merge: true });
+        setStripeConnected(false);
+        setStripeSecretKey('');
+        setAcceptedMethods(newMethods);
         showToast("Compte Stripe déconnecté.");
       } catch (error) {
         console.error("Error disconnecting Stripe:", error);
@@ -241,14 +242,13 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
       };
 
       // Create product/price in Stripe if not already done and if Stripe is connected
-      if (stripeConnected && stripeSecretKey && !planData.stripePriceId) {
+      if (stripeConnected && !planData.stripePriceId) {
         showToast("Création de la formule sur Stripe...", "info");
         try {
-          const res = await fetch('/api/stripe/create-plan', {
+          const res = await apiFetch('/api/stripe/create-plan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              stripeSecretKey,
               name: planData.name,
               price: planData.price,
               billingCycle: planData.billingCycle,
@@ -579,7 +579,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               <div className="flex flex-col gap-4 w-full sm:w-auto">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   <span className="text-xs text-zinc-500 font-mono bg-zinc-100 px-2 py-1 rounded">
-                    {stripeSecretKey ? `${stripeSecretKey.substring(0, 8)}...` : 'Clé non renseignée'}
+                    Clé enregistrée côté serveur
                   </span>
                   <Button variant="secondary" onClick={() => setStripeConnected(false)} className="text-sm">
                     Modifier la clé
@@ -1157,11 +1157,10 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                           onClick={async () => {
                             try {
                               showToast("Génération du lien...", "info");
-                              const res = await fetch('/api/stripe/payment-link', {
+                              const res = await apiFetch('/api/stripe/payment-link', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                  stripeSecretKey,
                                   priceId: plan.stripePriceId
                                 })
                               });
