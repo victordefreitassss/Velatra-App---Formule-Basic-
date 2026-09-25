@@ -34,6 +34,10 @@ service firebase.storage {
       return /databases/(default)/documents/users/$(uid);
     }
 
+    function memberProfile(uid) {
+      return firestore.get(memberPath(uid)).data;
+    }
+
     function canManageMember(memberUid) {
       return profileExists() && firestore.exists(memberPath(memberUid)) && (
         request.auth.uid == memberUid ||
@@ -43,6 +47,25 @@ service firebase.storage {
             (profile().role == 'coach' &&
               firestore.get(memberPath(memberUid)).data.role == 'member' &&
               firestore.get(memberPath(memberUid)).data.assignedCoachUid == request.auth.uid)))
+      );
+    }
+
+    function canReadAvatar(ownerUid) {
+      return profileExists() && firestore.exists(memberPath(ownerUid)) && (
+        request.auth.uid == ownerUid || isSuperAdmin() ||
+        (memberProfile(ownerUid).clubId == profile().clubId && (
+          profile().role == 'owner' ||
+          (profile().role == 'coach' && (
+            memberProfile(ownerUid).role in ['owner', 'coach'] ||
+            (memberProfile(ownerUid).role == 'member' &&
+              memberProfile(ownerUid).assignedCoachUid == request.auth.uid)
+          )) ||
+          (profile().role == 'member' && (
+            memberProfile(ownerUid).role == 'owner' ||
+            (memberProfile(ownerUid).role == 'coach' &&
+              'assignedCoachUid' in profile() && profile().assignedCoachUid == ownerUid)
+          ))
+        ))
       );
     }
 
@@ -61,7 +84,7 @@ service firebase.storage {
     }
 
     match /avatars/{ownerUid}/{fileName} {
-      allow read: if signedIn();
+      allow read: if canReadAvatar(ownerUid);
       allow create, update: if canManageMember(ownerUid) && imageUpload(5 * 1024 * 1024);
       allow delete: if canManageMember(ownerUid);
     }
