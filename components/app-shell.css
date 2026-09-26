@@ -445,7 +445,9 @@
   .va-main { margin-left: 0; padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .va-topbar.va-context-bar { position: sticky; top: 0; min-height: 0; display: block; margin: 0; padding: 9px 12px 0; border-width: 0 0 1px; border-radius: 0; background: rgba(248,250,244,.96); }
   .va-context-main { display: block; }
-  .va-context-heading { display: none; }
+  .va-context-heading { display: block; padding: 1px 3px 6px; }
+  .va-context-heading strong { font-size: 14px; }
+  .va-context-heading span { display: none; }
   .va-context-tabs { min-height: 43px; margin: 0 -3px; }
   .va-context-tabs button { min-height: 38px; padding: 0 11px; font-size: 11px; }
   .va-topbar-tools { min-height: 46px; justify-content: flex-end; }
