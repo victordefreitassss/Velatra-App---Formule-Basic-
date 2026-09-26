@@ -69,8 +69,8 @@ export const Layout: React.FC<LayoutProps> = ({
 }) => {
   const planningEnabled = club?.settings?.booking?.enabled ?? true;
 
-  const isReallySuperAdmin = user.role === 'superadmin' && user.email === 'victor.defreitas.pro@gmail.com';
-  const effectiveRole = isReallySuperAdmin ? adminPerspective : (user.role === 'superadmin' ? 'member' : user.role);
+  const isSuperAdmin = user.role === 'superadmin';
+  const effectiveRole = isSuperAdmin ? adminPerspective : user.role;
 
   const coachItems = React.useMemo(() => {
     return [
@@ -371,7 +371,7 @@ export const Layout: React.FC<LayoutProps> = ({
         </div>
 
         {/* Super Admin Perspective switcher */}
-        {isReallySuperAdmin && onChangePerspective && (
+        {isSuperAdmin && onChangePerspective && (
           <div className="px-4 mb-6">
             <div className="va-admin-switcher p-3 rounded-2xl relative overflow-hidden">
               
@@ -467,7 +467,7 @@ export const Layout: React.FC<LayoutProps> = ({
                         <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
                       )}
                     </div>
-                    {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && !isReallySuperAdmin && (
+                    {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && !isSuperAdmin && (
                       <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity relative z-10" />
                     )}
                   </button>
@@ -546,7 +546,7 @@ export const Layout: React.FC<LayoutProps> = ({
                                 <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
                               )}
                             </div>
-                            {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && !isReallySuperAdmin && (
+                            {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && !isSuperAdmin && (
                               <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity relative z-10" />
                             )}
                           </button>
@@ -771,7 +771,7 @@ export const Layout: React.FC<LayoutProps> = ({
                   <button type="button" aria-label="Fermer le menu Plus" className="va-icon-button" onClick={() => setShowPlusSheet(false)}><X size={18} /></button>
                 </div>
 
-                {isReallySuperAdmin && onChangePerspective && (
+                {isSuperAdmin && onChangePerspective && (
                   <div className="va-mobile-perspective" aria-label="Changer de vue administrateur">
                     <span>Vue de démonstration</span>
                     {(['superadmin', 'coach', 'member'] as const).map(perspective => (

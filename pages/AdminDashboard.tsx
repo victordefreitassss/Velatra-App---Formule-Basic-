@@ -22,6 +22,7 @@ import {
 
 interface AdminDashboardProps {
   showToast: (msg: string, type: 'success' | 'error') => void;
+  actorEmail: string;
 }
 
 interface Announcement {
@@ -42,7 +43,7 @@ interface AuditLog {
   timestamp: number;
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actorEmail }) => {
   // Navigation States
   const [activeTab, setActiveTab] = useState<'clubs' | 'analytics' | 'users' | 'broadcast' | 'audit'>('clubs');
 
@@ -152,7 +153,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
       const payload = {
         actionType,
         details,
-        actorEmail: 'victor.defreitas.pro@gmail.com',
+        actorEmail,
         timestamp: Date.now()
       };
       const refDoc = await addDoc(collection(db, 'admin_audit_logs'), payload);
@@ -373,7 +374,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast }) => 
         category: annCategory,
         target: annTarget,
         createdAt: Date.now(),
-        actorEmail: 'victor.defreitas.pro@gmail.com'
+        actorEmail
       };
 
       const docRef = await addDoc(collection(db, 'system_announcements'), payload);

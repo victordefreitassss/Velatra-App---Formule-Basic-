@@ -386,19 +386,6 @@ export default function App() {
           if (userDoc.exists()) {
             const userData = userDoc.data() as User;
             
-            // Elevated roles are assigned by the verified server endpoint, never by the browser.
-            if (firebaseUser.email === 'victor.defreitas.pro@gmail.com' && firebaseUser.emailVerified && userData.role !== 'superadmin') {
-              try {
-                await apiFetch('/api/bootstrap-superadmin', { method: 'POST' });
-                return;
-              } catch (error) {
-                console.error("Admin initialization failed", error);
-              }
-            }
-            if (userData.role === 'superadmin' && (firebaseUser.email !== 'victor.defreitas.pro@gmail.com' || !firebaseUser.emailVerified)) {
-              userData.role = 'member';
-            }
-            
             const cachedUser = { ...userData, id: Number(userData.id), firebaseUid: firebaseUser.uid };
             setState(prev => ({ ...prev, user: cachedUser }));
 
@@ -422,15 +409,6 @@ export default function App() {
           } else {
             // Document not created yet (happens during registration)
             setState(prev => ({ ...prev, user: null }));
-            
-            // Recover the administrator profile through a verified server-side operation.
-            if (firebaseUser.email === 'victor.defreitas.pro@gmail.com' && firebaseUser.emailVerified) {
-              try {
-                await apiFetch('/api/bootstrap-superadmin', { method: 'POST' });
-              } catch (err) {
-                console.error("Admin recovery failed", err);
-              }
-            }
           }
           setLoading(false);
         });
@@ -1124,8 +1102,8 @@ export default function App() {
     const isClassic = currentPlan === 'classic' || currentPlan === 'premium';
     const isPremium = currentPlan === 'premium';
 
-    const isReallySuperAdmin = user.role === 'superadmin' && user.email === 'victor.defreitas.pro@gmail.com';
-    const effectiveRole = isReallySuperAdmin ? adminPerspective : (user.role === 'superadmin' ? 'member' : user.role);
+    const isSuperAdmin = user.role === 'superadmin';
+    const effectiveRole = isSuperAdmin ? adminPerspective : user.role;
 
     if (effectiveRole === 'superadmin' || effectiveRole === 'coach' || effectiveRole === 'owner') {
       if (effectiveRole !== 'superadmin' && state.currentClub?.isActive === false) {
@@ -1145,7 +1123,7 @@ export default function App() {
       }
 
       if (effectiveRole === 'superadmin') {
-        return <AdminDashboard showToast={showToast} />;
+        return <AdminDashboard showToast={showToast} actorEmail={user.email} />;
       }
 
       switch (page) {
@@ -1331,8 +1309,8 @@ export default function App() {
   const unreadMessagesCount = state.user ? (state.messages || []).filter(m => !m.read && m.to === state.user?.id).length : 0;
   const unreadNotificationsCount = state.user ? (state.notifications || []).filter(n => !n.read && n.userId === state.user?.id).length : 0;
 
-  const isReallySuperAdmin = state.user?.role === 'superadmin' && state.user?.email === 'victor.defreitas.pro@gmail.com';
-  const effectiveRole = isReallySuperAdmin ? adminPerspective : (state.user?.role === 'superadmin' ? 'member' : state.user?.role);
+  const isSuperAdmin = state.user?.role === 'superadmin';
+  const effectiveRole = isSuperAdmin ? adminPerspective : state.user?.role;
 
   return (
     <React.Suspense fallback={(
