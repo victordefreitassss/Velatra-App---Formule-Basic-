@@ -413,32 +413,32 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
               if (bookingsForSlot.length > 0 && isCoach) {
                 // Coach View (Shows all participants)
                 return (
-                  <motion.div key={sIdx} variants={itemVariants} className="bg-zinc-50 p-4 rounded-2xl flex flex-col justify-between min-h-[100px] transition-all border border-zinc-200 shadow-sm relative">
-                    <div className="flex justify-between items-start mb-2">
-                       <div>
-                         <div className="font-black text-lg text-zinc-900">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
-                         <div className="text-xs opacity-70 font-medium uppercase tracking-wider">{sessionType ? sessionType.name : "COACHING"}</div>
-                         {slot.coachId && (
-                           <div className="text-[10px] text-zinc-500 flex items-center gap-1 mt-1">
-                             <UserIcon size={10} />
-                             {state.users.find(u => String(u.id) === slot.coachId)?.name || 'Coach'}
-                           </div>
-                         )}
-                       </div>
-                       <Badge variant="success" className="!bg-blue-100 !text-blue-700 !border-none shadow-sm">{bookingsForSlot.length}/{maxParticipants} Résa</Badge>
-                     </div>
-                     <div className="flex flex-col gap-1 mb-3">
-                       {bookingsForSlot.map(b => {
-                         const m = state.users.find(u => Number(u.id) === b.memberId);
-                         const p = b.type === 'trial' ? state.prospects?.find(pros => pros.id === b.prospectId) : null;
-                         return (
-                           <div key={b.id} className="flex items-center justify-between text-xs p-1.5 rounded-lg bg-white border border-zinc-100">
-                             <span className="font-bold flex items-center gap-1.5"><UserIcon size={12}/> {b.type === 'trial' ? (p?.name || 'Prospect') : (m?.name || 'Inconnu')} {b.status === 'completed' && '(Terminé)'}</span>
-                             {b.status !== 'completed' && <button onClick={() => setConfirmCancelBookingId(b.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2Icon size={12}/></button>}
-                           </div>
-                         )
-                       })}
-                     </div>
+                  <motion.div key={sIdx} variants={itemVariants} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start gap-4">
+                      <div className="w-16 shrink-0 border-r border-zinc-200 pr-3">
+                        <time dateTime={slot.start.toISOString()} className="block text-lg font-semibold leading-tight text-zinc-900">{formatTime(slot.start)}</time>
+                        <span className="mt-1 block text-xs text-zinc-700">{Math.max(0, Math.round((slot.end.getTime() - slot.start.getTime()) / 60000))} min</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-sm font-medium text-zinc-800">{sessionType?.name || 'Coaching individuel'}</p>
+                          <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-800">{bookingsForSlot.length}/{maxParticipants} confirmé{bookingsForSlot.length === 1 ? '' : 's'}</span>
+                        </div>
+                        {slot.coachId && <p className="mt-1 text-xs text-zinc-700">Coach · {state.users.find(u => String(u.id) === slot.coachId)?.name || 'Coach'}</p>}
+                      </div>
+                    </div>
+                    <div className="mt-3 space-y-1.5 border-t border-zinc-100 pt-2">
+                      {bookingsForSlot.map(b => {
+                        const m = state.users.find(u => Number(u.id) === b.memberId);
+                        const p = b.type === 'trial' ? state.prospects?.find(pros => pros.id === b.prospectId) : null;
+                        return (
+                          <div key={b.id} className="flex min-h-11 items-center justify-between gap-3 rounded-lg px-2">
+                            <span className="min-w-0 truncate text-sm font-semibold text-zinc-900">{b.type === 'trial' ? (p?.name || 'Prospect') : (m?.name || 'Inconnu')}</span>
+                            {b.status === 'completed' ? <span className="shrink-0 text-xs font-medium text-emerald-900">Terminée</span> : <button type="button" aria-label={`Annuler la séance de ${b.type === 'trial' ? (p?.name || 'ce prospect') : (m?.name || 'ce membre')}`} onClick={() => setConfirmCancelBookingId(b.id)} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-zinc-600 hover:bg-red-50 hover:text-red-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700"><Trash2Icon size={15}/></button>}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </motion.div>
                 );
               }

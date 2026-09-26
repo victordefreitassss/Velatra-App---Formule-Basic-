@@ -1957,6 +1957,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         <AnimatePresence>
         {selectedProfile && (() => {
         const stats = getMemberStats(selectedProfile.id);
+        const memberId = Number(selectedProfile.id);
+        const nextBooking = [...(state.bookings || [])]
+          .filter(booking => Number(booking.memberId) === memberId && booking.status === 'confirmed' && new Date(booking.startTime).getTime() >= Date.now())
+          .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
+        const lastActivity = [...(state.logs || [])]
+          .filter(log => Number(log.memberId) === memberId)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        const assignedCoach = (state.users || []).find(user => user.role === 'coach' && (user.firebaseUid === selectedProfile.assignedCoachUid || String(user.id) === selectedProfile.assignedCoachUid));
         const hasDuration = stats.program && stats.program.durationWeeks;
         const totalSessions = hasDuration ? (stats.program?.nbDays || 1) * (stats.program?.durationWeeks || 1) : 0;
         const progCompletion = hasDuration && totalSessions > 0 ? Math.min(100, Math.round(((stats.program?.currentDayIndex || 0) / totalSessions) * 100)) : 0;
@@ -2000,7 +2008,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="w-full max-w-[1450px] bg-zinc-100 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border border-zinc-200 shadow-2xl relative overflow-hidden my-0 md:my-8"
+                className="w-full max-w-[1450px] bg-zinc-100 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-3xl border border-zinc-200 shadow-2xl relative overflow-hidden my-0 md:my-8"
               >
                 <ErrorBoundary>
                 <button onClick={closeProfile} className="fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-zinc-100 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border border-zinc-200 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
@@ -2098,7 +2106,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         key={tab.id}
                         onClick={() => setMemberTab(tab.id as any)}
                         aria-current={memberTab === tab.id ? 'page' : undefined}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${memberTab === tab.id ? 'bg-emerald-500 text-zinc-900 shadow-md' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50'}`}
+                        className={`flex min-h-11 items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium tracking-normal transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 ${memberTab === tab.id ? 'bg-emerald-800 text-white' : 'text-zinc-700 hover:text-zinc-900 hover:bg-zinc-200/70'}`}
                       >
                         {tab.icon}
                         {tab.label}
@@ -2117,7 +2125,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 <div className="flex-1 min-w-0 bg-white p-4 sm:p-6 md:p-10 lg:p-12 overflow-y-auto space-y-8 custom-scrollbar md:h-[calc(100vh)]">
                     <div className="sticky top-0 z-30 -mx-4 -mt-4 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 pr-16 backdrop-blur-sm sm:-mx-6 sm:-mt-6 sm:px-6 sm:pr-16 md:-mx-10 md:-mt-10 md:px-10 md:pr-32 lg:-mx-12 lg:-mt-12 lg:px-12 lg:pr-32">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-zinc-600">Dossier adhérent</p>
+                      <p className="truncate text-xs font-medium text-zinc-700">{assignedCoach ? `Coach · ${assignedCoach.name}` : 'Coach non attribué'}{stats.program?.name ? ` · ${stats.program.name}` : ' · Aucun programme'}</p>
                       <div className="flex min-w-0 items-center gap-2">
                         <h2 className="truncate text-base font-semibold text-zinc-900 sm:text-lg">{selectedProfile.name}</h2>
                         {selectedProfile.status === 'paused' && <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">En pause</span>}
@@ -2132,6 +2140,48 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   {/* VELATRA AI ENGINE SECTION */}
                   {memberTab === 'overview' && (
                   <section className="space-y-8">
+                    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-medium text-zinc-700">Repères utiles pour le suivi</p>
+                          <h3 className="mt-1 text-lg font-semibold text-zinc-900">Vue d’ensemble</h3>
+                        </div>
+                        {selectedProfile.status === 'paused' ? (
+                          <span className="rounded-full bg-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-800">En pause</span>
+                        ) : <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-900">Actif</span>}
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
+                          <p className="text-xs font-medium text-zinc-700">Programme actuel</p>
+                          <p className="mt-1 truncate text-sm font-semibold text-zinc-900">{stats.program?.name || 'Aucun programme attribué'}</p>
+                          {stats.program && <p className="mt-1 text-xs text-zinc-700">{stats.program.days?.length || 0} séances par cycle{stats.program.durationWeeks ? ` · ${stats.program.durationWeeks} semaines` : ''}</p>}
+                        </div>
+                        <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
+                          <p className="text-xs font-medium text-zinc-700">Prochaine séance</p>
+                          {nextBooking ? <><p className="mt-1 text-sm font-semibold text-zinc-900">{new Date(nextBooking.startTime).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} · {new Date(nextBooking.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</p><p className="mt-1 text-xs text-zinc-700">{nextBooking.type === 'trial' ? 'Séance découverte' : 'Coaching confirmé'}</p></> : <p className="mt-1 text-sm font-medium text-zinc-800">Aucune réservation confirmée à venir</p>}
+                        </div>
+                        <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
+                          <p className="text-xs font-medium text-zinc-700">Dernière activité</p>
+                          <p className="mt-1 text-sm font-semibold text-zinc-900">{lastActivity ? new Date(lastActivity.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Aucune séance enregistrée'}</p>
+                          {lastActivity && <p className="mt-1 text-xs text-zinc-700">{lastActivity.dayName || 'Séance'}</p>}
+                        </div>
+                        <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
+                          <p className="text-xs font-medium text-zinc-700">Abonnement</p>
+                          <p className="mt-1 text-sm font-semibold text-zinc-900">{stats.subscription?.planName || 'Aucun abonnement actif'}</p>
+                          {stats.subscription && <p className="mt-1 text-xs text-zinc-700">{stats.subscription.price.toFixed(2)} € · {stats.subscription.billingCycle === 'yearly' ? 'annuel' : stats.subscription.billingCycle === 'monthly' ? 'mensuel' : 'paiement unique'}</p>}
+                        </div>
+                        <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
+                          <p className="text-xs font-medium text-zinc-700">Coach référent</p>
+                          <p className="mt-1 text-sm font-semibold text-zinc-900">{assignedCoach?.name || 'Non attribué'}</p>
+                        </div>
+                        <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
+                          <p className="text-xs font-medium text-zinc-700">Objectif principal</p>
+                          <p className="mt-1 text-sm font-semibold text-zinc-900">{selectedProfile.objectifs?.[0] || 'À définir'}</p>
+                        </div>
+                      </div>
+                      {selectedProfile.notes?.trim() && <p className="mt-3 line-clamp-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-3 text-sm text-zinc-800"><span className="font-semibold">Note coach · </span>{selectedProfile.notes}</p>}
+                    </div>
+
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-gradient-to-br from-emerald-500 to-purple-600 rounded-2xl text-zinc-900 shadow-[0_0_20px_rgba(99,102,241,0.4)]"><BotIcon size={24} /></div>
                        <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Velatra AI Engine</h3>

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Subscription, Payment, Plan, Expense, Invoice } from '../types';
 import { db, doc, updateDoc, setDoc, deleteDoc } from '../firebase';
-import { Plus, Search, Trash2, DollarSign, TrendingUp, CreditCard, AlertCircle, CheckCircle, Clock, User, Package, FileText, MessageCircle, Link as LinkIcon, Download, TrendingDown } from 'lucide-react';
+import { Plus, Search, Trash2, DollarSign, TrendingUp, CreditCard, AlertCircle, CheckCircle, Clock, User, Package, FileText, MessageCircle, Link as LinkIcon, Download, TrendingDown, MoreHorizontal } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell } from 'recharts';
 import { motion } from 'framer-motion';
 import jsPDF from 'jspdf';
@@ -27,6 +27,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
   const [newGoal, setNewGoal] = useState(state.currentClub?.settings?.finances?.monthlyGoal || 5000);
   const [isAnnual, setIsAnnual] = useState(false);
   const [dateFilter, setDateFilter] = useState<'30d' | '7d' | 'thisMonth' | 'thisYear' | 'all'>('30d');
+  const [openFinanceActions, setOpenFinanceActions] = useState<string | null>(null);
 
   // Helper for date filtering
   const isWithinDateFilter = (dateString: string) => {
@@ -64,6 +65,8 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
 
   const filteredPayments = state.payments.filter(p => isWithinDateFilter(p.date));
   const filteredExpensesList = state.expenses.filter(e => isWithinDateFilter(e.date));
+  const paymentCategoryLabel: Record<string, string> = { subscription: 'Abonnement', coaching: 'Coaching', boutique: 'Boutique', other: 'Autre' };
+  const expenseCategoryLabel: Record<string, string> = { rent: 'Loyer', salary: 'Salaire', equipment: 'Matériel', marketing: 'Marketing', software: 'Logiciels', other: 'Autre' };
 
   const totalRevenue = filteredPayments.filter(p => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0);
   const pendingPayments = filteredPayments.filter(p => p.status === 'pending').reduce((acc, p) => acc + p.amount, 0);
@@ -569,19 +572,19 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
 
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
             <div 
-              className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 relative overflow-hidden group cursor-pointer hover:border-emerald-500/50 transition-colors"
+              className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 relative overflow-hidden group cursor-pointer hover:border-emerald-500/50 transition-colors"
               onClick={() => setIsAnnual(!isAnnual)}
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-900/5 rounded-full -mr-10 -mt-10"></div>
               <div className="flex justify-between items-start relative z-10">
                 <div>
-                  <p className="text-zinc-500 font-medium mb-1 flex items-center gap-2">
+                  <p className="text-xs sm:text-sm text-zinc-700 font-medium mb-1 flex items-center gap-2">
                     {isAnnual ? 'ARR (Revenu Annuel)' : 'MRR (Revenu Mensuel)'}
-                    <span className="text-[10px] bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-500 uppercase tracking-wider">Clic</span>
+                    <span className="hidden sm:inline text-xs bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-600 uppercase tracking-wider">Cliquer pour basculer</span>
                   </p>
-                  <h3 className="text-4xl font-display font-bold text-zinc-900">
+                  <h3 className="text-xl sm:text-4xl font-display font-bold text-zinc-900">
                     {isAnnual ? (mrr * 12).toFixed(2) : mrr.toFixed(2)} €
                   </h3>
                 </div>
@@ -589,49 +592,49 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                   <TrendingUp className="w-6 h-6" />
                 </div>
               </div>
-              <p className="text-sm text-emerald-800 mt-4 flex items-center gap-1"><TrendingUp className="w-4 h-4" /> Basé sur {activeSubscriptions.length} abonnements actifs</p>
+              <p className="mt-3 flex items-center gap-1 text-xs sm:text-sm text-emerald-900"><TrendingUp className="h-4 w-4 shrink-0" /> {activeSubscriptions.length} abonnements actifs</p>
             </div>
 
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 relative overflow-hidden group">
+            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-200/60 rounded-full -mr-10 -mt-10"></div>
               <div className="flex justify-between items-start relative z-10">
                 <div>
-                  <p className="text-zinc-500 font-medium mb-1">Panier Moyen (ARPU)</p>
-                  <h3 className="text-4xl font-display font-bold text-zinc-900">{arpu.toFixed(2)} €</h3>
+                  <p className="text-xs sm:text-sm text-zinc-700 font-medium mb-1">Panier moyen (ARPU)</p>
+                  <h3 className="text-xl sm:text-4xl font-display font-bold text-zinc-900">{arpu.toFixed(2)} €</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-zinc-200 flex items-center justify-center text-zinc-800">
                   <Package className="w-6 h-6" />
                 </div>
               </div>
-              <p className="text-sm text-zinc-500 mt-4">Revenu moyen par abonné</p>
+              <p className="text-xs sm:text-sm text-zinc-700 mt-3">Revenu moyen par abonné</p>
             </div>
 
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 relative overflow-hidden group">
+            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-900/5 rounded-full -mr-10 -mt-10"></div>
               <div className="flex justify-between items-start relative z-10">
                 <div>
-                  <p className="text-zinc-500 font-medium mb-1">Bénéfice Net</p>
-                  <h3 className="text-4xl font-display font-bold text-zinc-900">{netProfit.toFixed(2)} €</h3>
+                  <p className="text-xs sm:text-sm text-zinc-700 font-medium mb-1">Bénéfice net</p>
+                  <h3 className="text-xl sm:text-4xl font-display font-bold text-zinc-900">{netProfit.toFixed(2)} €</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800">
                   <DollarSign className="w-6 h-6" />
                 </div>
               </div>
-              <p className="text-sm text-zinc-500 mt-4">Revenus ({totalRevenue.toFixed(0)}€) - Dépenses ({totalExpenses.toFixed(0)}€)</p>
+              <p className="text-xs text-zinc-700 mt-3">Revenus − dépenses</p>
             </div>
 
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 relative overflow-hidden group">
+            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-amber-100/80 rounded-full -mr-10 -mt-10"></div>
               <div className="flex justify-between items-start relative z-10">
                 <div>
-                  <p className="text-zinc-500 font-medium mb-1">Paiements en attente</p>
-                  <h3 className="text-4xl font-display font-bold text-zinc-900">{pendingPayments.toFixed(2)} €</h3>
+                  <p className="text-xs sm:text-sm text-zinc-700 font-medium mb-1">En attente</p>
+                  <h3 className="text-xl sm:text-4xl font-display font-bold text-zinc-900">{pendingPayments.toFixed(2)} €</h3>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800">
                   <Clock className="w-6 h-6" />
                 </div>
               </div>
-              <p className="text-sm text-zinc-500 mt-4">À recouvrer prochainement</p>
+              <p className="text-xs text-zinc-700 mt-3">Paiements à recouvrer</p>
             </div>
           </div>
 
@@ -714,14 +717,14 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6">
-              <h3 className="text-lg font-black text-zinc-900 mb-6">Revenus vs Dépenses (6 derniers mois)</h3>
-              <div className="h-72 w-full">
+              <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-zinc-900 mb-4 sm:mb-6">Revenus vs Dépenses (6 derniers mois)</h3>
+              <div className="h-64 sm:h-72 w-full min-w-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                    <XAxis dataKey="name" stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#71717a" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}€`} />
+                    <XAxis dataKey="name" stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}€`} width={44} />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', borderRadius: '8px', color: '#18181b', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                       itemStyle={{ color: '#18181b' }}
@@ -734,9 +737,9 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
               </div>
             </div>
 
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6">
-              <h3 className="text-lg font-black text-zinc-900 mb-6">Répartition des Revenus</h3>
-              <div className="h-72 w-full flex items-center justify-center">
+            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 min-w-0">
+              <h3 className="text-base sm:text-lg font-semibold text-zinc-900 mb-4 sm:mb-6">Répartition des Revenus</h3>
+              <div className="h-64 sm:h-72 w-full min-w-0 flex items-center justify-center">
                 {pieChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -775,7 +778,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             <h2 className="text-xl font-black text-zinc-900">Historique des paiements</h2>
           </div>
 
-          <div className="bg-zinc-50 border border-zinc-200 rounded-2xl overflow-hidden">
+          <div className="hidden lg:block bg-zinc-50 border border-zinc-200 rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-white text-zinc-500 uppercase text-xs">
@@ -789,7 +792,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                     <th className="px-6 py-4 font-medium text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800">
+                <tbody className="divide-y divide-zinc-200">
                   {filteredPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(payment => {
                     const member = state.users.find(u => Number(u.id) === payment.memberId);
                     return (
@@ -841,14 +844,50 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                       </tr>
                     );
                   })}
-                  {state.payments.length === 0 && (
+                  {filteredPayments.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-6 py-8 text-center text-zinc-500">Aucun paiement enregistré.</td>
+                      <td colSpan={7} className="px-6 py-8 text-center text-zinc-600">Aucun paiement pour cette période.</td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
+          </div>
+
+          <div className="space-y-3 lg:hidden" aria-label="Liste des paiements">
+            {filteredPayments.length === 0 ? (
+              <div className="rounded-xl border border-zinc-200 bg-white px-4 py-8 text-center text-sm text-zinc-700">Aucun paiement pour cette période.</div>
+            ) : [...filteredPayments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(payment => {
+              const member = state.users.find(user => Number(user.id) === payment.memberId);
+              const statusLabel = payment.status === 'paid' ? 'Payé' : payment.status === 'pending' ? 'En attente' : 'Échoué';
+              const statusStyles = payment.status === 'paid' ? 'bg-emerald-50 text-emerald-900' : payment.status === 'pending' ? 'bg-amber-50 text-amber-900' : 'bg-red-50 text-red-800';
+              return <article key={payment.id} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-semibold text-zinc-900">{member?.name || 'Client inconnu'}</h3>
+                    <p className="mt-1 text-xs text-zinc-700">{new Date(payment.date).toLocaleDateString('fr-FR')} · {payment.method === 'card' ? 'Carte bancaire' : payment.method}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-base font-semibold text-zinc-900">{payment.amount.toFixed(2)} €</p>
+                    <span className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusStyles}`}>{statusLabel}</span>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-zinc-100 pt-3">
+                  <label className="flex min-w-0 items-center gap-2 text-xs text-zinc-700"><span className="shrink-0">Catégorie</span>
+                    <select aria-label={`Catégorie du paiement de ${member?.name || 'ce membre'}`} className="min-h-11 min-w-0 rounded-lg border border-zinc-200 bg-white px-2 text-sm font-medium text-zinc-900" value={payment.category || 'other'} onChange={event => handleUpdatePaymentCategory(payment.id, event.target.value as any)}>
+                      <option value="subscription">Abonnement</option><option value="coaching">Coaching</option><option value="boutique">Boutique</option><option value="other">Autre</option>
+                    </select>
+                  </label>
+                  {payment.status === 'paid' && <div className="relative shrink-0">
+                    <button type="button" onClick={() => setOpenFinanceActions(openFinanceActions === payment.id ? null : payment.id)} aria-label={`Actions du paiement de ${member?.name || 'ce membre'}`} aria-expanded={openFinanceActions === payment.id} className="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50"><MoreHorizontal className="h-5 w-5" /></button>
+                    {openFinanceActions === payment.id && <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-lg">
+                      <button type="button" onClick={() => { handleDownloadInvoice(payment); setOpenFinanceActions(null); }} className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium text-zinc-800 hover:bg-zinc-50"><FileText className="h-4 w-4" /> Télécharger la facture</button>
+                      <button type="button" onClick={() => { setConfirmRefundPaymentId(payment.id); setOpenFinanceActions(null); }} className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium text-red-800 hover:bg-red-50"><AlertCircle className="h-4 w-4" /> Rembourser</button>
+                    </div>}
+                  </div>}
+                </div>
+              </article>;
+            })}
           </div>
         </div>
       )}
@@ -911,7 +950,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             </div>
           )}
 
-          <div className="bg-zinc-50 border border-zinc-200 rounded-2xl overflow-hidden">
+          <div className="hidden lg:block bg-zinc-50 border border-zinc-200 rounded-2xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-white text-zinc-500 uppercase text-xs">
@@ -923,15 +962,15 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                     <th className="px-6 py-4 font-medium text-right">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-800">
+                <tbody className="divide-y divide-zinc-200">
                   {filteredExpenses.map(expense => (
                     <tr key={expense.id} className="hover:bg-white/50 transition-colors">
                       <td className="px-6 py-4 text-zinc-500">{new Date(expense.date).toLocaleDateString()}</td>
                       <td className="px-6 py-4 font-medium text-zinc-900">{expense.description}</td>
-                      <td className="px-6 py-4 text-zinc-500 capitalize">{expense.category}</td>
+                      <td className="px-6 py-4 text-zinc-600">{expenseCategoryLabel[expense.category] || 'Autre'}</td>
                       <td className="px-6 py-4 text-red-500 font-medium">-{expense.amount} €</td>
                       <td className="px-6 py-4 text-right">
-                        <button onClick={() => handleDeleteExpense(expense.id)} className="p-2 text-zinc-500 hover:text-red-500 transition-colors">
+                        <button onClick={() => handleDeleteExpense(expense.id)} aria-label={`Supprimer la dépense ${expense.description}`} className="min-h-11 min-w-11 text-zinc-600 hover:text-red-700 transition-colors">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
@@ -945,6 +984,24 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                 </tbody>
               </table>
             </div>
+          </div>
+
+          <div className="space-y-3 lg:hidden" aria-label="Liste des dépenses">
+            {filteredExpenses.length === 0 ? (
+              <div className="rounded-xl border border-zinc-200 bg-white px-4 py-8 text-center text-sm text-zinc-700">Aucune dépense pour cette période.</div>
+            ) : filteredExpenses.map(expense => <article key={expense.id} className="flex items-start justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+              <div className="min-w-0">
+                <h3 className="break-words text-sm font-semibold text-zinc-900">{expense.description || 'Dépense'}</h3>
+                <p className="mt-1 text-xs text-zinc-700">{expenseCategoryLabel[expense.category] || 'Autre'} · {new Date(expense.date).toLocaleDateString('fr-FR')}</p>
+              </div>
+              <div className="flex shrink-0 items-start gap-2">
+                <span className="pt-2 text-sm font-semibold text-red-800">−{expense.amount.toFixed(2)} €</span>
+                <div className="relative">
+                  <button type="button" onClick={() => setOpenFinanceActions(openFinanceActions === `expense:${expense.id}` ? null : `expense:${expense.id}`)} aria-label={`Actions pour la dépense ${expense.description}`} aria-expanded={openFinanceActions === `expense:${expense.id}`} className="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50"><MoreHorizontal className="h-5 w-5" /></button>
+                  {openFinanceActions === `expense:${expense.id}` && <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-lg"><button type="button" onClick={() => { handleDeleteExpense(expense.id); setOpenFinanceActions(null); }} className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium text-red-800 hover:bg-red-50"><Trash2 className="h-4 w-4" /> Supprimer</button></div>}
+                </div>
+              </div>
+            </article>)}
           </div>
 
           <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 mt-8">

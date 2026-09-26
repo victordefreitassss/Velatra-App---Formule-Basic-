@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { AppState, Message, FeedItem } from '../types';
 import { Card, StatBox, Button, Badge, Input } from './UI';
 import { getLevel, formatDate } from '../utils';
-import { CalendarIcon, RefreshCwIcon, TargetIcon, BarChartIcon, TrophyIcon, FlameIcon, SparklesIcon, MessageCircleIcon, ShoppingCartIcon, GiftIcon, MegaphoneIcon, BotIcon, SendIcon } from './Icons';
+import { CalendarIcon, RefreshCwIcon, TargetIcon, BarChartIcon, TrophyIcon, FlameIcon, SparklesIcon, MessageCircleIcon, ShoppingCartIcon, GiftIcon, MegaphoneIcon, BotIcon, SendIcon, CheckIcon } from './Icons';
 import { BodyHeatmap } from './BodyHeatmap';
 import { apiFetch, db, doc, updateDoc, setDoc } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,17 +35,17 @@ const itemVariants: any = {
 export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setState, showToast, onToggleTimer }) => {
   const user = state.user!;
   const myLogs = state.logs.filter(l => Number(l.memberId) === Number(user.id));
-  const level = getLevel(user.xp); 
+  const level = getLevel(user.xp);
   const program = state.programs.find(p => Number(p.memberId) === Number(user.id) && !p.isPlannedSession);
   const lastArchive = state.archivedPrograms
     .filter(p => Number(p.memberId) === Number(user.id))
     .sort((a, b) => new Date((b as any).endDate || 0).getTime() - new Date((a as any).endDate || 0).getTime())[0];
-  
+
   // Compute muscle fatigue based on recent logs (last 7 days)
   const muscleData: Record<string, 'fatigued' | 'recovering' | 'fresh'> = {};
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  
+
   const recentLogs = myLogs.filter(l => new Date(l.date) >= sevenDaysAgo);
   recentLogs.forEach(log => {
     log.exercises?.forEach(logEx => {
@@ -55,7 +55,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
         let status: 'fatigued' | 'recovering' | 'fresh' = 'fresh';
         if (daysAgo <= 2) status = 'fatigued';
         else if (daysAgo <= 4) status = 'recovering';
-        
+
         let muscle = '';
         if (ex.cat === 'Poitrine') muscle = 'chest';
         else if (ex.cat === 'Dos') muscle = 'back'; // Will map to shoulders/arms in SVG if needed
@@ -63,7 +63,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
         else if (ex.cat === 'Épaules') muscle = 'shoulders';
         else if (ex.cat === 'Bras') muscle = 'arms';
         else if (ex.cat === 'Abdos') muscle = 'core';
-        
+
         if (muscle) {
           // Only override if more fatigued
           if (!muscleData[muscle] || status === 'fatigued' || (status === 'recovering' && muscleData[muscle] === 'fresh')) {
@@ -145,7 +145,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
             userId: user.id,
             userName: user.name,
             type: 'session',
-            title: `🔥 Rituel quotidien validé ! (Série de ${newStreak} jours)`,
+            title: `Suivi du jour validé · ${newStreak} jours de suite`,
             date: new Date().toISOString()
           };
           await setDoc(doc(db, "feed", feedId), newFeedItem);
@@ -155,11 +155,11 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
       }
 
       setState(prev => {
-        const cachedUser = { 
-          ...prev.user!, 
-          xp: newXp, 
-          streak: newStreak, 
-          lastCheckInDate: todayStr 
+        const cachedUser = {
+          ...prev.user!,
+          xp: newXp,
+          streak: newStreak,
+          lastCheckInDate: todayStr
         };
         if (typeof window !== 'undefined') {
           try {
@@ -173,7 +173,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
         };
       });
 
-      showToast(result.alreadyCompleted ? "Ton rituel du jour est déjà enregistré." : "Rituel du jour complété ! +50 XP 🔥", "success");
+      showToast(result.alreadyCompleted ? "Ton suivi du jour est déjà enregistré." : "Suivi du jour enregistré · +50 XP", "success");
 
       if (didLevelUp) {
         setShowLevelUpModal(newLvl);
@@ -213,7 +213,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
         model: 'gemini-2.5-flash',
         contents: `En tant que coach expert VELATRA, donne un conseil ultra-court et motivant (max 15 mots) pour cet athlète dont les dernières perfs sont : ${recentPerfs}. Son objectif est : ${(user.objectifs || []).join(', ')}.`
       });
-      
+
       setState(prev => ({ ...prev, aiSuggestion: response.text }));
     } catch (err) {
       console.error(err);
@@ -263,7 +263,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
     try {
       const userRef = doc(db, "users", (user as any).firebaseUid);
       await updateDoc(userRef, { planRequested: true });
-      
+
       // Alerte Coach
       const feedId = Date.now().toString();
       const newFeedItem: FeedItem = {
@@ -277,7 +277,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
       };
       await setDoc(doc(db, "feed", feedId), newFeedItem);
 
-      showToast("Demande envoyée au coach ! 🔥");
+      showToast("Demande envoyée au coach.");
     } catch (err) {
       showToast("Erreur", "error");
     }
@@ -296,7 +296,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
   const nextBookingCoach = nextBooking ? state.users.find(person => person.firebaseUid === nextBooking.coachId || String(person.id) === nextBooking.coachId) : undefined;
 
   return (
-    <motion.div 
+    <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -313,10 +313,12 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
             </div>
           </div>
         </div>
-        <motion.div 
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="relative" 
+        <motion.button
+          type="button"
+          aria-label="Ouvrir mon profil"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          className="relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
           onClick={() => setState(s => ({ ...s, page: 'profile' }))}
         >
           <div className="w-12 h-12 rounded-full bg-emerald-800 flex items-center justify-center font-semibold text-lg text-white ring-2 ring-zinc-200 cursor-pointer overflow-hidden">
@@ -329,7 +331,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           <div className="absolute -bottom-1 -right-1 bg-zinc-900 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full ring-2 ring-white">
             LVL {Math.floor(user.xp / 1000) + 1}
           </div>
-        </motion.div>
+        </motion.button>
       </motion.div>
 
       {nextBooking && (
@@ -351,8 +353,8 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           <motion.button
             type="button"
             aria-label={`Ouvrir le programme ${program.name}`}
-            whileHover={{ scale: 1.02, y: -4 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.005 }}
+            whileTap={{ scale: 0.995 }}
             onClick={() => setState(prev => ({ ...prev, page: 'calendar' }))}
             className="w-full text-left bg-zinc-50 rounded-2xl p-5 sm:p-7 relative overflow-hidden shadow-sm cursor-pointer transition-colors border border-zinc-200 group"
           >
@@ -369,11 +371,11 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                   <h2 className="text-2xl sm:text-3xl font-display font-bold text-zinc-900 leading-tight mb-2">
                     {program.days[program.currentDayIndex % program.nbDays]?.name || 'Séance du jour'}
                   </h2>
-                  <p className="text-zinc-500 text-sm font-medium">
-                    {program.name} • Objectif: {user.objectifs?.[0] || 'Général'}
+                  <p className="text-zinc-700 text-sm font-medium">
+                    {program.name} · Objectif : {user.objectifs?.[0] || 'Général'}
                   </p>
                 </div>
-                <div className="w-14 h-14 rounded-full bg-emerald-500 text-zinc-900 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.5)] group-hover:scale-110 transition-transform duration-500">
+                <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-900 flex items-center justify-center border border-emerald-200 group-hover:scale-[1.02] transition-transform duration-200">
                   <TargetIcon size={24} />
                 </div>
               </div>
@@ -405,17 +407,17 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                 </div>
               </motion.div>
             )}
-            <motion.div 
-              whileHover={!user.planRequested ? { scale: 1.02 } : {}}
-              whileTap={!user.planRequested ? { scale: 0.98 } : {}}
+          <motion.div
+              whileHover={!user.planRequested ? { scale: 1.005 } : {}}
+              whileTap={!user.planRequested ? { scale: 0.995 } : {}}
               onClick={!user.planRequested ? requestPlan : undefined}
               className={`rounded-3xl p-6 text-center border-2 border-dashed transition-all ${user.planRequested ? 'bg-zinc-50 border-zinc-200 cursor-default' : 'bg-emerald-500/5 border-emerald-500/30 cursor-pointer'}`}
             >
               <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3 ${user.planRequested ? 'bg-white text-zinc-500' : 'bg-emerald-500/20 text-emerald-500'}`}>
                 <CalendarIcon size={24} />
               </div>
-              <h3 className="text-lg font-black text-zinc-900 italic mb-1">Nouveau Cycle</h3>
-              <p className="text-xs text-zinc-500 font-bold mb-4">Prêt pour la suite de ton évolution ?</p>
+              <h3 className="text-lg font-semibold text-zinc-900 mb-1">Prochain programme</h3>
+              <p className="text-sm text-zinc-700 mb-4">Demande un nouveau programme à ton coach quand tu es prêt.</p>
               <Button variant={user.planRequested ? "glass" : "primary"} disabled={user.planRequested} className="w-full !py-4 !rounded-xl">
                 {user.planRequested ? "DEMANDE EN COURS..." : "DEMANDER MON PROGRAMME"}
               </Button>
@@ -427,7 +429,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
       {/* Daily Ritual Habit Check-In Widget */}
       <motion.section variants={itemVariants} className="px-2">
         <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-sm relative overflow-hidden">
-          
+
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
               <SparklesIcon size={16} className="text-emerald-800" /> Suivi du jour
@@ -438,39 +440,41 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           </div>
 
           {isCheckedInToday ? (
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-6 text-center shadow-inner"
             >
-              <div className="w-14 h-14 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-3 text-emerald-500 border border-emerald-500/20 shadow-inner">
-                <FlameIcon size={32} fill="currentColor" />
+              <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3 text-emerald-900 border border-emerald-200">
+                <CheckIcon size={24} />
               </div>
-              <h4 className="text-base font-black text-zinc-900 mb-1">Rituel du Jour Enregistré !</h4>
-              <p className="text-xs text-zinc-500 font-bold leading-normal max-w-xs mx-auto">
-                Bravo ! Ta série de <span className="text-emerald-500 font-black">{user.streak || 0}</span> jours consécutifs est préservée. Ton corps te remerciera. À demain pour un nouveau rituel !
+              <h4 className="text-base font-semibold text-zinc-900 mb-1">Suivi du jour enregistré</h4>
+              <p className="text-sm text-zinc-700 leading-normal max-w-xs mx-auto">
+                Série en cours : <span className="text-emerald-900 font-semibold">{user.streak || 0} jours</span>.
               </p>
             </motion.div>
           ) : (
             <div className="space-y-4">
               {/* Mood Slider */}
               <div className="bg-white rounded-2xl p-4 border border-zinc-100">
-                <span className="text-[11px] font-black uppercase text-zinc-400 tracking-wider block mb-2">Humeur & Énergie</span>
+                <span className="text-xs font-medium text-zinc-700 block mb-2">Humeur et énergie</span>
                 <div className="flex justify-between gap-1">
                   {[
                     { val: 1, label: "😭" },
                     { val: 2, label: "🙁" },
                     { val: 3, label: "😐" },
                     { val: 4, label: "🙂" },
-                    { val: 5, label: "🔥" }
+                    { val: 5, label: "😊" }
                   ].map(m => (
                     <button
                       key={m.val}
                       onClick={() => setMood(m.val)}
                       type="button"
-                      className={`flex-1 py-1.5 text-xl rounded-xl transition-all ${
-                        mood === m.val 
-                          ? 'bg-zinc-100 border border-zinc-250 scale-105 shadow-sm' 
+                      aria-pressed={mood === m.val}
+                      aria-label={`Humeur ${m.val} sur 5`}
+                      className={`min-h-11 flex-1 py-1.5 text-xl rounded-xl transition-colors ${
+                        mood === m.val
+                          ? 'bg-zinc-100 border border-zinc-300 shadow-sm'
                           : 'opacity-50 hover:opacity-100'
                       }`}
                     >
@@ -484,21 +488,23 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                 {/* Hydration */}
                 <div className="bg-white rounded-2xl p-4 border border-zinc-100 flex flex-col justify-between">
                   <div>
-                    <span className="text-[11px] font-black uppercase text-zinc-400 tracking-wider block mb-1">Hydratation (L)</span>
-                    <span className="text-lg font-black text-sky-500">{water} L</span>
+                <span className="text-xs font-medium text-zinc-700 block mb-1">Hydratation</span>
+                    <span className="text-lg font-semibold text-sky-800">{water} L</span>
                   </div>
                   <div className="flex gap-1.5 mt-2">
                     <button
                       onClick={() => setWater(prev => Math.max(0.5, Number((prev - 0.5).toFixed(1))))}
                       type="button"
-                      className="w-8 h-8 rounded-xl bg-zinc-50 hover:bg-zinc-100 font-black text-zinc-700 flex items-center justify-center border border-zinc-200"
+                      aria-label="Diminuer l’hydratation"
+                      className="min-h-11 min-w-11 rounded-xl bg-zinc-50 hover:bg-zinc-100 font-semibold text-zinc-800 flex items-center justify-center border border-zinc-200"
                     >
                       -
                     </button>
                     <button
                       onClick={() => setWater(prev => Math.min(4.0, Number((prev + 0.5).toFixed(1))))}
                       type="button"
-                      className="w-8 h-8 rounded-xl bg-zinc-50 hover:bg-zinc-100 font-black text-zinc-700 flex items-center justify-center border border-zinc-200"
+                      aria-label="Augmenter l’hydratation"
+                      className="min-h-11 min-w-11 rounded-xl bg-zinc-50 hover:bg-zinc-100 font-semibold text-zinc-800 flex items-center justify-center border border-zinc-200"
                     >
                       +
                     </button>
@@ -508,21 +514,23 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                 {/* Sleep */}
                 <div className="bg-white rounded-2xl p-4 border border-zinc-100 flex flex-col justify-between">
                   <div>
-                    <span className="text-[11px] font-black uppercase text-zinc-400 tracking-wider block mb-1">Sommeil (H)</span>
-                    <span className="text-lg font-black text-indigo-500">{sleep} H</span>
+                <span className="text-xs font-medium text-zinc-700 block mb-1">Sommeil</span>
+                    <span className="text-lg font-semibold text-indigo-800">{sleep} h</span>
                   </div>
                   <div className="flex gap-1.5 mt-2">
                     <button
                       onClick={() => setSleep(prev => Math.max(4, Number((prev - 0.5).toFixed(1))))}
                       type="button"
-                      className="w-8 h-8 rounded-xl bg-zinc-50 hover:bg-zinc-100 font-black text-zinc-700 flex items-center justify-center border border-zinc-200"
+                      aria-label="Diminuer le sommeil"
+                      className="min-h-11 min-w-11 rounded-xl bg-zinc-50 hover:bg-zinc-100 font-semibold text-zinc-800 flex items-center justify-center border border-zinc-200"
                     >
                       -
                     </button>
                     <button
                       onClick={() => setSleep(prev => Math.min(12, Number((prev + 0.5).toFixed(1))))}
                       type="button"
-                      className="w-8 h-8 rounded-xl bg-zinc-50 hover:bg-zinc-100 font-black text-zinc-700 flex items-center justify-center border border-zinc-200"
+                      aria-label="Augmenter le sommeil"
+                      className="min-h-11 min-w-11 rounded-xl bg-zinc-50 hover:bg-zinc-100 font-semibold text-zinc-800 flex items-center justify-center border border-zinc-200"
                     >
                       +
                     </button>
@@ -531,21 +539,21 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
               </div>
 
               {/* Protein Target */}
-              <button 
+              <button
                 onClick={() => setProteinOk(!proteinOk)}
                 type="button"
                 className={`w-full rounded-2xl p-4 border flex items-center justify-between transition-all ${
-                  proteinOk 
-                    ? 'bg-zinc-100 border-zinc-300 shadow-sm' 
+                  proteinOk
+                    ? 'bg-zinc-100 border-zinc-300 shadow-sm'
                     : 'bg-white border-zinc-100 hover:bg-zinc-50'
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${proteinOk ? 'bg-emerald-500 text-zinc-950 shadow' : 'bg-zinc-100 text-zinc-400'}`}>
-                    <TrophyIcon size={16} />
+                    <TargetIcon size={16} />
                   </div>
                   <div className="text-left">
-                    <span className="text-[11px] font-black uppercase text-zinc-400 tracking-wider block">Objectif Nutrition</span>
+                    <span className="text-xs font-medium text-zinc-700 block">Objectif nutrition</span>
                     <span className="text-xs font-bold text-zinc-900">Protéines quotidiennes atteintes</span>
                   </div>
                 </div>
@@ -555,12 +563,12 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
               </button>
 
               {/* Validation Button */}
-              <Button 
+              <Button
                 onClick={handleDailyCheckIn}
                 disabled={isCheckingIn}
-                className="w-full !py-4 bg-emerald-500 text-zinc-950 hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] font-black text-xs uppercase tracking-wider !rounded-2xl transition-all"
+                className="w-full !py-3.5 bg-emerald-700 text-white hover:bg-emerald-800 font-semibold text-sm !rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
               >
-                {isCheckingIn ? "ENREGISTREMENT..." : "VALIDER MON RITUEL DU JOUR (+50 XP)"}
+                {isCheckingIn ? "Enregistrement…" : "Enregistrer le suivi du jour · +50 XP"}
               </Button>
             </div>
           )}
@@ -573,14 +581,14 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2">
               <TrophyIcon size={18} className="text-amber-700" />
-              <span className="text-xs font-black text-zinc-900 uppercase tracking-widest">Aventure Fitness : Niveau {Math.floor(user.xp / 1000) + 1}</span>
+              <span className="text-sm font-semibold text-zinc-900">Progression · Niveau {Math.floor(user.xp / 1000) + 1}</span>
             </div>
             <span className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">{user.xp % 1000}/1000 XP</span>
           </div>
 
           {/* Progress Bar Container */}
           <div className="w-full h-3 bg-zinc-200 rounded-full overflow-hidden relative shadow-inner mb-4">
-            <motion.div 
+            <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${(user.xp % 1000) / 10}%` }}
               transition={{ duration: 1, ease: "easeOut" }}
@@ -589,13 +597,13 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
             </motion.div>
           </div>
 
-          <p className="text-[11px] text-zinc-500 font-bold leading-tight mb-4">
-            Astuce : Rentre ton rituel quotidien et valide tes séances pour gagner {1000 - (user.xp % 1000)} XP et passer au niveau {Math.floor(user.xp / 1000) + 2} !
+          <p className="text-xs text-zinc-700 leading-normal mb-4">
+            Encore {1000 - (user.xp % 1000)} XP avant le niveau {Math.floor(user.xp / 1000) + 2}.
           </p>
 
           {/* Week overview */}
           <div className="border-t border-zinc-200 pt-4">
-            <span className="text-[11px] font-black uppercase text-zinc-500 tracking-wider block mb-2 text-center">Série Hebdomadaire</span>
+                    <span className="text-xs font-medium text-zinc-700 block mb-2 text-center">Semaine en cours</span>
             <div className="grid grid-cols-7 gap-1">
               {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((day, idx) => {
                 const currentDayOfWeek = (new Date().getDay() + 6) % 7;
@@ -608,13 +616,13 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                     <span className="text-[11px] font-bold text-zinc-400">{day}</span>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                       isChecked
-                        ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20'
+                        ? 'bg-emerald-700 text-white'
                         : isToday
                           ? 'bg-amber-50 border border-amber-700 text-amber-900'
                           : 'bg-zinc-100 text-zinc-400 border border-transparent'
                     }`}>
                       {isChecked ? (
-                        <FlameIcon size={14} fill="currentColor" className="text-zinc-950" />
+                        <CheckIcon size={14} className="text-white" />
                       ) : (
                         <span className="text-[11px] font-black">{idx + 1}</span>
                       )}
@@ -629,57 +637,59 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
 
       {/* AI Coach Quick Access */}
       <motion.section variants={itemVariants} className="px-2">
-        <motion.div 
-          whileHover={{ scale: 1.02, y: -2 }}
-          whileTap={{ scale: 0.98 }}
+        <motion.button
+          type="button"
+          aria-label="Ouvrir les discussions avec le coach ou l’IA"
+          whileHover={{ scale: 1.005 }}
+          whileTap={{ scale: 0.995 }}
           onClick={() => setState(s => ({ ...s, page: 'ai_coach' }))}
-          className="bg-zinc-50 border border-zinc-200 rounded-[2rem] p-6 cursor-pointer transition-all relative overflow-hidden shadow-sm hover:shadow-md group"
+          className="w-full text-left bg-zinc-50 border border-zinc-200 rounded-2xl p-5 sm:p-6 cursor-pointer transition-colors relative overflow-hidden shadow-sm hover:bg-white group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800"
         >
           <div className="absolute -right-4 -top-4 text-emerald-500/5 group-hover:text-emerald-500/10 transition-colors duration-500">
             <MessageCircleIcon size={120} />
           </div>
           <div className="relative z-10 flex items-start gap-5">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 flex items-center justify-center text-emerald-500 shrink-0 border border-emerald-500/20 shadow-inner group-hover:scale-110 transition-transform duration-500">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-900 shrink-0 border border-emerald-200 group-hover:scale-[1.02] transition-transform duration-200">
               <MessageCircleIcon size={28} />
             </div>
             <div className="flex-1 pt-1">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Discussions</h3>
               </div>
-              <p className="text-sm text-zinc-500 font-medium leading-relaxed">
+              <p className="text-sm text-zinc-700 font-medium leading-relaxed">
                 Échange avec ton coach ou le Coach IA.
               </p>
             </div>
           </div>
-        </motion.div>
+        </motion.button>
       </motion.section>
 
       {/* Quick Stats Grid */}
       <motion.section variants={itemVariants} className="px-2 grid grid-cols-2 gap-4">
-        <motion.div 
-          whileHover={{ scale: 1.03, y: -2 }}
-          whileTap={{ scale: 0.97 }}
+        <motion.button
+          type="button"
+          aria-label={`Voir mes ${myLogs.length} séances réalisées`}
           onClick={() => setState(s => ({ ...s, page: 'history' }))}
-          className="bg-zinc-50 border border-zinc-200 rounded-[2rem] p-6 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-3 shadow-sm hover:shadow-md group"
+          className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 cursor-pointer transition-colors flex flex-col items-center justify-center text-center gap-3 shadow-sm hover:bg-white group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800"
         >
-          <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-500"><CalendarIcon size={24} /></div>
+          <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-900 flex items-center justify-center group-hover:scale-[1.02] transition-transform duration-200"><CalendarIcon size={24} /></div>
           <div>
             <div className="text-3xl font-display font-bold text-zinc-900 leading-none mb-1">{myLogs.length}</div>
             <div className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Sessions</div>
           </div>
-        </motion.div>
-        <motion.div 
-          whileHover={{ scale: 1.03, y: -2 }}
-          whileTap={{ scale: 0.97 }}
+        </motion.button>
+        <motion.button
+          type="button"
+          aria-label={`Voir mes ${state.performances.filter(p => Number(p.memberId) === Number(user.id)).length} performances`}
           onClick={() => setState(s => ({ ...s, page: 'performances' }))}
-          className="bg-zinc-50 border border-zinc-200 rounded-[2rem] p-6 cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-3 shadow-sm hover:shadow-md group"
+          className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 cursor-pointer transition-colors flex flex-col items-center justify-center text-center gap-3 shadow-sm hover:bg-white group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800"
         >
-          <div className="w-12 h-12 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-500"><TrophyIcon size={24} /></div>
+          <div className="w-12 h-12 rounded-full bg-zinc-100 text-zinc-800 flex items-center justify-center group-hover:scale-[1.02] transition-transform duration-200"><TrophyIcon size={24} /></div>
           <div>
             <div className="text-3xl font-display font-bold text-zinc-900 leading-none mb-1">{state.performances.filter(p => Number(p.memberId) === Number(user.id)).length}</div>
             <div className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Records</div>
           </div>
-        </motion.div>
+        </motion.button>
       </motion.section>
 
       {/* Newsletter / Announcements (Swipeable or compact) */}
@@ -723,13 +733,13 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
               <MessageCircleIcon size={14} className="text-zinc-500" /> Mot au coach
             </h3>
             <div className="flex gap-2">
-              <Input 
-                placeholder="Une douleur ? Trop facile ?" 
+              <Input
+                placeholder="Une douleur ? Trop facile ?"
                 className="!py-3 !text-xs flex-1 !bg-white !border-none !text-zinc-900 placeholder:text-zinc-500"
                 value={remark}
                 onChange={e => setRemark(e.target.value)}
               />
-              <motion.button 
+              <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 disabled={isSavingRemark || !remark || remark === (program?.memberRemarks || "")}
@@ -747,7 +757,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
       <AnimatePresence>
         {showLevelUpModal !== null && (
           <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-md">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 50 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 50 }}
@@ -755,48 +765,30 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
               className="bg-white border border-zinc-200 rounded-[2.5rem] p-8 max-w-sm w-full text-center shadow-2xl relative overflow-hidden"
             >
               {/* Decorative radial gradient */}
-              <div className="absolute inset-0 bg-gradient-to-b from-yellow-300/10 via-transparent to-transparent pointer-events-none" />
-              
-              {/* Particle animation placeholder */}
-              <div className="w-20 h-20 bg-yellow-400/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-yellow-400/20 shadow-xl relative animate-pulse">
-                <TrophyIcon size={40} className="text-yellow-500" />
-                <motion.div 
-                  className="absolute inset-0 rounded-full border-2 border-yellow-400"
-                  animate={{ scale: [1, 1.4, 1], opacity: [1, 0, 1] }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                />
+              <div className="absolute inset-0 bg-gradient-to-b from-emerald-100/60 via-transparent to-transparent pointer-events-none" />
+
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5 border border-emerald-200 text-emerald-900">
+                <TrophyIcon size={30} />
               </div>
 
-              <h3 className="text-2xl font-display font-black text-zinc-900 leading-tight mb-2">
-                NIVEAU SUPÉRIEUR ! 🎉
+              <h3 className="text-xl font-display font-semibold text-zinc-900 leading-tight mb-2">
+                Nouveau niveau
               </h3>
-              
-              <div className="inline-block bg-zinc-900 text-yellow-400 font-extrabold text-xs px-4 py-1.5 rounded-full mb-6 tracking-widest uppercase">
-                TU ES NIVEAU {showLevelUpModal}
+
+              <div className="inline-block bg-emerald-100 text-emerald-950 font-semibold text-sm px-4 py-1.5 rounded-full mb-5">
+                Niveau {showLevelUpModal}
               </div>
 
-              <p className="text-sm text-zinc-500 font-medium leading-relaxed mb-6">
-                Chaque effort paye. Ton coach a été prévenu de ta progression héroïque. Continue de valider tes séances et tes rituels quotidiens pour atteindre les sommets !
+              <p className="text-sm text-zinc-700 leading-relaxed mb-6">
+                Tes activités te font progresser. Continue à suivre ton programme et tes objectifs.
               </p>
-
-              <div className="bg-zinc-50 rounded-2xl p-4 border border-zinc-150 mb-6 text-left space-y-2">
-                <div className="flex items-center gap-2 text-xs font-bold text-zinc-700">
-                  <span className="text-emerald-500">✔</span> Avatar de profil amélioré
-                </div>
-                <div className="flex items-center gap-2 text-xs font-bold text-zinc-700">
-                  <span className="text-emerald-500">✔</span> Statut actif sur le fil du club
-                </div>
-                <div className="flex items-center gap-2 text-xs font-bold text-zinc-700">
-                  <span className="text-emerald-500">✔</span> Respect éternel de ton coach
-                </div>
-              </div>
 
               <button
                 onClick={() => setShowLevelUpModal(null)}
                 type="button"
-                className="w-full py-4 bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xs font-bold tracking-widest uppercase rounded-2xl shadow-lg shadow-zinc-900/10 transition-all font-sans"
+                className="w-full min-h-11 bg-emerald-800 hover:bg-emerald-900 text-white text-sm font-semibold rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
               >
-                Continuer l'aventure
+                Continuer
               </button>
             </motion.div>
           </div>
