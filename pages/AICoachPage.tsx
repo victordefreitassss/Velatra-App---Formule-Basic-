@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AppState } from '../types';
 import { Textarea } from '../components/UI';
+import { VelatraMascot } from '../components/VelatraMascot';
 import { SendIcon, BotIcon, MessageCircleIcon } from '../components/Icons';
 import Markdown from 'react-markdown';
 import { MessagesPage } from './MessagesPage';
@@ -48,6 +49,8 @@ export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: 
   const welcomeMessage = isMember
     ? `Salut ${(state.user?.name || 'Membre').split(' ')[0]} ! Je peux t'aider à comprendre ton programme et à garder le cap sur tes objectifs. Que veux-tu éclaircir ?`
     : `Bonjour ${(state.user?.name || 'Coach').split(' ')[0]} ! Je peux t'aider à préparer des idées de séances et des ajustements à vérifier avant de les proposer. Que souhaites-tu préparer ?`;
+  const assistantHasError = messages[messages.length - 1]?.transient === true;
+  const mascotState = loading ? 'thinking' : assistantHasError ? 'error' : 'idle';
 
   useEffect(() => {
     if (selectedMemberId && !selectedMember) setSelectedMemberId('');
@@ -235,6 +238,19 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
             transition={{ duration: 0.2 }}
             className="flex-1 flex flex-col overflow-hidden bg-zinc-50 backdrop-blur-xl rounded-3xl border border-zinc-200/50 shadow-sm"
           >
+            {messages.length <= 1 && (
+              <div className="flex items-center gap-3 border-b border-zinc-200/60 bg-white/70 px-4 py-3 sm:px-5">
+                <VelatraMascot state={mascotState} size={74} interactive={false} autoWave={!loading} className="shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-display text-base font-semibold text-zinc-900">Velatra AI</p>
+                  <p className="mt-0.5 text-xs leading-5 text-zinc-600">
+                    {canSelectMember && !selectedMember
+                      ? 'Assistant général. Sélectionnez un adhérent pour contextualiser les suggestions.'
+                      : 'Je vous aide à préparer, comprendre et vérifier vos prochaines actions.'}
+                  </p>
+                </div>
+              </div>
+            )}
             {messages.length > 1 && (
               <div className="flex justify-end border-b border-zinc-200/50 px-4 py-2">
                 <button onClick={clearConversation} disabled={loading} className="text-xs font-medium text-zinc-500 hover:text-red-600 disabled:opacity-50">Effacer cet historique</button>
@@ -266,20 +282,10 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
                 </div>
               ))}
               {loading && (
-                <div className="flex justify-start mb-4">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mr-2 shrink-0 overflow-hidden shadow-sm mt-auto mb-1">
-                    {coach?.avatar?.startsWith('http') ? (
-                      <img src={coach.avatar} alt={coach.name} className="w-full h-full object-cover" />
-                    ) : coach?.avatar ? (
-                      <span className="text-xs font-bold text-emerald-500">{coach.avatar}</span>
-                    ) : (
-                      <BotIcon size={16} className="text-emerald-500" />
-                    )}
-                  </div>
-                  <div className="bg-white p-4 rounded-2xl rounded-bl-sm border border-zinc-200/50 shadow-sm flex items-center gap-2">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="flex items-center justify-start gap-2 mb-4">
+                  <VelatraMascot state="thinking" size={54} interactive={false} className="shrink-0" />
+                  <div className="rounded-2xl rounded-bl-sm border border-zinc-200/60 bg-white px-4 py-3 text-sm text-zinc-600 shadow-sm">
+                    Je prépare une réponse…
                   </div>
                 </div>
               )}
