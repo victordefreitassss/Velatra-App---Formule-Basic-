@@ -38,24 +38,9 @@
   font-family: Inter, system-ui, sans-serif;
 }
 
-.va-sidebar {
-  position: fixed;
-  inset: 12px auto 12px 12px;
-  z-index: 40;
-  width: 272px;
-  padding: 22px 14px 14px;
-  border: 1px solid rgba(255, 255, 255, .82);
-  border-radius: var(--app-radius-lg);
-  background: var(--app-glass);
-  box-shadow: var(--app-shadow-soft), inset 0 1px rgba(255, 255, 255, .82);
-  -webkit-backdrop-filter: blur(var(--app-blur)) saturate(125%);
-  backdrop-filter: blur(var(--app-blur)) saturate(125%);
-}
-
-.va-main { min-width: 0; margin-left: 296px; min-height: 100dvh; }
+.va-main { min-width: 0; min-height: 100dvh; }
 
 /* Program editing is a focused workspace with its own header and navigation. */
-.va-workspace-mode .va-sidebar,
 .va-workspace-mode .va-topbar,
 .va-workspace-mode .va-mobile-nav { display: none !important; }
 .va-workspace-mode .va-main { margin-left: 0; padding-bottom: 0; }
@@ -80,9 +65,6 @@
   backdrop-filter: blur(18px) saturate(125%);
 }
 
-.va-topbar-context { min-width: 0; display: flex; align-items: center; gap: 9px; }
-.va-topbar-context strong { color: var(--app-text); font: 600 15px/1.25 Outfit, sans-serif; }
-.va-topbar-context span { color: var(--app-text-muted); font-size: 12px; }
 .va-topbar-tools { display: flex; align-items: center; gap: 9px; }
 .va-icon-button {
   display: inline-flex;
@@ -103,39 +85,11 @@
 .va-icon-button:focus-visible, .va-mobile-tab:focus-visible { outline: 3px solid rgba(40, 116, 81, .42); outline-offset: 3px; }
 .va-topbar-search { min-width: 190px; justify-content: flex-start; color: var(--app-text-muted); }
 .va-topbar-search kbd { margin-left: auto; font: 500 11px Inter, sans-serif; color: var(--app-text-muted); }
-.va-user-chip { display: flex; align-items: center; gap: 9px; padding: 4px 10px 4px 4px; border-radius: 14px; }
 .va-user-avatar { width: 34px; height: 34px; display: grid; place-items: center; overflow: hidden; border-radius: 11px; background: var(--app-green-dark); color: #fff; font-size: 12px; font-weight: 700; }
 .va-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.va-user-copy { min-width: 0; display: grid; text-align: left; }
-.va-user-copy strong { max-width: 150px; overflow: hidden; color: var(--app-text); font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.va-user-copy span { color: var(--app-text-muted); font-size: 11px; }
 
 .va-content { padding: 22px 28px 32px; }
 .va-mobile-nav, .va-mobile-sheet, .va-mobile-backdrop { display: none; }
-
-.va-sidebar .va-brand-mark {
-  width: 42px;
-  height: 42px;
-  border-radius: 13px;
-  background: transparent;
-  box-shadow: none;
-}
-.va-sidebar .va-brand-mark img { width: 100%; height: 100%; object-fit: contain; }
-.va-sidebar .va-brand-name { color: var(--app-text); font: 700 22px/1 Outfit, sans-serif; letter-spacing: -.045em; }
-.va-sidebar .va-brand-tagline { margin-top: 5px; padding-left: 54px; color: var(--app-text-muted); font-size: 10px; font-weight: 600; letter-spacing: .09em; }
-.va-sidebar :is(button,a) { min-height: 44px; }
-.va-sidebar button:focus-visible { outline: 3px solid rgba(40, 116, 81, .38); outline-offset: 2px; }
-.va-sidebar .va-sidebar-nav { margin-top: 2px; }
-.va-sidebar .va-nav-item { border: 1px solid transparent; }
-.va-sidebar .va-nav-active { color: var(--app-green-dark) !important; background: var(--app-green-soft) !important; border: 1px solid rgba(40,116,81,.12); }
-.va-sidebar .va-nav-active > span, .va-sidebar .va-nav-active svg { color: var(--app-green-dark) !important; }
-.va-sidebar .va-nav-label { color: var(--app-text-muted); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
-.va-sidebar .va-logout { color: #8a3a33; }
-.va-admin-switcher { border: 1px solid var(--app-border); background: rgba(255,255,255,.75); }
-.va-admin-switcher-title { color: var(--app-text-secondary); font-size: 12px; font-weight: 700; }
-.va-admin-switcher-options { border: 1px solid var(--app-border); background: var(--app-surface-muted); }
-.va-admin-switcher-options button { min-height: 40px; border-radius: 9px; color: var(--app-text-secondary); font-size: 12px; font-weight: 600; }
-.va-admin-switcher-options button[class*="bg-emerald-500"] { background: var(--app-green-dark) !important; color: #fff !important; }
 
 .va-card { border-radius: var(--app-radius-md) !important; background: var(--app-surface) !important; border-color: var(--app-border) !important; box-shadow: 0 5px 20px rgba(28,49,34,.045) !important; }
 .va-stat { border-radius: var(--app-radius-md) !important; background: var(--app-surface) !important; border-color: var(--app-border) !important; }
@@ -197,15 +151,11 @@
 .va-mobile-perspective button[aria-pressed="true"] { border-color: var(--app-green); background: var(--app-green-dark); color: white; }
 
 @media (max-width: 900px) {
-  .va-sidebar { display: none !important; }
   .va-main { margin-left: 0; padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .va-topbar { top: 0; min-height: 58px; margin: 0; padding: 8px 14px; border-width: 0 0 1px; border-radius: 0; background: rgba(248, 250, 244, .88); }
-  .va-topbar-context strong { font-size: 16px; }
-  .va-topbar-context span, .va-user-copy { display: none; }
   .va-topbar-tools { gap: 7px; }
   .va-topbar-search { min-width: 44px; width: 44px; padding: 0; justify-content: center; }
   .va-topbar-search > span, .va-topbar-search kbd { display: none; }
-  .va-user-chip { padding: 3px; border: 0; background: transparent; }
   .va-user-avatar { width: 38px; height: 38px; }
   .va-content { padding: 16px 13px calc(22px + env(safe-area-inset-bottom)); }
   .va-mobile-nav {
@@ -398,7 +348,7 @@
 .va-context-heading span { color: var(--app-text-muted); font-size: 11px; }
 .va-context-tabs { min-width: 0; display: flex; align-items: center; gap: 4px; overflow-x: auto; scrollbar-width: none; }
 .va-context-tabs::-webkit-scrollbar { display: none; }
-.va-context-tabs button { min-height: 42px; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--app-text-secondary); font: 600 12px/1.2 Inter,sans-serif; white-space: nowrap; cursor: pointer; }
+.va-context-tabs button { min-height: 44px; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--app-text-secondary); font: 600 12px/1.2 Inter,sans-serif; white-space: nowrap; cursor: pointer; }
 .va-context-tabs button:hover { background: rgba(230,240,229,.66); color: var(--app-green-dark); }
 .va-context-tabs button[aria-current="page"] { border-color: var(--app-border); background: #fff; color: var(--app-green-dark); box-shadow: 0 2px 8px rgba(28,49,34,.06); }
 .va-context-count { min-width: 19px; height: 19px; display: inline-grid; place-items: center; border-radius: 99px; background: var(--app-green-soft); color: var(--app-green-dark); font-size: 10px; }
@@ -449,12 +399,12 @@
   .va-context-heading strong { font-size: 14px; }
   .va-context-heading span { display: none; }
   .va-context-tabs { min-height: 43px; margin: 0 -3px; }
-  .va-context-tabs button { min-height: 38px; padding: 0 11px; font-size: 11px; }
+  .va-context-tabs button { min-height: 44px; padding: 0 11px; font-size: 11px; }
   .va-topbar-tools { min-height: 46px; justify-content: flex-end; }
-  .va-topbar-search { min-width: 42px; width: 42px; min-height: 40px; padding: 0; justify-content: center; }
+  .va-topbar-search { min-width: 44px; width: 44px; min-height: 44px; padding: 0; justify-content: center; }
   .va-topbar-search > span, .va-topbar-search kbd { display: none; }
-  .va-create-trigger { min-height: 40px; padding: 0 10px; }
-  .va-mobile-profile { display: inline-flex; min-height: 40px; }
+  .va-create-trigger { min-height: 44px; padding: 0 10px; }
+  .va-mobile-profile { display: inline-flex; min-height: 44px; }
   .va-user-avatar { width: 32px; height: 32px; border-radius: 10px; }
   .va-profile-menu { top: 102px; right: 12px; }
   .va-mobile-nav { position: fixed; z-index: 60; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); left: 12px; display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); min-height: 68px; padding: 6px; border: 1px solid rgba(255,255,255,.9); border-radius: 23px; background: rgba(247,250,243,.96); box-shadow: 0 14px 36px rgba(26,46,31,.17), inset 0 1px rgba(255,255,255,.95); -webkit-backdrop-filter: blur(18px) saturate(125%); backdrop-filter: blur(18px) saturate(125%); }

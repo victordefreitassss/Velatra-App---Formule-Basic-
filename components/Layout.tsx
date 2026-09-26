@@ -12,7 +12,7 @@ import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestor
 import { Megaphone, AlertTriangle, X, Search, Plus, Copy, ChevronDown, UserRound } from 'lucide-react';
 import {
   AppHub, getAllContextItems, getAppHubForPage, getContextItemsForHub,
-  getContextPageLabel, getHubLabel, getMobileTabForPage,
+  getHubLabel, getMobileMoreGroups, getMobileTabForPage, getPrimaryHubsForRole,
 } from './appShellHelpers';
 import './app-shell.css';
 
@@ -59,41 +59,7 @@ const pageIcon: Record<string, React.FC<any>> = {
   about: InfoIcon, guide: InfoIcon, settings: SettingsIcon,
   planning: CalendarIcon, performances: BarChartIcon, evolution: ImageIcon,
   supplements: ShoppingCartIcon, ai_coach: BotIcon, profile: UserIcon, admin: ShieldIcon,
-};
-
-const primaryHubsForRole = (role: string): { id: AppHub; label: string; page: string }[] => {
-  if (role === 'superadmin') return [{ id: 'admin', label: 'Admin', page: 'admin' }];
-  if (role === 'coach' || role === 'owner') return [
-    { id: 'home', label: 'Accueil', page: 'home' },
-    { id: 'clients', label: 'Clients', page: 'users' },
-    { id: 'coaching', label: 'Coaching', page: 'coaching' },
-    { id: 'business', label: 'Business', page: 'crm_pipeline' },
-    { id: 'plus', label: 'Plus', page: 'about' },
-  ];
-  return [
-    { id: 'home', label: 'Accueil', page: 'home' },
-    { id: 'sessions', label: 'Séances', page: 'calendar' },
-    { id: 'progression', label: 'Progression', page: 'performances' },
-    { id: 'nutrition', label: 'Nutrition', page: 'nutrition' },
-    { id: 'plus', label: 'Plus', page: 'ai_coach' },
-  ];
-};
-
-const mobileGroupsForRole = (role: string, planningEnabled: boolean) => {
-  if (role === 'superadmin') return [{ label: 'Administration', ids: ['admin'] }];
-  const isCoach = role === 'coach' || role === 'owner';
-  const groups = isCoach ? [
-    { label: 'Clients', hub: 'clients' as AppHub },
-    { label: 'Coaching', hub: 'coaching' as AppHub },
-    { label: 'Business', hub: 'business' as AppHub },
-    { label: 'Plus', hub: 'plus' as AppHub },
-  ] : [
-    { label: 'Séances', hub: 'sessions' as AppHub },
-    { label: 'Progression', hub: 'progression' as AppHub },
-    { label: 'Nutrition', hub: 'nutrition' as AppHub },
-    { label: 'Plus', hub: 'plus' as AppHub },
-  ];
-  return groups.map(group => ({ ...group, ids: getContextItemsForHub(group.hub, role, planningEnabled).map(item => item.id) }));
+  exercises: DumbbellIcon, history: HistoryIcon, crm_tasks: ClipboardIcon, messages: MessageCircleIcon,
 };
 
 export const Layout: React.FC<LayoutProps> = ({ 
@@ -108,16 +74,12 @@ export const Layout: React.FC<LayoutProps> = ({
   const effectiveRole = isSuperAdmin ? adminPerspective : user.role;
 
   const activeHub = getAppHubForPage(activePage, effectiveRole);
-  const primaryHubs = primaryHubsForRole(effectiveRole);
+  const primaryHubs = React.useMemo(() => getPrimaryHubsForRole(effectiveRole), [effectiveRole]);
   const contextItems = getContextItemsForHub(activeHub, effectiveRole, planningEnabled);
   const commandItems = getAllContextItems(effectiveRole, planningEnabled).map(item => ({ ...item, icon: pageIcon[item.id] || InfoIcon }));
-  const mobileMoreGroups = React.useMemo(() => mobileGroupsForRole(effectiveRole, planningEnabled).map(group => ({
+  const mobileMoreGroups = React.useMemo(() => getMobileMoreGroups(effectiveRole, planningEnabled).map(group => ({
     ...group,
-    items: group.ids.map(id => ({
-      id,
-      label: getContextPageLabel(id, effectiveRole),
-      icon: pageIcon[id] || InfoIcon,
-    })),
+    items: group.items.map(item => ({ ...item, icon: pageIcon[item.id] || InfoIcon })),
   })), [effectiveRole, planningEnabled]);
 
   const mobileTabs = React.useMemo(() => {
@@ -125,21 +87,12 @@ export const Layout: React.FC<LayoutProps> = ({
       { id: 'admin', label: 'Accueil', icon: ShieldIcon },
       { id: 'plus', label: 'Plus', icon: MenuIcon },
     ];
-    if (effectiveRole === 'coach' || effectiveRole === 'owner') return [
-      { id: 'home', label: 'Accueil', icon: HomeIcon },
-      { id: 'users', label: 'Clients', icon: UsersIcon },
-      { id: 'coaching', label: 'Coaching', icon: DumbbellIcon },
-      { id: 'crm_pipeline', label: 'Business', icon: DollarSignIcon },
-      { id: 'plus', label: 'Plus', icon: MenuIcon },
-    ];
-    return [
-      { id: 'home', label: 'Accueil', icon: HomeIcon },
-      { id: 'calendar', label: 'Séances', icon: DumbbellIcon },
-      { id: 'performances', label: 'Progression', icon: BarChartIcon },
-      { id: 'nutrition', label: 'Nutrition', icon: AppleIcon },
-      { id: 'plus', label: 'Plus', icon: MenuIcon },
-    ];
-  }, [effectiveRole]);
+    return primaryHubs.map(hub => ({
+      id: hub.id === 'plus' ? 'plus' : hub.page,
+      label: hub.label,
+      icon: hubIcon[hub.id] || MenuIcon,
+    }));
+  }, [effectiveRole, primaryHubs]);
 
   const roleLabel = effectiveRole === 'superadmin' ? 'Console de gestion' : (effectiveRole === 'coach' || effectiveRole === 'owner' ? 'Espace coach' : 'Espace adhérent');
 
@@ -305,7 +258,7 @@ export const Layout: React.FC<LayoutProps> = ({
     });
   }, [activeAnnouncements, closedAnnouncements, effectiveRole]);
 
-  const isCoach = effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'superadmin';
+  const isCoach = effectiveRole === 'coach' || effectiveRole === 'owner';
 
 
   React.useEffect(() => {
@@ -314,6 +267,11 @@ export const Layout: React.FC<LayoutProps> = ({
         e.preventDefault();
         setShowCommandPalette(prev => !prev);
       } else if (e.key === 'Escape') {
+        if (showCreateMenu) createTriggerRef.current?.focus();
+        if (showProfileMenu) {
+          const isMobile = window.matchMedia('(max-width: 1023px)').matches;
+          (isMobile ? mobileProfileTriggerRef.current : desktopProfileTriggerRef.current)?.focus();
+        }
         setShowCommandPalette(false);
         setShowPlusSheet(false);
         setShowCreateMenu(false);
@@ -419,6 +377,7 @@ export const Layout: React.FC<LayoutProps> = ({
             aria-label={`Ouvrir le profil de ${user.name}`}
             aria-haspopup="menu"
             aria-expanded={showProfileMenu}
+            aria-controls="va-profile-menu"
             onClick={() => setShowProfileMenu(open => !open)}
           >
             <span className="va-user-avatar">{user.avatar?.startsWith('http') ? <img src={user.avatar} alt="" /> : (user.avatar || user.name.substring(0, 2).toUpperCase())}</span>
@@ -439,7 +398,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 {contextItems.map(item => (
                   <button key={item.id} type="button" aria-current={activePage === item.id ? 'page' : undefined} onClick={() => goToPage(item.id)}>
                     <span>{item.label}</span>
-                    {item.id === 'chat' && unreadMessagesCount > 0 && <span className="va-context-count" aria-label={`${unreadMessagesCount} messages non lus`}>{unreadMessagesCount}</span>}
+                    {(item.id === 'chat' || item.id === 'messages') && unreadMessagesCount > 0 && <span className="va-context-count" aria-label={`${unreadMessagesCount} messages non lus`}>{unreadMessagesCount}</span>}
                   </button>
                 ))}
               </nav>
@@ -459,10 +418,10 @@ export const Layout: React.FC<LayoutProps> = ({
                 {showCreateMenu && (
                   <div id="va-create-menu" className="va-create-menu" role="menu" aria-label="Créer ou ouvrir un outil">
                     <span className="va-menu-caption">ACCÈS RAPIDE</span>
-                    <button type="button" role="menuitem" onClick={() => goToPage('users')}><UsersIcon size={17} /><span><strong>Ajouter un adhérent</strong><small>Ouvrir les membres</small></span></button>
-                    <button type="button" role="menuitem" onClick={() => goToPage('presets')}><LayersIcon size={17} /><span><strong>Créer un programme</strong><small>Ouvrir les programmes</small></span></button>
-                    <button type="button" role="menuitem" onClick={() => goToPage('crm_pipeline')}><TargetIcon size={17} /><span><strong>Ajouter un prospect</strong><small>Ouvrir les prospects</small></span></button>
-                    <button type="button" role="menuitem" onClick={() => goToPage('calendar')}><CalendarIcon size={17} /><span><strong>Planifier une séance</strong><small>Ouvrir le planning</small></span></button>
+                    <button type="button" role="menuitem" onClick={() => goToPage('users')}><UsersIcon size={17} /><span><strong>Ajouter un adhérent</strong><small>Membres · bouton « Ajouter un membre »</small></span></button>
+                    <button type="button" role="menuitem" onClick={() => goToPage('presets')}><LayersIcon size={17} /><span><strong>Créer un modèle de programme</strong><small>Programmes · bouton « Créer un modèle »</small></span></button>
+                    <button type="button" role="menuitem" onClick={() => goToPage('crm_pipeline')}><TargetIcon size={17} /><span><strong>Ajouter un prospect</strong><small>Prospects · bouton « Nouveau Lead »</small></span></button>
+                    <button type="button" role="menuitem" onClick={() => goToPage('calendar')}><CalendarIcon size={17} /><span><strong>Ouvrir le planning</strong><small>Consulter les créneaux et réservations</small></span></button>
                     <button type="button" role="menuitem" disabled={!club?.id} onClick={openInviteDialog}><UserRound size={17} /><span><strong>Inviter un adhérent</strong><small>{club?.id ? 'Copier le code de votre espace' : 'Espace indisponible'}</small></span></button>
                     <div className="va-menu-divider" />
                     <button type="button" role="menuitem" onClick={() => { setShowTimer(open => !open); setShowCreateMenu(false); }}><TimerIcon size={17} /><span><strong>Chronomètre</strong><small>{showTimer ? 'Masquer le chronomètre' : 'Ouvrir l’outil'}</small></span></button>
@@ -479,11 +438,11 @@ export const Layout: React.FC<LayoutProps> = ({
                 ))}
               </div>
             )}
-            <button ref={mobileProfileTriggerRef} type="button" className="va-mobile-profile" aria-label={`Ouvrir le profil de ${user.name}`} aria-haspopup="menu" aria-expanded={showProfileMenu} onClick={() => setShowProfileMenu(open => !open)}>
+            <button ref={mobileProfileTriggerRef} type="button" className="va-mobile-profile" aria-label={`Ouvrir le profil de ${user.name}`} aria-haspopup="menu" aria-expanded={showProfileMenu} aria-controls="va-profile-menu" onClick={() => setShowProfileMenu(open => !open)}>
               <span className="va-user-avatar">{user.avatar?.startsWith('http') ? <img src={user.avatar} alt="" /> : (user.avatar || user.name.substring(0, 2).toUpperCase())}</span>
             </button>
             {showProfileMenu && (
-              <div ref={profileMenuRef} className="va-profile-menu" role="menu" aria-label="Menu du compte">
+              <div id="va-profile-menu" ref={profileMenuRef} className="va-profile-menu" role="menu" aria-label="Menu du compte">
                 <div className="va-profile-menu-user"><strong>{user.name}</strong><span>{roleLabel}</span></div>
                 <button type="button" role="menuitem" onClick={() => goToPage(profilePage)}><UserRound size={17} aria-hidden="true" /><span>{profileLabel}</span></button>
                 <button type="button" role="menuitem" onClick={() => { setShowTimer(open => !open); setShowProfileMenu(false); }}><TimerIcon size={17} aria-hidden="true" /><span>{showTimer ? 'Masquer le chronomètre' : 'Chronomètre'}</span></button>
@@ -693,7 +652,7 @@ export const Layout: React.FC<LayoutProps> = ({
                             >
                               <Icon size={18} aria-hidden="true" />
                               <span>{item.label}</span>
-                              {item.id === 'chat' && unreadMessagesCount > 0 && <span className="va-mobile-count">{unreadMessagesCount}</span>}
+                              {(item.id === 'chat' || item.id === 'messages') && unreadMessagesCount > 0 && <span className="va-mobile-count" aria-label={`${unreadMessagesCount} messages non lus`}>{unreadMessagesCount}</span>}
                               <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
                             </button>
                           );
