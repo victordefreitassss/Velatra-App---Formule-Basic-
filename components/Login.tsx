@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Dumbbell, Eye, EyeOff, UserRound } from 'lucide-react';
 import { RegistrationForm } from './RegistrationForm';
 import { ClubRegistration } from './ClubRegistration';
-import { DiscoverySessionForm } from './DiscoverySessionForm';
+import { VelatraMascot } from './VelatraMascot';
+import type { VelatraMascotState } from './VelatraMascot';
 import {
   auth,
   db,
@@ -14,7 +15,7 @@ import {
   sendPasswordResetEmail
 } from '../firebase';
 
-type LoginMode = 'login' | 'register' | 'club_register' | 'forgot_password' | 'discovery';
+type LoginMode = 'login' | 'choose_account' | 'register' | 'club_register' | 'forgot_password';
 
 const AppLogo = ({ inverse = false }: { inverse?: boolean }) => (
   <div className="flex items-center gap-3" aria-label="Velatra">
@@ -44,7 +45,7 @@ const getLoginErrorMessage = (error: any) => {
   return 'Impossible de se connecter pour le moment. Réessayez dans quelques instants.';
 };
 
-export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_register' }> = ({ initialMode = 'login' }) => {
+export const Login: React.FC<{ initialMode?: 'login' | 'choose_account' | 'register' | 'club_register' }> = ({ initialMode = 'login' }) => {
   const [mode, setMode] = useState<LoginMode>(initialMode);
   const [email, setEmail] = useState('');
   const [pwd, setPwd] = useState('');
@@ -52,6 +53,20 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [mascotState, setMascotState] = useState<VelatraMascotState>('wave');
+
+  React.useEffect(() => {
+    if (mascotState === 'idle' || mascotState === 'thinking') return;
+    const timer = window.setTimeout(() => setMascotState('idle'), 1300);
+    return () => window.clearTimeout(timer);
+  }, [mascotState]);
+
+  const chooseMode = (nextMode: LoginMode) => {
+    setError('');
+    setSuccessMsg('');
+    setMode(nextMode);
+    setMascotState('idle');
+  };
 
   const handleEmailLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -59,16 +74,21 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
 
     setLoading(true);
     setError('');
+    setMascotState('thinking');
     try {
       const credential = await signInWithEmailAndPassword(auth, email.trim(), pwd);
       const userDoc = await getDoc(doc(db, 'users', credential.user.uid));
       if (!userDoc.exists()) {
         await signOut(auth);
         setError('Ce compte ne dispose plus d’un espace actif. Contactez votre coach.');
+        setMascotState('error');
+      } else {
+        setMascotState('success');
       }
     } catch (authError: any) {
       console.error('Échec de la connexion Firebase.', { code: authError?.code || 'unknown' });
       setError(getLoginErrorMessage(authError));
+      setMascotState('error');
     } finally {
       setLoading(false);
     }
@@ -84,6 +104,7 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
     setLoading(true);
     setError('');
     setSuccessMsg('');
+    setMascotState('thinking');
     try {
       await sendPasswordResetEmail(auth, email.trim());
     } catch (resetError: any) {
@@ -91,6 +112,7 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
       if (resetError?.code !== 'auth/user-not-found') {
         console.error('Échec de l’envoi du lien de réinitialisation.', { code: resetError?.code || 'unknown' });
         setError('Impossible d’envoyer le lien pour le moment. Vérifiez votre adresse et réessayez.');
+        setMascotState('error');
         setLoading(false);
         return;
       }
@@ -98,25 +120,19 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
       setLoading(false);
     }
     setSuccessMsg('Si cette adresse est associée à un compte, un lien de réinitialisation vient de vous être envoyé.');
+    setMascotState('success');
   };
 
   if (mode === 'register') {
-    return <RegistrationForm onRegister={() => setMode('login')} onCancel={() => setMode('login')} />;
-  }
-
-  if (mode === 'discovery') {
-    return <DiscoverySessionForm onSuccess={() => setMode('login')} onCancel={() => setMode('login')} />;
+    return <RegistrationForm onRegister={() => chooseMode('login')} onCancel={() => chooseMode('choose_account')} />;
   }
 
   if (mode === 'club_register') {
-    return <ClubRegistration onSuccess={() => setMode('login')} onCancel={() => setMode('login')} />;
+    return <ClubRegistration onSuccess={() => chooseMode('login')} onCancel={() => chooseMode('choose_account')} />;
   }
 
   const isResetMode = mode === 'forgot_password';
-  const clearMessages = () => {
-    setError('');
-    setSuccessMsg('');
-  };
+  const isAccountChoice = mode === 'choose_account';
 
   return (
     <main className="relative flex min-h-[100svh] flex-col items-center justify-center bg-[#f4f5ef] px-4 pb-8 pt-20 text-[#15241c] sm:px-6 sm:pb-12 sm:pt-24">
@@ -138,13 +154,13 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 -left-20 h-80 w-80 rounded-full border border-white/10" />
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-12 -left-8 h-60 w-60 rounded-full border border-white/10" />
           <div className="relative z-[1]"><AppLogo inverse /></div>
-          <div className="relative z-[1] max-w-[19rem] pb-6">
-            <div className="mb-5 h-1 w-12 rounded-full bg-[#b9d2b7]" />
-            <p className="font-display text-3xl font-semibold leading-tight tracking-tight text-white lg:text-[2.15rem]">
+          <div className="relative z-[1] flex flex-col items-center pb-4 text-center">
+            <VelatraMascot state={mascotState} size={190} interactive ariaLabel="Mascotte Velatra" autoWave={false} className="mb-2" />
+            <p className="max-w-[19rem] font-display text-2xl font-semibold leading-tight tracking-tight text-white lg:text-[1.8rem]">
               Votre espace de coaching, simplement.
             </p>
-            <p className="mt-4 text-[15px] leading-7 text-[#e1ebe3]">
-              Un espace dédié pour les coachs et leurs adhérents.
+            <p className="mt-3 max-w-[18rem] text-sm leading-6 text-[#e1ebe3]">
+              Un espace dédié aux coachs et à leurs adhérents.
             </p>
           </div>
           <p className="relative z-[1] text-xs font-medium tracking-wide text-[#d4e2d7]">VELATRA · COACHING &amp; SUIVI</p>
@@ -152,21 +168,59 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
 
         <div className="flex items-center justify-center px-5 py-8 sm:px-10 sm:py-10 md:px-10 lg:px-[4.25rem]">
           <div className="w-full max-w-[390px]">
-            <div className="mb-8 text-center md:hidden">
-              <div className="mb-7 flex justify-center"><AppLogo /></div>
-              <div aria-hidden="true" className="mx-auto h-px w-12 bg-[#9fb9a4]" />
+            <div className="mb-5 flex items-center justify-between gap-3 md:hidden">
+              <AppLogo />
+              <VelatraMascot state={mascotState} size={90} interactive={false} ariaLabel="Mascotte Velatra" autoWave={false} />
             </div>
 
-            <header className="mb-8">
+            <header className="mb-7">
               <h1 id="login-title" className="font-display text-[1.8rem] font-semibold leading-tight tracking-tight text-[#14251b] sm:text-[2.1rem]">
-                {isResetMode ? 'Réinitialiser votre mot de passe' : 'Connexion à Velatra'}
+                {isAccountChoice ? 'Créer votre espace' : isResetMode ? 'Réinitialiser votre mot de passe' : 'Connexion à Velatra'}
               </h1>
               <p className="mt-3 text-[15px] leading-6 text-[#48594e]">
-                {isResetMode ? 'Entrez l’adresse email associée à votre compte.' : 'Retrouvez votre espace coach ou adhérent.'}
+                {isAccountChoice ? 'Choisissez votre profil pour continuer.' : isResetMode ? 'Entrez l’adresse email associée à votre compte.' : 'Retrouvez votre espace coach ou adhérent.'}
               </p>
             </header>
 
-            <form onSubmit={isResetMode ? handleResetPassword : handleEmailLogin} className="space-y-5">
+            {isAccountChoice ? (
+              <div className="space-y-3" aria-label="Choisissez le type de compte à créer">
+                <button
+                  type="button"
+                  onClick={() => chooseMode('club_register')}
+                  className="group flex min-h-[92px] w-full items-center gap-4 rounded-2xl border border-[#d5dfd5] bg-white p-4 text-left transition hover:border-[#789982] hover:bg-[#f8faf7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#286b4b]/20"
+                >
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#eaf1eb] text-[#205b3f]">
+                    <Dumbbell aria-hidden="true" className="h-6 w-6" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-base font-semibold text-[#193425]">Je suis coach</span>
+                    <span className="mt-1 block text-sm leading-5 text-[#4b5e51]">Gérez vos adhérents, vos programmes et votre activité.</span>
+                  </span>
+                  <ChevronRight aria-hidden="true" className="h-5 w-5 shrink-0 text-[#486956] transition-transform group-hover:translate-x-0.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => chooseMode('register')}
+                  className="group flex min-h-[92px] w-full items-center gap-4 rounded-2xl border border-[#d5dfd5] bg-white p-4 text-left transition hover:border-[#789982] hover:bg-[#f8faf7] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#286b4b]/20"
+                >
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#eaf1eb] text-[#205b3f]">
+                    <UserRound aria-hidden="true" className="h-6 w-6" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-base font-semibold text-[#193425]">Je suis adhérent</span>
+                    <span className="mt-1 block text-sm leading-5 text-[#4b5e51]">Retrouvez vos séances, votre programme et votre suivi.</span>
+                  </span>
+                  <ChevronRight aria-hidden="true" className="h-5 w-5 shrink-0 text-[#486956] transition-transform group-hover:translate-x-0.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => chooseMode('login')}
+                  className="mt-2 min-h-11 rounded-lg px-2 text-sm font-semibold text-[#34473b] underline-offset-4 transition hover:text-[#153f2e] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#286b4b]"
+                >
+                  Retour à la connexion
+                </button>
+              </div>
+            ) : <form onSubmit={isResetMode ? handleResetPassword : handleEmailLogin} className="space-y-5">
               <div className="space-y-2">
                 <label htmlFor="login-email" className="block text-sm font-semibold text-[#24392c]">Email</label>
                 <input
@@ -190,7 +244,7 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
                     <label htmlFor="login-password" className="text-sm font-semibold text-[#24392c]">Mot de passe</label>
                     <button
                       type="button"
-                      onClick={() => { setMode('forgot_password'); clearMessages(); }}
+                      onClick={() => chooseMode('forgot_password')}
                       className="min-h-11 rounded-lg px-1 text-sm font-semibold text-[#205b3f] underline-offset-4 transition hover:text-[#123c29] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#286b4b]"
                     >
                       Mot de passe oublié ?
@@ -240,28 +294,28 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
               >
                 {loading ? (isResetMode ? 'Envoi en cours…' : 'Connexion en cours…') : (isResetMode ? 'Envoyer le lien' : 'Se connecter')}
               </button>
-            </form>
+            </form>}
 
-            {isResetMode ? (
+            {isAccountChoice ? null : isResetMode ? (
               <div className="mt-6 border-t border-[#e0e6df] pt-4 text-center">
                 <button
                   type="button"
-                  onClick={() => { setMode('login'); clearMessages(); }}
+                  onClick={() => chooseMode('login')}
                   className="min-h-11 rounded-lg px-3 text-sm font-semibold text-[#34473b] underline-offset-4 transition hover:text-[#153f2e] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#286b4b]"
                 >
                   Retour à la connexion
                 </button>
               </div>
-            ) : (
+            ) : !isAccountChoice ? (
               <div className="mt-7 border-t border-[#e0e6df] pt-5 text-center">
                 <p className="text-sm leading-6 text-[#48594e]">
-                  Vous découvrez Velatra ?{' '}
-                  <Link to="/" className="font-semibold text-[#205b3f] underline underline-offset-4 transition hover:text-[#123c29] focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#286b4b]">
-                    Découvrir Velatra
-                  </Link>
+                  Pas encore de compte ?{' '}
+                  <button type="button" onClick={() => chooseMode('choose_account')} className="min-h-11 rounded-sm px-1 font-semibold text-[#205b3f] underline underline-offset-4 transition hover:text-[#123c29] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#286b4b]">
+                    Créer un compte
+                  </button>
                 </p>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </section>

@@ -1363,7 +1363,7 @@ export default function App() {
             {renderBillingBanner()}
             {renderOfflineBanner()}
             <div className="flex-1 animate-fadeIn">
-              <Login initialMode="register" />
+              <Login initialMode="choose_account" />
             </div>
           </div>
         )
