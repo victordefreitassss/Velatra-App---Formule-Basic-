@@ -12,7 +12,9 @@ const profiles = {
   coachA: { id: 2, clubId: 'club-a', role: 'coach', firebaseUid: 'coach-a', assignedMemberIds: [101] },
   coachB: { id: 3, clubId: 'club-a', role: 'coach', firebaseUid: 'coach-b', assignedMemberIds: [202] },
   memberA: { id: 101, clubId: 'club-a', role: 'member', firebaseUid: 'member-a', assignedCoachUid: 'coach-a' },
-  memberB: { id: 202, clubId: 'club-a', role: 'member', firebaseUid: 'member-b', assignedCoachUid: 'coach-b' }
+  memberB: { id: 202, clubId: 'club-a', role: 'member', firebaseUid: 'member-b', assignedCoachUid: 'coach-b' },
+  superadmin: { id: 900, clubId: 'club-root', role: 'superadmin', firebaseUid: 'superadmin' },
+  otherClubMember: { id: 303, clubId: 'club-b', role: 'member', firebaseUid: 'other-member' }
 };
 const memberRecordCollections = [
   'programs', 'archivedPrograms', 'performances', 'logs', 'bodyData', 'nutritionPlans',
@@ -25,7 +27,7 @@ before(async () => {
   testEnv = await initializeTestEnvironment({ projectId, firestore: { rules } });
   await testEnv.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
-    for (const [uid, profile] of Object.entries(profiles)) await setDoc(doc(db, 'users', uid.replace('coachA', 'coach-a').replace('coachB', 'coach-b').replace('memberA', 'member-a').replace('memberB', 'member-b')), profile);
+    for (const [uid, profile] of Object.entries(profiles)) await setDoc(doc(db, 'users', uid.replace('coachA', 'coach-a').replace('coachB', 'coach-b').replace('memberA', 'member-a').replace('memberB', 'member-b').replace('otherClubMember', 'other-member')), profile);
     await setDoc(doc(db, 'programs', 'program-a'), { clubId: 'club-a', memberId: 101, assignedCoachUid: 'coach-a', plan: 'A' });
     await setDoc(doc(db, 'programs', 'program-b'), { clubId: 'club-a', memberId: 202, assignedCoachUid: 'coach-b', plan: 'B' });
     await setDoc(doc(db, 'programs', 'program-other-club'), { clubId: 'club-b', memberId: 303, assignedCoachUid: 'coach-a', plan: 'outside' });
@@ -90,6 +92,20 @@ describe('Firestore coach/member isolation', () => {
     const roster = await assertSucceeds(getDocs(query(collection(db, 'users'), where('clubId', '==', 'club-a'))));
     assert.equal(roster.size, 5);
     await assertSucceeds(getDoc(doc(db, 'programs', 'program-b')));
+  });
+
+  it('lets only the verified super-admin read the cross-club user roster', async () => {
+    const superadminDb = testEnv.authenticatedContext('superadmin', {
+      email: 'victor.defreitas.pro@gmail.com', email_verified: true
+    }).firestore();
+    const roster = await assertSucceeds(getDocs(collection(superadminDb, 'users')));
+    assert.equal(roster.size, Object.keys(profiles).length);
+    await assertSucceeds(getDoc(doc(superadminDb, 'users', 'other-member')));
+
+    const unverifiedDb = testEnv.authenticatedContext('superadmin', {
+      email: 'victor.defreitas.pro@gmail.com', email_verified: false
+    }).firestore();
+    await assertFails(getDoc(doc(unverifiedDb, 'users', 'other-member')));
   });
 
   it('blocks assignment spoofing and changing record ownership', async () => {

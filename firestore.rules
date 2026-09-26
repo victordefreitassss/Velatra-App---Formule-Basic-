@@ -102,7 +102,9 @@ service cloud.firestore {
     }
 
     function canReadUser(userId, data) {
-      return isSelf(userId) || isClubManager(data.clubId) ||
+      // The verified, hard-coded super-admin needs a cross-club roster for the
+      // platform console. Ordinary owners, coaches and members remain scoped.
+      return isSuperAdmin() || isSuperAdminEmail() || isSelf(userId) || isClubManager(data.clubId) ||
         (profileExists() && profile().role == 'coach' &&
           data.clubId == profile().clubId && data.role == 'member' &&
           'assignedCoachUid' in data && data.assignedCoachUid == request.auth.uid);
