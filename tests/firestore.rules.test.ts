@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { initializeTestEnvironment, RulesTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
 import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 
-const projectId = 'demo-velatra-rules';
+const projectId = 'demo-velatra-firestore-rules';
 let testEnv: RulesTestEnvironment;
 
 const profiles = {
@@ -25,6 +25,7 @@ const memberRecordCollections = [
 before(async () => {
   const rules = await readFile(new URL('../firestore.rules', import.meta.url), 'utf8');
   testEnv = await initializeTestEnvironment({ projectId, firestore: { rules } });
+  await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
     for (const [uid, profile] of Object.entries(profiles)) await setDoc(doc(db, 'users', uid.replace('coachA', 'coach-a').replace('coachB', 'coach-b').replace('memberA', 'member-a').replace('memberB', 'member-b').replace('otherClubMember', 'other-member')), profile);
