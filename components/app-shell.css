@@ -273,3 +273,99 @@
 @media (prefers-reduced-motion: reduce) {
   .va-mobile-active-pill, .va-mobile-tab, .va-icon-button { transition-duration: 1ms !important; }
 }
+
+/* Shared visual system for every connected coach, member and admin screen. */
+.va-content {
+  --page-ink: #17251c;
+  --page-body: #405147;
+  --page-muted: #59695f;
+  --page-border: #e1e8dc;
+  --page-surface: #fff;
+  --page-surface-soft: #f1f4ec;
+  --page-accent: #17452f;
+  color: var(--page-ink);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.va-content :is(h1, h2, h3, h4) {
+  font-family: Outfit, Inter, system-ui, sans-serif;
+  font-style: normal !important;
+  letter-spacing: -.025em !important;
+  text-transform: none !important;
+  text-wrap: pretty;
+}
+.va-content h1 { font-size: clamp(1.75rem, 2.8vw, 2.35rem); font-weight: 650; line-height: 1.12; }
+.va-content h2 { font-size: clamp(1.2rem, 1.8vw, 1.5rem); font-weight: 620; line-height: 1.25; }
+.va-content h3 { font-size: 1.05rem; font-weight: 620; line-height: 1.35; }
+.va-content :is(p, li, dd, dt, td, th, label) { text-wrap: pretty; }
+.va-content :is(small, [class~="text-[8px]"], [class~="text-[9px]"], [class~="text-[10px]"]) { line-height: 1.45; }
+.va-content [class~="text-[8px]"],
+.va-content [class~="text-[9px]"],
+.va-content [class~="text-[10px]"] { font-size: 11px !important; }
+
+/* Replace the old low-contrast zinc/emerald text palette on light surfaces. */
+.va-content :is([class~="text-zinc-950"], [class~="text-zinc-900"], [class~="text-black"]) { color: var(--page-ink) !important; }
+.va-content :is([class~="text-zinc-700"], [class~="text-zinc-800"], [class~="text-gray-700"], [class~="text-gray-800"]) { color: var(--page-body) !important; }
+.va-content :is([class~="text-zinc-400"], [class~="text-zinc-500"], [class~="text-zinc-600"], [class~="text-gray-400"], [class~="text-gray-500"], [class~="text-gray-600"]) { color: var(--page-muted) !important; }
+.va-content :is([class~="border-zinc-100"], [class~="border-zinc-200"], [class~="border-zinc-300"], [class~="border-gray-100"], [class~="border-gray-200"]) { border-color: var(--page-border) !important; }
+.va-content :is([class~="bg-zinc-50"], [class~="bg-zinc-100"], [class~="bg-gray-50"], [class~="bg-gray-100"]) { background-color: var(--page-surface-soft) !important; }
+.va-content :is([class~="bg-emerald-50"], [class~="bg-emerald-100"]) { background-color: #e6f0e5 !important; }
+
+/* Make old card markup read as one calm, consistent set of surfaces. */
+.va-content :is(section, article, div)[class*="rounded-3xl"][class*="bg-white"],
+.va-content :is(section, article, div)[class*="rounded-2xl"][class*="bg-white"] {
+  border-color: var(--page-border);
+  box-shadow: 0 5px 20px rgba(28, 49, 34, .045);
+}
+.va-content :is(section, article, div)[class*="rounded-3xl"][class*="bg-zinc-50"],
+.va-content :is(section, article, div)[class*="rounded-2xl"][class*="bg-zinc-50"] {
+  border-color: var(--page-border);
+}
+
+.va-content input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+.va-content select,
+.va-content textarea {
+  min-height: 44px;
+  border-color: var(--app-border-strong);
+  border-radius: 12px;
+  background-color: #fff;
+  color: var(--page-ink);
+}
+.va-content :is(input, textarea)::placeholder { color: var(--page-muted); opacity: 1; }
+.va-content :is(input, select, textarea):focus-visible,
+.va-content button:focus-visible,
+.va-content a:focus-visible {
+  outline: 3px solid rgba(40, 116, 81, .38);
+  outline-offset: 2px;
+}
+.va-content input[type="checkbox"], .va-content input[type="radio"] { accent-color: var(--app-green-dark); }
+.va-content button { -webkit-tap-highlight-color: transparent; }
+.va-content button:not([aria-label]) { min-height: 40px; }
+.va-content :is(button, a)[class~="bg-emerald-500"],
+.va-content :is(button, a)[class~="bg-emerald-600"] {
+  background-color: var(--app-green-dark) !important;
+  color: #fff !important;
+}
+.va-content :is(button, a)[class~="bg-emerald-500"] :is(span, svg),
+.va-content :is(button, a)[class~="bg-emerald-600"] :is(span, svg) { color: #fff !important; }
+
+.va-content table { border-color: var(--page-border); }
+.va-content th { color: var(--page-body); font-weight: 650; }
+.va-content tr + tr { border-top-color: var(--page-border); }
+.va-content :is([role="dialog"], [aria-modal="true"]) { color: var(--page-ink); }
+
+/* Preserve accessible light labels when legacy utility markup is used on dark panels. */
+.va-content :is([class~="bg-zinc-900"], [class~="bg-zinc-950"], [class~="bg-emerald-900"], [class~="bg-emerald-950"])
+  :is([class~="text-zinc-400"], [class~="text-zinc-500"], [class~="text-zinc-600"], [class~="text-emerald-400"], [class~="text-emerald-500"], [class~="text-emerald-600"]) {
+  color: #dce9df !important;
+}
+.va-content :is([class~="bg-zinc-900"], [class~="bg-zinc-950"], [class~="bg-emerald-900"], [class~="bg-emerald-950"])
+  :is(h1, h2, h3, h4) { color: #fff; }
+
+@media (max-width: 600px) {
+  .va-content h1 { font-size: clamp(1.65rem, 7vw, 2rem); }
+  .va-content h2 { font-size: 1.2rem; }
+  .va-content :is(section, article, div)[class*="rounded-3xl"][class*="p-8"] { padding: 1.25rem; }
+  .va-content :is(section, article, div)[class*="rounded-3xl"][class*="p-7"] { padding: 1.125rem; }
+  .va-content table { display: block; max-width: 100%; overflow-x: auto; }
+}
