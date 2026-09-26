@@ -18,7 +18,7 @@ const steps = [
 ];
 
 const fieldLabel = 'mb-2 block text-sm font-semibold text-[#24392c]';
-const choiceBase = 'min-h-12 rounded-xl border px-3 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#286b4b]/20';
+const choiceBase = 'min-w-0 min-h-12 whitespace-normal rounded-xl border px-3 py-2.5 text-center text-sm font-semibold leading-5 break-words transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#286b4b]/20';
 const choiceSelected = 'border-[#1d573c] bg-[#eaf1eb] text-[#173f2e]';
 const choiceIdle = 'border-[#bdc9be] bg-white text-[#34473b] hover:border-[#789982] hover:bg-[#f8faf7]';
 
@@ -280,7 +280,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, 
                     <legend className={fieldLabel}>Votre expérience</legend>
                     <div className="grid grid-cols-3 gap-2">
                       {(['Débutant', 'Intermédiaire', 'Avancé'] as const).map(level => (
-                        <button key={level} type="button" aria-pressed={formData.experienceLevel === level} onClick={() => setFormData({ ...formData, experienceLevel: level })} className={`${choiceBase} px-2 ${formData.experienceLevel === level ? choiceSelected : choiceIdle}`}>{level}</button>
+                        <button key={level} type="button" aria-pressed={formData.experienceLevel === level} onClick={() => setFormData({ ...formData, experienceLevel: level })} className={`${choiceBase} whitespace-nowrap px-1.5 text-xs sm:px-2 sm:text-sm ${formData.experienceLevel === level ? choiceSelected : choiceIdle}`}>{level}</button>
                       ))}
                     </div>
                   </fieldset>
@@ -300,7 +300,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, 
                     <legend className={fieldLabel}>Équipement à votre disposition</legend>
                     <div className="grid grid-cols-2 gap-2">
                       {(['Salle complète', 'Haltères/Kettlebells', 'Poids du corps', 'Élastiques'] as const).map(equipment => (
-                        <button key={equipment} type="button" aria-pressed={formData.equipment === equipment} onClick={() => setFormData({ ...formData, equipment })} className={`${choiceBase} text-left ${formData.equipment === equipment ? choiceSelected : choiceIdle}`}>{equipment}</button>
+                        <button key={equipment} type="button" aria-pressed={formData.equipment === equipment} onClick={() => setFormData({ ...formData, equipment })} className={`${choiceBase} text-left ${formData.equipment === equipment ? choiceSelected : choiceIdle}`}>{equipment === 'Haltères/Kettlebells' ? <>Haltères/<wbr />Kettlebells</> : equipment}</button>
                       ))}
                     </div>
                   </fieldset>
