@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { Card, Input, Button } from './UI';
 import { RegistrationForm } from './RegistrationForm';
 import { ClubRegistration } from './ClubRegistration';
 import { DiscoverySessionForm } from './DiscoverySessionForm';
+import { VelatraMascot, type VelatraMascotState } from './VelatraMascot';
 import {
   auth,
   db,
@@ -18,7 +19,7 @@ import {
 type LoginMode = 'login' | 'register' | 'club_register' | 'forgot_password' | 'discovery';
 
 const AppLogo = () => (
-  <div className="flex items-center justify-center gap-3" aria-label="Velatra">
+  <div className="flex items-center justify-center gap-3 lg:justify-start" aria-label="Velatra">
     <img
       className="h-12 w-12 rounded-xl object-contain sm:h-14 sm:w-14"
       src="/brand/velatra-mark.png"
@@ -51,6 +52,13 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  const mascotState = useMemo<VelatraMascotState>(() => {
+    if (loading) return 'thinking';
+    if (error) return 'error';
+    if (successMsg) return 'success';
+    return 'idle';
+  }, [loading, error, successMsg]);
 
   const handleEmailLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -86,7 +94,6 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
     try {
       await sendPasswordResetEmail(auth, email.trim());
     } catch (resetError: any) {
-      // Keep the response generic so the form does not reveal whether an email has an account.
       if (resetError?.code !== 'auth/user-not-found') {
         console.error('Échec de l’envoi du lien de réinitialisation.', { code: resetError?.code || 'unknown' });
         setError('Impossible d’envoyer le lien pour le moment. Vérifiez votre adresse et réessayez.');
@@ -129,116 +136,134 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
         Retour au site
       </Link>
 
-      <section className="relative z-[1] w-full max-w-[420px]" aria-labelledby="login-title">
-        <header className="mb-8 text-center sm:mb-9">
-          <AppLogo />
-          <h1 id="login-title" className="mt-8 font-display text-[1.75rem] font-semibold leading-tight tracking-tight text-zinc-950 sm:text-4xl">
-            {isResetMode ? 'Réinitialiser votre mot de passe' : 'Connexion à Velatra'}
-          </h1>
-          <p className="mx-auto mt-3 max-w-[34ch] text-sm leading-6 text-zinc-700 sm:text-base">
-            {isResetMode ? 'Entrez l’adresse email associée à votre compte.' : 'Retrouvez votre espace coach ou adhérent.'}
-          </p>
-        </header>
-
-        <Card className="!rounded-3xl !border !border-white/90 !bg-white/90 !p-6 shadow-[0_18px_55px_-32px_rgba(18,47,35,0.38)] backdrop-blur-xl sm:!p-8">
-          <form onSubmit={isResetMode ? handleResetPassword : handleEmailLogin} className="space-y-5" noValidate={false}>
-            <div className="space-y-2">
-              <label htmlFor="login-email" className="block text-sm font-medium text-zinc-800">Email</label>
-              <Input
-                id="login-email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                inputMode="email"
-                placeholder="votre@email.com"
-                value={email}
-                onChange={event => setEmail(event.target.value)}
-                required
-                disabled={loading}
-                className="!min-h-12 !rounded-xl !border-zinc-300 !bg-white !px-4 !text-base placeholder:!text-zinc-500 focus:!border-emerald-700 focus:!ring-emerald-700/15"
-              />
+      <section className="relative z-[1] grid w-full max-w-[980px] items-center gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-12" aria-labelledby="login-title">
+        <aside className="order-2 hidden min-h-[520px] items-center justify-center lg:order-1 lg:flex" aria-label="Assistant Velatra">
+          <div className="relative flex max-w-[430px] flex-col items-center text-center">
+            <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-20 h-64 w-64 -translate-x-1/2 rounded-full bg-emerald-900/[0.06] blur-3xl" />
+            <VelatraMascot state={mascotState} autoWave={!isResetMode} size={300} className="relative z-10" />
+            <div className="relative z-10 -mt-4 max-w-[320px] rounded-2xl border border-white/95 bg-white/65 px-5 py-4 text-sm leading-6 text-zinc-700 shadow-sm backdrop-blur-xl">
+              {mascotState === 'thinking' && (isResetMode ? 'J’envoie votre lien de réinitialisation…' : 'Connexion en cours…')}
+              {mascotState === 'error' && 'Vérifiez les informations indiquées puis réessayez.'}
+              {mascotState === 'success' && 'C’est envoyé. Consultez votre boîte mail.'}
+              {mascotState === 'idle' && (isResetMode ? 'On remet votre accès en ordre.' : 'Votre espace Velatra vous attend.')}
             </div>
+          </div>
+        </aside>
 
-            {!isResetMode && (
+        <div className="order-1 mx-auto w-full max-w-[420px] lg:order-2">
+          <header className="mb-6 text-center lg:text-left sm:mb-8">
+            <AppLogo />
+            <div className="mx-auto mt-5 flex justify-center lg:hidden" aria-hidden="true">
+              <VelatraMascot state={mascotState} autoWave={!isResetMode} size={108} interactive={false} />
+            </div>
+            <h1 id="login-title" className="mt-5 font-display text-[1.75rem] font-semibold leading-tight tracking-tight text-zinc-950 sm:text-4xl lg:mt-8">
+              {isResetMode ? 'Réinitialiser votre mot de passe' : 'Connexion à Velatra'}
+            </h1>
+            <p className="mx-auto mt-3 max-w-[34ch] text-sm leading-6 text-zinc-700 sm:text-base lg:mx-0">
+              {isResetMode ? 'Entrez l’adresse email associée à votre compte.' : 'Retrouvez votre espace coach ou adhérent.'}
+            </p>
+          </header>
+
+          <Card className="!rounded-3xl !border !border-white/90 !bg-white/90 !p-6 shadow-[0_18px_55px_-32px_rgba(18,47,35,0.38)] backdrop-blur-xl sm:!p-8">
+            <form onSubmit={isResetMode ? handleResetPassword : handleEmailLogin} className="space-y-5" noValidate={false}>
               <div className="space-y-2">
-                <div className="flex min-h-11 items-center justify-between gap-3">
-                  <label htmlFor="login-password" className="text-sm font-medium text-zinc-800">Mot de passe</label>
-                  <button
-                    type="button"
-                    onClick={() => { setMode('forgot_password'); clearMessages(); }}
-                    className="min-h-11 rounded-lg px-2 text-sm font-medium text-emerald-800 underline-offset-4 transition hover:text-emerald-950 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
-                  >
-                    Mot de passe oublié ?
-                  </button>
+                <label htmlFor="login-email" className="block text-sm font-medium text-zinc-800">Email</label>
+                <Input
+                  id="login-email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  inputMode="email"
+                  placeholder="votre@email.com"
+                  value={email}
+                  onChange={event => setEmail(event.target.value)}
+                  required
+                  disabled={loading}
+                  className="!min-h-12 !rounded-xl !border-zinc-300 !bg-white !px-4 !text-base placeholder:!text-zinc-500 focus:!border-emerald-700 focus:!ring-emerald-700/15"
+                />
+              </div>
+
+              {!isResetMode && (
+                <div className="space-y-2">
+                  <div className="flex min-h-11 items-center justify-between gap-3">
+                    <label htmlFor="login-password" className="text-sm font-medium text-zinc-800">Mot de passe</label>
+                    <button
+                      type="button"
+                      onClick={() => { setMode('forgot_password'); clearMessages(); }}
+                      className="min-h-11 rounded-lg px-2 text-sm font-medium text-emerald-800 underline-offset-4 transition hover:text-emerald-950 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                    >
+                      Mot de passe oublié ?
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Input
+                      id="login-password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete="current-password"
+                      placeholder="Votre mot de passe"
+                      value={pwd}
+                      onChange={event => setPwd(event.target.value)}
+                      required
+                      disabled={loading}
+                      className="!min-h-12 !rounded-xl !border-zinc-300 !bg-white !px-4 !pr-14 !text-base placeholder:!text-zinc-500 focus:!border-emerald-700 focus:!ring-emerald-700/15"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(value => !value)}
+                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                      aria-pressed={showPassword}
+                      className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                    >
+                      {showPassword ? <EyeOff aria-hidden="true" className="h-5 w-5" /> : <Eye aria-hidden="true" className="h-5 w-5" />}
+                    </button>
+                  </div>
                 </div>
-                <div className="relative">
-                  <Input
-                    id="login-password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    placeholder="Votre mot de passe"
-                    value={pwd}
-                    onChange={event => setPwd(event.target.value)}
-                    required
-                    disabled={loading}
-                    className="!min-h-12 !rounded-xl !border-zinc-300 !bg-white !px-4 !pr-14 !text-base placeholder:!text-zinc-500 focus:!border-emerald-700 focus:!ring-emerald-700/15"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(value => !value)}
-                    aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                    aria-pressed={showPassword}
-                    className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
-                  >
-                    {showPassword ? <EyeOff aria-hidden="true" className="h-5 w-5" /> : <Eye aria-hidden="true" className="h-5 w-5" />}
-                  </button>
-                </div>
+              )}
+
+              {error && (
+                <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-900">
+                  {error}
+                </p>
+              )}
+              {successMsg && (
+                <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-5 text-emerald-950">
+                  {successMsg}
+                </p>
+              )}
+
+              <Button
+                type="submit"
+                fullWidth
+                disabled={loading}
+                className="!min-h-12 !rounded-xl !bg-emerald-800 !text-sm !font-semibold !text-white hover:!bg-emerald-900 focus-visible:!outline-none focus-visible:!ring-2 focus-visible:!ring-emerald-800 focus-visible:!ring-offset-2 disabled:!opacity-60"
+              >
+                {loading ? (isResetMode ? 'Envoi en cours…' : 'Connexion en cours…') : (isResetMode ? 'Envoyer le lien' : 'Se connecter')}
+              </Button>
+            </form>
+
+            {isResetMode ? (
+              <div className="mt-5 border-t border-zinc-200 pt-4 text-center">
+                <button
+                  type="button"
+                  onClick={() => { setMode('login'); clearMessages(); }}
+                  className="min-h-11 rounded-lg px-3 text-sm font-medium text-zinc-700 underline-offset-4 transition hover:text-zinc-950 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                >
+                  Retour à la connexion
+                </button>
+              </div>
+            ) : (
+              <div className="mt-6 border-t border-zinc-200 pt-5 text-center">
+                <p className="text-sm text-zinc-700">
+                  Vous découvrez Velatra ?{' '}
+                  <Link to="/" className="font-semibold text-emerald-800 underline underline-offset-4 transition hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700">
+                    Découvrir Velatra
+                  </Link>
+                </p>
               </div>
             )}
-
-            {error && (
-              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-900">
-                {error}
-              </p>
-            )}
-            {successMsg && (
-              <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-5 text-emerald-950">
-                {successMsg}
-              </p>
-            )}
-
-            <Button
-              type="submit"
-              fullWidth
-              disabled={loading}
-              className="!min-h-12 !rounded-xl !bg-emerald-800 !text-sm !font-semibold !text-white hover:!bg-emerald-900 focus-visible:!outline-none focus-visible:!ring-2 focus-visible:!ring-emerald-800 focus-visible:!ring-offset-2 disabled:!opacity-60"
-            >
-              {loading ? (isResetMode ? 'Envoi en cours…' : 'Connexion en cours…') : (isResetMode ? 'Envoyer le lien' : 'Se connecter')}
-            </Button>
-          </form>
-
-          {isResetMode ? (
-            <div className="mt-5 border-t border-zinc-200 pt-4 text-center">
-              <button
-                type="button"
-                onClick={() => { setMode('login'); clearMessages(); }}
-                className="min-h-11 rounded-lg px-3 text-sm font-medium text-zinc-700 underline-offset-4 transition hover:text-zinc-950 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
-              >
-                Retour à la connexion
-              </button>
-            </div>
-          ) : (
-            <div className="mt-6 border-t border-zinc-200 pt-5 text-center">
-              <p className="text-sm text-zinc-700">
-                Vous découvrez Velatra ?{' '}
-                <Link to="/" className="font-semibold text-emerald-800 underline underline-offset-4 transition hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700">
-                  Découvrir Velatra
-                </Link>
-              </p>
-            </div>
-          )}
-        </Card>
+          </Card>
+        </div>
       </section>
     </main>
   );
