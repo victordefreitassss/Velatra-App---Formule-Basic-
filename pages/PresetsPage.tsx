@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppState, Preset, Program, User } from '../types';
 import { Card, Button, Badge, Input } from '../components/UI';
+import { VelatraMascot } from '../components/VelatraMascot';
 import { PlusIcon, LayersIcon, Edit2Icon, Trash2Icon, SearchIcon, CheckIcon, UserIcon, XIcon } from '../components/Icons';
 import { db, doc, setDoc, deleteDoc } from '../firebase';
 import { GOALS } from '../constants';
@@ -151,9 +152,26 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
           });
 
           if (filteredPresets.length === 0) {
+            const clubHasPresets = state.presets.some(preset => preset.clubId === state.user?.clubId);
+            const hasActiveFilter = Boolean(searchQuery.trim() || filterGoal || filterDays);
             return (
-              <div className="col-span-full py-20 text-center text-zinc-900 italic bg-zinc-50 border border-dashed  rounded-[40px]">
-                Aucun modèle ne correspond à vos critères.
+              <div className="col-span-full flex min-h-[360px] items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-zinc-50 px-6 py-10 text-center">
+                <div className="max-w-sm">
+                  <VelatraMascot state={hasActiveFilter ? 'thinking' : 'idle'} size={112} interactive={false} autoWave={!hasActiveFilter} className="mx-auto" />
+                  <h2 className="mt-1 font-display text-xl font-semibold text-zinc-900">
+                    {clubHasPresets ? 'Aucun modèle trouvé' : 'Créez votre premier modèle'}
+                  </h2>
+                  <p className="mx-auto mt-2 max-w-[34ch] text-sm leading-6 text-zinc-600">
+                    {clubHasPresets
+                      ? 'Ajustez la recherche ou les filtres pour retrouver un autre modèle.'
+                      : 'Préparez une structure réutilisable pour créer les prochains programmes plus rapidement.'}
+                  </p>
+                  {!clubHasPresets && (
+                    <Button onClick={handleNewPreset} variant="primary" className="mt-5 !rounded-xl !px-5 !py-3 !text-sm !font-semibold">
+                      <PlusIcon size={16} className="mr-2 inline" /> Créer un modèle
+                    </Button>
+                  )}
+                </div>
               </div>
             );
           }
