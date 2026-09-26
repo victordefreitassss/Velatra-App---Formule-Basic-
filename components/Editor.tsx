@@ -11,6 +11,7 @@ import {
   Copy, MoreHorizontal, Play, RefreshCw, X, MessageCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import './program-editor.css';
 
 // Quick Presets helper configuration
 const REPS_PRESETS = ["8", "10", "12", "15", "8-12", "10-12", "12-15", "MAX", "10/8/6/15"];
@@ -473,13 +474,14 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   };
 
   const activeDay = formData.days[selectedDayIdx];
+  const hasMoreActions = allPresets.length > 0 || !isSingleSession || (!readOnly && isSingleSession);
 
   return (
-      <div className="space-y-8 max-w-6xl mx-auto pb-32 px-4 page-transition">
+      <div className="space-y-6 max-w-6xl mx-auto pb-[calc(1.5rem+env(safe-area-inset-bottom))] px-4 page-transition">
       
       {/* Top Professional Sticky Header Bar */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-zinc-100/80 -mx-4 px-4 sm:px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 shadow-sm">
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-zinc-200 -mx-4 px-3 sm:px-6 pt-[calc(.5rem+env(safe-area-inset-top))] pb-2 sm:py-3 flex items-center justify-between gap-2 mb-4 shadow-sm">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           <motion.button 
             type="button"
             whileHover={{ scale: 1.05 }}
@@ -491,73 +493,36 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
             <ChevronLeftIcon size={22} />
           </motion.button>
           <div className="min-w-0">
-            <div className="text-xs font-semibold text-emerald-900 leading-tight">
+            <div className="hidden sm:block text-xs font-semibold text-emerald-900 leading-tight">
               {isSingleSession ? 'Séance individuelle' : isEditingProgram ? 'Programme sportif' : 'Nouveau programme'}
             </div>
-            <h1 className="mt-0.5 truncate text-lg sm:text-xl font-display font-semibold tracking-tight text-zinc-900 leading-tight">
+            <h1 className="truncate text-sm sm:text-xl font-display font-semibold tracking-tight text-zinc-900 leading-tight">
               {formData.name || (isSingleSession ? 'Nouvelle séance' : 'Sans nom')}
             </h1>
-            {member?.name && <p className="truncate text-xs text-zinc-700">Pour {member.name}</p>}
+            {member?.name && <p className="hidden sm:block truncate text-xs text-zinc-700">Pour {member.name}</p>}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {allPresets.length > 0 && (
-             <Button 
-               type="button"
-               onClick={() => setShowPresets(!showPresets)} 
-               variant={showPresets ? "primary" : "secondary"}
-               className="!rounded-2xl font-extrabold text-[11px] tracking-wider py-2.5 px-4 shadow-sm"
-             >
-                {showPresets ? "Masquer modèles" : "Charger un modèle"}
-             </Button>
-          )}
-          {!isSingleSession && (
-            <Button 
-              type="button"
-              onClick={() => {
-                import('../services/pdfService').then(m => m.exportProgramToPDF(formData, exercises, null, member?.name));
-              }} 
-              variant="secondary" 
-              className="shadow-sm font-extrabold text-[11px] uppercase tracking-wider py-2.5 rounded-2xl bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50"
-            >
-              📄 EXPORT PDF
+        <div className="flex shrink-0 items-center gap-1.5">
+          {!readOnly && (isSingleSession ? (
+            <Button type="button" onClick={() => onSave(formData, 'start')} variant="primary" className="!h-11 !min-h-11 !rounded-lg !px-3 !text-xs !font-semibold !normal-case !tracking-normal !bg-emerald-500 hover:!bg-emerald-600 !text-zinc-950">
+              <Play size={14} className="mr-1.5 inline fill-zinc-950" /> Démarrer
             </Button>
-          )}
-          {!readOnly && (
-            isSingleSession ? (
-              <div className="flex items-center gap-2">
-                <Button 
-                  type="button"
-                  onClick={() => onSave(formData, 'plan')} 
-                  variant="secondary" 
-                  className="shadow-sm text-[11px] font-extrabold py-2.5 px-4 rounded-2xl uppercase tracking-wider"
-                >
-                  <CalendarIcon size={14} className="mr-1.5 inline" />
-                  Planifier
-                </Button>
-                <Button 
-                  type="button"
-                  onClick={() => onSave(formData, 'start')} 
-                  variant="primary" 
-                  className="shadow-md text-[11px] font-extrabold py-2.5 px-4 rounded-2xl uppercase tracking-wider !bg-emerald-500 hover:!bg-emerald-600 !text-zinc-950"
-                >
-                  <Play size={14} className="mr-1.5 inline fill-zinc-950" />
-                  Démarrer
-                </Button>
-              </div>
-            ) : (
-              <Button 
-                type="button"
-                onClick={() => onSave(formData)} 
-                variant="success" 
-                className="shadow-lg shadow-emerald-500/15 py-3 px-6 !rounded-2xl font-extrabold text-[11px] tracking-widest uppercase !bg-emerald-400 hover:!bg-emerald-500 !text-zinc-950"
-              >
-                <SaveIcon size={14} className="mr-2 inline" />
-                Enregistrer
-              </Button>
-            )
-          )}
+          ) : (
+            <Button type="button" onClick={() => onSave(formData)} variant="success" className="!h-11 !min-h-11 !rounded-lg !px-3 sm:!px-4 !text-xs !font-semibold !normal-case !tracking-normal !bg-emerald-400 hover:!bg-emerald-500 !text-zinc-950">
+              <SaveIcon size={15} className="mr-1.5 inline" /> Enregistrer
+            </Button>
+          ))}
+          {hasMoreActions && <details className="relative">
+            <summary aria-label="Autres actions du programme" className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 [&::-webkit-details-marker]:hidden">
+              <MoreHorizontal size={19} />
+            </summary>
+            <div className="absolute right-0 top-full z-[70] mt-2 min-w-52 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-lg">
+              {allPresets.length > 0 && <button type="button" onClick={() => setShowPresets(value => !value)} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-zinc-800 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700">{showPresets ? 'Masquer les modèles' : 'Charger un modèle'}</button>}
+              {!isSingleSession && <button type="button" onClick={() => { import('../services/pdfService').then(m => m.exportProgramToPDF(formData, exercises, null, member?.name)); }} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-zinc-800 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700">Exporter en PDF</button>}
+              {!readOnly && isSingleSession && <button type="button" onClick={() => onSave(formData, 'plan')} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-zinc-800 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"><CalendarIcon size={15} className="mr-2" /> Planifier</button>}
+            </div>
+          </details>}
         </div>
       </header>
 
@@ -640,7 +605,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
         </div>}
       </section>
 
-      {/* Critical Highlight Box for the User Appeal (such as Victor's June 9 feedback context) */}
+      {/* Adherent feedback attached to the current program. */}
       <AnimatePresence>
         {isEditingProgram && formData.memberRemarks && (
           <motion.div 
@@ -654,32 +619,25 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                   <MessageCircleIcon size={20} />
                </div>
                <div>
-                  <div className="text-[11px] font-black text-amber-700 uppercase tracking-widest mb-0.5">
-                    RETOUR CO-CONSTRUCTION ATHLÈTE (FAIT APPEL EN DATE DU 9 JUIN) :
-                  </div>
-                  <p className="text-sm font-black text-zinc-900 italic leading-snug">
-                    "{formData.memberRemarks}"
-                  </p>
-                  <p className="text-[11px] text-zinc-600 font-bold mt-1">
-                    Veuillez évaluer ses performances et adapter temporairement l'intensité de la séance.
-                  </p>
+                  <h2 className="text-sm font-semibold text-zinc-900">Retour de l’adhérent</h2>
+                  <p className="mt-1 text-sm text-zinc-800 leading-relaxed">« {formData.memberRemarks} »</p>
                </div>
              </div>
              <button 
                type="button"
                onClick={() => setFormData({...formData, memberRemarks: ""})}
-               className="py-2.5 px-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-[11px] font-black tracking-widest whitespace-nowrap shrink-0 transition-all border border-transparent shadow-sm uppercase cursor-pointer"
+               className="min-h-11 py-2.5 px-4 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-sm font-semibold whitespace-nowrap shrink-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 cursor-pointer"
              >
-               Marquer comme Traité / Résolu
+               Marquer comme traité
              </button>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Programme workspace: days, exercise list and focused details */}
-      <section className="relative rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <section className="va-editor-workspace relative rounded-2xl border border-zinc-200 bg-white shadow-sm">
         {!isSingleSession && (
-          <div className="border-b border-zinc-200 bg-zinc-50/70 px-4 py-3 lg:hidden">
+          <div className="va-editor-days-mobile border-b border-zinc-200 bg-zinc-50/70 px-4 py-3">
             <div className="mb-2 flex items-center justify-between gap-3">
               <p className="text-xs font-semibold text-zinc-700">Séances du programme</p>
               <button type="button" onClick={handleAddDay} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold text-emerald-800 hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700" aria-label="Ajouter une séance">
@@ -697,9 +655,9 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
           </div>
         )}
 
-        <div className={`grid min-w-0 grid-cols-1 ${isSingleSession ? '' : 'lg:grid-cols-[210px_minmax(0,1fr)_300px]'}`}>
+        <div className="va-editor-workspace-grid min-w-0">
           {!isSingleSession && (
-            <aside className="hidden border-r border-zinc-200 bg-zinc-50/60 p-3 lg:block" aria-label="Séances du programme">
+            <aside className="va-editor-days-desktop border-r border-zinc-200 bg-zinc-50/60 p-3" aria-label="Séances du programme">
               <div className="mb-3 flex items-center justify-between px-2 py-1">
                 <div>
                   <h2 className="text-xs font-semibold text-zinc-900">Séances</h2>
@@ -796,7 +754,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
             <button type="button" onClick={() => handleAddExercise(selectedDayIdx)} disabled={!exercises.length} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 px-4 text-sm font-semibold text-emerald-900 hover:border-emerald-800 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"><Plus size={17} /> Ajouter un exercice</button>
           </main>
 
-          <aside className="min-w-0 border-t border-zinc-200 bg-zinc-50/60 p-4 sm:p-5 lg:border-l lg:border-t-0" aria-label="Détails de l’exercice sélectionné">
+          <aside className="va-editor-details min-w-0 border-t border-zinc-200 bg-zinc-50/60 p-4 sm:p-5" aria-label="Détails de l’exercice sélectionné">
             {activeDay?.exercises?.[selectedExerciseIdx] ? (() => {
               const entry = activeDay.exercises[selectedExerciseIdx];
               const exercise = exercises.find(item => item.id === entry.exId);

@@ -54,6 +54,13 @@
 
 .va-main { min-width: 0; margin-left: 296px; min-height: 100dvh; }
 
+/* Program editing is a focused workspace with its own header and navigation. */
+.va-workspace-mode .va-sidebar,
+.va-workspace-mode .va-topbar,
+.va-workspace-mode .va-mobile-nav { display: none !important; }
+.va-workspace-mode .va-main { margin-left: 0; padding-bottom: 0; }
+.va-workspace-mode .va-content { padding: 0; }
+
 .va-topbar {
   position: sticky;
   top: 10px;

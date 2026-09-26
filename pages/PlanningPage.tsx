@@ -450,10 +450,10 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                      <div className="flex justify-between items-start mb-2">
                        <div>
                          <div className="font-black text-lg text-zinc-900">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
-                         <div className="text-xs opacity-70 font-medium uppercase tracking-wider">{sessionType ? sessionType.name : "COACHING"}</div>
+                         <div className="text-xs font-medium text-zinc-700">{sessionType ? sessionType.name : "Coaching"}</div>
                          {slot.coachId && (
-                           <div className="text-[10px] text-emerald-900/50 flex items-center gap-1 mt-1 font-bold">
-                             <UserIcon size={10} />
+                           <div className="text-xs text-emerald-950 flex items-center gap-1 mt-1 font-medium">
+                             <UserIcon size={12} />
                              {state.users.find(u => String(u.id) === slot.coachId)?.name || 'Coach'}
                            </div>
                          )}
@@ -465,7 +465,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                        )}
                      </div>
                      
-                     <div className="text-[10px] uppercase tracking-widest opacity-80 mb-3 font-bold">
+                     <div className="text-xs text-zinc-800 mb-3 font-medium">
                        {myBooking.status === 'completed' ? 'Terminé' : 'Réservé'}
                      </div>
 
@@ -480,36 +480,36 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
 
               if (isPast) {
                 return (
-                  <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-2xl border border-dashed  text-zinc-500 bg-white flex flex-col justify-center min-h-[100px]">
-                    <div className="font-black text-lg mb-1">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
-                    {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider mb-1">{sessionType.name}</div>}
-                    <div className="text-[10px] uppercase tracking-widest font-bold">Créneau passé</div>
+                  <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-xl border border-dashed border-zinc-300 text-zinc-700 bg-white flex flex-col justify-center min-h-[100px]">
+                    <div className="font-semibold text-lg mb-1 text-zinc-800">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
+                    {sessionType && <div className="text-xs text-zinc-700 font-medium mb-1">{sessionType.name}</div>}
+                    <div className="text-xs font-medium">Créneau passé</div>
                   </motion.div>
                 );
               }
 
               if (isFull) {
                 return (
-                  <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-2xl border border-dashed  text-zinc-500 bg-zinc-50 flex flex-col justify-center min-h-[100px] shadow-sm">
-                    <div className="font-black text-lg mb-1 opacity-50">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
-                    {sessionType && <div className="text-xs opacity-50 font-medium uppercase tracking-wider mb-1">{sessionType.name}</div>}
-                    <div className="text-[10px] uppercase tracking-widest font-bold text-red-500">Complet</div>
+                  <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-xl border border-dashed border-zinc-300 text-zinc-700 bg-zinc-50 flex flex-col justify-center min-h-[100px] shadow-sm">
+                    <div className="font-semibold text-lg mb-1 text-zinc-700">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
+                    {sessionType && <div className="text-xs text-zinc-700 font-medium mb-1">{sessionType.name}</div>}
+                    <div className="text-xs font-semibold text-red-800">Complet</div>
                   </motion.div>
                 );
               }
 
               if (isCoach) {
                 return (
-                  <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-2xl border border-dashed  text-zinc-500 bg-white flex flex-col justify-center min-h-[100px] shadow-sm relative">
-                    <div className="font-black text-lg mb-1">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
-                    {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider mb-1">{sessionType.name}</div>}
+                  <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-xl border border-dashed border-zinc-300 text-zinc-700 bg-white flex flex-col justify-center min-h-[100px] shadow-sm relative">
+                    <div className="font-semibold text-lg mb-1 text-zinc-900">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
+                    {sessionType && <div className="text-xs text-zinc-700 font-medium mb-1">{sessionType.name}</div>}
                     {slot.coachId && (
-                      <div className="text-[10px] text-zinc-400 flex items-center gap-1 mb-1">
-                        <UserIcon size={10} />
+                      <div className="text-xs text-zinc-700 flex items-center gap-1 mb-1">
+                        <UserIcon size={12} />
                         {state.users.find(u => String(u.id) === slot.coachId)?.name || 'Coach'}
                       </div>
                     )}
-                    <div className="text-[10px] uppercase tracking-widest font-bold">Créneau libre ({bookingsForSlot.length}/{maxParticipants})</div>
+                    <div className="text-xs font-medium">Créneau libre ({bookingsForSlot.length}/{maxParticipants})</div>
                   </motion.div>
                 );
               }
@@ -518,28 +518,28 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                 <motion.button
                   key={sIdx}
                   variants={itemVariants}
-                  whileHover={{ y: -4, scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.99 }}
                   onClick={() => {
                     setSelectedSlot(slot);
                     setIsBookingModalOpen(true);
                   }}
                   className="p-4 rounded-2xl border border-zinc-200 hover:border-emerald-500 hover:bg-zinc-50 transition-all text-zinc-900 bg-white flex flex-col justify-center items-center group min-h-[100px] shadow-sm hover:shadow-md relative"
                 >
-                  <div className="font-black text-xl mb-1 group-hover:text-emerald-500 transition-colors">{formatTime(slot.start)}</div>
-                  {sessionType && <div className="text-xs opacity-70 font-medium uppercase tracking-wider mb-1 group-hover:text-emerald-500/70">{sessionType.name}</div>}
+                  <div className="font-semibold text-xl mb-1 group-hover:text-emerald-800 transition-colors">{formatTime(slot.start)}</div>
+                  {sessionType && <div className="text-xs text-zinc-700 font-medium mb-1 group-hover:text-emerald-900">{sessionType.name}</div>}
                   {slot.coachId && (
-                    <div className="text-[10px] text-zinc-500 flex items-center justify-center gap-1 mb-2">
-                      <UserIcon size={10} />
+                    <div className="text-xs text-zinc-700 flex items-center justify-center gap-1 mb-2">
+                      <UserIcon size={12} />
                       {state.users.find(u => String(u.id) === slot.coachId)?.name || 'Coach'}
                     </div>
                   )}
                   {maxParticipants > 1 && (
-                    <div className="absolute top-2 right-2 text-[9px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-lg font-bold shadow-sm">
+                    <div className="absolute top-2 right-2 text-xs px-2 py-1 bg-zinc-100 text-zinc-800 rounded-lg font-medium">
                       {bookingsForSlot.length}/{maxParticipants} places
                     </div>
                   )}
-                  <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 group-hover:text-emerald-500/70">Réserver</div>
+                  <div className="text-sm font-semibold text-zinc-700 group-hover:text-emerald-900">Réserver</div>
                 </motion.button>
               );
             });
@@ -577,7 +577,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                     <CalendarIcon size={24} />
                   </div>
                   <div>
-                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Date & Heure</div>
+                    <div className="text-xs font-medium text-zinc-700 mb-1">Date et heure</div>
                     <div className="font-bold text-zinc-900 capitalize">{formatDate(selectedSlot.start)}</div>
                     <div className="text-sm text-zinc-500">{formatTime(selectedSlot.start)} - {formatTime(selectedSlot.end)}</div>
                   </div>
@@ -585,7 +585,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
 
                 {!selectedSlot.coachId && clubCoaches.length > 1 && (
                   <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 shadow-sm">
-                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Choisir le coach</div>
+                    <div className="text-xs font-medium text-zinc-700 mb-2">Choisir le coach</div>
                     <select
                       value={selectedCoachId}
                       onChange={(e) => setSelectedCoachId(e.target.value)}
@@ -601,11 +601,11 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
 
                 <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 flex items-center justify-between shadow-sm">
                   <div>
-                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Coût</div>
+                    <div className="text-xs font-medium text-zinc-700 mb-1">Coût</div>
                     <div className="font-bold text-zinc-900">1 Crédit {selectedSlot.sessionTypeId ? (bookingSettings.sessionTypes?.find(t => t.id === selectedSlot.sessionTypeId)?.name || 'Coaching') : 'Standard'}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Solde actuel</div>
+                    <div className="text-xs font-medium text-zinc-700 mb-1">Solde actuel</div>
                     <div className={`font-bold ${(selectedSlot.sessionTypeId ? (state.user?.sessionCredits?.[selectedSlot.sessionTypeId] || 0) : (state.user?.credits || 0)) > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                       {selectedSlot.sessionTypeId ? (state.user?.sessionCredits?.[selectedSlot.sessionTypeId] || 0) : (state.user?.credits || 0)} Crédits
                     </div>

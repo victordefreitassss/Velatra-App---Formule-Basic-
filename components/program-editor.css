@@ -1,0 +1,25 @@
+.va-editor-workspace {
+  container: editor-workspace / inline-size;
+}
+
+.va-editor-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.va-editor-days-mobile { display: block; }
+.va-editor-days-desktop { display: none; }
+.va-editor-details { border-top: 1px solid #e4e4e7; }
+
+@container editor-workspace (min-width: 1040px) {
+  .va-editor-workspace-grid {
+    grid-template-columns: 200px minmax(0, 1fr) 280px;
+  }
+
+  .va-editor-days-mobile { display: none; }
+  .va-editor-days-desktop { display: block; }
+  .va-editor-details {
+    border-top: 0;
+    border-left: 1px solid #e4e4e7;
+  }
+}

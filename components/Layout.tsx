@@ -27,6 +27,7 @@ interface LayoutProps {
   users?: any[];
   adminPerspective?: 'superadmin' | 'coach' | 'member';
   onChangePerspective?: (p: 'superadmin' | 'coach' | 'member') => void;
+  isWorkspaceMode?: boolean;
 }
 
 const AppLogo: React.FC<{ club: Club | null, user: User, effectiveRole: string }> = ({ club, user, effectiveRole }) => (
@@ -64,7 +65,7 @@ export const Layout: React.FC<LayoutProps> = ({
   user, club, activePage, onPageChange, onLogout, children, 
   unreadMessagesCount = 0, unreadNotificationsCount = 0, 
   logs = [], payments = [], users = [],
-  adminPerspective = 'superadmin', onChangePerspective
+  adminPerspective = 'superadmin', onChangePerspective, isWorkspaceMode = false
 }) => {
   const planningEnabled = club?.settings?.booking?.enabled ?? true;
 
@@ -362,7 +363,7 @@ export const Layout: React.FC<LayoutProps> = ({
   }, [activePage, menuItems]);
 
   return (
-    <div className={`velatra-app-shell min-h-screen flex flex-col md:flex-row ${isVirtualKeyboardOpen ? 'va-keyboard-open' : ''}`}>
+    <div className={`velatra-app-shell min-h-screen flex flex-col md:flex-row ${isVirtualKeyboardOpen ? 'va-keyboard-open' : ''} ${isWorkspaceMode ? 'va-workspace-mode' : ''}`}>
       {/* Sidebar Desktop */}
       <aside className="va-sidebar hidden md:flex flex-col">
         <div className="mb-6 px-4">

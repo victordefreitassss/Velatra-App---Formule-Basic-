@@ -583,7 +583,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
               <TrophyIcon size={18} className="text-amber-700" />
               <span className="text-sm font-semibold text-zinc-900">Progression · Niveau {Math.floor(user.xp / 1000) + 1}</span>
             </div>
-            <span className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">{user.xp % 1000}/1000 XP</span>
+            <span className="text-xs font-medium text-zinc-700">{user.xp % 1000} / 1 000 XP</span>
           </div>
 
           {/* Progress Bar Container */}
@@ -613,7 +613,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
 
                 return (
                   <div key={day} className="flex flex-col items-center gap-1">
-                    <span className="text-[11px] font-bold text-zinc-400">{day}</span>
+                    <span className="text-xs font-medium text-zinc-700">{day}</span>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
                       isChecked
                         ? 'bg-emerald-700 text-white'

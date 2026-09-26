@@ -2137,7 +2137,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </div>
                   
                   
-                  {/* VELATRA AI ENGINE SECTION */}
+                  {/* Assistants IA */}
                   {memberTab === 'overview' && (
                   <section className="space-y-8">
                     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
@@ -2182,78 +2182,75 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       {selectedProfile.notes?.trim() && <p className="mt-3 line-clamp-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-3 text-sm text-zinc-800"><span className="font-semibold">Note coach · </span>{selectedProfile.notes}</p>}
                     </div>
 
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 bg-gradient-to-br from-emerald-500 to-purple-600 rounded-2xl text-zinc-900 shadow-[0_0_20px_rgba(99,102,241,0.4)]"><BotIcon size={24} /></div>
-                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Velatra AI Engine</h3>
+                    <div className="flex items-center gap-3">
+                       <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900"><BotIcon size={21} /></div>
+                       <h3 className="text-xl font-semibold tracking-tight text-zinc-900">Velatra AI</h3>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       {/* Feature 1: Auto Program */}
-                      <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl hover:border-emerald-500/50 transition-all group relative overflow-hidden flex flex-col justify-between">
+                      <div className="flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
                         <div>
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-emerald-500/20"></div>
-                          <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
-                            <LayersIcon size={16} className="text-emerald-500" /> Génération Programme
+                          <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
+                            <LayersIcon size={17} className="text-emerald-800" /> Programme sportif
                           </h4>
-                          <p className="text-[10px] text-zinc-500 mb-6 leading-relaxed">Générez un programme d'entraînement complet et sur-mesure basé sur les objectifs et le niveau du membre.</p>
+                          <p className="mb-5 text-sm leading-relaxed text-zinc-700">Préparez un programme à partir des objectifs et du niveau de l’adhérent, puis vérifiez-le avant de l’attribuer.</p>
                         </div>
-                        <div className="space-y-2 relative z-10 w-full">
+                        <div className="w-full space-y-2">
                           <Button 
                             variant="secondary" 
                             fullWidth 
                             onClick={openAIGeneratorModal} 
                             disabled={isGeneratingProgram} 
-                            className={`!py-3 !text-[10px] !rounded-xl border-emerald-500/30 !bg-emerald-500/10 !text-emerald-500 hover:!bg-emerald-500/20 transition-all ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`!min-h-11 !py-2.5 !text-sm !rounded-lg !border-emerald-200 !bg-emerald-50 !text-emerald-950 hover:!bg-emerald-100 transition-colors ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}
                           >
                             <SparklesIcon size={14} className="mr-2 inline" />
-                            {isGeneratingProgram ? 'GÉNÉRATION EN COURS...' : 'GÉNÉRER VIA IA'}
+                            {isGeneratingProgram ? 'Génération en cours…' : 'Préparer avec l’IA'}
                           </Button>
                           <Button 
                             variant="secondary" 
                             fullWidth 
                             onClick={() => setShowAssignProgramTemplateModal(true)} 
-                            className="!py-3 !text-[10px] !rounded-xl border-emerald-500/30 !bg-zinc-100 !text-zinc-700 hover:!bg-zinc-200 transition-all"
+                            className="!min-h-11 !py-2.5 !text-sm !rounded-lg !border-zinc-300 !bg-zinc-50 !text-zinc-800 hover:!bg-zinc-100 transition-colors"
                           >
                             <PlusIcon size={14} className="mr-2 inline" />
-                            ASSIGNER UN MODÈLE
+                            Attribuer un modèle
                           </Button>
                         </div>
                       </div>
 
                       {/* Feature 2: Nutrition Plan */}
-                      <div className={`bg-zinc-50 border border-zinc-200 p-6 rounded-3xl transition-all group relative overflow-hidden flex flex-col justify-between ${isGeneratingNutrition ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-emerald-500/50'}`}>
+                      <div className={`flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${isGeneratingNutrition ? 'opacity-60 pointer-events-none' : ''}`}>
                         <div>
-                          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-emerald-500/20"></div>
-                          <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
-                            <CheckIcon size={16} className="text-emerald-400" /> Plan Nutritionnel
+                          <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
+                            <CheckIcon size={17} className="text-emerald-800" /> Plan alimentaire
                           </h4>
-                          <p className="text-[10px] text-zinc-500 mb-6 leading-relaxed">Générez un plan alimentaire complet (macros, repas, liste de courses) basé sur la morphologie et les objectifs.</p>
+                          <p className="mb-5 text-sm leading-relaxed text-zinc-700">Consultez le plan et le suivi existants, ajustez les objectifs ou préparez une nouvelle proposition.</p>
                         </div>
-                        <div className="space-y-2 relative z-10">
+                        <div className="space-y-2">
                           {state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)) && (
-                            <Button variant="primary" fullWidth className="!py-3 !text-[10px] !rounded-xl border-emerald-500/30 hover:border-emerald-500" onClick={() => setNutritionPlan(state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)))}>
-                              VOIR LE PLAN ACTUEL
+                            <Button variant="primary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={() => setNutritionPlan(state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)))}>
+                              Voir le plan actuel
                             </Button>
                           )}
-                          <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl border-emerald-500/30 hover:border-emerald-500" onClick={() => setShowNutritionLog(true)}>
-                            VOIR LE SUIVI JOURNALIER
+                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={() => setShowNutritionLog(true)}>
+                            Voir le suivi journalier
                           </Button>
-                          <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl border-emerald-500/30 hover:border-emerald-500" onClick={openNutritionTargetsModal} disabled={isGeneratingNutrition}>
-                            {isGeneratingNutrition ? "CRÉATION EN COURS..." : (state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)) ? "RÉGÉNÉRER LE PLAN" : "GÉNÉRER LE PLAN")}
+                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={openNutritionTargetsModal} disabled={isGeneratingNutrition}>
+                            {isGeneratingNutrition ? "Création en cours…" : (state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)) ? "Régénérer le plan" : "Générer le plan")}
                           </Button>
-                          <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl border-emerald-500/30 hover:border-emerald-500 !bg-zinc-100 !text-zinc-700 hover:!bg-zinc-200 transition-all" onClick={() => setShowAssignNutritionTemplateModal(true)}>
-                            <PlusIcon size={14} className="mr-2 inline" /> ASSIGNER UN MODÈLE
+                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg !bg-zinc-50 !text-zinc-800 hover:!bg-zinc-100 transition-colors" onClick={() => setShowAssignNutritionTemplateModal(true)}>
+                            <PlusIcon size={14} className="mr-2 inline" /> Attribuer un modèle
                           </Button>
                         </div>
                       </div>
 
                       {/* Feature 3: Auto Report */}
-                      <div className={`bg-zinc-50 border border-zinc-200 p-6 rounded-3xl transition-all group relative overflow-hidden ${isGeneratingReport ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-blue-500/50'}`}>
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-blue-500/20"></div>
-                        <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
-                          <BarChartIcon size={16} className="text-blue-400" /> Rapport Automatique
+                      <div className={`rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${isGeneratingReport ? 'opacity-60 pointer-events-none' : ''}`}>
+                        <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
+                          <BarChartIcon size={17} className="text-emerald-800" /> Rapport de progression
                         </h4>
-                        <p className="text-[10px] text-zinc-500 mb-6 leading-relaxed">Générez un bilan complet de la progression du client (poids, mensurations, performances) prêt à être envoyé.</p>
+                        <p className="mb-5 text-sm leading-relaxed text-zinc-700">Préparez un bilan à partir du poids, des mensurations et des performances de l’adhérent.</p>
                         
                         {generatedReport ? (
                           <div className="space-y-4 relative z-10">
@@ -2264,7 +2261,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                               <Button 
                                 variant="primary" 
                                 fullWidth 
-                                className="!py-3 !text-[10px] !rounded-xl !bg-[#25D366] hover:!bg-[#128C7E] border-none text-zinc-900 flex items-center justify-center gap-2"
+                                className="!min-h-11 !py-2.5 !text-sm !rounded-lg !bg-[#25D366] hover:!bg-[#128C7E] border-none !text-zinc-950 flex items-center justify-center gap-2"
                                 onClick={() => {
                                   const phone = selectedProfile.phone?.replace(/\D/g, '');
                                   const url = phone 
@@ -2276,80 +2273,78 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                   <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                                 </svg>
-                                ENVOYER SUR WHATSAPP
+                                Envoyer sur WhatsApp
                               </Button>
-                              <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl border-blue-500/30 hover:border-blue-500" onClick={handleGenerateReport} disabled={isGeneratingReport}>
-                                RÉGÉNÉRER LE BILAN
+                              <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={handleGenerateReport} disabled={isGeneratingReport}>
+                                Régénérer le bilan
                               </Button>
                             </div>
                           </div>
                         ) : (
-                          <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl relative z-10 border-blue-500/30 hover:border-blue-500" onClick={handleGenerateReport} disabled={isGeneratingReport}>
-                            {isGeneratingReport ? "GÉNÉRATION..." : "GÉNÉRER LE BILAN"}
+                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={handleGenerateReport} disabled={isGeneratingReport}>
+                            {isGeneratingReport ? "Génération…" : "Générer le bilan"}
                           </Button>
                         )}
                       </div>
 
                       {/* Feature 4: Stagnation Detection */}
-                      <div className={`bg-zinc-50 backdrop-blur-xl border border-zinc-200 p-6 rounded-3xl transition-all group relative overflow-hidden shadow-sm ${isDetectingStagnation ? 'opacity-50 grayscale pointer-events-none' : 'hover:border-orange-500/50'}`}>
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-orange-500/20"></div>
-                        <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
-                          <TargetIcon size={16} className="text-orange-400" /> Détection Stagnation
+                      <div className={`rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${isDetectingStagnation ? 'opacity-60 pointer-events-none' : ''}`}>
+                        <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
+                          <TargetIcon size={17} className="text-emerald-800" /> Repérage d’un plateau
                         </h4>
-                        <p className="text-[10px] text-zinc-500 mb-4 leading-relaxed">L'IA analyse les dernières séances pour détecter les plateaux de progression sur les exercices majeurs.</p>
+                        <p className="mb-4 text-sm leading-relaxed text-zinc-700">Analysez les dernières séances afin d’identifier un éventuel ralentissement sur les exercices principaux.</p>
                         
                         {stagnationResult ? (
                           <div className={`border rounded-xl p-3 flex flex-col gap-2 ${stagnationResult.hasStagnation ? 'bg-red-500/10 border-red-500/20' : 'bg-green-500/10 border-green-500/20'}`}>
-                            <span className={`text-xs font-medium uppercase tracking-wider ${stagnationResult.hasStagnation ? 'text-red-500' : 'text-green-500'}`}>
+                            <span className={`text-sm font-semibold ${stagnationResult.hasStagnation ? 'text-red-800' : 'text-emerald-900'}`}>
                               {stagnationResult.hasStagnation ? 'Stagnation détectée' : 'Progression OK'}
                             </span>
-                            <p className="text-[10px] text-zinc-600">{stagnationResult.advice}</p>
+                            <p className="text-sm leading-relaxed text-zinc-700">{stagnationResult.advice}</p>
                           </div>
                         ) : (
-                          <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl relative z-10 border-orange-500/30 hover:border-orange-500" onClick={handleDetectStagnation} disabled={isDetectingStagnation}>
-                            {isDetectingStagnation ? "ANALYSE EN COURS..." : "LANCER L'ANALYSE"}
+                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={handleDetectStagnation} disabled={isDetectingStagnation}>
+                            {isDetectingStagnation ? "Analyse en cours…" : "Lancer l’analyse"}
                           </Button>
                         )}
                       </div>
 
                       {/* Feature 5: Morphological Analysis */}
-                      <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 p-6 rounded-3xl transition-all group relative overflow-hidden opacity-50 grayscale shadow-sm">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-emerald-500/20"></div>
-                        <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest mb-2 flex items-center gap-2">
-                          <InfoIcon size={16} className="text-emerald-400" /> Analyse Morphologique
+                      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm opacity-75">
+                        <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
+                          <InfoIcon size={17} className="text-zinc-600" /> Analyse morphologique
                         </h4>
-                        <p className="text-[10px] text-zinc-500 mb-6 leading-relaxed">Importez des photos (face, profil, dos) pour obtenir une analyse posturale et morphologique détaillée par l'IA.</p>
-                        <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl relative z-10 border-emerald-500/30 hover:border-emerald-500" onClick={() => showToast("Fonctionnalité IA en cours d'activation pour votre club", "info")}>
-                          ANALYSER DES PHOTOS
+                        <p className="mb-5 text-sm leading-relaxed text-zinc-700">Cette fonction n’est pas encore activée pour votre club.</p>
+                        <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={() => showToast("Fonctionnalité IA en cours d'activation pour votre club", "info")}>
+                          En savoir plus
                         </Button>
                       </div>
                     </div>
 
                     {/* NOTES DE SUIVI SECTION */}
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-[32px] p-8 mt-8 shadow-sm space-y-4">
+                    <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 mt-6 shadow-sm space-y-4">
                       <div className="flex items-center justify-between border-b border-zinc-200/60 pb-3">
                         <div className="flex items-center gap-2">
                           <FileTextIcon size={20} className="text-emerald-500" />
-                          <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">
-                            Notes de suivi du client
+                          <h4 className="text-base font-semibold text-zinc-900">
+                            Notes de suivi de l’adhérent
                           </h4>
                         </div>
-                        <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded">
+                        <span className="text-xs font-medium text-emerald-950 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
                           Coach
                         </span>
                       </div>
-                      <p className="text-[11px] text-zinc-500 leading-normal">
+                      <p className="text-sm text-zinc-700 leading-normal">
                         Utilisez cet espace pour noter les forces, faiblesses, ressentis, et adaptations pour {selectedProfile.name}.
                       </p>
                       <textarea
                         value={coachingNotes}
                         onChange={(e) => setCoachingNotes(e.target.value)}
-                        placeholder="Saisissez une nouvelle note (ex : restriction d'amplitude, blessures passées, ressentis, objectifs à court terme)..."
-                        className="w-full h-24 bg-white border border-zinc-200 rounded-2xl p-4 text-xs text-zinc-800 outline-none focus:border-emerald-500 transition-colors resize-none shadow-sm animate-in fade-in"
+                        placeholder="Saisissez une note de suivi…"
+                        className="w-full h-24 bg-white border border-zinc-300 rounded-xl p-4 text-sm text-zinc-900 placeholder:text-zinc-500 outline-none focus:border-emerald-800 focus:ring-2 focus:ring-emerald-800/20 transition-colors resize-y shadow-sm"
                       />
                       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Date de la note :</span>
+                          <span className="text-xs font-medium text-zinc-700">Date de la note</span>
                           <input 
                             type="date"
                             value={coachingNoteDate}
@@ -2361,23 +2356,23 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           variant="success" 
                           onClick={handleSaveCoachingNotes} 
                           disabled={isSavingCoachingNotes}
-                          className="!py-2.5 !px-6 !text-[11px] w-full sm:w-auto"
+                          className="!min-h-11 !py-2.5 !px-6 !text-sm w-full sm:w-auto"
                         >
-                          {isSavingCoachingNotes ? "ENREGISTREMENT..." : "AJOUTER LA NOTE"}
+                          {isSavingCoachingNotes ? "Enregistrement…" : "Ajouter la note"}
                         </Button>
                       </div>
 
                       {/* HISTORIQUE DES NOTES */}
                       <div className="pt-6 border-t border-zinc-200/60 space-y-4">
-                        <h5 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                          <FileTextIcon size={14} className="text-emerald-500" /> Notes enregistrées ({(selectedProfile.coachingNotesHistory || []).length})
+                        <h5 className="text-sm font-semibold text-zinc-800 flex items-center gap-2">
+                          <FileTextIcon size={16} className="text-emerald-800" /> Notes enregistrées ({(selectedProfile.coachingNotesHistory || []).length})
                         </h5>
 
                         {/* Legacy note or default display if history is empty but notes string is not empty */}
                         {(!selectedProfile.coachingNotesHistory || selectedProfile.coachingNotesHistory.length === 0) && selectedProfile.notes && (
                           <div className="bg-white border border-zinc-200 rounded-2xl p-4 text-xs shadow-sm flex justify-between items-start">
                             <div className="space-y-1 w-full">
-                              <p className="text-zinc-400 text-[9px] uppercase font-bold tracking-wider">Note globale existante</p>
+                              <p className="text-zinc-700 text-xs font-medium">Note globale existante</p>
                               <p className="text-zinc-800 whitespace-pre-wrap font-medium">{selectedProfile.notes}</p>
                             </div>
                           </div>
@@ -2388,7 +2383,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             {selectedProfile.coachingNotesHistory.map((note) => (
                               <div key={note.id} className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-2xl p-4 text-xs shadow-sm space-y-2 relative group transition-colors">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-[9px] font-bold text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded tracking-wide uppercase">
+                                  <span className="text-xs font-medium text-zinc-700 bg-zinc-100 px-2 py-1 rounded-md">
                                     {new Date(note.date).toLocaleString('fr-FR', {
                                       day: 'numeric',
                                       month: 'long',
@@ -4421,7 +4416,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   <div>
                     <h2 className="text-3xl font-black text-zinc-900 uppercase italic tracking-tight">Plan Nutritionnel</h2>
                     <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">
-                      {nutritionPlan.aiGenerated ? "Généré par Velatra AI Engine" : "Plan Actif de l'adhérent"}
+                      {nutritionPlan.aiGenerated ? "Préparé avec Velatra AI" : "Plan actif de l’adhérent"}
                     </p>
                   </div>
                </div>

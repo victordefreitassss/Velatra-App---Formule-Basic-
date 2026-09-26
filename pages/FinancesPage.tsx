@@ -5,8 +5,6 @@ import { db, doc, updateDoc, setDoc, deleteDoc } from '../firebase';
 import { Plus, Search, Trash2, DollarSign, TrendingUp, CreditCard, AlertCircle, CheckCircle, Clock, User, Package, FileText, MessageCircle, Link as LinkIcon, Download, TrendingDown, MoreHorizontal } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell } from 'recharts';
 import { motion } from 'framer-motion';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 interface Props {
   state: AppState;
@@ -260,7 +258,24 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
     URL.revokeObjectURL(url);
   };
 
-  const handleExportPDF = () => {
+  const loadPdfTools = async () => {
+    try {
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+      ]);
+      return { jsPDF, autoTable };
+    } catch (error) {
+      console.error('PDF tools could not be loaded', error);
+      showToast?.('Le module PDF n’a pas pu être chargé. Réessayez.', 'error');
+      return null;
+    }
+  };
+
+  const handleExportPDF = async () => {
+    const pdfTools = await loadPdfTools();
+    if (!pdfTools) return;
+    const { jsPDF, autoTable } = pdfTools;
     const doc = new jsPDF();
     const clubName = state.currentClub?.name || 'Mon Club';
     
@@ -346,7 +361,10 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
     doc.save(`bilan_comptable_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  const handleDownloadInvoice = (payment: Payment) => {
+  const handleDownloadInvoice = async (payment: Payment) => {
+    const pdfTools = await loadPdfTools();
+    if (!pdfTools) return;
+    const { jsPDF, autoTable } = pdfTools;
     const doc = new jsPDF();
     const member = state.users.find(m => m.id === payment.memberId);
     const memberName = member ? member.name : 'Client Inconnu';

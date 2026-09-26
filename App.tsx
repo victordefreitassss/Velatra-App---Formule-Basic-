@@ -1426,6 +1426,7 @@ export default function App() {
                   handlePerspectiveChange(p);
                   setState(s => ({ ...s, page: p === 'superadmin' ? 'admin' : 'home' }));
                 }}
+                isWorkspaceMode={Boolean(state.viewingProg || state.editingProg || state.editingPreset)}
               >
                 {renderActivePageContent(state.user)}
               </Layout>
