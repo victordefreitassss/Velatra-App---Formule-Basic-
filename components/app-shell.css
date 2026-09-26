@@ -178,13 +178,18 @@
 .va-mobile-count { margin-left: auto; padding: 2px 7px; border-radius: 99px; background: #e6f0e5; color: var(--app-green-dark); font-size: 11px; font-weight: 700; }
 .va-mobile-logout { color: var(--app-danger) !important; }
 .va-mobile-unread-dot { position: absolute; top: 4px; right: 15px; width: 8px; height: 8px; border-radius: 50%; background: #b83226; box-shadow: 0 0 0 2px rgba(247,250,243,.92); }
-  .va-mobile-nav-admin { right: max(12px, calc((100vw - 260px) / 2)); left: max(12px, calc((100vw - 260px) / 2)); grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+
+@media (max-width: 900px) {
+  .va-keyboard-open .va-mobile-nav { display: none !important; }
+  .va-keyboard-open .va-main { padding-bottom: 0; }
+  .va-keyboard-open .va-content { padding-bottom: 16px; }
+}
 .va-mobile-perspective { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-top: 14px; padding: 12px; border: 1px solid var(--app-border); border-radius: 14px; background: rgba(255,255,255,.7); }
 .va-mobile-perspective > span { width: 100%; color: var(--app-text-muted); font-size: 12px; font-weight: 600; }
 .va-mobile-perspective button { min-width: 68px; min-height: 40px; padding: 0 12px; border: 1px solid var(--app-border); border-radius: 10px; background: white; color: var(--app-text-secondary); font-size: 12px; }
 .va-mobile-perspective button[aria-pressed="true"] { border-color: var(--app-green); background: var(--app-green-dark); color: white; }
 
-@media (max-width: 767px) {
+@media (max-width: 900px) {
   .va-sidebar { display: none !important; }
   .va-main { margin-left: 0; padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
   .va-topbar { top: 0; min-height: 58px; margin: 0; padding: 8px 14px; border-width: 0 0 1px; border-radius: 0; background: rgba(248, 250, 244, .88); }
@@ -208,16 +213,18 @@
     padding: 6px;
     border: 1px solid rgba(255,255,255,.9);
     border-radius: 23px;
-    background: rgba(247, 250, 243, .9);
+    background: rgba(247, 250, 243, .95);
     box-shadow: 0 14px 36px rgba(26,46,31,.17), inset 0 1px 0 rgba(255,255,255,.95);
-    -webkit-backdrop-filter: blur(25px) saturate(135%);
-    backdrop-filter: blur(25px) saturate(135%);
+    -webkit-backdrop-filter: blur(18px) saturate(125%);
+    backdrop-filter: blur(18px) saturate(125%);
   }
+  .va-mobile-nav-admin { right: max(12px, calc((100vw - 260px) / 2)); left: max(12px, calc((100vw - 260px) / 2)); grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   .va-mobile-tab { position: relative; z-index: 0; min-width: 0; min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; border-radius: 17px; background: transparent; color: #405147; font: 500 11px/1.1 Inter,sans-serif; -webkit-tap-highlight-color: transparent; }
-  .va-mobile-tab svg, .va-mobile-tab > span { position: relative; z-index: 2; }
-  .va-mobile-tab[aria-current="page"] { color: #fff; font-weight: 600; }
+  .va-mobile-tab svg, .va-mobile-tab > span:not(.va-mobile-active-pill):not(.va-mobile-unread-dot) { position: relative; z-index: 2; }
+  .va-mobile-tab[aria-current="page"], .va-mobile-tab.va-mobile-tab--active { color: #fff !important; font-weight: 600; }
   .va-mobile-tab:active svg { transform: translateY(1px) scale(.96); }
   .va-mobile-active-pill { position: absolute; z-index: 1; inset: 1px; border: 1px solid rgba(255,255,255,.12); border-radius: 16px; background: #1c4d35; box-shadow: 0 4px 12px rgba(23,69,47,.2); }
+  .va-mobile-tab > .va-mobile-unread-dot { position: absolute; z-index: 3; top: 4px; right: 12px; }
   .va-mobile-backdrop { position: fixed; z-index: 49; inset: 0; display: block; border: 0; background: rgba(18,31,22,.38); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
   .va-mobile-sheet {
     position: fixed;
@@ -226,16 +233,17 @@
     bottom: 0;
     left: 0;
     display: block;
+    max-height: 78vh;
     max-height: min(78dvh, 690px);
     overflow-y: auto;
     padding: 12px 18px calc(98px + env(safe-area-inset-bottom));
     border: 1px solid rgba(255,255,255,.92);
     border-bottom: 0;
     border-radius: 28px 28px 0 0;
-    background: rgba(249, 251, 246, .97);
+    background: rgba(249, 251, 246, .985);
     box-shadow: 0 -20px 55px rgba(25,46,31,.18);
-    -webkit-backdrop-filter: blur(27px) saturate(130%);
-    backdrop-filter: blur(27px) saturate(130%);
+    -webkit-backdrop-filter: blur(18px) saturate(122%);
+    backdrop-filter: blur(18px) saturate(122%);
     overscroll-behavior: contain;
   }
   .va-mobile-sheet-handle { width: 38px; height: 4px; margin: 0 auto 16px; border-radius: 99px; background: #c4cec1; }
@@ -244,6 +252,10 @@
   .va-mobile-sheet-group { margin-top: 17px; }
   .va-mobile-sheet-group h3 { margin: 0 10px 6px; color: #46574b; font: 700 11px/1.4 Inter,sans-serif; letter-spacing: .09em; text-transform: uppercase; }
   .va-mobile-sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--app-border); }
+}
+
+@media (min-width: 768px) and (max-width: 900px) {
+  .va-mobile-nav { right: max(24px, calc((100vw - 680px) / 2)); left: max(24px, calc((100vw - 680px) / 2)); }
 }
 
 @media (prefers-reduced-motion: reduce) {

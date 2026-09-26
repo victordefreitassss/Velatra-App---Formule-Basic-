@@ -147,10 +147,10 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
 
   const pieChartData = useMemo(() => {
     const categories = {
-      subscription: { name: 'Abonnements', value: 0, color: '#F27D26' },
-      coaching: { name: 'Coaching', value: 0, color: '#141414' },
-      boutique: { name: 'Boutique', value: 0, color: '#E4E3E0' },
-      other: { name: 'Autre', value: 0, color: '#A1A1AA' }
+      subscription: { name: 'Abonnements', value: 0, color: '#166534' },
+      coaching: { name: 'Coaching', value: 0, color: '#4d7c0f' },
+      boutique: { name: 'Boutique', value: 0, color: '#64748b' },
+      other: { name: 'Autre', value: 0, color: '#a1a1aa' }
     };
 
     filteredPayments.filter(p => p.status === 'paid').forEach(p => {
@@ -523,17 +523,17 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8 page-transition">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6 page-transition">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold text-zinc-900">Finances & Abonnements</h1>
-          <p className="text-zinc-500 mt-1">Suivez vos revenus récurrents et paiements.</p>
+          <h1 className="text-3xl font-display font-bold text-zinc-900">Finances</h1>
+          <p className="text-sm text-zinc-600 mt-1">Revenus, dépenses et paiements de votre activité.</p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full xl:w-auto">
           <button
             onClick={handleExportPDF}
-            className="flex items-center gap-2 bg-emerald-500 text-zinc-900 px-4 py-2 rounded-xl text-sm font-bold shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:bg-emerald-600 transition-colors whitespace-nowrap"
+            className="flex items-center gap-2 bg-emerald-800 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-emerald-900 transition-colors whitespace-nowrap"
           >
             <FileText className="w-4 h-4" />
             Bilan PDF
@@ -545,17 +545,18 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             <Download className="w-4 h-4" />
             Export CSV
           </button>
-          <div className="flex bg-zinc-50 p-1 rounded-xl border border-zinc-200 overflow-x-auto">
-            <button onClick={() => setActiveTab('overview')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'overview' ? 'bg-white text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Vue d'ensemble</button>
-            <button onClick={() => setActiveTab('payments')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'payments' ? 'bg-white text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Paiements</button>
-            <button onClick={() => setActiveTab('expenses')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'expenses' ? 'bg-white text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Dépenses</button>
-            <button onClick={() => setActiveTab('plans')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'plans' ? 'bg-white text-zinc-900 shadow' : 'text-zinc-500 hover:text-zinc-900'}`}>Formules</button>
+          <div className="order-last flex w-full bg-white p-1 rounded-xl border border-zinc-200 overflow-x-auto xl:order-none xl:w-auto" role="tablist" aria-label="Sections financières">
+            <button role="tab" aria-selected={activeTab === 'overview'} onClick={() => setActiveTab('overview')} className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'overview' ? 'bg-emerald-800 text-white' : 'text-zinc-700 hover:bg-zinc-50'}`}>Vue d'ensemble</button>
+            <button role="tab" aria-selected={activeTab === 'payments'} onClick={() => setActiveTab('payments')} className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'payments' ? 'bg-emerald-800 text-white' : 'text-zinc-700 hover:bg-zinc-50'}`}>Paiements</button>
+            <button role="tab" aria-selected={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')} className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'expenses' ? 'bg-emerald-800 text-white' : 'text-zinc-700 hover:bg-zinc-50'}`}>Dépenses</button>
+            <button role="tab" aria-selected={activeTab === 'plans'} onClick={() => setActiveTab('plans')} className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'plans' ? 'bg-emerald-800 text-white' : 'text-zinc-700 hover:bg-zinc-50'}`}>Formules</button>
           </div>
           
           <select 
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value as any)}
-            className="bg-white border border-zinc-200 text-zinc-900 px-4 py-2.5 rounded-xl text-sm font-medium hover:border-zinc-300 focus:outline-none focus:border-zinc-500 transition-colors"
+            aria-label="Période des données financières"
+            className="flex-1 sm:flex-none bg-white border border-zinc-200 text-zinc-900 px-3 sm:px-4 py-2.5 rounded-xl text-sm font-medium hover:border-zinc-300 focus:outline-none focus:border-emerald-700 transition-colors"
           >
             <option value="7d">7 derniers jours</option>
             <option value="30d">30 derniers jours</option>
@@ -573,7 +574,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
               className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 relative overflow-hidden group cursor-pointer hover:border-emerald-500/50 transition-colors"
               onClick={() => setIsAnnual(!isAnnual)}
             >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-900/5 rounded-full -mr-10 -mt-10"></div>
               <div className="flex justify-between items-start relative z-10">
                 <div>
                   <p className="text-zinc-500 font-medium mb-1 flex items-center gap-2">
@@ -584,21 +585,21 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                     {isAnnual ? (mrr * 12).toFixed(2) : mrr.toFixed(2)} €
                   </h3>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-500">
+                <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800">
                   <TrendingUp className="w-6 h-6" />
                 </div>
               </div>
-              <p className="text-sm text-emerald-500 mt-4 flex items-center gap-1"><TrendingUp className="w-4 h-4" /> Basé sur {activeSubscriptions.length} abonnements actifs</p>
+              <p className="text-sm text-emerald-800 mt-4 flex items-center gap-1"><TrendingUp className="w-4 h-4" /> Basé sur {activeSubscriptions.length} abonnements actifs</p>
             </div>
 
             <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-200/60 rounded-full -mr-10 -mt-10"></div>
               <div className="flex justify-between items-start relative z-10">
                 <div>
                   <p className="text-zinc-500 font-medium mb-1">Panier Moyen (ARPU)</p>
                   <h3 className="text-4xl font-display font-bold text-zinc-900">{arpu.toFixed(2)} €</h3>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-500">
+                <div className="w-12 h-12 rounded-xl bg-zinc-200 flex items-center justify-center text-zinc-800">
                   <Package className="w-6 h-6" />
                 </div>
               </div>
@@ -606,13 +607,13 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             </div>
 
             <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-900/5 rounded-full -mr-10 -mt-10"></div>
               <div className="flex justify-between items-start relative z-10">
                 <div>
                   <p className="text-zinc-500 font-medium mb-1">Bénéfice Net</p>
                   <h3 className="text-4xl font-display font-bold text-zinc-900">{netProfit.toFixed(2)} €</h3>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center text-green-400">
+                <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800">
                   <DollarSign className="w-6 h-6" />
                 </div>
               </div>
@@ -620,13 +621,13 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
             </div>
 
             <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-transform group-hover:scale-110"></div>
+              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-100/80 rounded-full -mr-10 -mt-10"></div>
               <div className="flex justify-between items-start relative z-10">
                 <div>
                   <p className="text-zinc-500 font-medium mb-1">Paiements en attente</p>
                   <h3 className="text-4xl font-display font-bold text-zinc-900">{pendingPayments.toFixed(2)} €</h3>
                 </div>
-                <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center text-yellow-400">
+                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800">
                   <Clock className="w-6 h-6" />
                 </div>
               </div>
@@ -640,7 +641,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                 <div className="w-full">
                   <p className="text-zinc-500 font-medium mb-2 flex items-center justify-between">
                     Objectif Mensuel
-                    <span className="text-emerald-500 font-bold">{goalProgress.toFixed(0)}%</span>
+                    <span className="text-emerald-800 font-bold">{goalProgress.toFixed(0)}%</span>
                   </p>
                   
                   {isEditingGoal ? (
@@ -651,12 +652,12 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                         onChange={e => setNewGoal(Number(e.target.value))}
                         className="w-24 bg-white border border-zinc-200 rounded-lg p-1 text-zinc-900 text-lg font-bold"
                       />
-                      <button onClick={handleUpdateGoal} className="bg-emerald-500 text-zinc-900 px-3 py-1 rounded-lg text-sm font-bold">OK</button>
+                      <button onClick={handleUpdateGoal} className="bg-emerald-800 text-white px-3 py-1 rounded-lg text-sm font-semibold">OK</button>
                       <button onClick={() => setIsEditingGoal(false)} className="text-zinc-500 hover:text-zinc-900 text-sm">Annuler</button>
                     </div>
                   ) : (
                     <h3 
-                      className="text-2xl font-display font-bold text-zinc-900 mb-4 cursor-pointer hover:text-emerald-500 transition-colors"
+                      className="text-2xl font-display font-bold text-zinc-900 mb-4 cursor-pointer hover:text-emerald-800 transition-colors"
                       onClick={() => setIsEditingGoal(true)}
                       title="Modifier l'objectif"
                     >
@@ -666,7 +667,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
 
                   <div className="w-full bg-zinc-100 rounded-full h-3 overflow-hidden">
                     <div 
-                      className="bg-emerald-500 h-3 rounded-full transition-all duration-1000 ease-out"
+                      className="bg-emerald-800 h-3 rounded-full transition-all duration-1000 ease-out"
                       style={{ width: `${goalProgress}%` }}
                     ></div>
                   </div>
@@ -681,7 +682,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                   <h3 className="text-2xl font-display font-bold text-zinc-900">{projectedRevenue.toFixed(2)} €</h3>
                   <p className="text-sm text-zinc-500 mt-2">Basé sur le MRR et la moyenne des ventes</p>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-500">
+                <div className="w-10 h-10 rounded-xl bg-zinc-200 flex items-center justify-center text-zinc-800">
                   <TrendingUp className="w-5 h-5" />
                 </div>
               </div>
@@ -702,7 +703,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                   <div className="w-full h-px bg-zinc-100 my-2"></div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm font-bold text-zinc-900">TVA Nette</span>
-                    <span className={`font-bold ${tvaNet > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                    <span className={`font-bold ${tvaNet > 0 ? 'text-red-700' : 'text-emerald-800'}`}>
                       {tvaNet > 0 ? 'À payer: ' : 'Crédit: '}
                       {Math.abs(tvaNet).toFixed(2)} €
                     </span>
@@ -726,7 +727,7 @@ export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) =>
                       itemStyle={{ color: '#18181b' }}
                     />
                     <Legend />
-                    <Bar dataKey="Revenus" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Revenus" fill="#166534" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="Dépenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>

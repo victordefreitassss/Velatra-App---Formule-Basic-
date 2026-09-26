@@ -295,21 +295,21 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
 
   return (
     <motion.div 
-      className="space-y-8 pb-20"
+      className="space-y-5 pb-20"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Planning</h1>
-          <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">Réservation de Séances</p>
+          <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Planning</h1>
+          <p className="text-sm text-zinc-600 mt-1.5">Consultez les séances et les réservations.</p>
         </div>
         <div className="flex items-center gap-3">
           {clubCoaches.length > 1 && (
             <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm px-3 py-2 flex items-center gap-2">
               <UserIcon size={16} className="text-zinc-500" />
-              <select 
+              <select aria-label="Filtrer par coach"
                 value={filterCoachId}
                 onChange={e => setFilterCoachId(e.target.value)}
                 className="bg-transparent border-none focus:ring-0 text-sm font-bold text-zinc-700 outline-none cursor-pointer"
@@ -325,7 +325,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
             <div className="bg-emerald-500/10 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-sm">
               <TargetIcon size={20} className="text-emerald-500" />
               <div>
-                <div className="text-[10px] uppercase font-bold text-emerald-500 tracking-widest">Crédits restants</div>
+              <div className="text-xs font-medium text-emerald-900">Crédits restants</div>
                 <div className="text-xl font-black text-zinc-900 leading-none">{state.user?.credits || 0}</div>
               </div>
             </div>
@@ -333,12 +333,15 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </motion.div>
 
-      <motion.div variants={itemVariants} className="flex items-center justify-between bg-white p-4 rounded-3xl border border-zinc-200 shadow-sm">
-        <Button variant="secondary" className="!px-3 hover:bg-white" onClick={() => setCurrentWeekOffset(prev => prev - 1)}>&larr;</Button>
-        <div className="font-bold text-zinc-900 text-sm md:text-base text-center">
-          Semaine du {weekDates[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} au {weekDates[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+      <motion.div variants={itemVariants} className="flex items-center justify-between gap-2 bg-white p-3 sm:p-4 rounded-2xl border border-zinc-200">
+        <Button variant="secondary" aria-label="Semaine précédente" className="!h-10 !w-10 !shrink-0 !p-0 hover:bg-zinc-50" onClick={() => setCurrentWeekOffset(prev => prev - 1)}>&larr;</Button>
+        <div className="min-w-0 text-center">
+          <div className="font-semibold text-zinc-900 text-sm sm:text-base">
+            {weekDates[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} – {weekDates[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+          </div>
+          <button type="button" onClick={() => { setCurrentWeekOffset(0); setSelectedDate(new Date()); }} className="mt-0.5 text-sm font-medium text-emerald-800 hover:text-emerald-900">Aujourd’hui</button>
         </div>
-        <Button variant="secondary" className="!px-3 hover:bg-white" onClick={() => setCurrentWeekOffset(prev => prev + 1)}>&rarr;</Button>
+        <Button variant="secondary" aria-label="Semaine suivante" className="!h-10 !w-10 !shrink-0 !p-0 hover:bg-zinc-50" onClick={() => setCurrentWeekOffset(prev => prev + 1)}>&rarr;</Button>
       </motion.div>
 
       {/* Mobile-first Date Strip */}
@@ -350,18 +353,20 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
             <button
               key={idx}
               onClick={() => setSelectedDate(date)}
-              className={`flex-shrink-0 w-[72px] h-[88px] rounded-2xl flex flex-col items-center justify-center transition-all snap-center border ${
+              aria-pressed={isSelected}
+              aria-label={date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+              className={`flex-shrink-0 w-[64px] sm:w-[72px] h-[76px] sm:h-[84px] rounded-2xl flex flex-col items-center justify-center transition-colors snap-center border ${
                 isSelected 
-                  ? 'bg-emerald-500 text-zinc-900 border-emerald-500 shadow-lg shadow-emerald-500/30 scale-105' 
+                  ? 'bg-emerald-800 text-white border-emerald-800 shadow-md'
                   : isToday 
                     ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
-                    : 'bg-white text-zinc-500  hover:border-emerald-500/30 hover:bg-white'
+                    : 'bg-white text-zinc-700  hover:border-emerald-700/40 hover:bg-zinc-50'
               }`}
             >
-              <span className={`text-[10px] uppercase font-bold tracking-widest mb-1 ${isSelected ? 'text-zinc-900/80' : ''}`}>
+              <span className={`text-xs capitalize font-medium mb-1 ${isSelected ? 'text-white/90' : 'text-zinc-600'}`}>
                 {date.toLocaleDateString('fr-FR', { weekday: 'short' })}
               </span>
-              <span className={`text-2xl font-black ${isSelected ? 'text-zinc-900' : isToday ? 'text-emerald-500' : 'text-zinc-900'}`}>
+              <span className={`text-xl font-semibold ${isSelected ? 'text-white' : isToday ? 'text-emerald-800' : 'text-zinc-900'}`}>
                 {date.getDate()}
               </span>
             </button>
@@ -371,8 +376,8 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
 
       {/* Selected Date Slots */}
       <motion.div variants={itemVariants} className="mt-4">
-        <h2 className="text-lg font-black text-zinc-900 mb-4 capitalize flex items-center gap-2">
-          <CalendarIcon size={20} className="text-emerald-500" />
+        <h2 className="text-lg font-semibold text-zinc-900 mb-3 capitalize flex items-center gap-2">
+          <CalendarIcon size={20} className="text-emerald-800" />
           {selectedDate.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
         </h2>
         
@@ -380,7 +385,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+          className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-3 sm:gap-4"
         >
           {(() => {
             const slots = getAvailableSlots(selectedDate);

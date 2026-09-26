@@ -14,16 +14,17 @@ interface Props {
 }
 
 const COLUMNS = [
-  { id: 'lead', title: 'Nouveau Lead', color: 'bg-blue-50 text-blue-600 border-blue-200', dot: 'bg-blue-500' },
-  { id: 'contacted', title: 'Contacté', color: 'bg-yellow-50 text-yellow-600 border-yellow-200', dot: 'bg-yellow-500' },
-  { id: 'call_pending', title: 'À relancer', color: 'bg-orange-50 text-orange-600 border-orange-200', dot: 'bg-orange-500' },
-  { id: 'trial', title: 'Séance d\'essai', color: 'bg-purple-50 text-purple-600 border-purple-200', dot: 'bg-purple-500' },
-  { id: 'won', title: 'Abonné', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
-  { id: 'lost', title: 'Perdu', color: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500' }
+  { id: 'lead', title: 'Nouveau Lead', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-zinc-500' },
+  { id: 'contacted', title: 'Contacté', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-slate-600' },
+  { id: 'call_pending', title: 'À relancer', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-amber-700' },
+  { id: 'trial', title: 'Séance d\'essai', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-emerald-700' },
+  { id: 'won', title: 'Abonné', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-green-800' },
+  { id: 'lost', title: 'Perdu', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-red-700' }
 ];
 
 export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [mobileStage, setMobileStage] = useState<string>('all');
   
   // Modals state
   const [isAdding, setIsAdding] = useState(false);
@@ -287,15 +288,15 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   const winRate = totalClosed > 0 ? Math.round((totalWon / totalClosed) * 100) : 0;
 
   const filteredProspects = state.prospects.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    [p.name, p.email, p.phone].some(value => value?.toLowerCase().includes(searchTerm.trim().toLowerCase()))
   );
+  const mobileProspects = filteredProspects.filter(prospect => mobileStage === 'all' || prospect.status === mobileStage);
   
   // Utiliser la donnée state persistente pour le tiroir ouvert
   const activeSelectedProspect = selectedProspect ? state.prospects.find(p => p.id === selectedProspect.id) : null;
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 lg:space-y-8 page-transition xl:h-screen w-full flex flex-col">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 lg:space-y-8 page-transition xl:min-h-screen w-full flex flex-col">
       {/* HEADER & DASHBOARD */}
       <div className="space-y-6 shrink-0 max-w-[1600px] w-full mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -308,10 +309,11 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
               <input
                 type="text"
-                placeholder="Rechercher..."
+                placeholder="Nom, email ou téléphone…"
+                aria-label="Rechercher un prospect"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-white border border-zinc-200 rounded-xl py-2 pl-10 pr-4 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                className="w-full bg-white border border-zinc-200 rounded-xl py-2 pl-10 pr-4 text-sm text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:border-emerald-700 transition-colors"
                 style={{ height: '40px' }}
               />
             </div>
@@ -334,40 +336,40 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
 
         {/* Dashboard Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-4 border border-blue-100 bg-blue-50/50">
+          <Card className="p-4 border border-zinc-200 bg-white">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-bold text-blue-600 uppercase tracking-wider">Objectif du jour</p>
+                <p className="text-sm font-medium text-zinc-700">Objectif du jour</p>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-2xl font-black text-zinc-900">{prospectsToRemindToday.length}</span>
                   <span className="text-sm font-medium text-zinc-500">relances à faire</span>
                 </div>
               </div>
-              <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+              <div className="p-2 bg-amber-50 text-amber-800 rounded-lg">
                 <AlertCircle className="w-5 h-5" />
               </div>
             </div>
           </Card>
           
-          <Card className="p-4 border border-emerald-100 bg-emerald-50/50">
+          <Card className="p-4 border border-zinc-200 bg-white">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Taux de conversion</p>
+                <p className="text-sm font-medium text-zinc-700">Taux de conversion</p>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-2xl font-black text-zinc-900">{winRate}%</span>
                   <span className="text-sm font-medium text-zinc-500">dossiers gagnés</span>
                 </div>
               </div>
-              <div className="p-2 bg-emerald-100 text-emerald-700 rounded-lg">
+              <div className="p-2 bg-emerald-50 text-emerald-900 rounded-lg">
                 <CheckCircle className="w-5 h-5" />
               </div>
             </div>
           </Card>
 
-          <Card className="p-4 border border-zinc-200 bg-zinc-50/50">
+          <Card className="p-4 border border-zinc-200 bg-white">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Lead Total Actif</p>
+                <p className="text-sm font-medium text-zinc-700">Prospects actifs</p>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-2xl font-black text-zinc-900">
                     {state.prospects.filter(p => !['won', 'lost'].includes(p.status)).length}
@@ -383,9 +385,36 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
         </div>
       </div>
 
-      {/* KANBAN BOARD */}
-      <div className="flex-1 mt-0 overflow-hidden min-h-[500px] max-w-[1600px] w-full mx-auto w-full pb-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 lg:gap-4 xl:h-full">
+      {/* MOBILE PIPELINE: compact list, never a miniature Kanban */}
+      <section className="xl:hidden max-w-[1600px] w-full mx-auto space-y-3" aria-label="Prospects par étape">
+        <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrer les prospects par étape">
+          {[{ id: 'all', title: 'Tous' }, ...COLUMNS.map(({ id, title }) => ({ id, title }))].map(stage => {
+            const count = stage.id === 'all' ? filteredProspects.length : filteredProspects.filter(prospect => prospect.status === stage.id).length;
+            return <button key={stage.id} type="button" aria-pressed={mobileStage === stage.id} onClick={() => setMobileStage(stage.id)} className={`shrink-0 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${mobileStage === stage.id ? 'border-emerald-800 bg-emerald-800 text-white' : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'}`}>{stage.title}<span className={`ml-2 ${mobileStage === stage.id ? 'text-emerald-100' : 'text-zinc-500'}`}>{count}</span></button>;
+          })}
+        </div>
+        <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          {mobileProspects.length === 0 ? <div className="p-8 text-center text-sm text-zinc-600">Aucun prospect dans cette étape.</div> : mobileProspects.map(prospect => {
+            const stage = COLUMNS.find(column => column.id === prospect.status);
+            const reminderDate = prospect.nextReminderDate ? parseISO(prospect.nextReminderDate) : null;
+            return <button key={prospect.id} type="button" onClick={() => setSelectedProspect(prospect)} className="flex min-h-[76px] w-full items-center gap-3 border-b border-zinc-100 px-4 py-3 text-left last:border-0 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-700">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-sm font-semibold text-zinc-700">{prospect.name.slice(0, 2).toUpperCase()}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold text-zinc-900">{prospect.name}</span>
+                <span className="mt-0.5 block truncate text-sm text-zinc-600">{prospect.email || prospect.phone || 'Coordonnées manquantes'}</span>
+              </span>
+              <span className="flex shrink-0 flex-col items-end gap-1.5">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700"><span className={`h-1.5 w-1.5 rounded-full ${stage?.dot || 'bg-zinc-500'}`} />{stage?.title || 'Sans étape'}</span>
+                {reminderDate && <span className={`text-xs font-medium ${isPast(reminderDate) && !isToday(reminderDate) ? 'text-red-700' : isToday(reminderDate) ? 'text-amber-800' : 'text-zinc-600'}`}>{isToday(reminderDate) ? 'À relancer aujourd’hui' : format(reminderDate, 'd MMM', { locale: fr })}</span>}
+              </span>
+            </button>;
+          })}
+        </div>
+      </section>
+
+      {/* DESKTOP KANBAN */}
+      <div className="hidden xl:flex flex-1 mt-0 overflow-hidden min-h-[500px] max-w-[1600px] w-full mx-auto pb-4">
+        <div className="grid w-full grid-cols-6 gap-3 lg:gap-4 xl:h-full">
           {COLUMNS.map(col => {
             const colProspects = filteredProspects.filter(p => p.status === col.id);
             return (

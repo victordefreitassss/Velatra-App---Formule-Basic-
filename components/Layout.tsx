@@ -10,6 +10,7 @@ import { Timer } from './Timer';
 import { db, auth } from '../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { Megaphone, AlertTriangle, X } from 'lucide-react';
+import { getMobileTabForPage } from './appShellHelpers';
 import './app-shell.css';
 
 interface LayoutProps {
@@ -146,7 +147,7 @@ export const Layout: React.FC<LayoutProps> = ({
     const idsByGroup = (effectiveRole === 'coach' || effectiveRole === 'owner') ? [
       { label: 'Clients', ids: ['chat', 'calendar'] },
       { label: 'Coaching', ids: ['presets', 'nutrition', 'drive'] },
-      { label: 'Business', ids: ['crm_finances', 'crm_pipeline'] },
+      { label: 'Business', ids: ['crm_finances'] },
       { label: 'Plus', ids: ['marketing', 'about', 'guide', 'settings'] },
     ] : effectiveRole === 'superadmin' ? [
       { label: 'Administration', ids: ['admin'] },
@@ -166,7 +167,31 @@ export const Layout: React.FC<LayoutProps> = ({
   const [showCommandPalette, setShowCommandPalette] = React.useState(false);
   const [commandSearch, setCommandSearch] = React.useState("");
   const [commandActiveIndex, setCommandActiveIndex] = React.useState(0);
+  const [mobileSlideDirection, setMobileSlideDirection] = React.useState(1);
+  const [isVirtualKeyboardOpen, setIsVirtualKeyboardOpen] = React.useState(false);
   const reduceMotion = useReducedMotion();
+  const activeMobileTabId = showPlusSheet ? 'plus' : getMobileTabForPage(activePage, effectiveRole);
+
+  React.useEffect(() => {
+    const updateKeyboardState = () => {
+      const viewport = window.visualViewport;
+      const focused = document.activeElement;
+      const isEditable = focused instanceof HTMLElement && (focused.matches('input, textarea, select') || focused.isContentEditable);
+      setIsVirtualKeyboardOpen(Boolean(viewport && isEditable && viewport.height < window.innerHeight * .78));
+    };
+    const viewport = window.visualViewport;
+    viewport?.addEventListener('resize', updateKeyboardState);
+    window.addEventListener('resize', updateKeyboardState);
+    document.addEventListener('focusin', updateKeyboardState);
+    document.addEventListener('focusout', updateKeyboardState);
+    updateKeyboardState();
+    return () => {
+      viewport?.removeEventListener('resize', updateKeyboardState);
+      window.removeEventListener('resize', updateKeyboardState);
+      document.removeEventListener('focusin', updateKeyboardState);
+      document.removeEventListener('focusout', updateKeyboardState);
+    };
+  }, []);
 
   React.useEffect(() => {
     if (!showPlusSheet) return;
@@ -337,7 +362,7 @@ export const Layout: React.FC<LayoutProps> = ({
   }, [activePage, menuItems]);
 
   return (
-    <div className="velatra-app-shell min-h-screen flex flex-col md:flex-row">
+    <div className={`velatra-app-shell min-h-screen flex flex-col md:flex-row ${isVirtualKeyboardOpen ? 'va-keyboard-open' : ''}`}>
       {/* Sidebar Desktop */}
       <aside className="va-sidebar hidden md:flex flex-col">
         <div className="mb-6 px-4">
@@ -686,18 +711,7 @@ export const Layout: React.FC<LayoutProps> = ({
           {mobileTabs.map(item => {
             const Icon = item.icon;
             const isMore = item.id === 'plus';
-            const clientPages = ['users', 'chat', 'calendar'];
-            const coachingPages = ['coaching', 'presets'];
-            const businessPages = ['crm_pipeline', 'crm_finances'];
-            const sessionPages = ['calendar', 'planning'];
-            const isMoreActive = showPlusSheet || mobileMoreGroups.some(group => group.items.some(moreItem => moreItem.id === activePage));
-            const isSelected = isMore
-              ? isMoreActive
-              : item.id === activePage
-                || (item.id === 'users' && clientPages.includes(activePage))
-                || (item.id === 'coaching' && coachingPages.includes(activePage))
-                || (item.id === 'crm_pipeline' && businessPages.includes(activePage))
-                || (item.id === 'calendar' && sessionPages.includes(activePage));
+            const isSelected = item.id === activeMobileTabId;
             return (
               <motion.button
                 layout
@@ -707,15 +721,18 @@ export const Layout: React.FC<LayoutProps> = ({
                 aria-current={isSelected && !isMore ? 'page' : undefined}
                 aria-expanded={isMore ? showPlusSheet : undefined}
                 aria-controls={isMore ? 'velatra-mobile-more' : undefined}
-                className="va-mobile-tab"
+                className={`va-mobile-tab ${isSelected ? 'va-mobile-tab--active' : ''}`}
                 onClick={() => {
+                  const nextTabIndex = mobileTabs.findIndex(tab => tab.id === item.id);
+                  const currentTabIndex = mobileTabs.findIndex(tab => tab.id === activeMobileTabId);
+                  setMobileSlideDirection(nextTabIndex >= currentTabIndex ? 1 : -1);
                   if (isMore) setShowPlusSheet(open => !open);
                   else { onPageChange(item.id as Page); setShowPlusSheet(false); }
                 }}
                 whileTap={reduceMotion ? undefined : { scale: .97, y: 1 }}
                 transition={{ type: 'spring', stiffness: 440, damping: 34, mass: .65 }}
               >
-                {isSelected && <motion.span layoutId="va-mobile-active-pill" className="va-mobile-active-pill" transition={reduceMotion ? { duration: .01 } : { type: 'spring', stiffness: 420, damping: 34, mass: .7 }} />}
+                {isSelected && <motion.span key={`pill-${item.id}`} layoutId="va-mobile-active-pill" className="va-mobile-active-pill" style={{ transformOrigin: mobileSlideDirection > 0 ? 'left center' : 'right center' }} initial={reduceMotion ? false : { scaleX: .86, opacity: .92 }} animate={reduceMotion ? { scaleX: 1, opacity: 1 } : { scaleX: [1, 1.12, .97, 1], opacity: 1 }} transition={reduceMotion ? { duration: .01 } : { scaleX: { duration: .42, times: [0, .35, .72, 1], ease: [.2, .8, .2, 1] }, layout: { type: 'spring', stiffness: 420, damping: 34, mass: .7 } }} />}
                 <Icon size={19} strokeWidth={isSelected ? 2.3 : 1.9} />
                 <span>{item.label}</span>
                 {!isMore && item.id === 'users' && unreadMessagesCount > 0 && <span className="va-mobile-unread-dot" aria-label={`${unreadMessagesCount} messages non lus`} />}

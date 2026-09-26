@@ -290,6 +290,10 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
   const myOrders = state.supplementOrders.filter(o => Number(o.adherentId) === Number(user.id));
   const totalSpent = myOrders.filter(o => o.status === 'completed').reduce((acc, curr) => acc + curr.total, 0);
   const latestNewsletter = state.newsletters?.[0];
+  const nextBooking = state.bookings
+    .filter(booking => booking.memberId === Number(user.id) && booking.status === 'confirmed' && new Date(booking.startTime).getTime() >= Date.now())
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
+  const nextBookingCoach = nextBooking ? state.users.find(person => person.firebaseUid === nextBooking.coachId || String(person.id) === nextBooking.coachId) : undefined;
 
   return (
     <motion.div 
@@ -302,10 +306,10 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
       <motion.div variants={itemVariants} className="flex items-center justify-between px-2 pt-2">
         <div>
           <h1 className="text-3xl font-display font-bold tracking-tight leading-none mb-1 text-zinc-900">Salut, {user.name.split(' ')[0]}</h1>
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-[2px] font-bold">
-            <span className="text-zinc-500">{formatDate(new Date().toISOString())}</span>
-            <div className="flex items-center gap-1 text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-full border border-orange-500/20">
-               <FlameIcon size={10} fill="currentColor" /> {user.streak || 0} JOURS
+          <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+            <span className="text-zinc-600">{formatDate(new Date().toISOString())}</span>
+            <div className="flex items-center gap-1.5 text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-900/10">
+               <FlameIcon size={13} /> {user.streak || 0} jours de suite
             </div>
           </div>
         </div>
@@ -315,91 +319,121 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           className="relative" 
           onClick={() => setState(s => ({ ...s, page: 'profile' }))}
         >
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center font-bold text-lg shadow-[0_0_15px_rgba(16,185,129,0.3)] text-zinc-900 ring-2 ring-zinc-200 cursor-pointer overflow-hidden">
+          <div className="w-12 h-12 rounded-full bg-emerald-800 flex items-center justify-center font-semibold text-lg text-white ring-2 ring-zinc-200 cursor-pointer overflow-hidden">
             {user.avatar?.startsWith('http') ? (
               <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
             ) : (
               user.avatar || user.name.substring(0, 2).toUpperCase()
             )}
           </div>
-          <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-zinc-900 text-[10px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-[#050505] shadow-lg">
+          <div className="absolute -bottom-1 -right-1 bg-zinc-900 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full ring-2 ring-white">
             LVL {Math.floor(user.xp / 1000) + 1}
           </div>
         </motion.div>
       </motion.div>
 
-      {/* Leveling & Gamification Center */}
-      <motion.div variants={itemVariants} className="px-2">
-        <div className="bg-zinc-50 border border-zinc-200 rounded-[2rem] p-6 shadow-sm">
-          <div className="flex justify-between items-center mb-3">
-            <div className="flex items-center gap-2">
-              <TrophyIcon size={18} className="text-yellow-500 animate-bounce" />
-              <span className="text-xs font-black text-zinc-900 uppercase tracking-widest">Aventure Fitness : Niveau {Math.floor(user.xp / 1000) + 1}</span>
+      {nextBooking && (
+        <motion.section variants={itemVariants} className="px-2">
+          <button type="button" onClick={() => setState(prev => ({ ...prev, page: 'planning' }))} className="flex w-full items-center gap-4 rounded-2xl border border-emerald-900/10 bg-white p-4 text-left shadow-sm transition-colors hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 sm:p-5">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900"><CalendarIcon size={22} /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-zinc-900">Prochaine séance</span>
+              <span className="mt-0.5 block truncate text-sm text-zinc-700">{new Date(nextBooking.startTime).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} · {new Date(nextBooking.startTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}{nextBookingCoach?.name ? ` · ${nextBookingCoach.name}` : ''}</span>
+            </span>
+            <span className="shrink-0 text-sm font-medium text-emerald-900">Voir <span aria-hidden="true">→</span></span>
+          </button>
+        </motion.section>
+      )}
+
+      {/* Main Action: Today's Session */}
+      <motion.section variants={itemVariants} className="px-2">
+        {program ? (
+          <motion.button
+            type="button"
+            aria-label={`Ouvrir le programme ${program.name}`}
+            whileHover={{ scale: 1.02, y: -4 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setState(prev => ({ ...prev, page: 'calendar' }))}
+            className="w-full text-left bg-zinc-50 rounded-2xl p-5 sm:p-7 relative overflow-hidden shadow-sm cursor-pointer transition-colors border border-zinc-200 group"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/5 to-transparent" />
+
+            <div className="absolute -top-20 -right-20 w-48 h-48 bg-emerald-900/5 rounded-full" />
+
+            <div className="relative z-10 flex flex-col h-full justify-between gap-8">
+              <div className="flex justify-between items-start gap-3">
+                <div className="flex-1 pr-4">
+                  <Badge className="bg-zinc-100 text-zinc-900 border-zinc-300 backdrop-blur-md mb-4 font-bold tracking-widest text-[11px]">
+                    S{Math.floor((program.currentDayIndex || 0) / (program.nbDays || 1)) + 1} {program.durationWeeks ? `/ ${program.durationWeeks}` : ''} • J{((program.currentDayIndex || 0) % (program.nbDays || 1)) + 1}
+                  </Badge>
+                  <h2 className="text-2xl sm:text-3xl font-display font-bold text-zinc-900 leading-tight mb-2">
+                    {program.days[program.currentDayIndex % program.nbDays]?.name || 'Séance du jour'}
+                  </h2>
+                  <p className="text-zinc-500 text-sm font-medium">
+                    {program.name} • Objectif: {user.objectifs?.[0] || 'Général'}
+                  </p>
+                </div>
+                <div className="w-14 h-14 rounded-full bg-emerald-500 text-zinc-900 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.5)] group-hover:scale-110 transition-transform duration-500">
+                  <TargetIcon size={24} />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between bg-white backdrop-blur-md rounded-2xl p-4 border border-zinc-200 group-hover:bg-zinc-100 transition-colors">
+                <span className="font-black text-zinc-900 tracking-widest text-sm uppercase">Démarrer l'entraînement</span>
+                <motion.div
+                  className="w-10 h-10 rounded-full bg-emerald-500 text-zinc-900 flex items-center justify-center shadow-lg"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </motion.div>
+              </div>
             </div>
-            <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{user.xp % 1000}/1000 XP</span>
-          </div>
-          
-          {/* Progress Bar Container */}
-          <div className="w-full h-3 bg-zinc-200 rounded-full overflow-hidden relative shadow-inner mb-4">
+          </motion.button>
+        ) : (
+          <div className="space-y-3">
+            {lastArchive && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-4"
+              >
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0">
+                  <TrophyIcon size={20} />
+                </div>
+                <div>
+                  <div className="text-[11px] font-black text-emerald-500 uppercase tracking-widest">Cycle Terminé</div>
+                  <div className="text-xs font-bold text-zinc-900">Bravo pour "{lastArchive.name}" !</div>
+                </div>
+              </motion.div>
+            )}
             <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `${(user.xp % 1000) / 10}%` }}
-              transition={{ duration: 1, ease: "easeOut" }}
-              className="h-full bg-gradient-to-r from-emerald-500 to-indigo-600 rounded-full relative"
+              whileHover={!user.planRequested ? { scale: 1.02 } : {}}
+              whileTap={!user.planRequested ? { scale: 0.98 } : {}}
+              onClick={!user.planRequested ? requestPlan : undefined}
+              className={`rounded-3xl p-6 text-center border-2 border-dashed transition-all ${user.planRequested ? 'bg-zinc-50 border-zinc-200 cursor-default' : 'bg-emerald-500/5 border-emerald-500/30 cursor-pointer'}`}
             >
-              <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.15)_50%,rgba(255,255,255,.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[progress-bar-stripes_1s_linear_infinite]" />
+              <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3 ${user.planRequested ? 'bg-white text-zinc-500' : 'bg-emerald-500/20 text-emerald-500'}`}>
+                <CalendarIcon size={24} />
+              </div>
+              <h3 className="text-lg font-black text-zinc-900 italic mb-1">Nouveau Cycle</h3>
+              <p className="text-xs text-zinc-500 font-bold mb-4">Prêt pour la suite de ton évolution ?</p>
+              <Button variant={user.planRequested ? "glass" : "primary"} disabled={user.planRequested} className="w-full !py-4 !rounded-xl">
+                {user.planRequested ? "DEMANDE EN COURS..." : "DEMANDER MON PROGRAMME"}
+              </Button>
             </motion.div>
           </div>
-          
-          <p className="text-[10px] text-zinc-500 font-bold leading-tight mb-4">
-            Astuce : Rentre ton rituel quotidien et valide tes séances pour gagner {1000 - (user.xp % 1000)} XP et passer au niveau {Math.floor(user.xp / 1000) + 2} !
-          </p>
-
-          {/* Week overview */}
-          <div className="border-t border-zinc-200 pt-4">
-            <span className="text-[9px] font-black uppercase text-zinc-500 tracking-wider block mb-2 text-center">Série Hebdomadaire</span>
-            <div className="grid grid-cols-7 gap-1">
-              {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((day, idx) => {
-                const currentDayOfWeek = (new Date().getDay() + 6) % 7; 
-                const isToday = idx === currentDayOfWeek;
-                const isPast = idx < currentDayOfWeek;
-                const isChecked = isPast || (isToday && isCheckedInToday);
-                
-                return (
-                  <div key={day} className="flex flex-col items-center gap-1">
-                    <span className="text-[9px] font-bold text-zinc-400">{day}</span>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                      isChecked 
-                        ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20' 
-                        : isToday 
-                          ? 'bg-zinc-100 border border-orange-500 text-orange-500 animate-pulse'
-                          : 'bg-zinc-100 text-zinc-400 border border-transparent'
-                    }`}>
-                      {isChecked ? (
-                        <FlameIcon size={14} fill="currentColor" className="text-zinc-950" />
-                      ) : (
-                        <span className="text-[10px] font-black">{idx + 1}</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </motion.div>
+        )}
+      </motion.section>
 
       {/* Daily Ritual Habit Check-In Widget */}
       <motion.section variants={itemVariants} className="px-2">
-        <div className="bg-zinc-50 border border-zinc-200 rounded-[2rem] p-6 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+        <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-sm relative overflow-hidden">
           
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
-              <SparklesIcon size={16} className="text-emerald-500 animate-spin-slow" /> Rituel Quotidien
+              <SparklesIcon size={16} className="text-emerald-800" /> Suivi du jour
             </h3>
-            <Badge className={isCheckedInToday ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : "bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse"}>
-              {isCheckedInToday ? "COMPLÉTÉ SÉRIE ACTIVE" : "À VALIDER (+50 XP)"}
+            <Badge className={isCheckedInToday ? "bg-emerald-100 text-emerald-900 border-emerald-200" : "bg-amber-50 text-amber-900 border-amber-200"}>
+              {isCheckedInToday ? "Enregistré" : "À compléter · +50 XP"}
             </Badge>
           </div>
 
@@ -410,7 +444,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
               className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-6 text-center shadow-inner"
             >
               <div className="w-14 h-14 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-3 text-emerald-500 border border-emerald-500/20 shadow-inner">
-                <FlameIcon size={32} fill="currentColor" className="animate-pulse" />
+                <FlameIcon size={32} fill="currentColor" />
               </div>
               <h4 className="text-base font-black text-zinc-900 mb-1">Rituel du Jour Enregistré !</h4>
               <p className="text-xs text-zinc-500 font-bold leading-normal max-w-xs mx-auto">
@@ -421,7 +455,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
             <div className="space-y-4">
               {/* Mood Slider */}
               <div className="bg-white rounded-2xl p-4 border border-zinc-100">
-                <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider block mb-2">Humeur & Énergie</span>
+                <span className="text-[11px] font-black uppercase text-zinc-400 tracking-wider block mb-2">Humeur & Énergie</span>
                 <div className="flex justify-between gap-1">
                   {[
                     { val: 1, label: "😭" },
@@ -450,7 +484,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                 {/* Hydration */}
                 <div className="bg-white rounded-2xl p-4 border border-zinc-100 flex flex-col justify-between">
                   <div>
-                    <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider block mb-1">Hydratation (L)</span>
+                    <span className="text-[11px] font-black uppercase text-zinc-400 tracking-wider block mb-1">Hydratation (L)</span>
                     <span className="text-lg font-black text-sky-500">{water} L</span>
                   </div>
                   <div className="flex gap-1.5 mt-2">
@@ -474,7 +508,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                 {/* Sleep */}
                 <div className="bg-white rounded-2xl p-4 border border-zinc-100 flex flex-col justify-between">
                   <div>
-                    <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider block mb-1">Sommeil (H)</span>
+                    <span className="text-[11px] font-black uppercase text-zinc-400 tracking-wider block mb-1">Sommeil (H)</span>
                     <span className="text-lg font-black text-indigo-500">{sleep} H</span>
                   </div>
                   <div className="flex gap-1.5 mt-2">
@@ -511,7 +545,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                     <TrophyIcon size={16} />
                   </div>
                   <div className="text-left">
-                    <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider block">Objectif Nutrition</span>
+                    <span className="text-[11px] font-black uppercase text-zinc-400 tracking-wider block">Objectif Nutrition</span>
                     <span className="text-xs font-bold text-zinc-900">Protéines quotidiennes atteintes</span>
                   </div>
                 </div>
@@ -533,86 +567,65 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
         </div>
       </motion.section>
 
-      {/* Main Action: Today's Session */}
-      <motion.section variants={itemVariants} className="px-2">
-        {program ? (
-          <motion.div 
-            whileHover={{ scale: 1.02, y: -4 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setState(prev => ({ ...prev, page: 'calendar' }))}
-            className="bg-zinc-50 rounded-[2rem] p-8 relative overflow-hidden shadow-2xl cursor-pointer transition-all border border-zinc-200 group"
-          >
-            {/* Animated Background Gradient */}
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
-            
-            {/* Glowing Orb */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/30 rounded-full blur-[60px] group-hover:bg-emerald-500/40 transition-colors duration-500" />
-
-            <div className="relative z-10 flex flex-col h-full justify-between gap-8">
-              <div className="flex justify-between items-start">
-                <div className="flex-1 pr-4">
-                  <Badge className="bg-zinc-100 text-zinc-900 border-zinc-300 backdrop-blur-md mb-4 font-bold tracking-widest text-[10px]">
-                    S{Math.floor((program.currentDayIndex || 0) / (program.nbDays || 1)) + 1} {program.durationWeeks ? `/ ${program.durationWeeks}` : ''} • J{((program.currentDayIndex || 0) % (program.nbDays || 1)) + 1}
-                  </Badge>
-                  <h2 className="text-4xl font-display font-bold text-zinc-900 leading-tight mb-2">
-                    {program.days[program.currentDayIndex % program.nbDays]?.name || 'Séance du jour'}
-                  </h2>
-                  <p className="text-zinc-500 text-sm font-medium">
-                    {program.name} • Objectif: {user.objectifs?.[0] || 'Général'}
-                  </p>
-                </div>
-                <div className="w-14 h-14 rounded-full bg-emerald-500 text-zinc-900 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.5)] group-hover:scale-110 transition-transform duration-500">
-                  <TargetIcon size={24} />
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-between bg-white backdrop-blur-md rounded-2xl p-4 border border-zinc-200 group-hover:bg-zinc-100 transition-colors">
-                <span className="font-black text-zinc-900 tracking-widest text-sm uppercase">Démarrer l'entraînement</span>
-                <motion.div 
-                  animate={{ x: [0, 5, 0] }}
-                  transition={{ repeat: Infinity, duration: 1.5 }}
-                  className="w-10 h-10 rounded-full bg-emerald-500 text-zinc-900 flex items-center justify-center shadow-lg"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                </motion.div>
-              </div>
+      {/* Leveling & Gamification Center */}
+      <motion.div variants={itemVariants} className="px-2">
+        <div className="bg-zinc-50 border border-zinc-200 rounded-[2rem] p-6 shadow-sm">
+          <div className="flex justify-between items-center mb-3">
+            <div className="flex items-center gap-2">
+              <TrophyIcon size={18} className="text-amber-700" />
+              <span className="text-xs font-black text-zinc-900 uppercase tracking-widest">Aventure Fitness : Niveau {Math.floor(user.xp / 1000) + 1}</span>
             </div>
-          </motion.div>
-        ) : (
-          <div className="space-y-3">
-            {lastArchive && (
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-4"
-              >
-                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0">
-                  <TrophyIcon size={20} />
-                </div>
-                <div>
-                  <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Cycle Terminé</div>
-                  <div className="text-xs font-bold text-zinc-900">Bravo pour "{lastArchive.name}" !</div>
-                </div>
-              </motion.div>
-            )}
+            <span className="text-[11px] font-black text-zinc-500 uppercase tracking-widest">{user.xp % 1000}/1000 XP</span>
+          </div>
+
+          {/* Progress Bar Container */}
+          <div className="w-full h-3 bg-zinc-200 rounded-full overflow-hidden relative shadow-inner mb-4">
             <motion.div 
-              whileHover={!user.planRequested ? { scale: 1.02 } : {}}
-              whileTap={!user.planRequested ? { scale: 0.98 } : {}}
-              onClick={!user.planRequested ? requestPlan : undefined}
-              className={`rounded-3xl p-6 text-center border-2 border-dashed transition-all ${user.planRequested ? 'bg-zinc-50 border-zinc-200 cursor-default' : 'bg-emerald-500/5 border-emerald-500/30 cursor-pointer'}`}
+              initial={{ width: 0 }}
+              animate={{ width: `${(user.xp % 1000) / 10}%` }}
+              transition={{ duration: 1, ease: "easeOut" }}
+              className="h-full bg-emerald-800 rounded-full relative"
             >
-              <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3 ${user.planRequested ? 'bg-white text-zinc-500' : 'bg-emerald-500/20 text-emerald-500'}`}>
-                <CalendarIcon size={24} />
-              </div>
-              <h3 className="text-lg font-black text-zinc-900 italic mb-1">Nouveau Cycle</h3>
-              <p className="text-xs text-zinc-500 font-bold mb-4">Prêt pour la suite de ton évolution ?</p>
-              <Button variant={user.planRequested ? "glass" : "primary"} disabled={user.planRequested} className="w-full !py-4 !rounded-xl">
-                {user.planRequested ? "DEMANDE EN COURS..." : "DEMANDER MON PROGRAMME"}
-              </Button>
             </motion.div>
           </div>
-        )}
-      </motion.section>
+
+          <p className="text-[11px] text-zinc-500 font-bold leading-tight mb-4">
+            Astuce : Rentre ton rituel quotidien et valide tes séances pour gagner {1000 - (user.xp % 1000)} XP et passer au niveau {Math.floor(user.xp / 1000) + 2} !
+          </p>
+
+          {/* Week overview */}
+          <div className="border-t border-zinc-200 pt-4">
+            <span className="text-[11px] font-black uppercase text-zinc-500 tracking-wider block mb-2 text-center">Série Hebdomadaire</span>
+            <div className="grid grid-cols-7 gap-1">
+              {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((day, idx) => {
+                const currentDayOfWeek = (new Date().getDay() + 6) % 7;
+                const isToday = idx === currentDayOfWeek;
+                const isPast = idx < currentDayOfWeek;
+                const isChecked = isPast || (isToday && isCheckedInToday);
+
+                return (
+                  <div key={day} className="flex flex-col items-center gap-1">
+                    <span className="text-[11px] font-bold text-zinc-400">{day}</span>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                      isChecked
+                        ? 'bg-gradient-to-br from-emerald-400 to-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20'
+                        : isToday
+                          ? 'bg-amber-50 border border-amber-700 text-amber-900'
+                          : 'bg-zinc-100 text-zinc-400 border border-transparent'
+                    }`}>
+                      {isChecked ? (
+                        <FlameIcon size={14} fill="currentColor" className="text-zinc-950" />
+                      ) : (
+                        <span className="text-[11px] font-black">{idx + 1}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </motion.div>
 
       {/* AI Coach Quick Access */}
       <motion.section variants={itemVariants} className="px-2">
@@ -652,7 +665,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-500"><CalendarIcon size={24} /></div>
           <div>
             <div className="text-3xl font-display font-bold text-zinc-900 leading-none mb-1">{myLogs.length}</div>
-            <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Sessions</div>
+            <div className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Sessions</div>
           </div>
         </motion.div>
         <motion.div 
@@ -664,7 +677,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           <div className="w-12 h-12 rounded-full bg-orange-500/10 text-orange-500 flex items-center justify-center group-hover:scale-110 transition-transform duration-500"><TrophyIcon size={24} /></div>
           <div>
             <div className="text-3xl font-display font-bold text-zinc-900 leading-none mb-1">{state.performances.filter(p => Number(p.memberId) === Number(user.id)).length}</div>
-            <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Records</div>
+            <div className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">Records</div>
           </div>
         </motion.div>
       </motion.section>
@@ -675,7 +688,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           <div className="bg-gradient-to-r from-emerald-500/10 to-transparent border border-emerald-500/20 rounded-2xl p-4 relative overflow-hidden">
             <div className="flex items-center gap-3 mb-2">
               <MegaphoneIcon size={16} className="text-emerald-500" />
-              <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Annonce du Club</span>
+              <span className="text-[11px] font-black text-emerald-500 uppercase tracking-widest">Annonce du Club</span>
             </div>
             <h3 className="text-sm font-bold text-zinc-900 mb-1">{latestNewsletter.title}</h3>
             <p className="text-xs text-zinc-500 line-clamp-2">{latestNewsletter.content.replace(/[*_#]/g, '')}</p>

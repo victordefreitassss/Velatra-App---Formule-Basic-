@@ -6,6 +6,7 @@ import { RefreshCwIcon, PlusIcon, SearchIcon, Trash2Icon, PlayIcon, LayersIcon, 
 import { db, doc, deleteDoc, updateDoc, setDoc } from '../firebase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion, useReducedMotion } from 'framer-motion';
+import { countTodayUpcomingSessions } from './appShellHelpers';
 
 const containerVariants: any = {
   hidden: { opacity: 0 },
@@ -41,11 +42,11 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   // 2. Prochaines Séances
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
+  const todaySessionsCount = countTodayUpcomingSessions(state.bookings || []);
   const upcomingEvents = (state.bookings || []).filter(b => {
     const bDate = new Date(b.startTime);
     return bDate.getTime() >= todayStart.getTime() && b.status === 'confirmed';
   }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()).slice(0, 5);
-  const todaySessions = upcomingEvents.filter(event => new Date(event.startTime).toDateString() === new Date().toDateString() && new Date(event.startTime).getTime() >= Date.now());
   const prospectsToFollowUp = (state.prospects || []).filter(prospect => {
     if (prospect.clubId !== state.user?.clubId || prospect.status === 'won' || prospect.status === 'lost') return false;
     return prospect.status === 'call_pending' || Boolean(prospect.nextReminderDate && prospect.nextReminderDate.slice(0, 10) <= todayStr);
@@ -356,7 +357,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   }, [state.logs, state.user?.clubId]);
 
   const todayPriorities = [
-    { id: 'sessions', page: 'calendar', label: 'Séances à venir', count: todaySessions.length, icon: CalendarIcon },
+    { id: 'sessions', page: 'calendar', label: 'Séances à venir', count: todaySessionsCount, icon: CalendarIcon },
     { id: 'payments', page: 'crm_finances', label: 'Paiements à vérifier', count: failedSubs.length, icon: DollarSignIcon },
     { id: 'tasks', page: 'crm_tasks', label: 'Tâches à terminer', count: tasksToday.length, icon: CheckCircleIcon },
     { id: 'programs', page: 'users', label: 'Programmes demandés', count: planRequests.length, icon: FileTextIcon },
