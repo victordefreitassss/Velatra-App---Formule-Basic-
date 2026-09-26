@@ -1,18 +1,18 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 
 const groups = [
-  { title: 'PRODUIT', links: [{ label: 'Fonctionnalités', to: '/fonctionnalites' }, { label: 'Solutions', to: '/solutions' }, { label: 'Tarifs', to: '/tarifs' }] },
+  { title: 'PRODUIT', links: [{ label: 'La plateforme', to: '/produit' }, { label: 'Tarifs', to: '/tarifs' }] },
+  { title: 'SOLUTIONS', links: [{ label: 'Coachs sportifs', to: '/solutions/coach-sportif' }, { label: 'Studios & salles', to: '/solutions/studio' }] },
   { title: 'RESSOURCES', links: [{ label: 'Blog', to: '/blog' }, { label: 'Centre d’aide', to: '/centre-d-aide' }, { label: 'Contact', to: '/contact' }] },
-  { title: 'VELATRA', links: [{ label: 'À propos', to: '/a-propos' }, { label: 'Connexion', to: '/login' }, { label: 'Demander un accès bêta', to: '/contact' }] },
+  { title: 'VELATRA', links: [{ label: 'À propos', to: '/a-propos' }, { label: 'Connexion', to: '/login' }, { label: 'Obtenir mon accès bêta', to: '/contact?request=coach-beta' }] },
 ];
 
-export const Footer: React.FC = () => (
+export const Footer = () => (
   <footer className="marketing-footer">
     <div className="marketing-container">
       <div className="marketing-footer-inner">
         <div className="marketing-footer-brand">
-          <Link to="/" className="marketing-logo"><span className="marketing-logo-mark" aria-hidden="true" /><span>VELATRA</span></Link>
+          <Link to="/" className="marketing-logo"><img className="marketing-logo-mark" src="/brand/velatra-mark.png" alt="" /><span>VELATRA</span></Link>
           <p>La plateforme qui réunit les outils essentiels de votre activité de coaching sportif.</p>
         </div>
         {groups.map((group) => <div key={group.title}><h3>{group.title}</h3><div className="marketing-footer-links">{group.links.map((link) => <Link key={link.label} to={link.to}>{link.label}</Link>)}</div></div>)}

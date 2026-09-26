@@ -1,158 +1,36 @@
-import React, { useState } from 'react';
-import { Helmet } from 'react-helmet-async';
-import { Mail, Send } from 'lucide-react';
+import { useEffect, useState, FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Mail, Send, CheckCircle } from 'lucide-react';
+import { PublicMeta } from '../components/PublicProduct';
+
+const requests: Record<string, { title: string; subject: string; text: string }> = {
+  'coach-beta': { title: 'Préparons votre accès bêta.', subject: 'Accès bêta — Velatra Coach', text: 'Présentez-nous votre activité et ce que vous souhaitez organiser. L’accès à la bêta se fait sur invitation.' },
+  'studio-demo': { title: 'Découvrons votre structure.', subject: 'Démonstration — Velatra Studio', text: 'Parlez-nous de votre équipe et de vos besoins. Nous préparerons une démonstration des outils disponibles pour votre structure.' },
+  programming: { title: 'Parlons de votre programmation.', subject: 'Programmation sur mesure', text: 'Précisez le type de programmes et le niveau d’accompagnement souhaités. Nous définirons ensemble le périmètre et le tarif.' },
+};
 
 export default function ContactPage() {
-  const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
+  const [params] = useSearchParams();
+  const request = requests[params.get('request') || ''];
+  const [formData, setFormData] = useState({ name: '', email: '', subject: request?.subject || '', message: '' });
   const [submitted, setSubmitted] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  useEffect(() => { setFormData(previous => ({ ...previous, subject: request?.subject || '' })); setSubmitted(false); }, [request?.subject]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSending(true);
-    setError('');
+  const handleSubmit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (sending) return;
+    setSending(true); setError('');
     try {
-      const response = await fetch('/api/public/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+      const response = await fetch('/api/public/contact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData) });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || "Le message n'a pas pu être envoyé.");
+      if (!response.ok) throw new Error(result.error || 'Le message n’a pas pu être envoyé. Réessayez ou contactez-nous par e-mail.');
       setSubmitted(true);
-      setFormData({ name: '', email: '', subject: '', message: '' });
-      setTimeout(() => setSubmitted(false), 4000);
-    } catch (err: any) {
-      setError(err.message || "Le message n'a pas pu être envoyé.");
-    } finally {
-      setSending(false);
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : 'L’envoi a échoué. Veuillez réessayer.'); }
+    finally { setSending(false); }
   };
 
-  return (
-    <>
-    <Helmet>
-      <title>Contacter Velatra — Demander une présentation</title>
-      <meta name="description" content="Une question sur Velatra ou envie de découvrir la plateforme ? Contactez-nous pour parler de votre activité de coaching." />
-      <link rel="canonical" href={`${window.location.origin}/contact`} />
-    </Helmet>
-    <div className="pt-32 pb-24">
-      <div className="max-w-5xl mx-auto px-6">
-        <div className="text-center space-y-4 mb-16">
-          <span className="text-xs font-black uppercase text-emerald-500 tracking-widest block font-bold">CONTACT VELATRA</span>
-          <h1 className="text-4xl md:text-5xl font-display font-black tracking-tight text-zinc-950 dark:text-white leading-none">
-            Nous sommes à votre écoute
-          </h1>
-          <p className="text-zinc-550 dark:text-zinc-400 max-w-xl mx-auto text-sm leading-relaxed">
-            Une question sur Velatra ou envie de découvrir l’application ? Écrivez-nous, nous serons ravis d’en savoir plus sur votre activité.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-start mt-12">
-          {/* Contact details */}
-          <div className="md:col-span-5 space-y-8">
-            <div className="p-8 bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/50 rounded-3xl space-y-6">
-              <h3 className="text-lg font-bold text-zinc-950 dark:text-white pb-3 border-b border-zinc-100 dark:border-zinc-850">Échanger avec Velatra</h3>
-              
-              <div className="space-y-4">
-                <div className="flex gap-4">
-                  <div className="p-3 bg-emerald-500/10 text-emerald-500 rounded-xl">
-                    <Mail className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-xs text-zinc-455 dark:text-zinc-500 uppercase block font-black">Adresse e-mail</span>
-                    <a href="mailto:support@velatra.app" className="text-sm font-bold text-zinc-900 dark:text-zinc-100 hover:text-emerald-500 transition-colors">support@velatra.app</a>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            <div className="p-6 bg-emerald-500/5 border border-emerald-500/10 rounded-3xl text-xs text-emerald-700 dark:text-emerald-400 font-medium leading-relaxed">
-              Décrivez votre besoin dans le formulaire. Votre message sera transmis à l’équipe Velatra.
-            </div>
-          </div>
-
-          {/* Contact form */}
-          <div className="md:col-span-7 bg-white dark:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/50 p-8 md:p-10 rounded-[32px] shadow-lg relative">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-550 dark:text-zinc-400">Nom</label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={100}
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 text-xs md:text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    placeholder="Jean Dupont"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-zinc-550 dark:text-zinc-400">Adresse e-mail</label>
-                  <input
-                    type="email"
-                    required
-                    maxLength={254}
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 text-xs md:text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                    placeholder="vous@exemple.fr"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-550 dark:text-zinc-400">Sujet</label>
-                <input
-                  type="text"
-                  required
-                  maxLength={120}
-                  value={formData.subject}
-                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                  className="w-full px-4 py-3 text-xs md:text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                  placeholder="Question, démonstration, partenariat…"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-zinc-550 dark:text-zinc-400">Message</label>
-                <textarea
-                  required
-                  maxLength={5000}
-                  rows={4}
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  className="w-full px-4 py-3 text-xs md:text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-850 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                  placeholder="Parlez-nous de votre activité et de votre besoin."
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={sending}
-                className="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl text-xs md:text-sm shadow-xl shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-              >
-                {sending ? 'Envoi…' : 'Envoyer'} <Send className="w-4 h-4" />
-              </button>
-            </form>
-
-            {error && <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>}
-
-            {submitted && (
-              <div className="absolute inset-0 bg-white dark:bg-zinc-900 rounded-[32px] flex flex-col items-center justify-center p-6 text-center">
-                <span className="text-4xl">✉️</span>
-                <h4 className="text-base font-bold text-zinc-950 dark:text-white mt-3">Message Reçu !</h4>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 max-w-xs">Votre message a bien été transmis. Merci de nous avoir contactés.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-    </>
-  );
+  return <div className="vp-page"><PublicMeta path="/contact" title="Contacter Velatra — Accès bêta, démo et accompagnement" description="Demandez votre accès bêta Velatra Coach, une démonstration Studio ou un accompagnement en programmation sur mesure." /><header className="vp-hero marketing-container"><span className="marketing-kicker">CONTACT VELATRA</span><h1>{request?.title || 'Parlons de votre activité.'}</h1><p>{request?.text || 'Une question sur la plateforme ou envie de découvrir Velatra ? Écrivez-nous pour préparer la suite.'}</p></header><div className="marketing-container vp-contact"><aside><div className="vp-panel"><Mail size={25} /><h2>Un échange pour avancer.</h2><p>Expliquez-nous votre façon de coacher, votre organisation et ce que vous cherchez à simplifier.</p><a className="marketing-text-link" href="mailto:support@velatra.app">support@velatra.app</a></div><p className="vp-note">Ces informations servent à répondre à votre demande. <a href="/confidentialite">Consulter la politique de confidentialité.</a></p></aside><div className="vp-panel">{submitted ? <div className="vp-form-success" role="status"><CheckCircle size={36} /><h2>Votre message est envoyé.</h2><p>Merci de nous avoir présenté votre besoin. Nous vous répondrons à l’adresse e-mail indiquée.</p><button className="marketing-button marketing-button-secondary" onClick={() => { setSubmitted(false); setFormData({ name: '', email: '', subject: request?.subject || '', message: '' }); }}>Écrire un autre message</button></div> : <form className="vp-form" onSubmit={handleSubmit} aria-busy={sending}><div className="vp-two-col"><div><label htmlFor="contact-name">Votre nom</label><input id="contact-name" name="name" autoComplete="name" required maxLength={100} value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Jean Dupont" /></div><div><label htmlFor="contact-email">Adresse e-mail</label><input id="contact-email" name="email" type="email" autoComplete="email" required maxLength={254} value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="vous@exemple.fr" /></div></div><div><label htmlFor="contact-subject">Sujet</label><input id="contact-subject" name="subject" required maxLength={120} value={formData.subject} onChange={e => setFormData({ ...formData, subject: e.target.value })} placeholder="Votre demande" /></div><div><label htmlFor="contact-message">Votre message</label><textarea id="contact-message" name="message" required maxLength={5000} rows={6} value={formData.message} onChange={e => setFormData({ ...formData, message: e.target.value })} placeholder="Parlez-nous de votre activité et de vos besoins." /></div>{error && <p role="alert" className="vp-form-error">{error}</p>}<button type="submit" disabled={sending} className="marketing-button marketing-button-primary">{sending ? 'Envoi en cours…' : 'Envoyer ma demande'}<Send size={17} /></button></form>}</div></div></div>;
 }
 export { ContactPage };

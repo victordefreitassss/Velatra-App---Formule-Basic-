@@ -16,8 +16,8 @@ self.addEventListener('push', (event) => {
     const data = event.data.json();
     const options = {
       body: data.body,
-      icon: data.icon || '/velatra-mark.svg',
-      badge: '/velatra-mark.svg',
+      icon: data.icon || '/brand/velatra-mark.png',
+      badge: '/brand/velatra-mark.png',
       vibrate: [100, 50, 100],
       data: {
         dateOfArrival: Date.now(),

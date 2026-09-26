@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { ArrowUp } from 'lucide-react';
 import '../pages/marketing.css';
+import '../pages/public-product.css';
 
 const ScrollToTopButton = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -62,7 +63,7 @@ export default function LandingLayout() {
   }, [location.pathname, location.hash]);
 
   return (
-    <div className="min-h-screen selection:bg-emerald-100 selection:text-emerald-900 flex flex-col relative bg-transparent transition-colors duration-500">
+    <div className="marketing-site min-h-screen selection:bg-emerald-100 selection:text-emerald-900 flex flex-col relative bg-transparent transition-colors duration-500">
       <FluidBackground />
       <motion.div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600 origin-left z-[60]" style={{ scaleX }} />
       <div className="relative z-10 flex flex-col flex-grow">

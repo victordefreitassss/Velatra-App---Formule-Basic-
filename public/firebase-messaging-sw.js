@@ -19,8 +19,8 @@ messaging.onBackgroundMessage((payload) => {
   const notificationTitle = payload.notification?.title || 'Nouvelle notification';
   const notificationOptions = {
     body: payload.notification?.body,
-    icon: payload.notification?.icon || '/velatra-mark.svg',
-    badge: '/velatra-mark.svg',
+    icon: payload.notification?.icon || '/brand/velatra-mark.png',
+    badge: '/brand/velatra-mark.png',
     data: payload.data
   };
 

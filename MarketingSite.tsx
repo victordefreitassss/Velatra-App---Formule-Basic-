@@ -6,6 +6,7 @@ const lazyNamed = <T extends object>(load: () => Promise<T>, exportName: keyof T
 
 const HomePage = React.lazy(() => import('./pages/HomePage'));
 const FeaturesPage = React.lazy(() => import('./pages/FeaturesPage'));
+const SolutionDetailPage = React.lazy(() => import('./pages/SolutionDetailPage'));
 const PricingPage = React.lazy(() => import('./pages/PricingPage'));
 const AboutPage = React.lazy(() => import('./pages/AboutPageMarketing'));
 const SolutionsPage = React.lazy(() => import('./pages/UseCases'));
@@ -22,9 +23,12 @@ export default function MarketingSite() {
   return <Routes>
     <Route element={<LandingLayout />}>
       <Route path="/" element={<HomePage />} />
-      <Route path="/fonctionnalites" element={<FeaturesPage />} />
+      <Route path="/produit" element={<FeaturesPage />} />
+      <Route path="/fonctionnalites" element={<Navigate to="/produit" replace />} />
       <Route path="/tarifs" element={<PricingPage />} />
       <Route path="/solutions" element={<SolutionsPage />} />
+      <Route path="/solutions/coach-sportif" element={<SolutionDetailPage />} />
+      <Route path="/solutions/studio" element={<SolutionDetailPage />} />
       <Route path="/centre-d-aide" element={<HelpCenterPage />} />
       <Route path="/blog" element={<BlogPage />} />
       <Route path="/blog/:slug" element={<BlogPostPage />} />

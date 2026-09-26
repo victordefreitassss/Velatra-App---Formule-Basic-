@@ -1,40 +1,29 @@
-import { useState } from 'react';
-import { Helmet } from 'react-helmet-async';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Check, ChevronDown, CircleHelp } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
+import { PublicMeta, FeatureList, ProgrammingService, coachAccess, studioDemo } from '../components/PublicProduct';
 
 const plans = [
-  { id: 'starter', name: 'Starter Coach', description: 'Pour le coach indépendant qui veut structurer son quotidien.', monthly: 49, annual: 39, audience: 'Jusqu’à 15 adhérents actifs', features: ['Outils de création de programmes', 'Modèles de séances', 'Suivi sportif des adhérents', 'Messagerie avec pièces jointes', 'Espace adhérent mobile'] },
-  { id: 'studio', name: 'Club & Studio', description: 'Pour les coachs et studios qui souhaitent élargir leur organisation.', monthly: 99, annual: 79, audience: 'Pour gérer une activité en équipe', features: ['Les outils de la formule Starter', 'Gestion des adhérents élargie', 'Suivi nutritionnel', 'Fonctions de paiement Stripe', 'Outils multi-coachs'] },
+  { name: 'Velatra Coach', monthly: '49', annual: '490', description: 'Pour les coachs indépendants, personal trainers et coachs en ligne.', features: ['Un compte coach', 'Gestion des clients et espace adhérent', 'CRM prospects, relances et conversion', 'Programmes, séances et suivi nutritionnel', 'Planning, messagerie et suivi des paiements', 'Assistance IA à la programmation'], href: coachAccess, cta: 'Obtenir mon accès bêta' },
+  { name: 'Velatra Studio', monthly: '149', annual: '1 490', description: 'Pour les studios, salles et équipes de coaching.', features: ['Tous les outils de Velatra Coach', 'Plusieurs comptes coachs après activation', 'Attribution des adhérents à leur coach', 'Rôles responsable, coach et adhérent', 'Vue de gestion pour le responsable'], href: studioDemo, cta: 'Demander une démo' },
 ];
-
+const comparison = [
+  ['Programmes, suivi et espace adhérent', 'Inclus', 'Inclus'],
+  ['CRM, planning et suivi des paiements', 'Inclus', 'Inclus'],
+  ['Assistance IA à la programmation', 'Incluse', 'Incluse'],
+  ['Comptes coachs', 'Un compte', 'Plusieurs, après activation'],
+  ['Attribution adhérent / coach', 'Votre propre clientèle', 'Attribution par le responsable'],
+];
 const questions = [
-  { q: 'Quelle formule choisir ?', a: 'La formule Starter Coach convient aux coachs qui gèrent un nombre défini d’adhérents. La formule Club & Studio réunit davantage d’outils pour les structures et les équipes. Comparez les fonctions affichées ci-dessus selon vos besoins.' },
-  { q: 'Les prix changent-ils selon le mode de facturation ?', a: 'Oui. Le sélecteur affiche les montants mensuels indiqués pour une facturation mensuelle ou annuelle.' },
-  { q: 'Puis-je connecter Stripe ?', a: 'Velatra propose une connexion Stripe depuis l’espace coach pour gérer les paiements liés à votre activité. La disponibilité dépend de la configuration de votre compte et de Stripe.' },
-  { q: 'Comment obtenir une présentation de Velatra ?', a: 'Vous pouvez nous écrire depuis le formulaire de contact pour nous présenter votre activité et demander une démonstration.' },
+  ['Comment obtenir un accès ?', 'Velatra est en bêta sur invitation. Pour Coach, demandez votre accès. Pour Studio, une démonstration permet de préparer les accès de votre équipe. Les conditions de souscription sont présentées avant tout paiement.'],
+  ['Comment fonctionne le paiement annuel ?', 'Velatra Coach coûte 490 € pour un an, au lieu de 588 € sur douze paiements mensuels. Velatra Studio coûte 1 490 € pour un an, au lieu de 1 788 €. Cela correspond à deux mensualités offertes.'],
+  ['Faut-il un abonnement supplémentaire pour l’IA ?', 'Non. L’assistance à la programmation fait partie de Velatra. Les propositions doivent être relues et validées par le coach avant d’être utilisées dans le suivi.'],
+  ['Comment fonctionnent les paiements de mes clients ?', 'Le suivi financier est disponible dans Velatra. Pour les paiements en ligne, vous devez connecter et configurer votre compte Stripe. Les frais du prestataire de paiement sont distincts de l’abonnement Velatra.'],
+  ['Qu’est-ce que la programmation sur mesure ?', 'C’est un service facultatif de préparation de programmes, en complément du logiciel. Le volume et le niveau d’accompagnement sont définis ensemble avant de commencer. Pour les studios, un devis est établi.'],
 ];
 
 export default function PricingPage() {
-  const [annual, setAnnual] = useState(true);
-  const [open, setOpen] = useState<number | null>(0);
-  const offers = plans.map((plan) => ({ '@type': 'Offer', name: plan.name, price: annual ? plan.annual : plan.monthly, priceCurrency: 'EUR', priceSpecification: { '@type': 'UnitPriceSpecification', price: annual ? plan.annual : plan.monthly, priceCurrency: 'EUR', unitText: annual ? 'MONTH' : 'MONTH' }, url: `${window.location.origin}/tarifs` }));
-  const data = { '@context': 'https://schema.org', '@type': 'SoftwareApplication', name: 'Velatra', applicationCategory: 'BusinessApplication', operatingSystem: 'Web', offers };
-
-  return <>
-    <Helmet>
-      <title>Tarifs Velatra — Des formules pour les coachs et studios</title>
-      <meta name="description" content="Comparez les formules Velatra pour coachs sportifs et studios. Choisissez les outils qui correspondent à votre activité de coaching." />
-      <link rel="canonical" href={`${window.location.origin}/tarifs`} />
-      <meta property="og:title" content="Tarifs Velatra" /><meta property="og:description" content="Découvrez les formules Velatra pour organiser vos programmes, vos adhérents et votre activité." />
-      <script type="application/ld+json">{JSON.stringify(data)}</script>
-    </Helmet>
-    <main className="marketing-pricing">
-      <section className="marketing-pricing-hero"><div className="marketing-container"><span className="marketing-kicker">TARIFS VELATRA</span><h1>Choisissez l’espace<br /><em>qui vous ressemble.</em></h1><p>Comparez les fonctionnalités, puis choisissez la formule qui correspond au fonctionnement de votre activité.</p><div className="marketing-pricing-toggle" role="group" aria-label="Période de facturation"><button className={!annual ? 'is-active' : ''} onClick={() => setAnnual(false)}>Mensuel</button><button className={annual ? 'is-active' : ''} onClick={() => setAnnual(true)}>Annuel <span>Tarif annuel</span></button></div></div></section>
-      <section className="marketing-container marketing-pricing-cards">{plans.map((plan, index) => <article key={plan.id} className={index === 1 ? 'marketing-price-card is-featured' : 'marketing-price-card'}><div className="marketing-price-top"><div><span className="marketing-price-eyebrow">{index === 0 ? 'POUR DÉMARRER' : 'POUR GRANDIR'}</span><h2>{plan.name}</h2><p>{plan.description}</p></div>{index === 1 && <span className="marketing-price-badge">PLUS DE FONCTIONS</span>}</div><div className="marketing-price-audience">{plan.audience}</div><div className="marketing-price-value"><strong>{annual ? plan.annual : plan.monthly} €</strong><span>/ mois {annual ? 'en facturation annuelle' : 'en facturation mensuelle'}</span></div><div className="marketing-price-divider" /><ul>{plan.features.map((feature) => <li key={feature}><Check size={15} />{feature}</li>)}</ul><Link to="/register" className={index === 1 ? 'marketing-button marketing-button-primary' : 'marketing-button marketing-price-secondary'}>Créer un compte <ArrowRight size={15} /></Link><span className="marketing-price-footnote">Les conditions de l’offre vous sont présentées avant la souscription.</span></article>)}</section>
-      <section className="marketing-pricing-help"><div className="marketing-container"><div><span className="marketing-kicker">BESOIN D’AIDE POUR CHOISIR ?</span><h2>On peut en parler.</h2><p>Expliquez-nous comment vous accompagnez vos clients et ce que vous cherchez à mieux organiser.</p></div><Link to="/contact" className="marketing-button marketing-button-primary">Demander une démonstration <ArrowRight size={15} /></Link></div></section>
-      <section className="marketing-pricing-faq"><div className="marketing-container"><div><CircleHelp size={21} /><span className="marketing-kicker">QUESTIONS FRÉQUENTES</span><h2>Un détail à éclaircir ?</h2></div><div>{questions.map((question, index) => <article key={question.q}><button type="button" aria-expanded={open === index} onClick={() => setOpen(open === index ? null : index)}><span>{question.q}</span><ChevronDown size={16} className={open === index ? 'is-open' : ''} /></button>{open === index && <p>{question.a}</p>}</article>)}</div></div></section>
-    </main>
-  </>;
+  return <div className="vp-page"><PublicMeta path="/tarifs" title="Tarifs Velatra — Coach 49 €/mois · Studio 149 €/mois" description="Velatra Coach à 49 €/mois ou 490 €/an. Velatra Studio à 149 €/mois ou 1 490 €/an. Deux mois offerts avec le paiement annuel." /><header className="vp-hero marketing-container"><span className="marketing-kicker">LES TARIFS VELATRA</span><h1>Une plateforme.<br /><em>Deux façons de coacher.</em></h1><p>Choisissez l’espace adapté à votre activité. Les outils de coaching et l’assistance IA sont au cœur des deux offres.</p></header><div className="marketing-container"><section className="vp-two-col vp-prices" aria-label="Les abonnements Velatra">{plans.map((plan, i) => <article className={`vp-price ${i ? 'vp-price-studio' : ''}`} key={plan.name}><span className="marketing-kicker">{i ? 'POUR VOTRE STRUCTURE' : 'POUR VOTRE ACTIVITÉ'}</span><h2>{plan.name}</h2><p>{plan.description}</p><div className="vp-price-amount"><strong>{plan.monthly} €</strong><span>/ mois</span></div><div className="vp-price-year">ou <strong>{plan.annual} € / an</strong><span>2 mois offerts avec le paiement annuel</span></div><FeatureList items={plan.features} /><Link to={plan.href} className="marketing-button marketing-button-primary">{plan.cta}<ArrowRight size={17} /></Link><p className="vp-note">{i ? 'Accès équipe activés avec Velatra pendant la bêta.' : 'Accès bêta sur invitation.'}</p></article>)}</section><p className="vp-pricing-note">Les paiements en ligne nécessitent une connexion Stripe. Les modalités de souscription et de facturation vous sont précisées avant tout engagement.</p>
+      <section className="vp-section"><div className="vp-section-heading"><span className="marketing-kicker">LE CHOIX EN UN COUP D’ŒIL</span><h2>Seul ou en équipe.</h2><p>La différence tient à l’organisation de votre activité.</p></div><div className="vp-comparison" role="table" aria-label="Comparaison Coach et Studio"><div className="vp-comparison-head" role="row"><span role="columnheader">Fonctionnalités</span><span role="columnheader">Coach</span><span role="columnheader">Studio</span></div>{comparison.map(([feature, coach, studio]) => <div role="row" key={feature}><strong role="rowheader">{feature}</strong><span role="cell"><small>Coach</small>{coach}</span><span role="cell"><small>Studio</small>{studio}</span></div>)}</div></section>
+      <ProgrammingService /><section className="vp-section vp-faq"><div className="vp-section-heading"><span className="marketing-kicker">AVANT DE VOUS LANCER</span><h2>Les réponses utiles.</h2></div>{questions.map(([q, a]) => <details key={q}><summary>{q}</summary><p>{a}</p></details>)}</section></div></div>;
 }
 export { PricingPage };

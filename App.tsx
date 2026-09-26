@@ -604,7 +604,7 @@ export default function App() {
       if (!isInitialProgsLoad && hasNewProgram && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau programme", {
           body: "Un nouveau programme d'entraînement vous a été assigné.",
-          icon: "/velatra-mark.svg"
+          icon: "/brand/velatra-mark.png"
         });
       }
       isInitialProgsLoad = false;
@@ -701,7 +701,7 @@ export default function App() {
       if (!isInitialMessagesLoad && hasNewUnread && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau message", {
           body: "Vous avez reçu un nouveau message sur Velatra.",
-          icon: "/velatra-mark.svg"
+          icon: "/brand/velatra-mark.png"
         });
       }
       initialMessageSnapshots += 1;
@@ -776,7 +776,7 @@ export default function App() {
       if (!isInitialProspectsLoad && hasNewProspect && state.user?.role !== 'member' && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau prospect", {
           body: "Un nouveau prospect a été ajouté ou s'est inscrit.",
-          icon: "/velatra-mark.svg"
+          icon: "/brand/velatra-mark.png"
         });
       }
       isInitialProspectsLoad = false;
@@ -810,7 +810,7 @@ export default function App() {
       if (!isInitialTasksLoad && hasNewTask && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouvelle tâche", {
           body: `Vous avez une nouvelle tâche à accomplir : ${newTaskTitle}`,
-          icon: "/velatra-mark.svg"
+          icon: "/brand/velatra-mark.png"
         });
       }
       isInitialTasksLoad = false;
@@ -836,7 +836,7 @@ export default function App() {
       if (!isInitialBookingsLoad && hasNewBooking && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouvelle réservation", {
           body: "Vous avez une nouvelle session de coaching réservée.",
-          icon: "/velatra-mark.svg"
+          icon: "/brand/velatra-mark.png"
         });
       }
       isInitialBookingsLoad = false;
@@ -874,7 +874,7 @@ export default function App() {
       if (!isInitialNutritionPlansLoad && hasNewNutritionPlan && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau plan nutritionnel", {
           body: "Un nouveau plan nutritionnel vous a été assigné.",
-          icon: "/velatra-mark.svg"
+          icon: "/brand/velatra-mark.png"
         });
       }
       isInitialNutritionPlansLoad = false;
@@ -1216,7 +1216,7 @@ export default function App() {
             if ('Notification' in window && Notification.permission === 'granted') {
               new Notification(payload.notification?.title || "Nouvelle notification", {
                 body: payload.notification?.body,
-                icon: payload.notification?.icon || "/velatra-mark.svg"
+                icon: payload.notification?.icon || "/brand/velatra-mark.png"
               });
             }
           });
@@ -1237,7 +1237,7 @@ export default function App() {
       if (tasksDueToday.length > 0) {
         new Notification("Rappel de tâches", {
           body: `Vous avez ${tasksDueToday.length} tâche(s) à accomplir aujourd'hui.`,
-          icon: "/velatra-mark.svg"
+          icon: "/brand/velatra-mark.png"
         });
         hasNotifiedTasks.current = true;
       }

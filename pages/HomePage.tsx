@@ -116,7 +116,7 @@ function ProductInterface({ view }: { view: ProductView }) {
     </div>
     <div className="vh-product-app">
       <aside className="vh-product-sidebar">
-        <div className="vh-product-brand"><span className="vh-logo-crop" aria-hidden="true" /><b>VELATRA</b></div>
+        <div className="vh-product-brand"><img className="vh-logo-crop" src="/brand/velatra-mark.png" alt="" /><b>VELATRA</b></div>
         <span className="vh-sidebar-caption">ESPACE COACH</span>
         <nav aria-label="Navigation de l’aperçu">
           {productViews.map((item) => {
@@ -178,7 +178,7 @@ function ToolConvergence() {
           <span className="vh-tool-chip chip-pdf"><FileText size={18} /> PDF & notes</span>
         </div>
         <div className="vh-convergence-path" aria-hidden="true"><i /><i /><i /><ArrowDown size={20} /></div>
-        <div className="vh-single-space"><span className="vh-space-mark" aria-hidden="true" /><div><span>AU MÊME ENDROIT</span><b>Velatra</b><small>Adhérents · programmes · planning · suivi</small></div><MoveRight size={23} aria-hidden="true" /></div>
+        <div className="vh-single-space"><img className="vh-space-mark" src="/brand/velatra-mark.png" alt="" /><div><span>AU MÊME ENDROIT</span><b>Velatra</b><small>Adhérents · programmes · planning · suivi</small></div><MoveRight size={23} aria-hidden="true" /></div>
       </div>
     </div>
   </section>;
@@ -194,7 +194,7 @@ function ProductTour() {
         {productViews.map((item) => { const Icon = item.icon; return <button key={item.key} type="button" aria-pressed={view === item.key} onClick={() => setView(item.key)}><Icon size={16} />{item.label}</button>; })}
       </div>
       <div className="vh-tour-layout">
-        <div className="vh-tour-copy" aria-live="polite"><span className="vh-tour-index">0{productViews.findIndex((item) => item.key === view) + 1} <i>/</i> 05</span><h3>{current.title}</h3><p>{current.description}</p><Link to="/fonctionnalites" className="vh-inline-link">Explorer les fonctionnalités <ArrowRight size={16} /></Link></div>
+        <div className="vh-tour-copy" aria-live="polite"><span className="vh-tour-index">0{productViews.findIndex((item) => item.key === view) + 1} <i>/</i> 05</span><h3>{current.title}</h3><p>{current.description}</p><Link to="/produit" className="vh-inline-link">Explorer le produit <ArrowRight size={16} /></Link></div>
         <div className="vh-tour-screen"><ProductInterface view={view} /></div>
       </div>
     </div>
@@ -204,8 +204,8 @@ function ProductTour() {
 function MemberExperience() {
   return <section className="vh-member" id="adherents" aria-labelledby="vh-member-title">
     <div className="vh-wrap vh-member-layout">
-      <div className="vh-member-copy"><span className="vh-eyebrow">L’ESPACE DE L’ADHÉRENT</span><h2 id="vh-member-title">Le coaching continue<br /><em>entre les séances.</em></h2><p>Vos adhérents retrouvent les programmes, les séances et les informations que vous partagez avec eux, depuis leur propre espace.</p><ul><li><Check size={17} /> Programmes sportifs et séances</li><li><Check size={17} /> Suivi selon les outils activés par le coach</li><li><Check size={17} /> Espace accessible sur mobile</li></ul><Link to="/fonctionnalites" className="vh-inline-link">Voir l’espace adhérent <ArrowRight size={16} /></Link></div>
-      <div className="vh-member-stage"><div className="vh-member-caption"><span>02</span><span>ESPACE ADHÉRENT · APERÇU FICTIF</span></div><div className="vh-phone"><div className="vh-phone-camera" /><div className="vh-phone-top"><span className="vh-phone-brand"><i className="vh-logo-crop" aria-hidden="true" /><b>VELATRA</b></span><span>ML</span></div><div className="vh-phone-greeting"><small>VOTRE ESPACE</small><h3>Bonjour, Mila</h3><p>Voici votre prochaine séance.</p></div><div className="vh-phone-feature"><span>PROGRAMME EN COURS</span><b>Force & mobilité</b><small>Cette semaine · 3 séances prévues</small><div><i /></div></div><div className="vh-phone-session"><span><Dumbbell size={17} /></span><div><b>Séance du jour</b><small>Haut du corps · 45 min</small></div><ChevronRight size={16} /></div><div className="vh-phone-session is-light"><span><Activity size={17} /></span><div><b>Mon suivi</b><small>Mis à jour avec votre coach</small></div><ChevronRight size={16} /></div><div className="vh-phone-bottom"><span>Accueil</span><span>Programme</span><span>Suivi</span><span>Profil</span></div></div><div className="vh-member-side-note"><span className="vh-side-note-mark"><MessageCircle size={18} /></span><b>Un espace à eux.</b><small>Des repères faciles à retrouver après chaque séance.</small></div></div>
+      <div className="vh-member-copy"><span className="vh-eyebrow">L’ESPACE DE L’ADHÉRENT</span><h2 id="vh-member-title">Le coaching continue<br /><em>entre les séances.</em></h2><p>Vos adhérents retrouvent les programmes, les séances et les informations que vous partagez avec eux, depuis leur propre espace.</p><ul><li><Check size={17} /> Programmes sportifs et séances</li><li><Check size={17} /> Suivi selon les outils activés par le coach</li><li><Check size={17} /> Espace accessible sur mobile</li></ul><Link to="/produit" className="vh-inline-link">Voir l’espace adhérent <ArrowRight size={16} /></Link></div>
+      <div className="vh-member-stage"><div className="vh-member-caption"><span>02</span><span>ESPACE ADHÉRENT · APERÇU FICTIF</span></div><div className="vh-phone"><div className="vh-phone-camera" /><div className="vh-phone-top"><span className="vh-phone-brand"><img className="vh-logo-crop" src="/brand/velatra-mark.png" alt="" /><b>VELATRA</b></span><span>ML</span></div><div className="vh-phone-greeting"><small>VOTRE ESPACE</small><h3>Bonjour, Mila</h3><p>Voici votre prochaine séance.</p></div><div className="vh-phone-feature"><span>PROGRAMME EN COURS</span><b>Force & mobilité</b><small>Cette semaine · 3 séances prévues</small><div><i /></div></div><div className="vh-phone-session"><span><Dumbbell size={17} /></span><div><b>Séance du jour</b><small>Haut du corps · 45 min</small></div><ChevronRight size={16} /></div><div className="vh-phone-session is-light"><span><Activity size={17} /></span><div><b>Mon suivi</b><small>Mis à jour avec votre coach</small></div><ChevronRight size={16} /></div><div className="vh-phone-bottom"><span>Accueil</span><span>Programme</span><span>Suivi</span><span>Profil</span></div></div><div className="vh-member-side-note"><span className="vh-side-note-mark"><MessageCircle size={18} /></span><b>Un espace à eux.</b><small>Des repères faciles à retrouver après chaque séance.</small></div></div>
     </div>
   </section>;
 }
@@ -213,7 +213,7 @@ function MemberExperience() {
 function PricingPreview() {
   return <section className="vh-pricing" aria-labelledby="vh-pricing-title"><div className="vh-wrap vh-pricing-inner">
     <div><span className="vh-eyebrow">DES FORMULES SELON VOTRE ACTIVITÉ</span><h2 id="vh-pricing-title">Choisissez votre espace.</h2><p>Comparez les outils inclus et les conditions avant de souscrire.</p></div>
-    <div className="vh-price-options"><div><span>STARTER COACH</span><b>39 € <small>/ mois</small></b><p>Tarif mensuel équivalent en facturation annuelle · jusqu’à 15 adhérents actifs.</p></div><div><span>CLUB & STUDIO</span><b>79 € <small>/ mois</small></b><p>Tarif mensuel équivalent en facturation annuelle · pour une activité en équipe.</p></div></div>
+    <div className="vh-price-options"><div><span>VELATRA COACH</span><b>49 € <small>/ mois</small></b><p>Ou 490 € par an, avec 2 mois offerts. Accès bêta sur invitation.</p></div><div><span>VELATRA STUDIO</span><b>149 € <small>/ mois</small></b><p>Ou 1 490 € par an, avec 2 mois offerts. Demandez une démonstration.</p></div></div>
     <Link to="/tarifs" className="vh-inline-link">Voir les tarifs et conditions <ArrowRight size={16} /></Link>
   </div></section>;
 }
@@ -222,13 +222,13 @@ const faqs = [
   { question: 'À qui s’adresse Velatra ?', answer: 'Velatra s’adresse aux coachs sportifs indépendants, personal trainers et structures de coaching qui veulent réunir leurs outils de suivi et d’organisation.' },
   { question: 'Que peuvent consulter les adhérents ?', answer: 'Selon les fonctionnalités activées par leur coach, les adhérents retrouvent leurs programmes, leurs séances et les informations de suivi partagées.' },
   { question: 'Comment demander un accès ?', answer: 'La création d’un espace coach nécessite actuellement un code d’invitation bêta. Contactez-nous pour connaître les conditions d’accès.' },
-  { question: 'Où voir les prix et les fonctions de chaque formule ?', answer: 'La page Tarifs détaille les montants selon la période de facturation, le nombre d’adhérents et les fonctionnalités affichées.' },
+  { question: 'Où comparer les offres et fonctionnalités ?', answer: 'La page Tarifs détaille les montants selon la période de facturation, les fonctionnalités et l’organisation de chaque offre.' },
 ];
 
 function ClosingSection() {
   const [open, setOpen] = useState<number | null>(null);
   return <section className="vh-closing" aria-labelledby="vh-closing-title"><div className="vh-wrap vh-closing-layout">
-    <div className="vh-closing-cta"><span className="vh-eyebrow">REPRENEZ LE FIL DE VOTRE ACTIVITÉ</span><h2 id="vh-closing-title">Vous êtes devenu coach<br /><em>pour coacher.</em></h2><p>Votre activité mérite un espace pensé pour la suivre au quotidien.</p><Link to="/contact" className="vh-button vh-button-primary">Demander un accès bêta <ArrowRight size={17} /></Link><Link to="/tarifs" className="vh-secondary-link">Voir les tarifs</Link><div className="vh-closing-rule"><span>VELATRA · ESPACE COACH</span><i /></div></div>
+    <div className="vh-closing-cta"><span className="vh-eyebrow">REPRENEZ LE FIL DE VOTRE ACTIVITÉ</span><h2 id="vh-closing-title">Vous êtes devenu coach<br /><em>pour coacher.</em></h2><p>Votre activité mérite un espace pensé pour la suivre au quotidien.</p><Link to="/contact?request=coach-beta" className="vh-button vh-button-primary">Obtenir mon accès bêta <ArrowRight size={17} /></Link><Link to="/tarifs" className="vh-secondary-link">Voir les tarifs</Link><div className="vh-closing-rule"><span>VELATRA · ESPACE COACH</span><i /></div></div>
     <div className="vh-faq"><span className="vh-eyebrow">QUESTIONS FRÉQUENTES</span><h3>Avant de vous lancer.</h3>{faqs.map((item, index) => <article key={item.question} className={open === index ? 'is-open' : ''}><button type="button" aria-expanded={open === index} onClick={() => setOpen(open === index ? null : index)}><span>{item.question}</span><span aria-hidden="true">{open === index ? '−' : '+'}</span></button>{open === index && <p>{item.answer}</p>}</article>)}<Link to="/contact" className="vh-inline-link">Une autre question ? Écrivez-nous <ArrowRight size={15} /></Link></div>
   </div></section>;
 }
@@ -249,7 +249,7 @@ export default function HomePage() {
           <span className="vh-eyebrow"><i /> LA PLATEFORME TOUT-EN-UN DES COACHS</span>
           <h1 id="vh-hero-title">Gérez votre coaching.<br /><em>Pas vos outils.</em></h1>
           <p>Clients, programmes, planning, paiements et CRM. Velatra rassemble toute votre activité dans une seule plateforme.</p>
-          <div className="vh-hero-actions"><Link to="/contact" className="vh-button vh-button-primary">Demander un accès bêta <ArrowRight size={17} /></Link><a href="#produit" className="vh-button vh-button-secondary">Voir le produit <ArrowDown size={16} /></a></div>
+          <div className="vh-hero-actions"><Link to="/contact?request=coach-beta" className="vh-button vh-button-primary">Obtenir mon accès bêta <ArrowRight size={17} /></Link><a href="#produit" className="vh-button vh-button-secondary">Voir le produit <ArrowDown size={16} /></a></div>
           <div className="vh-hero-facts"><span>COACH + ADHÉRENT</span><i /><span>SPORT + NUTRITION</span><i /><span>CRM + ORGANISATION</span></div>
         </div>
         <div className="vh-wrap vh-hero-product"><ProductInterface view="overview" /><div className="vh-hero-glass-note" aria-hidden="true"><span><CalendarDays size={15} /></span><div><small>PROCHAIN COACHING</small><b>Mila · 14:30</b></div><i /></div></div>

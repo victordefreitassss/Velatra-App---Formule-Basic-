@@ -1,208 +1,25 @@
-import React, { useState } from 'react';
-import { Helmet } from 'react-helmet-async';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Dumbbell, Zap, Calendar, Users, BarChart4, MessageSquare, 
-  CheckCircle, Shield, Award, Sparkles, Smartphone, CreditCard, ChevronRight, PlayCircle
-} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, CalendarDays, Users, Dumbbell, Sparkles } from 'lucide-react';
+import { PublicMeta, PublicHero, FeatureList, ProductCapture, ProductClosing } from '../components/PublicProduct';
+
+const pillars = [
+  { icon: CalendarDays, title: 'Application & gestion', text: 'Clients, planning et paiements dans votre espace de travail.', href: '#gestion' },
+  { icon: Users, title: 'CRM', text: 'Du premier contact à l’accompagnement, gardez le fil.', href: '#crm' },
+  { icon: Dumbbell, title: 'Coaching & suivi', text: 'Séances, progression et échanges autour de chaque adhérent.', href: '#suivi' },
+  { icon: Sparkles, title: 'Programmation', text: 'Votre expertise, avec une création manuelle ou assistée par l’IA.', href: '#programmation' },
+];
 
 export default function FeaturesPage() {
-  const [activeTab, setActiveTab] = useState<'coach' | 'athlete' | 'business'>('coach');
-
-  const tabs = [
-    { id: 'coach', label: 'Espace Coach & Studio', desc: 'Organisez les programmes et le suivi', icon: Dumbbell },
-    { id: 'athlete', label: 'Espace Adhérent', desc: 'Retrouvez les contenus de coaching', icon: Smartphone },
-    { id: 'business', label: 'Gestion de l’activité', desc: 'Retrouvez les outils de gestion', icon: BarChart4 }
-  ];
-
-  const subfeatures = {
-    coach: [
-      {
-        title: "Préparer des séances",
-        desc: "Composez les séances et les programmes sportifs à partager avec vos adhérents depuis l’espace coach.",
-        metrics: "Séances • Programmes • Exercices"
-      },
-      {
-        title: "Consulter l’activité",
-        desc: "Retrouvez les informations de suivi renseignées par les adhérents et préparez les prochaines séances.",
-        metrics: "Profils • Activité • Suivi"
-      },
-      {
-        title: "Organiser le planning",
-        desc: "Consultez les rendez-vous et les séances prévus dans les outils de planning de votre espace.",
-        metrics: "Calendrier • Rendez-vous • Séances"
-      },
-      {
-        title: "Suivre les évolutions",
-        desc: "Consultez les mesures, les performances et les éléments d’évolution partagés avec le coach.",
-        metrics: "Historique • Mesures • Performances"
-      }
-    ],
-    athlete: [
-      {
-        title: "Retrouver ses séances",
-        desc: "Les adhérents consultent les programmes et séances que leur coach met à leur disposition dans leur espace.",
-        metrics: "Programmes • Séances • Exercices"
-      },
-      {
-        title: "Consulter le suivi nutritionnel",
-        desc: "Retrouvez les éléments de suivi alimentaire partagés avec votre coach dans votre espace.",
-        metrics: "Plans • Journaux • Suivi"
-      },
-      {
-        title: "Échanger avec son coach",
-        desc: "Utilisez la messagerie de l’application pour retrouver les échanges liés à votre accompagnement.",
-        metrics: "Messagerie • Échanges de fichiers"
-      },
-      {
-        title: "Suivre ses progrès",
-        desc: "Consignez l’activité sportive et retrouvez les éléments de progression disponibles dans votre espace.",
-        metrics: "Historique • Performances • Objectifs"
-      }
-    ],
-    business: [
-      {
-        title: "Suivre les paiements",
-        desc: "Consultez les éléments financiers de votre activité et connectez Stripe depuis les paramètres prévus à cet effet.",
-        metrics: "Suivi financier • Connexion Stripe selon configuration"
-      },
-      {
-        title: "Organiser vos prospects",
-        desc: "Retrouvez les contacts prospects dans un espace de suivi et organisez les étapes de prise de contact.",
-        metrics: "Fiches prospects • Étapes de suivi"
-      },
-      {
-        title: "Gérer les éléments financiers",
-        desc: "Rassemblez les informations de revenus, paiements et dépenses disponibles dans les outils de gestion.",
-        metrics: "Paiements • Dépenses • Factures"
-      },
-      {
-        title: "Travailler avec plusieurs coachs",
-        desc: "Organisez les profils coachs et les adhérents associés selon les rôles configurés dans votre espace.",
-        metrics: "Profils coachs • Adhérents associés"
-      }
-    ]
-  };
-
-  return (
-    <>
-    <Helmet>
-      <title>Fonctionnalités Velatra — Coaching, programmes et suivi</title>
-      <meta name="description" content="Découvrez les fonctionnalités de Velatra pour gérer vos adhérents, préparer les programmes sportifs et organiser le suivi de votre activité." />
-      <link rel="canonical" href={`${window.location.origin}/fonctionnalites`} />
-    </Helmet>
-    <div className="pt-32 pb-24 relative overflow-hidden bg-transparent">
-      {/* Background Gradients */}
-      <div className="absolute top-20 left-10 w-80 h-80 bg-emerald-500/5 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-20 right-10 w-96 h-96 bg-emerald-400/5 rounded-full blur-[140px] pointer-events-none"></div>
-
-      <div className="max-w-5xl mx-auto px-6">
-        
-        {/* Header */}
-        <div className="text-center space-y-4 mb-16">
-          <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full font-black uppercase tracking-wider block w-fit mx-auto">
-            PUISSANCE FONCTIONNELLE
-          </span>
-          <h1 className="text-4xl md:text-5xl font-display font-black tracking-tight text-zinc-950 dark:text-white leading-none">
-            Les outils de coaching et de gestion réunis dans <span className="text-emerald-500 font-extrabold">Velatra</span>
-          </h1>
-          <p className="text-zinc-550 dark:text-zinc-400 text-sm md:text-base max-w-2xl mx-auto leading-relaxed">
-            Des outils pour organiser vos adhérents, vos programmes, votre planning et les informations utiles à votre activité.
-          </p>
-        </div>
-
-        {/* Tab Selector */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-zinc-100/70 dark:bg-zinc-900/60 p-2 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 max-w-3xl mx-auto mb-16">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isSelected = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`p-4 rounded-xl text-left transition-all flex items-start gap-3 border-none focus:outline-none ${isSelected ? 'bg-white dark:bg-zinc-800 shadow-md ring-1 ring-zinc-200/40 dark:ring-zinc-700/30' : 'hover:bg-zinc-50 dark:hover:bg-zinc-850/60'}`}
-              >
-                <div className={`p-2 rounded-lg shrink-0 ${isSelected ? 'bg-emerald-500 text-white' : 'bg-zinc-200/60 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'}`}>
-                  <Icon className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className={`text-xs md:text-sm font-bold block ${isSelected ? 'text-zinc-950 dark:text-white' : 'text-zinc-650 dark:text-zinc-450'}`}>
-                    {tab.label}
-                  </h4>
-                  <span className="text-[10px] text-zinc-400 block leading-tight mt-0.5">{tab.desc}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Subfeatures list */}
-        <div className="bg-white dark:bg-zinc-905 border border-zinc-200/60 dark:border-zinc-850 p-8 md:p-12 rounded-[40px] shadow-xl relative min-h-[450px]">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-550/5 rounded-full blur-[80px] pointer-events-none"></div>
-
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.3 }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 relative z-10"
-            >
-              {subfeatures[activeTab].map((item, index) => (
-                <div key={index} className="space-y-4 flex flex-col justify-between group">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 block"></span>
-                      <h3 className="text-base font-bold text-zinc-950 dark:text-white tracking-tight group-hover:text-emerald-500 transition-colors">
-                        {item.title}
-                      </h3>
-                    </div>
-                    <p className="text-xs md:text-sm text-zinc-550 dark:text-zinc-400 leading-relaxed font-normal">
-                      {item.desc}
-                    </p>
-                  </div>
-                  <div className="bg-zinc-50 dark:bg-zinc-90 w-fit px-3 py-1.5 rounded-lg border border-zinc-150 dark:border-zinc-800/40 text-[10px] text-zinc-500 dark:text-zinc-400 font-mono tracking-tight font-medium">
-                    ⚡ {item.metrics}
-                  </div>
-                </div>
-              ))}
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* Final CTA Banner */}
-        <div className="bg-zinc-950 text-white p-8 md:p-12 rounded-[40px] border border-zinc-900 mt-20 text-center space-y-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-radial from-emerald-500/10 via-transparent to-transparent"></div>
-          <div className="relative z-10 max-w-xl mx-auto space-y-4">
-            <Sparkles className="w-8 h-8 text-emerald-400 mx-auto" strokeWidth={1.5} />
-            <h2 className="text-2xl md:text-3xl font-display font-black tracking-tight text-white leading-tight">
-              Moins de dispersion dans votre quotidien de coach
-            </h2>
-            <p className="text-xs text-zinc-400 max-w-md mx-auto leading-relaxed">
-              Découvrez les fonctionnalités de Velatra et choisissez les outils adaptés à votre façon de travailler.
-            </p>
-            <div className="pt-4 flex justify-center gap-4">
-              <a
-                href="/register"
-                className="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl text-xs flex items-center gap-2 transition-all shadow-lg shadow-emerald-500/20"
-              >
-                Créer mon compte <ChevronRight className="w-4 h-4" />
-              </a>
-              <a
-                href="/contact"
-                className="bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-zinc-200 font-bold py-3 px-6 rounded-xl text-xs transition-colors"
-              >
-                Demander une démonstration
-              </a>
-            </div>
-          </div>
-        </div>
-
-      </div>
+  return <div className="vp-page">
+    <PublicMeta path="/produit" title="Le produit Velatra — Votre activité de coaching réunie" description="Explorez Velatra : gestion des clients, CRM, programmes, suivi, planning, paiements et assistance IA dans une plateforme de coaching." />
+    <PublicHero eyebrow="LE PRODUIT VELATRA" title={<>Un seul espace.<br /><em>Tout le fil du coaching.</em></>} description="Du premier échange avec un prospect au suivi d’une séance, retrouvez les outils qui accompagnent votre quotidien de coach." />
+    <div className="marketing-container"><ProductCapture /><nav className="vp-pillars" aria-label="Les quatre piliers du produit">{pillars.map(({ icon: Icon, title, text, href }, index) => <a href={href} key={title}><span className="vp-pillar-number">0{index + 1}<Icon size={20} /></span><h2>{title}</h2><p>{text}</p><ArrowRight size={18} /></a>)}</nav>
+      <section className="vp-section vp-split" id="gestion"><div><span className="marketing-kicker">01 · APPLICATION & GESTION</span><h2>Une activité organisée.<br /><em>Une journée plus claire.</em></h2><p>Retrouvez vos clients, vos rendez-vous et vos tâches au même endroit. Les espaces coach et adhérent relient la préparation à l’accompagnement.</p></div><div className="vp-panel"><h3>L’essentiel de votre gestion</h3><FeatureList items={['Fiches adhérents et informations de suivi', 'Planning, rendez-vous et réservations', 'Tâches et organisation du quotidien', 'Suivi des paiements, dépenses et factures']} /><p className="vp-note">Les paiements en ligne nécessitent la connexion et la configuration de votre compte Stripe dans Velatra.</p></div></section>
+      <section className="vp-section" id="crm"><div className="vp-section-heading"><span className="marketing-kicker">02 · CRM</span><h2>Chaque contact a<br /><em>une prochaine étape.</em></h2><p>Rassemblez les coordonnées, les notes et les étapes de vos prospects. Planifiez une relance ou une séance d’essai, puis créez le profil adhérent quand l’accompagnement commence.</p></div><ProductCapture view="crm" /><div className="vp-inline-facts"><span>Pipeline commercial</span><span>Notes & rappels de relance</span><span>Conversion prospect → adhérent</span></div></section>
+      <section className="vp-section vp-split" id="suivi"><div><span className="marketing-kicker">03 · COACHING & SUIVI</span><h2>Le contexte de chacun.<br /><em>À chaque séance.</em></h2><p>Programmes, historique et échanges restent liés à l’adhérent. Consultez les séances réalisées, les performances et les mesures renseignées pour préparer la suite.</p><Link to="/solutions/coach-sportif" className="marketing-text-link">Découvrir Velatra Coach<ArrowRight size={17} /></Link></div><div className="vp-panel"><span className="marketing-kicker">L’ESPACE ADHÉRENT</span><h3>Le suivi continue entre deux séances.</h3><FeatureList items={['Consulter les programmes partagés par le coach', 'Enregistrer ses séances et suivre ses performances', 'Retrouver les plans et le suivi nutritionnel', 'Échanger avec son coach dans la messagerie', 'Consulter son espace depuis un ordinateur ou un mobile']} /><p className="vp-note">Velatra est une application web responsive. Les contenus disponibles dépendent de ce que le coach partage.</p></div></section>
+      <section className="vp-section" id="programmation"><div className="vp-section-heading"><span className="marketing-kicker">04 · PROGRAMMATION</span><h2>Programmez à votre façon.</h2><p>Votre méthode reste au centre. L’IA Velatra vous aide à préparer et adapter vos propositions, puis vous les relisez, ajustez et validez.</p></div><div className="vp-two-col"><article className="vp-panel"><Dumbbell size={24} /><h3>Manuellement</h3><p>Composez vos programmes et séances à partir des exercices. Ajustez les séries, les répétitions et les consignes selon les objectifs de chaque adhérent.</p></article><article className="vp-panel vp-panel-tint"><Sparkles size={24} /><h3>Avec l’aide de l’IA Velatra</h3><p>Préparez une proposition de programme à partir du profil et des objectifs, puis reprenez-la dans l’éditeur. Le coach garde la décision finale.</p><span className="vp-note">L’assistance IA fait partie du produit. Aucun abonnement IA séparé.</span></article></div><p className="vp-note vp-ai-note">L’assistant conversationnel aide aussi à comprendre les séances et le programme. Il ne modifie pas seul les programmes de l’adhérent.</p><Link to="/tarifs#programmation-sur-mesure" className="marketing-text-link">Vous préférez déléguer la programmation ?<ArrowRight size={17} /></Link></section>
+      <ProductClosing />
     </div>
-    </>
-  );
+  </div>;
 }
-
 export { FeaturesPage };

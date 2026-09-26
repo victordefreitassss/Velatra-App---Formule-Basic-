@@ -373,7 +373,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
-              <span className="text-2xl animate-bounce">{coachGreeting.icon}</span>
+              <img src="/brand/velatra-mark.png" alt="" className="h-7 w-7 shrink-0 object-contain" />
               <span className="text-xs font-black uppercase tracking-[3px] text-emerald-400">Centre de Commandes</span>
             </div>
             <div>
@@ -391,7 +391,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
               <ClockIcon size={22} className="animate-pulse" />
             </div>
             <div>
-              <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Date d'aujourd'hui</div>
+              <div className="text-[12px] font-black uppercase tracking-wider text-zinc-300">Date d'aujourd'hui</div>
               <div className="text-sm font-bold tracking-tight">
                 {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
               </div>
@@ -431,7 +431,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
             <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${btn.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-inner`}>
               <btn.icon size={22} strokeWidth={2.5} />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-900 group-hover:text-zinc-950 transition-colors">{btn.label}</span>
+            <span className="text-[12px] font-black uppercase tracking-wider text-zinc-900 group-hover:text-zinc-950 transition-colors">{btn.label}</span>
           </motion.button>
         ))}
       </motion.div>
@@ -457,22 +457,22 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 onClick={() => setSessionsPeriod(prev => prev === 'month' ? 'week' : prev === 'week' ? 'day' : 'month')}
                 className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-emerald-500/30 cursor-pointer transition-all relative group"
               >
-                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2 mr-1">
+                <div className="text-[12px] font-black uppercase tracking-widest text-zinc-600 mb-2 mr-1">
                   Séances ({sessionsPeriod === 'month' ? 'Mois' : sessionsPeriod === 'week' ? 'Semaine' : 'Jour'})
                 </div>
                 <div className="text-3xl font-display font-black text-zinc-900 group-hover:scale-105 transition-transform origin-left">
                   {sessionsPeriod === 'month' ? sessionsThisMonth : sessionsPeriod === 'week' ? sessionsThisWeek : sessionsToday}
                 </div>
-                <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1.5">
+                <div className="text-[12px] text-zinc-500 font-bold uppercase tracking-wider mt-1.5">
                   Cliquez pour changer
                 </div>
               </div>
               
               {/* 2. NOMBRE D'ADHÉRENTS DE L'UTILISATEUR */}
               <div className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
-                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2">Adhérents Actifs</div>
+                <div className="text-[12px] font-black uppercase tracking-widest text-zinc-600 mb-2">Adhérents Actifs</div>
                 <div className="text-3xl font-display font-black text-indigo-600">{members.length}</div>
-                <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1.5">Athlètes du club</div>
+                <div className="text-[12px] text-zinc-500 font-bold uppercase tracking-wider mt-1.5">Athlètes du club</div>
               </div>
 
               {/* 3. CHIFFRE D'AFFAIRES (CA) CLIQUEZ POUR SWITCHER CE MOIS/CETTE ANNÉE/CETTE SEMAINE */}
@@ -480,22 +480,22 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 onClick={() => setCaPeriod(prev => prev === 'month' ? 'year' : prev === 'year' ? 'week' : 'month')}
                 className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-emerald-500/30 cursor-pointer transition-all relative group"
               >
-                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2 mr-1">
+                <div className="text-[12px] font-black uppercase tracking-widest text-zinc-600 mb-2 mr-1">
                   CA ({caPeriod === 'month' ? 'Mois' : caPeriod === 'year' ? 'Année' : 'Semaine'})
                 </div>
                 <div className="text-3xl font-display font-black text-emerald-600 group-hover:scale-105 transition-transform origin-left">
                   {(caPeriod === 'month' ? revenueThisMonth : caPeriod === 'year' ? revenueThisYear : revenueThisWeek).toFixed(0)}€
                 </div>
-                <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1.5">
+                <div className="text-[12px] text-zinc-500 font-bold uppercase tracking-wider mt-1.5">
                   Cliquez pour changer
                 </div>
               </div>
 
               {/* 4. ABO MOYEN */}
               <div className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all">
-                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2">Abo Moyen</div>
+                <div className="text-[12px] font-black uppercase tracking-widest text-zinc-600 mb-2">Abo Moyen</div>
                 <div className="text-3xl font-display font-black text-zinc-900">{arpu.toFixed(0)}€</div>
-                <div className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1.5">Valeur par athlète</div>
+                <div className="text-[12px] text-zinc-500 font-bold uppercase tracking-wider mt-1.5">Valeur par athlète</div>
               </div>
             </div>
           </motion.section>
@@ -507,7 +507,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 <div className="w-1.5 h-6 rounded bg-indigo-500" />
                 <h2 className="text-lg font-black uppercase tracking-wider text-zinc-900 italic">Volume d'Activité Hebdomadaire</h2>
               </div>
-              <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">7 derniers jours</span>
+              <span className="text-[12px] font-black uppercase tracking-widest text-zinc-600">7 derniers jours</span>
             </div>
             
             <Card className="!p-6 bg-white border border-zinc-200/80 shadow-sm">
@@ -580,9 +580,9 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                     {planRequests.length > 0 && <span className="w-2.5 h-2.5 bg-orange-500 rounded-full animate-ping" />}
                   </div>
                   <div className="text-3xl font-display font-black text-zinc-900">{planRequests.length}</div>
-                  <div className="text-[9px] font-black text-zinc-500 uppercase mt-2 tracking-widest flex items-center justify-between">
+                  <div className="text-[12px] font-black text-zinc-500 uppercase mt-2 tracking-widest flex items-center justify-between">
                     <span>Créations de Plans</span>
-                    <span className="text-zinc-400 group-hover:text-orange-500 transition-colors">→</span>
+                    <span className="text-zinc-600 group-hover:text-orange-500 transition-colors">→</span>
                   </div>
                 </Card>
               </motion.div>
@@ -598,9 +598,9 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                     {unreadMessages.length > 0 && <span className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping" />}
                   </div>
                   <div className="text-3xl font-display font-black text-zinc-900">{unreadMessages.length}</div>
-                  <div className="text-[9px] font-black text-zinc-500 uppercase mt-2 tracking-widest flex items-center justify-between">
+                  <div className="text-[12px] font-black text-zinc-500 uppercase mt-2 tracking-widest flex items-center justify-between">
                     <span>Messages non lus</span>
-                    <span className="text-zinc-400 group-hover:text-blue-500 transition-colors">→</span>
+                    <span className="text-zinc-600 group-hover:text-blue-500 transition-colors">→</span>
                   </div>
                 </Card>
               </motion.div>
@@ -616,9 +616,9 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                     {tasksToday.length > 0 && <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping" />}
                   </div>
                   <div className="text-3xl font-display font-black text-zinc-900">{tasksToday.length}</div>
-                  <div className="text-[9px] font-black text-zinc-500 uppercase mt-2 tracking-widest flex items-center justify-between">
+                  <div className="text-[12px] font-black text-zinc-500 uppercase mt-2 tracking-widest flex items-center justify-between">
                     <span>Tâches du jour</span>
-                    <span className="text-zinc-400 group-hover:text-emerald-500 transition-colors">→</span>
+                    <span className="text-zinc-600 group-hover:text-emerald-500 transition-colors">→</span>
                   </div>
                 </Card>
               </motion.div>
@@ -635,7 +635,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 </div>
                 <Button 
                   onClick={() => setState(s => ({ ...s, page: 'calendar' }))}
-                  className="!py-1.5 !px-3.5 !text-[9px] hover:scale-105 transition-transform"
+                  className="!py-1.5 !px-3.5 !text-[12px] hover:scale-105 transition-transform"
                 >
                   GÉRER LE SCHÉDULE
                 </Button>
@@ -643,9 +643,9 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
               
               {upcomingEvents.length === 0 ? (
                 <Card className="!p-8 bg-zinc-50/50 border-dashed border-2 border-zinc-200 flex flex-col items-center justify-center text-center shadow-inner rounded-3xl">
-                  <CalendarIcon size={28} className="text-zinc-400 mb-2.5" />
+                  <CalendarIcon size={28} className="text-zinc-600 mb-2.5" />
                   <p className="text-xs font-black text-zinc-900 uppercase tracking-wider">Aucune réservation active</p>
-                  <p className="text-[10px] text-zinc-500 mt-1 max-w-xs">Vos athlètes n'ont pas encore réservé de séances sur vos créneaux.</p>
+                  <p className="text-[12px] text-zinc-500 mt-1 max-w-xs">Vos athlètes n'ont pas encore réservé de séances sur vos créneaux.</p>
                 </Card>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -665,12 +665,12 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                           </div>
                           <div>
                             <div className="font-extrabold text-xs text-zinc-900 max-w-[120px] truncate">{member?.name || 'Inscrit Direct'}</div>
-                            <div className="text-[10px] text-zinc-500 font-medium">{startTime} à {endTime}</div>
+                            <div className="text-[12px] text-zinc-500 font-medium">{startTime} à {endTime}</div>
                           </div>
                         </div>
                         <Button 
                           variant="secondary" 
-                          className="!py-1.5 !px-3 !text-[9px]"
+                          className="!py-1.5 !px-3 !text-[12px]"
                           onClick={() => setState(s => ({ ...s, page: 'calendar' }))}
                         >
                           Détails
@@ -712,7 +712,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                           }
                         }
                       }}
-                      className="text-[9px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 py-1.5 px-3 rounded-full transition-all flex items-center gap-1 border border-emerald-500/10 cursor-pointer"
+                      className="text-[12px] font-black uppercase tracking-wider text-emerald-600 hover:text-emerald-700 bg-emerald-500/10 hover:bg-emerald-500/20 py-1.5 px-3 rounded-full transition-all flex items-center gap-1 border border-emerald-500/10 cursor-pointer"
                     >
                       <CheckCircleIcon size={10} strokeWidth={3} />
                       Tout vider
@@ -728,7 +728,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 const clubFeed = (state.feed || []).filter(f => f.clubId === state.user?.clubId);
                 if (clubFeed.length === 0) {
                   return (
-                    <div className="text-center py-10 bg-zinc-50 border border-zinc-200/80 rounded-3xl text-zinc-400 italic text-xs font-black uppercase tracking-widest opacity-60">
+                    <div className="text-center py-10 bg-zinc-50 border border-zinc-200/80 rounded-3xl text-zinc-600 italic text-xs font-black uppercase tracking-widest opacity-60">
                       Rien à signaler
                     </div>
                   );
@@ -759,7 +759,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                             console.error("Error deleting feed item:", err);
                           }
                         }}
-                        className="p-1.5 rounded-full hover:bg-emerald-500/10 text-zinc-400 hover:text-emerald-600 transition-all cursor-pointer select-none"
+                        className="p-1.5 rounded-full hover:bg-emerald-500/10 text-zinc-600 hover:text-emerald-600 transition-all cursor-pointer select-none"
                         title="Marquer comme traité"
                       >
                         <CheckCircleIcon size={16} strokeWidth={2.5} />
@@ -846,7 +846,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
               ))}
 
               {membersAtRisk.length === 0 && failedSubs.length === 0 && endingSubs.length === 0 && (
-                <div className="text-xs text-zinc-500 font-black uppercase tracking-widest p-5 text-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-200 text-zinc-400">
+                <div className="text-xs text-zinc-500 font-black uppercase tracking-widest p-5 text-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-200 text-zinc-600">
                   Zéro alerte, performance maximale ✨
                 </div>
               )}
@@ -875,7 +875,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                     <motion.div key={`streak_leader_${m.id}`} whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 450, damping: 30 }}>
                       <Card className="!p-4 bg-white border border-zinc-200/80 flex items-center justify-between shadow-sm">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center font-bold text-[10px] text-zinc-800 border border-zinc-200 shrink-0 overflow-hidden">
+                          <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center font-bold text-[12px] text-zinc-800 border border-zinc-200 shrink-0 overflow-hidden">
                             {m.avatar?.startsWith('http') ? (
                               <img src={m.avatar} alt={m.name} className="w-full h-full object-cover" />
                             ) : (
@@ -885,7 +885,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                           <div>
                             <div className="text-xs font-black text-zinc-900 leading-tight truncate max-w-[100px]">{m.name}</div>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[8px] font-black text-zinc-400 uppercase tracking-wider">Lvl {Math.floor((m.xp || 0) / 1000) + 1}</span>
+                              <span className="text-[8px] font-black text-zinc-600 uppercase tracking-wider">Lvl {Math.floor((m.xp || 0) / 1000) + 1}</span>
                               {isHighStreak && (
                                 <div className="flex items-center gap-0.5 text-[8px] font-black text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded-full border border-orange-505/10">
                                   <FlameIcon size={8} fill="currentColor" /> {m.streak} J
@@ -945,7 +945,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 );
               })}
               {upcomingBirthdays.length === 0 && (
-                <div className="text-xs text-zinc-500 font-black uppercase tracking-widest p-5 text-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-200 text-zinc-400">
+                <div className="text-xs text-zinc-500 font-black uppercase tracking-widest p-5 text-center bg-zinc-50 rounded-2xl border border-dashed border-zinc-200 text-zinc-600">
                   Aucun anniversaire ce mois-ci 🎂
                 </div>
               )}

@@ -18,7 +18,7 @@ const COLUMNS = [
   { id: 'contacted', title: 'Contacté', color: 'bg-yellow-50 text-yellow-600 border-yellow-200', dot: 'bg-yellow-500' },
   { id: 'call_pending', title: 'À relancer', color: 'bg-orange-50 text-orange-600 border-orange-200', dot: 'bg-orange-500' },
   { id: 'trial', title: 'Séance d\'essai', color: 'bg-purple-50 text-purple-600 border-purple-200', dot: 'bg-purple-500' },
-  { id: 'won', title: 'Abonné', color: 'bg-emerald-50 text-emerald-600 border-emerald-200', dot: 'bg-emerald-500' },
+  { id: 'won', title: 'Abonné', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
   { id: 'lost', title: 'Perdu', color: 'bg-red-50 text-red-600 border-red-200', dot: 'bg-red-500' }
 ];
 
@@ -295,7 +295,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   const activeSelectedProspect = selectedProspect ? state.prospects.find(p => p.id === selectedProspect.id) : null;
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 lg:space-y-8 page-transition h-[calc(100vh-80px)] xl:h-screen w-full flex flex-col">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 lg:space-y-8 page-transition xl:h-screen w-full flex flex-col">
       {/* HEADER & DASHBOARD */}
       <div className="space-y-6 shrink-0 max-w-[1600px] w-full mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -303,9 +303,9 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
             <h1 className="text-3xl font-display font-bold text-zinc-900">Pipeline Commercial</h1>
             <p className="text-zinc-500 mt-1">Gérez votre pipeline et convertissez vos leads plus facilement.</p>
           </div>
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          <div className="flex flex-wrap md:flex-nowrap items-center gap-3 w-full md:w-auto">
+            <div className="relative w-full md:w-64 md:flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
               <input
                 type="text"
                 placeholder="Rechercher..."
@@ -352,13 +352,13 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
           <Card className="p-4 border border-emerald-100 bg-emerald-50/50">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Taux de conversion</p>
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Taux de conversion</p>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-2xl font-black text-zinc-900">{winRate}%</span>
                   <span className="text-sm font-medium text-zinc-500">dossiers gagnés</span>
                 </div>
               </div>
-              <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+              <div className="p-2 bg-emerald-100 text-emerald-700 rounded-lg">
                 <CheckCircle className="w-5 h-5" />
               </div>
             </div>
@@ -385,13 +385,13 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
 
       {/* KANBAN BOARD */}
       <div className="flex-1 mt-0 overflow-hidden min-h-[500px] max-w-[1600px] w-full mx-auto w-full pb-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 lg:gap-4 h-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 lg:gap-4 xl:h-full">
           {COLUMNS.map(col => {
             const colProspects = filteredProspects.filter(p => p.status === col.id);
             return (
               <div 
                 key={col.id} 
-                className="flex flex-col bg-zinc-50 border border-zinc-200 rounded-2xl h-full overflow-hidden"
+                className="flex flex-col bg-zinc-50 border border-zinc-200 rounded-2xl min-h-[180px] xl:h-full overflow-hidden"
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, col.id)}
               >
@@ -401,7 +401,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                     <div className={`w-2 h-2 rounded-full ${col.dot}`} />
                     <h3 className="font-bold text-[13px] text-zinc-900 leading-none">{col.title}</h3>
                   </div>
-                  <span className="text-[10px] font-bold bg-white border border-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded-full shadow-sm">
+                  <span className="text-[12px] font-bold bg-white border border-zinc-200 text-zinc-500 px-1.5 py-0.5 rounded-full shadow-sm">
                     {colProspects.length}
                   </span>
                 </div>
@@ -421,14 +421,14 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                       </div>
                       
                       {prospect.email && (
-                        <div className="flex items-center gap-1.5 max-w-full text-[10px] text-zinc-500 mb-1">
+                        <div className="flex items-center gap-1.5 max-w-full text-[12px] text-zinc-500 mb-1">
                           <Mail className="w-3 h-3 shrink-0" />
                           <span className="truncate">{prospect.email}</span>
                         </div>
                       )}
                       
                       {prospect.phone && (
-                        <div className="flex items-center gap-1.5 max-w-full text-[10px] text-zinc-500 mb-2">
+                        <div className="flex items-center gap-1.5 max-w-full text-[12px] text-zinc-500 mb-2">
                           <Phone className="w-3 h-3 shrink-0" />
                           <span className="truncate">{prospect.phone}</span>
                         </div>
@@ -436,7 +436,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
 
                       <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-100">
                         {prospect.nextReminderDate ? (
-                          <div className={`flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                          <div className={`flex items-center gap-1 text-[12px] font-bold px-1.5 py-0.5 rounded-md ${
                             isToday(parseISO(prospect.nextReminderDate)) ? 'bg-orange-100 text-orange-700' :
                             isPast(parseISO(prospect.nextReminderDate)) ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-600'
                           }`}>
@@ -444,11 +444,11 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                             {format(parseISO(prospect.nextReminderDate), 'dd MMM', { locale: fr })}
                           </div>
                         ) : (
-                          <div className="text-[9px] text-zinc-400">Pas de relance</div>
+                          <div className="text-[12px] text-zinc-600">Pas de relance</div>
                         )}
 
                         {prospect.notesHistory && prospect.notesHistory.length > 0 && (
-                          <div className="flex items-center gap-1 text-[9px] font-bold text-zinc-400 bg-zinc-50 px-1.5 py-0.5 rounded-md">
+                          <div className="flex items-center gap-1 text-[12px] font-bold text-zinc-600 bg-zinc-50 px-1.5 py-0.5 rounded-md">
                             <MessageSquare className="w-2.5 h-2.5 shrink-0" />
                             {prospect.notesHistory.length}
                           </div>
@@ -458,7 +458,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                   ))}
                   
                   {colProspects.length === 0 && (
-                    <div className="p-3 border-2 border-dashed border-zinc-200 rounded-xl text-center text-[10px] text-zinc-400">
+                    <div className="p-3 border-2 border-dashed border-zinc-200 rounded-xl text-center text-[12px] text-zinc-600">
                       Glissez ici
                     </div>
                   )}
@@ -479,7 +479,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
               <div>
                 <h2 className="text-xl font-bold text-zinc-900">{activeSelectedProspect.name}</h2>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                  <span className={`text-[12px] font-bold uppercase px-2 py-0.5 rounded-full ${
                     COLUMNS.find(c => c.id === activeSelectedProspect.status)?.color
                   }`}>
                     {COLUMNS.find(c => c.id === activeSelectedProspect.status)?.title || 'Lead'}
@@ -503,17 +503,17 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                       <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                         <Mail className="w-4 h-4" />
                       </div>
-                      <a href={`mailto:${activeSelectedProspect.email}`} className="text-sm font-medium hover:text-emerald-600 transition-colors">
+                      <a href={`mailto:${activeSelectedProspect.email}`} className="text-sm font-medium hover:text-emerald-700 transition-colors">
                         {activeSelectedProspect.email}
                       </a>
                     </div>
                   )}
                   {activeSelectedProspect.phone && (
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
                         <Phone className="w-4 h-4" />
                       </div>
-                      <a href={`tel:${activeSelectedProspect.phone}`} className="text-sm font-medium hover:text-emerald-600 transition-colors">
+                      <a href={`tel:${activeSelectedProspect.phone}`} className="text-sm font-medium hover:text-emerald-700 transition-colors">
                         {activeSelectedProspect.phone}
                       </a>
                     </div>
@@ -542,7 +542,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                       
                       return (
                         <div key={key} className="flex flex-col border-b border-zinc-200 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
-                          <span className="text-[10px] text-zinc-500 uppercase font-bold">{niceKey}</span>
+                          <span className="text-[12px] text-zinc-500 uppercase font-bold">{niceKey}</span>
                           <span className="text-sm font-medium text-zinc-900">{typeof displayVal === 'string' || typeof displayVal === 'number' ? displayVal : JSON.stringify(displayVal)}</span>
                         </div>
                       )
@@ -595,7 +595,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                 <div className="space-y-3 mt-4">
                   {activeSelectedProspect.notesHistory?.map(note => (
                     <div key={note.id} className="bg-white border border-zinc-200 p-3 rounded-xl relative">
-                      <div className="text-[10px] font-bold text-zinc-400 mb-1 flex items-center gap-1">
+                      <div className="text-[12px] font-bold text-zinc-600 mb-1 flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {format(parseISO(note.date), "d MMM yyyy 'à' HH:mm", { locale: fr })}
                       </div>
@@ -603,7 +603,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                     </div>
                   ))}
                   {(!activeSelectedProspect.notesHistory || activeSelectedProspect.notesHistory.length === 0) && (
-                    <p className="text-xs text-zinc-400 italic text-center py-4">Aucune note d'historique.</p>
+                    <p className="text-xs text-zinc-600 italic text-center py-4">Aucune note d'historique.</p>
                   )}
                 </div>
               </section>
@@ -624,7 +624,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                   Gagné !
                 </Button>
               ) : (
-                <div className="flex items-center justify-center text-sm font-bold text-emerald-600 bg-emerald-50 rounded-xl">
+                <div className="flex items-center justify-center text-sm font-bold text-emerald-700 bg-emerald-50 rounded-xl">
                   Client Abonné
                 </div>
               )}
@@ -693,7 +693,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm p-4">
           <form onSubmit={confirmConversion} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl text-center">
             <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="w-8 h-8 text-emerald-600" />
+              <CheckCircle className="w-8 h-8 text-emerald-700" />
             </div>
             <h2 className="text-xl font-bold mb-2">Deal Gagné ! 🎉</h2>
             <p className="text-zinc-500 mb-6 text-sm">
