@@ -280,7 +280,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, 
                     <legend className={fieldLabel}>Votre expérience</legend>
                     <div className="grid grid-cols-3 gap-2">
                       {(['Débutant', 'Intermédiaire', 'Avancé'] as const).map(level => (
-                        <button key={level} type="button" aria-pressed={formData.experienceLevel === level} onClick={() => setFormData({ ...formData, experienceLevel: level })} className={`${choiceBase} whitespace-nowrap px-1.5 text-xs sm:px-2 sm:text-sm ${formData.experienceLevel === level ? choiceSelected : choiceIdle}`}>{level}</button>
+                        <button key={level} type="button" aria-pressed={formData.experienceLevel === level} onClick={() => setFormData({ ...formData, experienceLevel: level })} className={`${choiceBase} whitespace-nowrap px-1.5 ${formData.experienceLevel === level ? choiceSelected : choiceIdle}`}>{level}</button>
                       ))}
                     </div>
                   </fieldset>
