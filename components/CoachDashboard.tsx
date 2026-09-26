@@ -2,10 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { AppState, User, Program, Task } from '../types';
 import { Card, StatBox, Button, Input, Badge } from './UI';
-import { RefreshCwIcon, PlusIcon, SearchIcon, Trash2Icon, PlayIcon, LayersIcon, FlameIcon, MessageCircleIcon, SparklesIcon, BarChartIcon, LockIcon, CalendarIcon, InfoIcon, ClockIcon, CheckCircleIcon, UserIcon, FileTextIcon, TargetIcon, GiftIcon } from './Icons';
+import { RefreshCwIcon, PlusIcon, SearchIcon, Trash2Icon, PlayIcon, LayersIcon, FlameIcon, MessageCircleIcon, SparklesIcon, BarChartIcon, LockIcon, CalendarIcon, InfoIcon, ClockIcon, CheckCircleIcon, UserIcon, FileTextIcon, TargetIcon, GiftIcon, DollarSignIcon } from './Icons';
 import { db, doc, deleteDoc, updateDoc, setDoc } from '../firebase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 
 const containerVariants: any = {
   hidden: { opacity: 0 },
@@ -29,6 +29,7 @@ interface CoachDashboardProps {
 }
 
 export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState, onToggleTimer, showToast }) => {
+  const reduceMotion = useReducedMotion();
   const members = (state.users || []).filter(u => u.role === 'member' && u.clubId === state.user?.clubId);
 
   // 1. Actions Urgentes
@@ -44,6 +45,11 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     const bDate = new Date(b.startTime);
     return bDate.getTime() >= todayStart.getTime() && b.status === 'confirmed';
   }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()).slice(0, 5);
+  const todaySessions = upcomingEvents.filter(event => new Date(event.startTime).toDateString() === new Date().toDateString() && new Date(event.startTime).getTime() >= Date.now());
+  const prospectsToFollowUp = (state.prospects || []).filter(prospect => {
+    if (prospect.clubId !== state.user?.clubId || prospect.status === 'won' || prospect.status === 'lost') return false;
+    return prospect.status === 'call_pending' || Boolean(prospect.nextReminderDate && prospect.nextReminderDate.slice(0, 10) <= todayStr);
+  });
 
   // 3. Alertes de Rétention
   const membersAtRisk = members.filter(u => {
@@ -349,50 +355,46 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     return days;
   }, [state.logs, state.user?.clubId]);
 
-  // Dynamic coaching quote/greeting based on hour
-  const coachGreeting = React.useMemo(() => {
-    const hours = new Date().getHours();
-    if (hours < 12) return { text: "Bon réveil Coach ! Prêt à transformer des vies aujourd'hui ?", icon: "🌅" };
-    if (hours < 18) return { text: "Excellent après-midi Coach ! Gardons l'énergie au maximum !", icon: "⚡" };
-    return { text: "Bonne soirée Coach ! Bilan de la journée et préparation de demain.", icon: "✨" };
-  }, []);
+  const todayPriorities = [
+    { id: 'sessions', page: 'calendar', label: 'Séances à venir', count: todaySessions.length, icon: CalendarIcon },
+    { id: 'payments', page: 'crm_finances', label: 'Paiements à vérifier', count: failedSubs.length, icon: DollarSignIcon },
+    { id: 'tasks', page: 'crm_tasks', label: 'Tâches à terminer', count: tasksToday.length, icon: CheckCircleIcon },
+    { id: 'programs', page: 'users', label: 'Programmes demandés', count: planRequests.length, icon: FileTextIcon },
+    { id: 'prospects', page: 'crm_pipeline', label: 'Prospects à relancer', count: prospectsToFollowUp.length, icon: TargetIcon },
+  ].filter(item => item.count > 0).slice(0, 4);
 
   return (
     <motion.div 
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-8 pb-20"
+      className="va-coach-dashboard space-y-8 pb-20"
     >
-      {/* 1. Header Hero Panel with Wave Gradient */}
-      <motion.div variants={itemVariants} className="relative overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-800 to-indigo-950 text-white rounded-3xl p-8 shadow-xl border border-zinc-800/50">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/10 via-transparent to-transparent opacity-60" />
-        <div className="absolute -right-32 -bottom-32 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -left-32 -top-32 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
-        
+      {/* En-tête sobre : accueil, contexte, date */}
+      <motion.div variants={itemVariants} className="va-dashboard-welcome relative overflow-hidden text-white rounded-3xl p-7 md:p-8">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
               <img src="/brand/velatra-mark.png" alt="" className="h-7 w-7 shrink-0 object-contain" />
-              <span className="text-xs font-black uppercase tracking-[3px] text-emerald-400">Centre de Commandes</span>
+              <span className="text-xs font-semibold tracking-wide text-emerald-100">Espace coach · Vue d’ensemble</span>
             </div>
             <div>
-              <h1 className="text-3xl md:text-4xl font-display font-black tracking-tight leading-none mb-2">
-                Bonjour, {state.user?.name || "Coach"} 🔥
+              <h1 className="text-3xl md:text-4xl font-display font-semibold tracking-tight leading-tight mb-2">
+                Bonjour, {state.user?.name || "Coach"}.
               </h1>
-              <p className="text-zinc-300 text-xs md:text-sm max-w-xl font-medium italic opacity-90">
-                "{coachGreeting.text}"
+              <p className="text-emerald-50 text-sm md:text-base max-w-xl font-normal">
+                Voici ce qui mérite votre attention aujourd’hui.
               </p>
             </div>
           </div>
           
-          <div className="flex items-center gap-4 bg-zinc-800/40 backdrop-blur-md p-4 rounded-2xl border border-zinc-700/50 shrink-0 self-start md:self-auto">
-            <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-400">
-              <ClockIcon size={22} className="animate-pulse" />
+          <div className="flex items-center gap-3 bg-white/10 p-3.5 rounded-2xl border border-white/15 shrink-0 self-start md:self-auto">
+            <div className="p-2.5 bg-white/10 rounded-xl text-emerald-100">
+              <ClockIcon size={20} />
             </div>
             <div>
-              <div className="text-[12px] font-black uppercase tracking-wider text-zinc-300">Date d'aujourd'hui</div>
-              <div className="text-sm font-bold tracking-tight">
+              <div className="text-xs font-medium text-emerald-100">Aujourd’hui</div>
+              <div className="text-sm font-semibold tracking-tight">
                 {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
               </div>
             </div>
@@ -413,25 +415,51 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
         </motion.section>
       )}
 
-      {/* 2. Bento Shortcuts Grid */}
+      <motion.section variants={itemVariants} aria-labelledby="today-priorities-title" className="va-today-priorities">
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+          <div>
+            <p className="text-xs font-semibold text-emerald-800">VOTRE JOURNÉE</p>
+            <h2 id="today-priorities-title" className="text-xl font-display font-semibold text-zinc-900">À traiter aujourd’hui</h2>
+          </div>
+          {todayPriorities.length > 0 && <span className="text-xs text-zinc-600">{todayPriorities.length} priorité{todayPriorities.length > 1 ? 's' : ''}</span>}
+        </div>
+        {todayPriorities.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+            {todayPriorities.map(priority => {
+              const Icon = priority.icon;
+              return (
+                <button key={priority.id} type="button" onClick={() => setState(current => ({ ...current, page: priority.page as any }))} className="va-priority-item group">
+                  <span className="va-priority-icon"><Icon size={18} /></span>
+                  <span className="min-w-0 flex-1 text-left"><strong>{priority.count}</strong><span>{priority.label}</span></span>
+                  <span aria-hidden="true" className="va-priority-arrow">→</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="va-priority-empty"><CheckCircleIcon size={19} /><span>Rien d’urgent à traiter pour l’instant.</span></div>
+        )}
+      </motion.section>
+
+      {/* Accès directs aux outils principaux */}
       <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { icon: UserIcon, label: "Membres & Athlètes", page: "users", color: "from-emerald-500/10 to-emerald-500/5 text-emerald-500 hover:border-emerald-500/40" },
-          { icon: FileTextIcon, label: "Programmes & Modèles", page: "presets", color: "from-indigo-500/10 to-indigo-500/5 text-indigo-500 hover:border-indigo-500/40" },
-          { icon: BarChartIcon, label: "Finances & Budgets", page: "crm_finances", color: "from-amber-500/10 to-amber-500/5 text-amber-500 hover:border-amber-500/40" },
-          { icon: TargetIcon, label: "Prospects & Tunnels", page: "crm_pipeline", color: "from-rose-500/10 to-rose-500/5 text-rose-500 hover:border-rose-500/40" }
+          { icon: UserIcon, label: "Membres", page: "users" },
+          { icon: FileTextIcon, label: "Programmes", page: "presets" },
+          { icon: BarChartIcon, label: "Finances", page: "crm_finances" },
+          { icon: TargetIcon, label: "Prospects", page: "crm_pipeline" }
         ].map((btn, idx) => (
           <motion.button
             key={idx}
-            whileHover={{ scale: 1.03, y: -4 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={reduceMotion ? undefined : { y: -2 }}
+            whileTap={reduceMotion ? undefined : { scale: 0.99 }}
             onClick={() => setState(s => ({ ...s, page: btn.page as any }))}
-            className={`flex flex-col items-center justify-center text-center gap-3.5 p-6 bg-white border border-zinc-200/80 rounded-3xl transition-all duration-300 shadow-sm hover:shadow-md hover:shadow-zinc-100/50 group cursor-pointer`}
+            className="va-dashboard-shortcut flex flex-col items-center justify-center text-center gap-3.5 p-5 bg-white border border-zinc-200/80 rounded-2xl transition-all duration-200 group cursor-pointer"
           >
-            <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${btn.color} flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-inner`}>
+            <div className="va-dashboard-shortcut-icon w-11 h-11 rounded-xl flex items-center justify-center transition-transform duration-200">
               <btn.icon size={22} strokeWidth={2.5} />
             </div>
-            <span className="text-[12px] font-black uppercase tracking-wider text-zinc-900 group-hover:text-zinc-950 transition-colors">{btn.label}</span>
+            <span className="text-sm font-semibold text-zinc-900">{btn.label}</span>
           </motion.button>
         ))}
       </motion.div>

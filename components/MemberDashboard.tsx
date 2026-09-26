@@ -296,7 +296,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-6 page-transition pb-24"
+      className="va-member-dashboard space-y-6 page-transition pb-24"
     >
       {/* Header Section */}
       <motion.div variants={itemVariants} className="flex items-center justify-between px-2 pt-2">
