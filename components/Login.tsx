@@ -1,121 +1,102 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { Card, Input, Button } from './UI';
 import { RegistrationForm } from './RegistrationForm';
 import { ClubRegistration } from './ClubRegistration';
 import { DiscoverySessionForm } from './DiscoverySessionForm';
-import { 
-  auth, 
+import {
+  auth,
   db,
   doc,
   getDoc,
   signOut,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   sendPasswordResetEmail
 } from '../firebase';
 
+type LoginMode = 'login' | 'register' | 'club_register' | 'forgot_password' | 'discovery';
+
 const AppLogo = () => (
-  <div className="flex flex-col items-center">
-    <div className="flex items-center gap-3">
-      <div className="w-16 h-16 rounded-xl shadow-inner overflow-hidden flex items-center justify-center shrink-0 bg-white">
-        <img className="h-full w-full object-contain" src="/brand/velatra-mark.png" alt="Symbole Velatra" />
-      </div>
-      <div className="font-display font-bold text-5xl tracking-tight leading-none text-zinc-900">VELA<span className="text-emerald-500">TRA</span></div>
-    </div>
-    <div className="text-[10px] tracking-widest text-zinc-500 font-bold uppercase mt-3 opacity-80 pl-2">PERFORMANCE SaaS</div>
+  <div className="flex items-center justify-center gap-3" aria-label="Velatra">
+    <img
+      className="h-12 w-12 rounded-xl object-contain sm:h-14 sm:w-14"
+      src="/brand/velatra-mark.png"
+      alt=""
+      width="56"
+      height="56"
+    />
+    <span className="font-display text-[1.85rem] font-bold leading-none tracking-tight text-zinc-900 sm:text-4xl">
+      VELA<span className="text-emerald-700">TRA</span>
+    </span>
   </div>
 );
 
+const getLoginErrorMessage = (error: any) => {
+  const code = error?.code as string | undefined;
+  if (code === 'auth/operation-not-allowed') return 'Le service de connexion est temporairement indisponible.';
+  if (code === 'auth/user-disabled') return 'Ce compte n’est plus actif. Contactez votre coach.';
+  if (code === 'auth/invalid-email') return 'Vérifiez le format de votre adresse email.';
+  if (code === 'auth/wrong-password' || code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+    return 'Email ou mot de passe incorrect.';
+  }
+  return 'Impossible de se connecter pour le moment. Réessayez dans quelques instants.';
+};
+
 export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_register' }> = ({ initialMode = 'login' }) => {
-  const [mode, setMode] = useState<'login' | 'register' | 'club_register' | 'forgot_password' | 'discovery'>(initialMode);
-  const [isCoachMode, setIsCoachMode] = useState(false);
-  const [email, setEmail] = useState("");
-  const [pwd, setPwd] = useState("");
+  const [mode, setMode] = useState<LoginMode>(initialMode);
+  const [email, setEmail] = useState('');
+  const [pwd, setPwd] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !pwd) return;
-    
+  const handleEmailLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!email.trim() || !pwd) return;
+
     setLoading(true);
-    setError("");
+    setError('');
     try {
-      console.log("Tentative de connexion pour :", email);
-      const userCredential = await signInWithEmailAndPassword(auth, email, pwd);
-      
-      // Vérifier si le document utilisateur existe toujours (s'il a été supprimé par le coach)
-      if (email !== 'victor.defreitas.pro@gmail.com') {
-        const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
-        if (!userDoc.exists()) {
-          await signOut(auth);
-          setError("Votre compte a été supprimé ou désactivé par le club.");
-          setLoading(false);
-          return;
-        }
+      const credential = await signInWithEmailAndPassword(auth, email.trim(), pwd);
+      const userDoc = await getDoc(doc(db, 'users', credential.user.uid));
+      if (!userDoc.exists()) {
+        await signOut(auth);
+        setError('Ce compte ne dispose plus d’un espace actif. Contactez votre coach.');
       }
-    } catch (err: any) {
-      console.error("Erreur d'authentification lors de la connexion :", err);
-      
-      const isProviderDisabled = err?.code === 'auth/operation-not-allowed' || err?.message?.includes('operation-not-allowed');
-      if (isProviderDisabled) {
-        setError("Le service de connexion par 'Email/Mot de passe' n'est pas activé dans votre console Firebase. Veuillez l'activer sous l'onglet 'Auth > Sign-in method' de votre projet.");
-        setLoading(false);
-        return;
-      }
-
-      if (email === 'victor.defreitas.pro@gmail.com') {
-        try {
-          console.log("Premier accès : tentative de création du compte d'administration par défaut...");
-          await createUserWithEmailAndPassword(auth, email, pwd);
-        } catch (createErr: any) {
-          console.error("Erreur lors de la création de l'administrateur :", createErr);
-          if (createErr?.code === 'auth/operation-not-allowed' || createErr?.message?.includes('operation-not-allowed')) {
-            setError("Le service de connexion par 'Email/Mot de passe' n'est pas activé dans votre console Firebase. Veuillez l'activer sous l'onglet 'Auth > Sign-in method' de votre projet.");
-          } else if (createErr?.code === 'auth/email-already-in-use') {
-            setError("Identifiants de connexion invalides (mot de passe incorrect).");
-          } else {
-            setError(createErr?.message || "Identifiants invalides.");
-          }
-        }
-      } else {
-        if (err?.code === 'auth/user-not-found') {
-          setError("Ce compte n'existe pas. Veuillez d'abord vous inscrire.");
-        } else if (err?.code === 'auth/wrong-password' || err?.code === 'auth/invalid-credential') {
-          setError("Identifiants de connexion invalides (mot de passe incorrect).");
-        } else {
-          setError("Identifiants invalides.");
-        }
-      }
+    } catch (authError: any) {
+      console.error('Échec de la connexion Firebase.', { code: authError?.code || 'unknown' });
+      setError(getLoginErrorMessage(authError));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) {
-      setError("Veuillez saisir votre adresse email.");
+  const handleResetPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!email.trim()) {
+      setError('Saisissez l’adresse email associée à votre compte.');
       return;
     }
 
     setLoading(true);
-    setError("");
-    setSuccessMsg("");
-
+    setError('');
+    setSuccessMsg('');
     try {
-      await sendPasswordResetEmail(auth, email);
-      setSuccessMsg("Un email de réinitialisation vous a été envoyé.");
-    } catch (err: any) {
-      console.error(err);
-      setError("Erreur lors de l'envoi de l'email. Vérifiez l'adresse.");
+      await sendPasswordResetEmail(auth, email.trim());
+    } catch (resetError: any) {
+      // Keep the response generic so the form does not reveal whether an email has an account.
+      if (resetError?.code !== 'auth/user-not-found') {
+        console.error('Échec de l’envoi du lien de réinitialisation.', { code: resetError?.code || 'unknown' });
+        setError('Impossible d’envoyer le lien pour le moment. Vérifiez votre adresse et réessayez.');
+        setLoading(false);
+        return;
+      }
     } finally {
       setLoading(false);
     }
+    setSuccessMsg('Si cette adresse est associée à un compte, un lien de réinitialisation vient de vous être envoyé.');
   };
 
   if (mode === 'register') {
@@ -130,127 +111,135 @@ export const Login: React.FC<{ initialMode?: 'login' | 'register' | 'club_regist
     return <ClubRegistration onSuccess={() => setMode('login')} onCancel={() => setMode('login')} />;
   }
 
-  if (mode === 'forgot_password') {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-transparent relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
-        
-        {/* Back to site button */}
-        <div className="absolute top-6 left-6 z-20">
-          <Link 
-            to="/" 
-            className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white bg-white/95 dark:bg-zinc-900/80 hover:bg-white dark:hover:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/50 rounded-full shadow-md backdrop-blur-md transition-all group"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-emerald-500" />
-            Retour au site
-          </Link>
-        </div>
-        
-        <div className="w-full max-w-[380px] space-y-10 py-12 animate-in fade-in duration-1000 relative z-10">
-          <div className="text-center">
-            <AppLogo />
-            <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold mt-8 opacity-90">
-              MOT DE PASSE OUBLIÉ
-            </p>
-          </div>
-
-          <Card className="!p-8 space-y-6 ring-1 transition-all duration-500 shadow-2xl bg-zinc-50/60 backdrop-blur-3xl">
-            <form onSubmit={handleResetPassword} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[9px] uppercase tracking-widest font-bold text-zinc-500 ml-1">Email</label>
-                <Input type="email" placeholder="votre@email.com" value={email} onChange={e => setEmail(e.target.value)} required className="!bg-white border-zinc-200 text-zinc-900" />
-              </div>
-              
-              {error && <p className="text-[10px] text-red-400 font-bold text-center bg-red-400/10 py-2.5 rounded-xl border border-red-400/20 leading-snug">{error}</p>}
-              {successMsg && <p className="text-[10px] text-emerald-500 font-bold text-center bg-emerald-500/10 py-2.5 rounded-xl border border-emerald-500/20 leading-snug">{successMsg}</p>}
-              
-              <Button type="submit" fullWidth disabled={loading} className="!py-4 shadow-xl mt-2">
-                {loading ? "ENVOI..." : "RÉINITIALISER"}
-              </Button>
-            </form>
-
-            <div className="flex flex-col gap-5 text-center pt-4">
-              <button onClick={() => { setMode('login'); setError(""); setSuccessMsg(""); }} className="text-[10px] font-bold text-zinc-500 hover:text-zinc-900 transition-colors tracking-widest uppercase">
-                Retour à la <span className="text-zinc-900 underline ml-1">connexion</span>
-              </button>
-            </div>
-          </Card>
-        </div>
-      </div>
-    );
-  }
+  const isResetMode = mode === 'forgot_password';
+  const clearMessages = () => {
+    setError('');
+    setSuccessMsg('');
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-transparent relative overflow-hidden">
-      {/* Ambient background glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
-      
-      {/* Back to site button */}
-      <div className="absolute top-6 left-6 z-20">
-        <Link 
-          to="/" 
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white bg-white/95 dark:bg-zinc-900/80 hover:bg-white dark:hover:bg-zinc-900 border border-zinc-200/50 dark:border-zinc-800/50 rounded-full shadow-md backdrop-blur-md transition-all group"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform text-emerald-500" />
-          Retour au site
-        </Link>
-      </div>
+    <main className="relative flex min-h-[100svh] items-center justify-center overflow-hidden bg-[#f6f7f2] px-4 py-24 text-zinc-900 sm:py-28">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_42%,rgba(29,111,78,0.08),transparent_58%)]" />
 
-      <div className="w-full max-w-[380px] space-y-10 py-12 animate-in fade-in duration-1000 relative z-10">
-        <div className="text-center">
+      <Link
+        to="/"
+        className="group absolute left-4 top-[max(1rem,env(safe-area-inset-top))] z-10 inline-flex min-h-11 items-center gap-2 rounded-full border border-zinc-200 bg-white/80 px-4 text-sm font-medium text-zinc-700 shadow-sm backdrop-blur-sm transition hover:border-zinc-300 hover:bg-white hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 sm:left-8"
+      >
+        <ArrowLeft aria-hidden="true" className="h-4 w-4 text-emerald-800 transition-transform group-hover:-translate-x-0.5" />
+        Retour au site
+      </Link>
+
+      <section className="relative z-[1] w-full max-w-[420px]" aria-labelledby="login-title">
+        <header className="mb-8 text-center sm:mb-9">
           <AppLogo />
-          <p className="text-[10px] uppercase tracking-widest text-emerald-500 font-bold mt-8 opacity-90">
-            {isCoachMode ? "ESPACE COACHING PRIVÉ" : "AUTHENTIFICATION ATHLÈTE"}
+          <h1 id="login-title" className="mt-8 font-display text-[1.75rem] font-semibold leading-tight tracking-tight text-zinc-950 sm:text-4xl">
+            {isResetMode ? 'Réinitialiser votre mot de passe' : 'Connexion à Velatra'}
+          </h1>
+          <p className="mx-auto mt-3 max-w-[34ch] text-sm leading-6 text-zinc-700 sm:text-base">
+            {isResetMode ? 'Entrez l’adresse email associée à votre compte.' : 'Retrouvez votre espace coach ou adhérent.'}
           </p>
-        </div>
+        </header>
 
-        <Card className={`!p-8 space-y-6  ring-1 transition-all duration-500 shadow-2xl bg-zinc-50/60 backdrop-blur-3xl ${isCoachMode ? 'ring-emerald-500/40 bg-emerald-500/5' : ''}`}>
-          <form onSubmit={handleEmailLogin} className="space-y-4">
-            {!isCoachMode ? (
-              <div className="space-y-1.5">
-                <label className="text-[9px] uppercase tracking-widest font-bold text-zinc-500 ml-1">Email</label>
-                <Input type="email" placeholder="votre@email.com" value={email} onChange={e => setEmail(e.target.value)} required className="!bg-white border-zinc-200 text-zinc-900" />
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <label className="text-[9px] uppercase tracking-widest font-bold text-emerald-500 ml-1">Email Coach</label>
-                <Input type="email" placeholder="coach@votreclub.com" value={email} onChange={e => setEmail(e.target.value)} required className="!bg-white border-zinc-200 text-zinc-900 focus:!ring-emerald-500/20" />
+        <Card className="!rounded-3xl !border !border-white/90 !bg-white/90 !p-6 shadow-[0_18px_55px_-32px_rgba(18,47,35,0.38)] backdrop-blur-xl sm:!p-8">
+          <form onSubmit={isResetMode ? handleResetPassword : handleEmailLogin} className="space-y-5" noValidate={false}>
+            <div className="space-y-2">
+              <label htmlFor="login-email" className="block text-sm font-medium text-zinc-800">Email</label>
+              <Input
+                id="login-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                placeholder="votre@email.com"
+                value={email}
+                onChange={event => setEmail(event.target.value)}
+                required
+                disabled={loading}
+                className="!min-h-12 !rounded-xl !border-zinc-300 !bg-white !px-4 !text-base placeholder:!text-zinc-500 focus:!border-emerald-700 focus:!ring-emerald-700/15"
+              />
+            </div>
+
+            {!isResetMode && (
+              <div className="space-y-2">
+                <div className="flex min-h-11 items-center justify-between gap-3">
+                  <label htmlFor="login-password" className="text-sm font-medium text-zinc-800">Mot de passe</label>
+                  <button
+                    type="button"
+                    onClick={() => { setMode('forgot_password'); clearMessages(); }}
+                    className="min-h-11 rounded-lg px-2 text-sm font-medium text-emerald-800 underline-offset-4 transition hover:text-emerald-950 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                  >
+                    Mot de passe oublié ?
+                  </button>
+                </div>
+                <div className="relative">
+                  <Input
+                    id="login-password"
+                    name="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    placeholder="Votre mot de passe"
+                    value={pwd}
+                    onChange={event => setPwd(event.target.value)}
+                    required
+                    disabled={loading}
+                    className="!min-h-12 !rounded-xl !border-zinc-300 !bg-white !px-4 !pr-14 !text-base placeholder:!text-zinc-500 focus:!border-emerald-700 focus:!ring-emerald-700/15"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(value => !value)}
+                    aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                    aria-pressed={showPassword}
+                    className="absolute right-1 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+                  >
+                    {showPassword ? <EyeOff aria-hidden="true" className="h-5 w-5" /> : <Eye aria-hidden="true" className="h-5 w-5" />}
+                  </button>
+                </div>
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center w-full pr-1">
-                <label className="text-[9px] uppercase tracking-widest font-bold text-zinc-500 ml-1">Mot de passe</label>
-                <button type="button" onClick={() => { setMode('forgot_password'); setError(""); }} className="text-[9px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors uppercase tracking-wider">Oublié ?</button>
-              </div>
-              <Input type="password" placeholder="••••••••" value={pwd} onChange={e => setPwd(e.target.value)} required className="!bg-white border-zinc-200 text-zinc-900" />
-            </div>
-            
-            {error && <p className="text-[10px] text-red-400 font-bold text-center bg-red-400/10 py-2.5 rounded-xl border border-red-400/20 leading-snug">{error}</p>}
-            
-            <Button type="submit" fullWidth disabled={loading} className="!py-4 shadow-xl mt-2">
-              {loading ? "VÉRIFICATION..." : "DÉVERROUILLER"}
+            {error && (
+              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-900">
+                {error}
+              </p>
+            )}
+            {successMsg && (
+              <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-5 text-emerald-950">
+                {successMsg}
+              </p>
+            )}
+
+            <Button
+              type="submit"
+              fullWidth
+              disabled={loading}
+              className="!min-h-12 !rounded-xl !bg-emerald-800 !text-sm !font-semibold !text-white hover:!bg-emerald-900 focus-visible:!outline-none focus-visible:!ring-2 focus-visible:!ring-emerald-800 focus-visible:!ring-offset-2 disabled:!opacity-60"
+            >
+              {loading ? (isResetMode ? 'Envoi en cours…' : 'Connexion en cours…') : (isResetMode ? 'Envoyer le lien' : 'Se connecter')}
             </Button>
           </form>
 
-          <div className="flex flex-col gap-5 text-center pt-4">
-            {!isCoachMode && (
-              <>
-                <div className="text-[10px] font-bold text-zinc-500 tracking-widest uppercase">
-                  Pas encore membre ? <button onClick={() => setMode('discovery')} className="text-emerald-600 hover:text-emerald-700 transition-colors underline ml-2">Séance découverte / Inscription</button>
-                </div>
-                <div className="w-full h-[1px] bg-zinc-200/50 my-2"></div>
-                <button onClick={() => setMode('club_register')} className="text-[8px] font-bold text-emerald-500/80 hover:text-emerald-600 transition-colors tracking-widest uppercase mt-2">
-                  Réservé au coach et club, <span className="underline ml-1">créer votre espace</span>
-                </button>
-              </>
-            )}
-            <button onClick={() => setIsCoachMode(!isCoachMode)} className="text-[10px] font-bold tracking-widest py-3 px-6 rounded-full border border-zinc-200 text-zinc-500 hover:text-emerald-500 hover:border-emerald-500/30 transition-all uppercase mx-auto">
-              {isCoachMode ? "Retour Membre" : "Accès Coach"}
-            </button>
-          </div>
+          {isResetMode ? (
+            <div className="mt-5 border-t border-zinc-200 pt-4 text-center">
+              <button
+                type="button"
+                onClick={() => { setMode('login'); clearMessages(); }}
+                className="min-h-11 rounded-lg px-3 text-sm font-medium text-zinc-700 underline-offset-4 transition hover:text-zinc-950 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
+              >
+                Retour à la connexion
+              </button>
+            </div>
+          ) : (
+            <div className="mt-6 border-t border-zinc-200 pt-5 text-center">
+              <p className="text-sm text-zinc-700">
+                Vous découvrez Velatra ?{' '}
+                <Link to="/" className="font-semibold text-emerald-800 underline underline-offset-4 transition hover:text-emerald-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700">
+                  Découvrir Velatra
+                </Link>
+              </p>
+            </div>
+          )}
         </Card>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 };
