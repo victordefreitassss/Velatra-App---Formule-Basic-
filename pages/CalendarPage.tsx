@@ -2,7 +2,8 @@
 import React from 'react';
 import { AppState } from '../types';
 import { Card, Button, Badge } from '../components/UI';
-import { PlayIcon, CalendarIcon } from '../components/Icons';
+import { PlayIcon } from '../components/Icons';
+import { VelatraMascot } from '../components/VelatraMascot';
 import { motion } from 'framer-motion';
 
 export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ state, setState }) => {
@@ -11,8 +12,14 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
 
   if (!program) {
     return (
-      <div className="py-20 text-center opacity-50">
-         Aucun programme actif. Contactez votre coach.
+      <div className="flex min-h-[52vh] items-center justify-center px-4 py-12">
+        <div className="max-w-sm text-center">
+          <VelatraMascot state="idle" size={118} interactive={false} autoWave className="mx-auto" />
+          <h2 className="mt-1 font-display text-xl font-semibold text-zinc-900">Aucun programme actif</h2>
+          <p className="mx-auto mt-2 max-w-[32ch] text-sm leading-6 text-zinc-600">
+            Votre coach n’a pas encore activé de programme pour vous. Vous le retrouverez ici dès qu’il sera prêt.
+          </p>
+        </div>
       </div>
     );
   }
