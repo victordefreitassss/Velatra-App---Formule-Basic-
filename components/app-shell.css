@@ -369,3 +369,133 @@
   .va-content :is(section, article, div)[class*="rounded-3xl"][class*="p-7"] { padding: 1.125rem; }
   .va-content table { display: block; max-width: 100%; overflow-x: auto; }
 }
+
+/* V2 app architecture: a compact glass rail and role-aware contextual navigation. */
+.va-rail {
+  position: fixed; inset: 12px auto 12px 12px; z-index: 40; width: 92px;
+  display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 16px 8px 12px;
+  border: 1px solid rgba(255,255,255,.9); border-radius: 25px; background: var(--app-glass-strong);
+  box-shadow: var(--app-shadow-soft), inset 0 1px rgba(255,255,255,.9);
+  -webkit-backdrop-filter: blur(var(--app-blur)) saturate(125%); backdrop-filter: blur(var(--app-blur)) saturate(125%);
+}
+.va-rail-brand { display: grid; justify-items: center; gap: 3px; color: var(--app-text); font: 700 10px/1 Outfit,Inter,sans-serif; letter-spacing: .07em; }
+.va-rail-brand img { width: 42px; height: 42px; object-fit: contain; }
+.va-rail-nav { display: grid; align-content: start; gap: 7px; width: 100%; }
+.va-rail-item { min-width: 0; min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; border: 1px solid transparent; border-radius: 16px; background: transparent; color: var(--app-text-secondary); font: 600 10px/1.2 Inter,sans-serif; cursor: pointer; }
+.va-rail-item:hover { background: rgba(230,240,229,.7); color: var(--app-green-dark); }
+.va-rail-item.is-active { border-color: rgba(40,116,81,.14); background: var(--app-green-soft); color: var(--app-green-dark); }
+.va-rail-item:focus-visible, .va-rail-profile:focus-visible, .va-mobile-profile:focus-visible { outline: 3px solid rgba(40,116,81,.42); outline-offset: 2px; }
+.va-rail-profile-wrap { margin-top: auto; }
+.va-rail-profile, .va-mobile-profile { display: inline-flex; align-items: center; justify-content: center; padding: 3px; border: 1px solid var(--app-border); border-radius: 14px; background: white; cursor: pointer; }
+.va-main { min-width: 0; margin-left: 116px; min-height: 100dvh; }
+.va-workspace-mode .va-rail, .va-workspace-mode .va-topbar, .va-workspace-mode .va-mobile-nav { display: none !important; }
+.va-workspace-mode .va-main { margin-left: 0; padding-bottom: 0; }
+.va-workspace-mode .va-content { padding: 0; }
+.va-context-bar { min-height: 70px; margin: 12px 18px 0 4px; padding: 10px 14px 10px 20px; gap: 18px; }
+.va-context-main { min-width: 0; flex: 1; display: flex; align-items: center; gap: 20px; }
+.va-context-heading { flex: 0 0 auto; display: grid; gap: 2px; }
+.va-context-heading strong { color: var(--app-text); font: 650 16px/1.2 Outfit,Inter,sans-serif; }
+.va-context-heading span { color: var(--app-text-muted); font-size: 11px; }
+.va-context-tabs { min-width: 0; display: flex; align-items: center; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+.va-context-tabs::-webkit-scrollbar { display: none; }
+.va-context-tabs button { min-height: 42px; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: var(--app-text-secondary); font: 600 12px/1.2 Inter,sans-serif; white-space: nowrap; cursor: pointer; }
+.va-context-tabs button:hover { background: rgba(230,240,229,.66); color: var(--app-green-dark); }
+.va-context-tabs button[aria-current="page"] { border-color: var(--app-border); background: #fff; color: var(--app-green-dark); box-shadow: 0 2px 8px rgba(28,49,34,.06); }
+.va-context-count { min-width: 19px; height: 19px; display: inline-grid; place-items: center; border-radius: 99px; background: var(--app-green-soft); color: var(--app-green-dark); font-size: 10px; }
+.va-topbar-tools { flex: 0 0 auto; gap: 8px; }
+.va-topbar-search { min-width: 170px; min-height: 42px; border-radius: 12px; background: rgba(255,255,255,.9); font-size: 12px; }
+.va-create-anchor { position: relative; }
+.va-create-trigger { min-height: 42px; display: inline-flex; align-items: center; gap: 7px; padding: 0 13px; border: 1px solid var(--app-green-dark); border-radius: 12px; background: var(--app-green-dark); color: white; font-size: 12px; font-weight: 650; cursor: pointer; }
+.va-create-trigger:hover { background: #103a27; }
+.va-create-trigger:focus-visible, .va-create-menu button:focus-visible, .va-profile-menu button:focus-visible, .va-invite-dialog button:focus-visible { outline: 3px solid rgba(40,116,81,.42); outline-offset: 2px; }
+.va-create-menu, .va-profile-menu { position: absolute; z-index: 80; top: calc(100% + 9px); right: 0; width: min(310px, calc(100vw - 24px)); padding: 9px; border: 1px solid var(--app-border); border-radius: 17px; background: rgba(250,252,247,.985); box-shadow: var(--app-shadow-floating); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); }
+.va-create-menu button, .va-profile-menu button { width: 100%; min-height: 48px; display: flex; align-items: center; gap: 11px; padding: 8px 10px; border: 0; border-radius: 11px; background: transparent; color: var(--app-text-secondary); text-align: left; cursor: pointer; }
+.va-create-menu button:hover, .va-profile-menu button:hover { background: var(--app-green-soft); color: var(--app-green-dark); }
+.va-create-menu button:disabled { opacity: .55; cursor: not-allowed; }
+.va-create-menu button > span { min-width: 0; display: grid; gap: 2px; }
+.va-create-menu strong, .va-profile-menu button span { color: var(--app-text); font-size: 12px; font-weight: 650; }
+.va-create-menu small { color: var(--app-text-muted); font-size: 10px; }
+.va-menu-caption { display: block; margin: 8px 10px 6px; color: var(--app-text-muted); font-size: 9px; font-weight: 750; letter-spacing: .12em; }
+.va-menu-divider { height: 1px; margin: 6px 8px; background: var(--app-border); }
+.va-perspective-switch { display: flex; padding: 3px; border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-surface-muted); }
+.va-perspective-switch button { min-height: 34px; padding: 0 9px; border: 0; border-radius: 9px; background: transparent; color: var(--app-text-secondary); font-size: 10px; font-weight: 650; cursor: pointer; }
+.va-perspective-switch button[aria-pressed="true"] { background: var(--app-green-dark); color: #fff; }
+.va-mobile-profile { display: none; }
+.va-profile-menu { position: fixed; top: 82px; right: 18px; width: 255px; }
+.va-profile-menu-user { display: grid; gap: 3px; padding: 9px 10px 12px; border-bottom: 1px solid var(--app-border); }
+.va-profile-menu-user strong { overflow: hidden; color: var(--app-text); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.va-profile-menu-user span { color: var(--app-text-muted); font-size: 11px; }
+.va-profile-menu .va-profile-logout { color: var(--app-danger); }
+.va-mobile-sheet-link:focus-visible { outline: 3px solid rgba(40,116,81,.42); outline-offset: 2px; }
+.va-invite-overlay { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(16,31,22,.44); -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px); }
+.va-invite-dialog { position: relative; width: min(100%, 440px); padding: 28px; border: 1px solid rgba(255,255,255,.9); border-radius: 24px; background: rgba(250,252,247,.99); color: var(--app-text); box-shadow: var(--app-shadow-floating); }
+.va-invite-close { position: absolute; top: 13px; right: 13px; width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--app-border); border-radius: 12px; background: white; color: var(--app-text-secondary); cursor: pointer; }
+.va-invite-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; background: var(--app-green-soft); color: var(--app-green-dark); }
+.va-invite-dialog h2 { margin: 7px 10px 0; color: var(--app-text); font: 650 23px/1.2 Outfit,Inter,sans-serif; }
+.va-invite-dialog > p:not(.va-menu-caption) { margin: 10px 10px 0; color: var(--app-text-secondary); font-size: 13px; line-height: 1.55; }
+.va-invite-code { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 20px; padding: 11px; border: 1px solid var(--app-border-strong); border-radius: 14px; background: #fff; }
+.va-invite-code code { color: var(--app-text); font: 700 23px/1 Outfit,monospace; letter-spacing: .12em; }
+.va-invite-code button { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 11px; border: 1px solid var(--app-green-dark); border-radius: 11px; background: var(--app-green-dark); color: #fff; font-size: 12px; font-weight: 650; cursor: pointer; }
+.va-invite-code button:disabled { opacity: .5; cursor: not-allowed; }
+.va-invite-dialog .va-invite-status { min-height: 20px; margin-top: 10px !important; color: var(--app-text-muted) !important; font-size: 11px !important; }
+.va-invite-dialog .va-invite-status.is-error { color: var(--app-danger) !important; }
+
+@media (max-width: 1023px) {
+  .va-rail { display: none !important; }
+  .va-main { margin-left: 0; padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
+  .va-topbar.va-context-bar { position: sticky; top: 0; min-height: 0; display: block; margin: 0; padding: 9px 12px 0; border-width: 0 0 1px; border-radius: 0; background: rgba(248,250,244,.96); }
+  .va-context-main { display: block; }
+  .va-context-heading { display: none; }
+  .va-context-tabs { min-height: 43px; margin: 0 -3px; }
+  .va-context-tabs button { min-height: 38px; padding: 0 11px; font-size: 11px; }
+  .va-topbar-tools { min-height: 46px; justify-content: flex-end; }
+  .va-topbar-search { min-width: 42px; width: 42px; min-height: 40px; padding: 0; justify-content: center; }
+  .va-topbar-search > span, .va-topbar-search kbd { display: none; }
+  .va-create-trigger { min-height: 40px; padding: 0 10px; }
+  .va-mobile-profile { display: inline-flex; min-height: 40px; }
+  .va-user-avatar { width: 32px; height: 32px; border-radius: 10px; }
+  .va-profile-menu { top: 102px; right: 12px; }
+  .va-mobile-nav { position: fixed; z-index: 60; right: 12px; bottom: calc(10px + env(safe-area-inset-bottom)); left: 12px; display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); min-height: 68px; padding: 6px; border: 1px solid rgba(255,255,255,.9); border-radius: 23px; background: rgba(247,250,243,.96); box-shadow: 0 14px 36px rgba(26,46,31,.17), inset 0 1px rgba(255,255,255,.95); -webkit-backdrop-filter: blur(18px) saturate(125%); backdrop-filter: blur(18px) saturate(125%); }
+  .va-mobile-nav-admin { right: max(12px,calc((100vw - 260px)/2)); left: max(12px,calc((100vw - 260px)/2)); grid-template-columns: repeat(2,minmax(0,1fr)) !important; }
+  .va-mobile-tab { position: relative; z-index: 0; min-width: 0; min-height: 54px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; border: 0; border-radius: 17px; background: transparent; color: #405147; font: 500 11px/1.1 Inter,sans-serif; -webkit-tap-highlight-color: transparent; }
+  .va-mobile-tab svg, .va-mobile-tab > span:not(.va-mobile-active-pill):not(.va-mobile-unread-dot) { position: relative; z-index: 2; }
+  .va-mobile-tab[aria-current="page"], .va-mobile-tab.va-mobile-tab--active { color: #fff !important; font-weight: 600; }
+  .va-mobile-active-pill { position: absolute; z-index: 1; inset: 1px; border: 1px solid rgba(255,255,255,.12); border-radius: 16px; background: #1c4d35; box-shadow: 0 4px 12px rgba(23,69,47,.2); }
+  .va-mobile-tab > .va-mobile-unread-dot { position: absolute; z-index: 3; top: 4px; right: 12px; }
+  .va-mobile-backdrop { position: fixed; z-index: 49; inset: 0; display: block; border: 0; background: rgba(18,31,22,.38); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
+  .va-mobile-sheet { position: fixed; z-index: 50; right: 0; bottom: 0; left: 0; display: block; max-height: min(78dvh,690px); overflow-y: auto; padding: 12px 18px calc(98px + env(safe-area-inset-bottom)); border: 1px solid rgba(255,255,255,.92); border-bottom: 0; border-radius: 28px 28px 0 0; background: rgba(249,251,246,.99); box-shadow: 0 -20px 55px rgba(25,46,31,.18); -webkit-backdrop-filter: blur(18px) saturate(122%); backdrop-filter: blur(18px) saturate(122%); overscroll-behavior: contain; }
+  .va-mobile-sheet-handle { width: 38px; height: 4px; margin: 0 auto 16px; border-radius: 99px; background: #c4cec1; }
+  .va-mobile-sheet-link { min-height: 48px; display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: 12px; color: var(--app-text-secondary); font-size: 14px; text-decoration: none; }
+  .va-mobile-sheet-link:hover, .va-mobile-sheet-link[aria-current="page"] { background: #e6f0e5; color: var(--app-green-dark); }
+  .va-mobile-sheet-group { margin-top: 17px; }
+  .va-mobile-sheet-group h3 { margin: 0 10px 6px; color: #46574b; font: 700 11px/1.4 Inter,sans-serif; letter-spacing: .09em; text-transform: uppercase; }
+  .va-mobile-sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--app-border); }
+  .va-keyboard-open .va-mobile-nav { display: none !important; }
+  .va-keyboard-open .va-main { padding-bottom: 0; }
+  .va-keyboard-open .va-content { padding-bottom: 16px; }
+}
+@media (max-width: 560px) {
+  .va-topbar.va-context-bar { padding-right: 8px; padding-left: 8px; }
+  .va-topbar-tools { gap: 5px; }
+  .va-create-trigger { gap: 4px; padding: 0 8px; font-size: 11px; }
+  .va-context-tabs button { padding: 0 9px; }
+  .va-invite-dialog { padding: 24px 18px; }
+  .va-invite-code { align-items: stretch; flex-direction: column; }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .va-mobile-nav { right: max(24px,calc((100vw - 680px)/2)); left: max(24px,calc((100vw - 680px)/2)); }
+}
+@media (min-width: 1024px) and (max-width: 1180px) {
+  .va-context-bar { gap: 8px; padding-right: 9px; padding-left: 13px; }
+  .va-context-main { gap: 7px; }
+  .va-context-heading span, .va-topbar-search kbd { display: none; }
+  .va-topbar-search { min-width: 42px; width: 42px; padding: 0; justify-content: center; }
+  .va-topbar-search > span { display: none; }
+  .va-context-tabs button { padding: 0 8px; font-size: 11px; }
+}
+@media (min-width: 1024px) {
+  .va-profile-menu { top: auto; right: auto; bottom: 18px; left: 112px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .va-rail-item, .va-context-tabs button, .va-create-trigger { transition-duration: 1ms !important; }
+}

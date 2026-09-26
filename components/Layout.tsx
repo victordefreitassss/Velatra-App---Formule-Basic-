@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { User, Page, Club } from '../types';
+import type { User, Page, Club } from '../types';
 import { 
   HomeIcon, UsersIcon, LayersIcon, BarChartIcon, 
   DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon, FolderIcon, PlayCircleIcon, UserIcon, ActivityIcon, BellIcon, ImageIcon
@@ -9,8 +9,11 @@ import {
 import { Timer } from './Timer';
 import { db, auth } from '../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
-import { Megaphone, AlertTriangle, X } from 'lucide-react';
-import { getMobileTabForPage } from './appShellHelpers';
+import { Megaphone, AlertTriangle, X, Search, Plus, Copy, ChevronDown, UserRound } from 'lucide-react';
+import {
+  AppHub, getAllContextItems, getAppHubForPage, getContextItemsForHub,
+  getContextPageLabel, getHubLabel, getMobileTabForPage,
+} from './appShellHelpers';
 import './app-shell.css';
 
 interface LayoutProps {
@@ -30,36 +33,68 @@ interface LayoutProps {
   isWorkspaceMode?: boolean;
 }
 
-const AppLogo: React.FC<{ club: Club | null, user: User, effectiveRole: string }> = ({ club, user, effectiveRole }) => (
-  <div className="flex flex-col">
-    <div className="flex items-center gap-3">
-      <div className="va-brand-mark flex items-center justify-center shrink-0">
-        <img className="h-full w-full object-contain" src="/brand/velatra-mark.png" alt="Symbole Velatra" />
-      </div>
-      <div className="va-brand-name truncate max-w-[180px]">
-        VELATRA
-      </div>
-    </div>
-    <div className="va-brand-tagline">
-      COACHER · ORGANISER · SUIVRE
-    </div>
-    {club && (effectiveRole === 'coach' || effectiveRole === 'owner') && (
-      <div className="mt-4 p-3 bg-white border border-zinc-200 rounded-xl backdrop-blur-sm">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-black">Code d'accès Club</div>
-          <div className="relative group flex items-center">
-            <div className="w-3.5 h-3.5 rounded-full bg-zinc-200 text-zinc-500 flex items-center justify-center text-[10px] font-black cursor-help hover:bg-emerald-500 hover:text-white transition-colors">i</div>
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-zinc-900 text-white text-[10px] rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-center shadow-xl pointer-events-none">
-              Partagez ce code avec vos membres pour qu'ils puissent rejoindre votre club lors de leur inscription.
-              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900"></div>
-            </div>
-          </div>
-        </div>
-        <div className="text-xs font-mono font-bold text-emerald-500 select-all">{club.id}</div>
-      </div>
-    )}
+const AppLogo = () => (
+  <div className="va-rail-brand" aria-label="Velatra">
+    <img src="/brand/velatra-mark.png" alt="" />
+    <span>VELATRA</span>
   </div>
 );
+
+const hubIcon: Record<string, React.FC<any>> = {
+  home: HomeIcon,
+  clients: UsersIcon,
+  coaching: DumbbellIcon,
+  business: DollarSignIcon,
+  plus: MenuIcon,
+  sessions: DumbbellIcon,
+  progression: BarChartIcon,
+  nutrition: AppleIcon,
+  admin: ShieldIcon,
+};
+
+const pageIcon: Record<string, React.FC<any>> = {
+  users: UsersIcon, chat: MessageCircleIcon, calendar: CalendarIcon,
+  coaching: ActivityIcon, presets: LayersIcon, nutrition: AppleIcon, drive: FolderIcon,
+  crm_pipeline: TargetIcon, crm_finances: DollarSignIcon, marketing: MegaphoneIcon,
+  about: InfoIcon, guide: InfoIcon, settings: SettingsIcon,
+  planning: CalendarIcon, performances: BarChartIcon, evolution: ImageIcon,
+  supplements: ShoppingCartIcon, ai_coach: BotIcon, profile: UserIcon, admin: ShieldIcon,
+};
+
+const primaryHubsForRole = (role: string): { id: AppHub; label: string; page: string }[] => {
+  if (role === 'superadmin') return [{ id: 'admin', label: 'Admin', page: 'admin' }];
+  if (role === 'coach' || role === 'owner') return [
+    { id: 'home', label: 'Accueil', page: 'home' },
+    { id: 'clients', label: 'Clients', page: 'users' },
+    { id: 'coaching', label: 'Coaching', page: 'coaching' },
+    { id: 'business', label: 'Business', page: 'crm_pipeline' },
+    { id: 'plus', label: 'Plus', page: 'about' },
+  ];
+  return [
+    { id: 'home', label: 'Accueil', page: 'home' },
+    { id: 'sessions', label: 'Séances', page: 'calendar' },
+    { id: 'progression', label: 'Progression', page: 'performances' },
+    { id: 'nutrition', label: 'Nutrition', page: 'nutrition' },
+    { id: 'plus', label: 'Plus', page: 'ai_coach' },
+  ];
+};
+
+const mobileGroupsForRole = (role: string, planningEnabled: boolean) => {
+  if (role === 'superadmin') return [{ label: 'Administration', ids: ['admin'] }];
+  const isCoach = role === 'coach' || role === 'owner';
+  const groups = isCoach ? [
+    { label: 'Clients', hub: 'clients' as AppHub },
+    { label: 'Coaching', hub: 'coaching' as AppHub },
+    { label: 'Business', hub: 'business' as AppHub },
+    { label: 'Plus', hub: 'plus' as AppHub },
+  ] : [
+    { label: 'Séances', hub: 'sessions' as AppHub },
+    { label: 'Progression', hub: 'progression' as AppHub },
+    { label: 'Nutrition', hub: 'nutrition' as AppHub },
+    { label: 'Plus', hub: 'plus' as AppHub },
+  ];
+  return groups.map(group => ({ ...group, ids: getContextItemsForHub(group.hub, role, planningEnabled).map(item => item.id) }));
+};
 
 export const Layout: React.FC<LayoutProps> = ({ 
   user, club, activePage, onPageChange, onLogout, children, 
@@ -72,56 +107,18 @@ export const Layout: React.FC<LayoutProps> = ({
   const isSuperAdmin = user.role === 'superadmin';
   const effectiveRole = isSuperAdmin ? adminPerspective : user.role;
 
-  const coachItems = React.useMemo(() => {
-    return [
-      { id: 'home', icon: HomeIcon, label: 'Accueil' },
-      { id: 'users', icon: UsersIcon, label: 'Membres', category: 'Clients' },
-      { id: 'chat', icon: MessageCircleIcon, label: 'Messages', category: 'Clients' },
-      ...(planningEnabled ? [{ id: 'calendar', icon: CalendarIcon, label: 'Planning des cours', category: 'Clients' }] : []),
-      { id: 'coaching', icon: ActivityIcon, label: 'Coaching', category: 'Coaching' },
-      { id: 'presets', icon: LayersIcon, label: 'Programmes', category: 'Coaching' },
-      { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Coaching' },
-      { id: 'drive', icon: FolderIcon, label: 'Documents', category: 'Coaching' },
-      { id: 'crm_pipeline', icon: TargetIcon, label: 'Prospects', category: 'Business' },
-      { id: 'crm_finances', icon: DollarSignIcon, label: 'Finances', category: 'Business' },
-      { id: 'marketing', icon: MegaphoneIcon, label: 'Campagnes', category: 'Plus' },
-      { id: 'guide', icon: InfoIcon, label: 'Guides vidéo', category: 'Plus' },
-      { id: 'about', icon: InfoIcon, label: 'Fiche du club', category: 'Plus' },
-      { id: 'settings', icon: SettingsIcon, label: 'Paramètres', category: 'Plus' },
-    ];
-  }, [planningEnabled]);
-
-  const memberItems = React.useMemo(() => {
-    return [
-      { id: 'home', icon: HomeIcon, label: 'Mon espace' },
-      { id: 'calendar', icon: DumbbellIcon, label: 'Mes séances', category: 'Séances & progression' },
-      ...(planningEnabled ? [{ id: 'planning', icon: CalendarIcon, label: 'Réserver un cours', category: 'Séances & progression' }] : []),
-      { id: 'performances', icon: BarChartIcon, label: 'Mes performances', category: 'Séances & progression' },
-      { id: 'evolution', icon: ImageIcon, label: 'Mon évolution', category: 'Séances & progression' },
-      { id: 'nutrition', icon: AppleIcon, label: 'Nutrition', category: 'Nutrition' },
-      { id: 'supplements', icon: ShoppingCartIcon, label: 'Boutique', category: 'Nutrition' },
-      { id: 'ai_coach', icon: BotIcon, label: 'Coach IA', category: 'Plus' },
-      { id: 'drive', icon: FolderIcon, label: 'Documents', category: 'Plus' },
-      { id: 'profile', icon: UserIcon, label: 'Mes objectifs', category: 'Plus' },
-      { id: 'about', icon: InfoIcon, label: 'Infos du club', category: 'Plus' },
-    ];
-  }, [planningEnabled]);
-
-  const hasRequiredPlan = (requiredPlan?: 'basic' | 'classic' | 'premium') => {
-    if (!requiredPlan || requiredPlan === 'basic') return true;
-    const currentPlan = club?.plan || 'basic';
-    if (currentPlan === 'premium') return true;
-    if (currentPlan === 'classic' && requiredPlan === 'classic') return true;
-    return false;
-  };
-
-  const menuItems: { id: string, icon: React.FC<any>, label: string, requiredPlan?: 'basic' | 'classic' | 'premium', category?: string }[] = React.useMemo(() => {
-    return effectiveRole === 'superadmin' 
-      ? [{ id: 'admin', icon: ShieldIcon, label: 'Tableau de Bord' }]
-      : (effectiveRole === 'coach' || effectiveRole === 'owner') 
-        ? coachItems 
-        : memberItems;
-  }, [effectiveRole, coachItems, memberItems]);
+  const activeHub = getAppHubForPage(activePage, effectiveRole);
+  const primaryHubs = primaryHubsForRole(effectiveRole);
+  const contextItems = getContextItemsForHub(activeHub, effectiveRole, planningEnabled);
+  const commandItems = getAllContextItems(effectiveRole, planningEnabled).map(item => ({ ...item, icon: pageIcon[item.id] || InfoIcon }));
+  const mobileMoreGroups = React.useMemo(() => mobileGroupsForRole(effectiveRole, planningEnabled).map(group => ({
+    ...group,
+    items: group.ids.map(id => ({
+      id,
+      label: getContextPageLabel(id, effectiveRole),
+      icon: pageIcon[id] || InfoIcon,
+    })),
+  })), [effectiveRole, planningEnabled]);
 
   const mobileTabs = React.useMemo(() => {
     if (effectiveRole === 'superadmin') return [
@@ -144,27 +141,21 @@ export const Layout: React.FC<LayoutProps> = ({
     ];
   }, [effectiveRole]);
 
-  const mobileMoreGroups = React.useMemo(() => {
-    const idsByGroup = (effectiveRole === 'coach' || effectiveRole === 'owner') ? [
-      { label: 'Clients', ids: ['chat', 'calendar'] },
-      { label: 'Coaching', ids: ['presets', 'nutrition', 'drive'] },
-      { label: 'Business', ids: ['crm_finances'] },
-      { label: 'Plus', ids: ['marketing', 'about', 'guide', 'settings'] },
-    ] : effectiveRole === 'superadmin' ? [
-      { label: 'Administration', ids: ['admin'] },
-    ] : [
-      { label: 'Séances & progression', ids: ['planning', 'evolution'] },
-      { label: 'Plus', ids: ['ai_coach', 'drive', 'profile', 'about', 'supplements'] },
-    ];
-    return idsByGroup.map(group => ({ ...group, items: group.ids.map(id => menuItems.find(item => item.id === id)).filter(Boolean) as typeof menuItems }));
-  }, [effectiveRole, menuItems]);
-
-  const currentPageLabel = menuItems.find(item => item.id === activePage)?.label || ({ exercises: 'Exercices', crm_tasks: 'Tâches', profile: 'Mes objectifs', notifications: 'Notifications' } as Partial<Record<Page, string>>)[activePage] || 'Velatra';
   const roleLabel = effectiveRole === 'superadmin' ? 'Console de gestion' : (effectiveRole === 'coach' || effectiveRole === 'owner' ? 'Espace coach' : 'Espace adhérent');
 
   const [showTimer, setShowTimer] = React.useState(false);
   const [showPlusSheet, setShowPlusSheet] = React.useState(false);
   const mobileSheetRef = React.useRef<HTMLElement>(null);
+  const [showCreateMenu, setShowCreateMenu] = React.useState(false);
+  const [showProfileMenu, setShowProfileMenu] = React.useState(false);
+  const [showInviteDialog, setShowInviteDialog] = React.useState(false);
+  const [inviteCopyState, setInviteCopyState] = React.useState<'idle' | 'copied' | 'error'>('idle');
+  const createMenuRef = React.useRef<HTMLDivElement>(null);
+  const createTriggerRef = React.useRef<HTMLButtonElement>(null);
+  const profileMenuRef = React.useRef<HTMLDivElement>(null);
+  const desktopProfileTriggerRef = React.useRef<HTMLButtonElement>(null);
+  const mobileProfileTriggerRef = React.useRef<HTMLButtonElement>(null);
+  const inviteDialogRef = React.useRef<HTMLDivElement>(null);
   const [showCommandPalette, setShowCommandPalette] = React.useState(false);
   const [commandSearch, setCommandSearch] = React.useState("");
   const [commandActiveIndex, setCommandActiveIndex] = React.useState(0);
@@ -217,6 +208,55 @@ export const Layout: React.FC<LayoutProps> = ({
       previousFocus?.focus();
     };
   }, [showPlusSheet]);
+
+  React.useEffect(() => {
+    if (!showCreateMenu) return;
+    const focusFrame = window.requestAnimationFrame(() => createMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus());
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !createMenuRef.current?.contains(event.target)) setShowCreateMenu(false);
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener('pointerdown', closeOutside);
+    };
+  }, [showCreateMenu]);
+
+  React.useEffect(() => {
+    if (!showProfileMenu) return;
+    const focusFrame = window.requestAnimationFrame(() => profileMenuRef.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus());
+    const closeOutside = (event: PointerEvent) => {
+      if (event.target instanceof Node && !profileMenuRef.current?.contains(event.target) && !desktopProfileTriggerRef.current?.contains(event.target) && !mobileProfileTriggerRef.current?.contains(event.target)) setShowProfileMenu(false);
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener('pointerdown', closeOutside);
+    };
+  }, [showProfileMenu]);
+
+  React.useEffect(() => {
+    if (!showInviteDialog) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const focusFrame = window.requestAnimationFrame(() => inviteDialogRef.current?.querySelector<HTMLElement>('button')?.focus());
+    const keepFocusInside = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || !inviteDialogRef.current) return;
+      const focusable = Array.from(inviteDialogRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])'));
+      if (!focusable.length) return;
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === focusable[0]) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); focusable[0].focus(); }
+    };
+    document.addEventListener('keydown', keepFocusInside);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', keepFocusInside);
+      previousFocus?.focus();
+    };
+  }, [showInviteDialog]);
 
   // Real-time Platform Alerts Live Sync
   const [activeAnnouncements, setActiveAnnouncements] = React.useState<any[]>([]);
@@ -276,6 +316,9 @@ export const Layout: React.FC<LayoutProps> = ({
       } else if (e.key === 'Escape') {
         setShowCommandPalette(false);
         setShowPlusSheet(false);
+        setShowCreateMenu(false);
+        setShowProfileMenu(false);
+        setShowInviteDialog(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -287,13 +330,12 @@ export const Layout: React.FC<LayoutProps> = ({
   }, [activePage]);
 
   const filteredCommandItems = React.useMemo(() => {
-    if (!commandSearch) return menuItems;
+    if (!commandSearch) return commandItems;
     const query = commandSearch.toLowerCase().trim();
-    return menuItems.filter(item => 
-      item.label.toLowerCase().includes(query) || 
-      (item.category && item.category.toLowerCase().includes(query))
+    return commandItems.filter(item =>
+      item.label.toLowerCase().includes(query) || getHubLabel(item.hub, effectiveRole).toLowerCase().includes(query)
     );
-  }, [commandSearch, menuItems]);
+  }, [commandSearch, commandItems, effectiveRole]);
 
   React.useEffect(() => { setCommandActiveIndex(0); }, [commandSearch]);
 
@@ -320,285 +362,134 @@ export const Layout: React.FC<LayoutProps> = ({
     setCommandSearch("");
   };
 
-  // Group items by category (excluding empty ones)
-  const topLevelItems = React.useMemo(() => {
-    return menuItems.filter(item => !item.category);
-  }, [menuItems]);
-
-  const groupedItems = React.useMemo(() => {
-    return menuItems.reduce((acc, item) => {
-      if (!item.category) return acc;
-      const cat = item.category;
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(item);
-      return acc;
-    }, {} as Record<string, typeof menuItems>);
-  }, [menuItems]);
-
-  const [expandedCategories, setExpandedCategories] = React.useState<Record<string, boolean>>({});
-
-  React.useEffect(() => {
-    setExpandedCategories(Object.fromEntries(Object.keys(groupedItems).map(category => [category, true])));
-  }, [groupedItems]);
-
-  const toggleCategory = (cat: string) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [cat]: !prev[cat]
-    }));
+  const goToPage = (page: string) => {
+    onPageChange(page as Page);
+    setShowCreateMenu(false);
+    setShowProfileMenu(false);
+    setShowPlusSheet(false);
   };
 
-  React.useEffect(() => {
-    const currentItem = menuItems.find(it => it.id === activePage);
-    if (currentItem && currentItem.category) {
-      const cat = currentItem.category;
-      setExpandedCategories(prev => {
-        if (prev[cat]) return prev;
-        return {
-          ...prev,
-          [cat]: true
-        };
-      });
+  const openInviteDialog = () => {
+    setInviteCopyState('idle');
+    setShowCreateMenu(false);
+    setShowInviteDialog(true);
+  };
+
+  const copyClubCode = async () => {
+    if (!club?.id) return;
+    try {
+      await navigator.clipboard.writeText(String(club.id));
+      setInviteCopyState('copied');
+    } catch {
+      setInviteCopyState('error');
     }
-  }, [activePage, menuItems]);
+  };
+
+  const profilePage = effectiveRole === 'member' ? 'profile' : effectiveRole === 'superadmin' ? 'admin' : 'settings';
+  const profileLabel = effectiveRole === 'member' ? 'Mon profil et mes objectifs' : effectiveRole === 'superadmin' ? 'Administration' : 'Paramètres du compte';
 
   return (
     <div className={`velatra-app-shell min-h-screen flex flex-col md:flex-row ${isVirtualKeyboardOpen ? 'va-keyboard-open' : ''} ${isWorkspaceMode ? 'va-workspace-mode' : ''}`}>
-      {/* Sidebar Desktop */}
-      <aside className="va-sidebar hidden md:flex flex-col">
-        <div className="mb-6 px-4">
-           <AppLogo club={club} user={user} effectiveRole={effectiveRole} />
-        </div>
-
-        {/* Super Admin Perspective switcher */}
-        {isSuperAdmin && onChangePerspective && (
-          <div className="px-4 mb-6">
-            <div className="va-admin-switcher p-3 rounded-2xl relative overflow-hidden">
-              
-              <div className="va-admin-switcher-title mb-2.5 flex items-center gap-1.5 relative">
-                <ShieldIcon size={14} />
-                <span>Console de Pilotage</span>
-              </div>
-              
-              <div className="va-admin-switcher-options grid grid-cols-3 gap-1 p-1 rounded-xl relative z-10">
-                <button
-                  type="button"
-                  onClick={() => onChangePerspective('superadmin')}
-                  className={`py-1.5 px-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
-                    adminPerspective === 'superadmin'
-                      ? 'bg-emerald-500 text-zinc-950 shadow-md font-black'
-                      : 'text-zinc-400 hover:text-white bg-transparent'
-                  }`}
-                >
-                  Admin
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onChangePerspective('coach')}
-                  className={`py-1.5 px-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
-                    adminPerspective === 'coach'
-                      ? 'bg-emerald-500 text-zinc-950 shadow-md font-black'
-                      : 'text-zinc-400 hover:text-white bg-transparent'
-                  }`}
-                >
-                  Coach
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onChangePerspective('member')}
-                  className={`py-1.5 px-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
-                    adminPerspective === 'member'
-                      ? 'bg-emerald-500 text-zinc-950 shadow-md font-black'
-                      : 'text-zinc-400 hover:text-white bg-transparent'
-                  }`}
-                >
-                  Membre
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Quick Search trigger button */}
-        <div className="px-4 mb-6">
-          <button 
-            type="button"
-            onClick={() => setShowCommandPalette(true)}
-            className="va-icon-button w-full justify-between px-3.5 bg-white/80 text-left text-sm font-medium"
-          >
-            <span className="flex items-center gap-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-zinc-400 shrink-0"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              Rechercher...
-            </span>
-              <kbd className="hidden lg:inline-block px-1.5 py-0.5 text-[11px] font-medium text-zinc-600 bg-white border border-zinc-200 rounded-md">⌘ K</kbd>
-          </button>
-        </div>
-
-        
-        <nav className="flex-1 space-y-3 overflow-y-auto no-scrollbar px-1 pb-6 va-sidebar-nav">
-          {/* Top Level Items */}
-          {topLevelItems.length > 0 && (
-            <div className="space-y-1">
-              {topLevelItems.map(item => {
-                const isActive = activePage === item.id;
-                return (
-                  <button 
-                    key={item.id}
-                    onClick={() => onPageChange(item.id as Page)}
-                    className={`va-nav-item ${isActive ? 'va-nav-active' : ''}
-                      relative flex items-center justify-between px-4 py-3 rounded-xl w-full transition-all duration-300 group
-                      ${isActive ? 'text-emerald-950 font-black' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}
-                    `}
-                  >
-                    {isActive && (
-                      <motion.div
-                        layoutId="activeMenuIndicator"
-                        className="absolute inset-0 bg-emerald-50 rounded-xl"
-                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                      />
-                    )}
-                    <div className="flex items-center gap-3 relative z-10">
-                      <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-emerald-600' : 'group-hover:scale-110 transition-transform duration-300'} />
-                      <span className="text-sm font-semibold">{item.label}</span>
-                      {item.id === 'chat' && unreadMessagesCount > 0 && (
-                        <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
-                      )}
-                      {item.id === 'notifications' && unreadNotificationsCount > 0 && (
-                        <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
-                      )}
-                    </div>
-                    {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && !isSuperAdmin && (
-                      <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity relative z-10" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Collapsible Categories */}
-          {Object.entries(groupedItems).map(([category, items]) => {
-            const isExpanded = !!expandedCategories[category];
-            const hasActiveItem = items.some(item => item.id === activePage);
+      <aside className="va-rail" aria-label="Navigation de Velatra">
+        <AppLogo />
+        <nav className="va-rail-nav" aria-label="Espaces principaux">
+          {primaryHubs.map(hub => {
+            const Icon = hubIcon[hub.id] || MenuIcon;
+            const selected = activeHub === hub.id;
             return (
-              <div key={category} className="space-y-1">
-                {/* Accordion Trigger Header */}
-                <button
-                  type="button"
-                  onClick={() => toggleCategory(category)}
-                  className={`flex items-center justify-between w-full px-4 py-2.5 rounded-xl transition-all outline-none select-none ${
-                    hasActiveItem
-                      ? 'text-emerald-700 font-semibold'
-                      : 'text-zinc-500 hover:text-zinc-800'
-                  }`}
-                >
-                  <span className="va-nav-label text-xs font-semibold flex items-center gap-1.5">
-                    {category}
-                  </span>
-                  <svg 
-                    width="12" 
-                    height="12" 
-                    viewBox="0 0 24 24" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="3.5" 
-                    className={`transition-transform duration-200 shrink-0 opacity-70 ${isExpanded ? 'rotate-180 text-emerald-500' : 'rotate-0 text-zinc-400'}`}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7"/>
-                  </svg>
-                </button>
-
-                {/* Collapsible Content */}
-                <AnimatePresence initial={false}>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2, ease: "easeInOut" }}
-                      className="overflow-hidden pl-1 pr-1 py-0.5 space-y-0.5"
-                    >
-                      {items.map(item => {
-                        const isActive = activePage === item.id;
-                        return (
-                          <button 
-                            key={item.id}
-                            onClick={() => onPageChange(item.id as Page)}
-                            className={`va-nav-item ${isActive ? 'va-nav-active' : ''}
-                              relative flex items-center justify-between px-3.5 py-2.5 rounded-xl w-full transition-all duration-300 group
-                              ${isActive ? 'text-emerald-950 font-black' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50/70'}
-                            `}
-                          >
-                            {isActive && (
-                              <motion.div
-                                layoutId="activeMenuIndicator"
-                                className="absolute inset-0 bg-emerald-50 rounded-xl"
-                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                              />
-                            )}
-                            <div className="flex items-center gap-3 relative z-10 pl-2">
-                              <item.icon size={16} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-emerald-600' : 'group-hover:scale-110 transition-transform duration-300 text-zinc-400 group-hover:text-zinc-600'} />
-                              <span className="text-[13px] font-medium truncate max-w-[170px]">{item.label}</span>
-                              {item.id === 'chat' && unreadMessagesCount > 0 && (
-                                <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
-                              )}
-                              {item.id === 'notifications' && unreadNotificationsCount > 0 && (
-                                <span className="absolute -top-1 -right-3 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse border border-white"></span>
-                              )}
-                            </div>
-                            {item.requiredPlan && !hasRequiredPlan(item.requiredPlan) && !isSuperAdmin && (
-                              <LockIcon size={12} className="opacity-50 group-hover:opacity-100 transition-opacity relative z-10" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+              <button
+                key={hub.id}
+                type="button"
+                className={`va-rail-item ${selected ? 'is-active' : ''}`}
+                aria-current={selected ? 'page' : undefined}
+                onClick={() => goToPage(hub.page)}
+              >
+                <Icon size={19} aria-hidden="true" />
+                <span>{hub.label}</span>
+              </button>
             );
           })}
-          
-          <div className="pt-4 mt-4 border-t border-zinc-200">
-            <button 
-              onClick={() => setShowTimer(!showTimer)}
-              className={`
-                flex items-center gap-3 px-4 py-3 rounded-xl w-full transition-all duration-300 group
-                ${showTimer ? 'bg-emerald-50 text-emerald-800' : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'}
-              `}
-            >
-              <TimerIcon size={18} className="group-hover:rotate-12 transition-transform duration-300" />
-              <span className="text-sm font-medium">Chronomètre</span>
-            </button>
-          </div>
         </nav>
 
-        <div className="px-2">
-          <button onClick={onLogout} className="va-logout mt-4 flex items-center gap-3 px-4 py-3 rounded-xl w-full text-zinc-500 hover:text-red-500 transition-all hover:bg-red-50 group">
-            <LogOutIcon size={18} className="group-hover:translate-x-1 transition-transform duration-300" />
-            <span className="text-sm font-medium">Se déconnecter</span>
+        <div className="va-rail-profile-wrap">
+          <button
+            ref={desktopProfileTriggerRef}
+            type="button"
+            className="va-rail-profile"
+            aria-label={`Ouvrir le profil de ${user.name}`}
+            aria-haspopup="menu"
+            aria-expanded={showProfileMenu}
+            onClick={() => setShowProfileMenu(open => !open)}
+          >
+            <span className="va-user-avatar">{user.avatar?.startsWith('http') ? <img src={user.avatar} alt="" /> : (user.avatar || user.name.substring(0, 2).toUpperCase())}</span>
           </button>
         </div>
       </aside>
 
       {/* Main Content Area */}
       <main className="va-main flex-1 min-h-screen relative">
-        <header className="va-topbar" aria-label="Barre supérieure">
-          <div className="va-topbar-context">
-            <strong>{currentPageLabel}</strong>
-            <span aria-hidden="true">/</span>
-            <span>{roleLabel}</span>
+        <header className="va-topbar va-context-bar" aria-label="Contexte de navigation">
+          <div className="va-context-main">
+            <div className="va-context-heading">
+              <strong>{getHubLabel(activeHub, effectiveRole)}</strong>
+              <span>{roleLabel}</span>
+            </div>
+            {contextItems.length > 0 && (
+              <nav className="va-context-tabs" aria-label={`Pages de ${getHubLabel(activeHub, effectiveRole)}`}>
+                {contextItems.map(item => (
+                  <button key={item.id} type="button" aria-current={activePage === item.id ? 'page' : undefined} onClick={() => goToPage(item.id)}>
+                    <span>{item.label}</span>
+                    {item.id === 'chat' && unreadMessagesCount > 0 && <span className="va-context-count" aria-label={`${unreadMessagesCount} messages non lus`}>{unreadMessagesCount}</span>}
+                  </button>
+                ))}
+              </nav>
+            )}
           </div>
           <div className="va-topbar-tools">
             <button type="button" className="va-icon-button va-topbar-search" onClick={() => setShowCommandPalette(true)} aria-label="Rechercher une page (Commande K)" aria-keyshortcuts="Meta+K Control+K">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
-              <span>Rechercher une page…</span>
-              <kbd>⌘ K</kbd>
+              <Search size={17} aria-hidden="true" />
+              <span>Rechercher…</span>
+              <kbd><span className="va-shortcut-mac">⌘</span><span className="va-shortcut-other">Ctrl</span> K</kbd>
             </button>
-            <div className="va-user-chip" aria-label={`${user.name}, ${roleLabel}`}>
+            {isCoach && (
+              <div className="va-create-anchor" ref={createMenuRef}>
+                <button ref={createTriggerRef} type="button" className="va-create-trigger" aria-haspopup="menu" aria-expanded={showCreateMenu} aria-controls="va-create-menu" onClick={() => setShowCreateMenu(open => !open)}>
+                  <Plus size={17} aria-hidden="true" /><span>Créer</span><ChevronDown size={14} aria-hidden="true" />
+                </button>
+                {showCreateMenu && (
+                  <div id="va-create-menu" className="va-create-menu" role="menu" aria-label="Créer ou ouvrir un outil">
+                    <span className="va-menu-caption">ACCÈS RAPIDE</span>
+                    <button type="button" role="menuitem" onClick={() => goToPage('users')}><UsersIcon size={17} /><span><strong>Ajouter un adhérent</strong><small>Ouvrir les membres</small></span></button>
+                    <button type="button" role="menuitem" onClick={() => goToPage('presets')}><LayersIcon size={17} /><span><strong>Créer un programme</strong><small>Ouvrir les programmes</small></span></button>
+                    <button type="button" role="menuitem" onClick={() => goToPage('crm_pipeline')}><TargetIcon size={17} /><span><strong>Ajouter un prospect</strong><small>Ouvrir les prospects</small></span></button>
+                    <button type="button" role="menuitem" onClick={() => goToPage('calendar')}><CalendarIcon size={17} /><span><strong>Planifier une séance</strong><small>Ouvrir le planning</small></span></button>
+                    <button type="button" role="menuitem" disabled={!club?.id} onClick={openInviteDialog}><UserRound size={17} /><span><strong>Inviter un adhérent</strong><small>{club?.id ? 'Copier le code de votre espace' : 'Espace indisponible'}</small></span></button>
+                    <div className="va-menu-divider" />
+                    <button type="button" role="menuitem" onClick={() => { setShowTimer(open => !open); setShowCreateMenu(false); }}><TimerIcon size={17} /><span><strong>Chronomètre</strong><small>{showTimer ? 'Masquer le chronomètre' : 'Ouvrir l’outil'}</small></span></button>
+                  </div>
+                )}
+              </div>
+            )}
+            {isSuperAdmin && onChangePerspective && (
+              <div className="va-perspective-switch" role="group" aria-label="Changer de perspective">
+                {(['superadmin', 'coach', 'member'] as const).map(perspective => (
+                  <button key={perspective} type="button" aria-pressed={adminPerspective === perspective} onClick={() => onChangePerspective(perspective)}>
+                    {perspective === 'superadmin' ? 'Admin' : perspective === 'coach' ? 'Coach' : 'Adhérent'}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button ref={mobileProfileTriggerRef} type="button" className="va-mobile-profile" aria-label={`Ouvrir le profil de ${user.name}`} aria-haspopup="menu" aria-expanded={showProfileMenu} onClick={() => setShowProfileMenu(open => !open)}>
               <span className="va-user-avatar">{user.avatar?.startsWith('http') ? <img src={user.avatar} alt="" /> : (user.avatar || user.name.substring(0, 2).toUpperCase())}</span>
-              <span className="va-user-copy"><strong>{user.name}</strong><span>{roleLabel}</span></span>
-            </div>
+            </button>
+            {showProfileMenu && (
+              <div ref={profileMenuRef} className="va-profile-menu" role="menu" aria-label="Menu du compte">
+                <div className="va-profile-menu-user"><strong>{user.name}</strong><span>{roleLabel}</span></div>
+                <button type="button" role="menuitem" onClick={() => goToPage(profilePage)}><UserRound size={17} aria-hidden="true" /><span>{profileLabel}</span></button>
+                <button type="button" role="menuitem" onClick={() => { setShowTimer(open => !open); setShowProfileMenu(false); }}><TimerIcon size={17} aria-hidden="true" /><span>{showTimer ? 'Masquer le chronomètre' : 'Chronomètre'}</span></button>
+                <button type="button" role="menuitem" className="va-profile-logout" onClick={() => { setShowProfileMenu(false); onLogout(); }}><LogOutIcon size={17} aria-hidden="true" /><span>Se déconnecter</span></button>
+              </div>
+            )}
           </div>
         </header>
         
@@ -708,7 +599,7 @@ export const Layout: React.FC<LayoutProps> = ({
         )}
 
         {/* Navigation mobile pensée par rôle */}
-        <nav aria-label="Navigation principale" className={`va-mobile-nav md:hidden ${effectiveRole === 'superadmin' ? 'va-mobile-nav-admin' : ''}`}>
+        <nav aria-label="Navigation principale" className={`va-mobile-nav ${effectiveRole === 'superadmin' ? 'va-mobile-nav-admin' : ''}`}>
           {mobileTabs.map(item => {
             const Icon = item.icon;
             const isMore = item.id === 'plus';
@@ -747,7 +638,7 @@ export const Layout: React.FC<LayoutProps> = ({
             <>
               <motion.button
                 type="button"
-                className="va-mobile-backdrop md:hidden"
+                className="va-mobile-backdrop"
                 aria-label="Fermer le menu Plus"
                 onClick={() => setShowPlusSheet(false)}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -758,7 +649,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 role="dialog"
                 aria-modal="true"
                 aria-label="Plus — navigation secondaire"
-                className="va-mobile-sheet md:hidden"
+                className="va-mobile-sheet"
                 initial={reduceMotion ? { opacity: 0 } : { y: 70, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 exit={reduceMotion ? { opacity: 0 } : { y: 70, opacity: 0 }}
@@ -783,7 +674,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 )}
 
                 {mobileMoreGroups.map(group => {
-                  const items = group.items.filter(item => item.id !== 'calendar' || planningEnabled);
+                  const items = group.items;
                   if (!items.length) return null;
                   return (
                     <div className="va-mobile-sheet-group" key={group.label}>
@@ -821,6 +712,22 @@ export const Layout: React.FC<LayoutProps> = ({
           )}
         </AnimatePresence>
       </main>
+
+      <AnimatePresence>
+        {showInviteDialog && (
+          <motion.div className="va-invite-overlay" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setShowInviteDialog(false); }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.section ref={inviteDialogRef} className="va-invite-dialog" role="dialog" aria-modal="true" aria-labelledby="va-invite-title" initial={{ opacity: 0, y: 14, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 8, scale: .98 }}>
+              <button type="button" className="va-invite-close" aria-label="Fermer" onClick={() => setShowInviteDialog(false)}><X size={18} aria-hidden="true" /></button>
+              <span className="va-invite-icon"><UserRound size={20} aria-hidden="true" /></span>
+              <p className="va-menu-caption">INVITATION</p>
+              <h2 id="va-invite-title">Inviter un adhérent</h2>
+              <p>Partagez ce code avec votre adhérent. Il pourra le saisir pendant la création de son compte pour rejoindre votre espace.</p>
+              <div className="va-invite-code"><code>{club?.id || 'Code indisponible'}</code><button type="button" disabled={!club?.id} onClick={copyClubCode}><Copy size={16} aria-hidden="true" />{inviteCopyState === 'copied' ? 'Copié' : 'Copier'}</button></div>
+              <p className={`va-invite-status ${inviteCopyState === 'error' ? 'is-error' : ''}`} aria-live="polite">{inviteCopyState === 'copied' ? 'Le code est copié dans le presse-papiers.' : inviteCopyState === 'error' ? 'Copie impossible. Sélectionnez le code et copiez-le manuellement.' : 'Ce code correspond à celui demandé dans le formulaire d’inscription adhérent.'}</p>
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Command Palette Modal overlay */}
       <AnimatePresence>
@@ -897,11 +804,11 @@ export const Layout: React.FC<LayoutProps> = ({
                           <item.icon size={16} strokeWidth={2.5} className={isSelected ? 'text-white' : 'text-zinc-400'} />
                           <span className="text-sm">{item.label}</span>
                         </div>
-                        {item.category && (
+                {item.hub && (
                           <span className={`text-[11px] font-medium px-2 py-1 rounded-full ${
                             commandActiveIndex === filteredCommandItems.indexOf(item) ? 'bg-white/70 text-emerald-950' : 'bg-zinc-100 text-zinc-600'
                           }`}>
-                            {item.category}
+                            {getHubLabel(item.hub, effectiveRole)}
                           </span>
                         )}
                       </button>
