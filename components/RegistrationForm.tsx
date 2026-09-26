@@ -233,7 +233,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, 
                       <label htmlFor="registration-age" className={fieldLabel}>Âge <span className="font-normal text-[#56675b]">(ans)</span></label>
                       <Input id="registration-age" type="number" min="15" max="100" inputMode="numeric" value={formData.age || ''} onChange={event => setFormData({ ...formData, age: parseInt(event.target.value) || 0 })} className="!min-h-[52px] !rounded-xl !border-[#bdc9be] !bg-[#fbfcfa] !px-4 !text-base focus:!border-[#286b4b] focus:!ring-[#286b4b]/15" />
                     </div>
-                    <fieldset>
+                    <fieldset className="col-span-2 sm:col-span-1">
                       <legend className={fieldLabel}>Genre</legend>
                       <div className="grid grid-cols-2 gap-2">
                         {([['M', 'Homme'], ['F', 'Femme']] as const).map(([value, label]) => (
@@ -280,7 +280,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onRegister, 
                     <legend className={fieldLabel}>Votre expérience</legend>
                     <div className="grid grid-cols-3 gap-2">
                       {(['Débutant', 'Intermédiaire', 'Avancé'] as const).map(level => (
-                        <button key={level} type="button" aria-pressed={formData.experienceLevel === level} onClick={() => setFormData({ ...formData, experienceLevel: level })} className={`${choiceBase} whitespace-nowrap px-1.5 ${formData.experienceLevel === level ? choiceSelected : choiceIdle}`}>{level}</button>
+                        <button key={level} type="button" aria-pressed={formData.experienceLevel === level} onClick={() => setFormData({ ...formData, experienceLevel: level })} className={`${choiceBase} whitespace-nowrap px-1.5 !text-xs sm:!text-sm ${formData.experienceLevel === level ? choiceSelected : choiceIdle}`}>{level}</button>
                       ))}
                     </div>
                   </fieldset>
