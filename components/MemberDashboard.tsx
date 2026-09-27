@@ -381,7 +381,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
               </div>
 
               <div className="flex items-center justify-between bg-white backdrop-blur-md rounded-2xl p-4 border border-zinc-200 group-hover:bg-zinc-100 transition-colors">
-                <span className="font-black text-zinc-900 tracking-widest text-sm uppercase">Démarrer l'entraînement</span>
+                <span className="font-semibold text-zinc-900 text-sm">Démarrer l'entraînement</span>
                 <motion.div
                   className="w-10 h-10 rounded-full bg-emerald-500 text-zinc-900 flex items-center justify-center shadow-lg"
                 >
@@ -454,9 +454,9 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
               </p>
             </motion.div>
           ) : (
-            <div className="space-y-4">
+            <div className="va-checkin-fields space-y-4">
               {/* Mood Slider */}
-              <div className="bg-white rounded-2xl p-4 border border-zinc-100">
+              <div className="va-checkin-mood bg-white rounded-2xl p-4 border border-zinc-100">
                 <span className="text-xs font-medium text-zinc-700 block mb-2">Humeur et énergie</span>
                 <div className="flex justify-between gap-1">
                   {[
@@ -489,7 +489,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                 <div className="bg-white rounded-2xl p-4 border border-zinc-100 flex flex-col justify-between">
                   <div>
                 <span className="text-xs font-medium text-zinc-700 block mb-1">Hydratation</span>
-                    <span className="text-lg font-semibold text-sky-800">{water} L</span>
+                    <span className="text-lg font-semibold text-emerald-900">{water} L</span>
                   </div>
                   <div className="flex gap-1.5 mt-2">
                     <button
@@ -515,7 +515,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                 <div className="bg-white rounded-2xl p-4 border border-zinc-100 flex flex-col justify-between">
                   <div>
                 <span className="text-xs font-medium text-zinc-700 block mb-1">Sommeil</span>
-                    <span className="text-lg font-semibold text-indigo-800">{sleep} h</span>
+                    <span className="text-lg font-semibold text-emerald-900">{sleep} h</span>
                   </div>
                   <div className="flex gap-1.5 mt-2">
                     <button

@@ -187,9 +187,9 @@ export const CoachOnboardingDashboard: React.FC<CoachOnboardingDashboardProps> =
   const steps = (Object.keys(stepCopy) as Array<keyof CoachOnboardingChecklist>).filter(step => planningEnabled || step !== 'firstSessionPlanned');
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-5 pb-6">
-      <section className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7" aria-labelledby="coach-onboarding-title">
-        <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+    <div className="va-coach-start mx-auto w-full max-w-5xl space-y-5 pb-6">
+      <section className="va-coach-start-panel rounded-3xl border border-zinc-200 bg-white p-5 sm:p-7" aria-labelledby="coach-onboarding-title">
+        <div className="va-coach-start-intro grid gap-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-emerald-800">Espace coach · Premiers pas</p>
             <h1 id="coach-onboarding-title" className="mt-1 font-display text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl">
@@ -203,10 +203,10 @@ export const CoachOnboardingDashboard: React.FC<CoachOnboardingDashboardProps> =
               <span className="shrink-0 text-sm font-semibold text-zinc-700">{progress.completed} / {progress.total}</span>
             </div>
           </div>
-          <div className="hidden md:block" aria-hidden="true"><VelatraMascot state="wave" size={82} interactive={false} autoWave={false} /></div>
+          <div className="hidden md:block" aria-hidden="true"><VelatraMascot state="idle" size={82} interactive={false} autoWave={false} /></div>
         </div>
 
-        <div className="mt-6 rounded-2xl bg-[#f3f7f1] p-4 sm:p-5">
+        <div className="va-coach-start-action mt-6 rounded-2xl bg-[#f3f7f1] p-4 sm:p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Votre prochaine action</p>
           <h2 className="mt-1 text-lg font-semibold text-zinc-900">{activeCopy.title}</h2>
           <Button onClick={stepAction} className="mt-4 min-h-11 w-full sm:w-auto">{activeCopy.action}</Button>
@@ -227,9 +227,9 @@ export const CoachOnboardingDashboard: React.FC<CoachOnboardingDashboardProps> =
           {activeStep === 'firstSessionPlanned' && !planningEnabled && <p className="mt-2 text-sm text-zinc-600">Le planning est désactivé; cette étape ne bloque pas votre démarrage.</p>}
         </div>
 
-        <div className="mt-6">
-          <h2 className="text-sm font-semibold text-zinc-900">Checklist de démarrage</h2>
-          <ol className="mt-3 grid gap-2 sm:grid-cols-2">
+        <div className="va-coach-start-checklist mt-6">
+          <h2 className="text-sm font-semibold text-zinc-900">Votre parcours</h2>
+          <ol className="mt-3 grid gap-2">
             {steps.map((step, index) => {
               const done = checklist[step] || (step === 'firstSessionPlanned' && !planningEnabled);
               const active = step === activeStep && !done;
