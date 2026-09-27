@@ -94,7 +94,7 @@
 .va-content { padding: 22px 28px 32px; }
 .va-mobile-nav, .va-mobile-sheet, .va-mobile-backdrop { display: none; }
 
-.va-card { border-radius: var(--app-radius-md) !important; background: var(--app-surface) !important; border-color: var(--app-border) !important; box-shadow: 0 5px 20px rgba(28,49,34,.045) !important; }
+.va-card { border-radius: var(--app-radius-md) !important; background: var(--app-surface) !important; border-color: var(--app-border) !important; box-shadow: none !important; }
 .va-stat { border-radius: var(--app-radius-md) !important; background: var(--app-surface) !important; border-color: var(--app-border) !important; }
 .va-button { min-height: 44px; border-radius: 12px !important; font-size: 14px !important; letter-spacing: 0 !important; }
 .va-button--primary { background: var(--app-green-dark) !important; color: #fff !important; box-shadow: none !important; }
@@ -268,7 +268,7 @@
 .va-content :is(section, article, div)[class*="rounded-3xl"][class*="bg-white"],
 .va-content :is(section, article, div)[class*="rounded-2xl"][class*="bg-white"] {
   border-color: var(--page-border);
-  box-shadow: 0 5px 20px rgba(28, 49, 34, .045);
+  box-shadow: none;
 }
 .va-content :is(section, article, div)[class*="rounded-3xl"][class*="bg-zinc-50"],
 .va-content :is(section, article, div)[class*="rounded-2xl"][class*="bg-zinc-50"] {

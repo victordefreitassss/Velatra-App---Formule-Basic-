@@ -88,7 +88,7 @@ export const VelatraMascot: React.FC<VelatraMascotProps> = ({
         ? { x: [0, -1.8, 1.8, -1, 0] }
         : effectiveState === 'wave'
           ? { rotate: [0, -1.2, 1.2, 0], y: [0, -1.6, 0] }
-          : { y: [0, -1.4, 0] };
+          : { y: 0, rotate: 0, scale: 1 };
 
   const pupilX = effectiveState === 'thinking' ? 1.5 : look.x;
   const pupilY = effectiveState === 'thinking' ? -1.4 : look.y;
@@ -120,11 +120,12 @@ export const VelatraMascot: React.FC<VelatraMascotProps> = ({
       <motion.div
         className="absolute inset-[8%_5%_2%] rounded-[38%] bg-[radial-gradient(circle_at_50%_25%,rgba(255,255,255,.8),rgba(221,232,220,.22)_60%,transparent_78%)]"
         aria-hidden="true"
-        animate={reduceMotion ? undefined : { opacity: [0.72, 1, 0.72], scale: [0.99, 1.015, 0.99] }}
-        transition={{ duration: 4.6, repeat: Infinity, ease: 'easeInOut' }}
+        animate={undefined}
+        transition={{ duration: 0.2 }}
       />
 
       <motion.svg
+        className="relative z-10"
         viewBox="0 0 220 260"
         width="100%"
         height="100%"
@@ -136,7 +137,7 @@ export const VelatraMascot: React.FC<VelatraMascotProps> = ({
             ? { duration: 0.58, ease: 'easeOut' }
             : effectiveState === 'error'
               ? { duration: 0.34, ease: 'easeOut' }
-              : { duration: 3.5, repeat: Infinity, ease: 'easeInOut' }
+              : { duration: 0.3, ease: 'easeInOut' }
         }
       >
         <defs>

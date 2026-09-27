@@ -1,0 +1,110 @@
+/* Focused work surfaces. Navigation retains the existing V2 glass treatment. */
+.va-polish-page { width: 100%; max-width: 1440px; margin-inline: auto; }
+.va-coach-dashboard { max-width: 1320px; }
+.va-coach-dashboard .va-dashboard-welcome { padding: 24px 28px; box-shadow: none; }
+.va-coach-dashboard .va-dashboard-shortcut { min-height: 64px; }
+.va-coach-dashboard .va-dashboard-shortcut-icon { flex-shrink: 0; }
+.va-coach-dashboard .va-dashboard-shortcut-icon svg { width: 19px; height: 19px; }
+.va-coach-start-panel { display: grid; gap: 24px; }
+.va-coach-start .va-coach-start-intro { grid-column: 1 / -1; }
+.va-coach-start .va-coach-start-action,
+.va-coach-start .va-coach-start-checklist { margin-top: 0; }
+.va-coach-start .va-coach-start-action { align-self: start; border: 1px solid var(--app-border); }
+.va-coach-start .va-coach-start-checklist h2 { font: 600 14px/1.4 Inter, sans-serif; }
+.va-coach-start .va-coach-start-checklist li { background: #fff; border-color: var(--app-border); }
+@media (min-width: 900px) {
+  .va-coach-start-panel { grid-template-columns: 1fr 1fr; gap: 28px 36px; }
+  .va-coach-start .va-coach-start-action { padding: 24px; }
+}
+
+/* Header and rows must share a fixed action column, including its empty header. */
+@media (min-width: 1024px) {
+  .va-members-page .va-members-columns,
+  .va-members-page .va-members-row { grid-template-columns: minmax(220px,1.6fr) minmax(130px,.85fr) minmax(160px,1.05fr) minmax(130px,.8fr) 84px; }
+  .va-members-row > span:nth-child(2) { justify-content: flex-start; }
+  .va-members-columns > span:last-child { position: static; width: auto; height: auto; clip: auto; overflow: visible; white-space: normal; text-align: right; }
+}
+@media (max-width: 1023px) {
+  .va-members-page .va-members-row { grid-template-columns: minmax(0,1fr) auto; padding: 18px 16px; gap: 12px; }
+  .va-members-row > span:nth-child(1) { grid-column: 1 / -1; grid-row: 1; }
+  .va-members-row > span:nth-child(2) { grid-column: 1; grid-row: 2; justify-content: flex-start; }
+  .va-members-row > span:nth-child(3) { grid-column: 1 / -1; grid-row: 3; padding-left: 0; }
+  .va-members-row > span:nth-child(4) { display: block; grid-column: 1 / -1; grid-row: 4; color: var(--app-text-muted); font-size: 12px; }
+  .va-members-row > span:nth-child(4)::before { content: 'Dernière activité · '; }
+  .va-members-row > span:nth-child(5) { grid-column: 2; grid-row: 2; }
+}
+
+/* The dossier is a solid workspace even when rendered through a portal. */
+.va-member-dossier { color: var(--app-text); font: 400 14px/1.5 Inter, sans-serif; }
+.va-member-dossier :is(h2,h3,h4) { font-family: Outfit, sans-serif; font-weight: 600; letter-spacing: -.02em; }
+.va-member-dossier .va-dossier-close { top: 16px; right: 16px; width: 44px; height: 44px; padding: 10px; border-radius: 12px; background: #fff; box-shadow: none; }
+.va-member-dossier .va-dossier-avatar { box-shadow: none; background: var(--app-green-dark); }
+.va-member-dossier .va-dossier-sidebar { background: #f6f8f3; }
+.va-member-dossier .va-dossier-content { padding: 24px; }
+.va-dossier-content > div:first-child { margin: -24px -24px 0; padding: 18px 76px 18px 24px; min-height: 86px; background: #fff; backdrop-filter: none; }
+.va-member-assistance { border: 1px solid var(--app-border); border-radius: 16px; padding: 16px; background: #fff; }
+.va-member-assistance > summary { cursor: pointer; min-height: 44px; color: var(--app-green-dark); list-style: none; }
+.va-member-assistance > summary::after { content: '+'; margin-left: auto; font-size: 22px; font-weight: 400; }
+.va-member-assistance[open] > summary::after { content: '−'; }
+.va-member-assistance .va-assistance-grid { margin-top: 16px; }
+.va-assistance-grid > div { box-shadow: none; padding: 16px; background: #fafbf8; }
+.va-member-dossier :is(button,summary,input,textarea,select):focus-visible { outline: 3px solid #287451; outline-offset: 3px; }
+@media (min-width: 768px) {
+  .va-member-dossier .va-dossier-sidebar { width: 236px; padding: 28px 20px; height: min(88dvh,960px); }
+  .va-member-dossier .va-dossier-content { height: min(88dvh,960px); }
+  .va-member-dossier > div { min-height: 0; }
+}
+@media (max-width: 767px) {
+  .va-member-dossier .va-dossier-sidebar { padding: 64px 16px 16px; border-right: 0; border-bottom: 1px solid var(--app-border); }
+  .va-member-dossier .va-dossier-content { padding: 20px 16px; }
+  .va-dossier-content > div:first-child { margin: -20px -16px 0; padding: 14px 16px; position: relative; min-height: 76px; }
+}
+.va-member-dialog { font-family: Inter, sans-serif; }
+.va-member-dialog h2 { font-family: Outfit, sans-serif; font-weight: 600; }
+.va-member-dialog::backdrop { background: rgb(17 34 25 / .38); backdrop-filter: blur(3px); }
+
+.va-content .va-editor-header h1 { font-size: 22px; line-height: 1.25; white-space: nowrap; text-wrap: nowrap; font-weight: 600; }
+.va-editor-header > div:first-child { flex: 1; }
+.va-editor-header > div:first-child > div:last-child { flex: 1; }
+.va-editor-presets { border-top: 1px solid var(--app-border); padding-top: 8px; }
+.va-editor-presets summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-size: 13px; font-weight: 600; color: var(--app-green-dark); }
+.va-editor-presets summary::after { content: '+'; margin-left: auto; }
+.va-editor-presets[open] summary::after { content: '−'; }
+.va-editor-presets > div { margin-block: 12px; }
+.va-editor-metadata > * { min-width: 0; }
+@media (max-width: 767px) {
+  .va-content .va-editor-header h1 { font-size: 15px; }
+  .va-editor-page .va-editor-metadata { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .va-editor-metadata > div:first-child { grid-column: 1 / -1; }
+  .va-editor-metadata input { max-width: 100%; min-width: 0; }
+}
+.va-presets-page .va-preset-card { padding: 22px; }
+.va-presets-page .va-preset-card > div:last-child { margin-top: 24px; }
+.va-presets-page .va-preset-card .va-button { font-style: normal; }
+.va-ai-page { width: 100%; max-width: 1040px; margin-inline: auto; min-height: 560px; height: calc(100dvh - 155px); }
+.va-ai-page > div { min-height: 0; }
+.va-ai-page > div:first-child { flex-shrink: 0; }
+.va-ai-page textarea { font-size: 15px; }
+.va-checkin-fields > * { min-width: 0; }
+@media (min-width: 900px) {
+  .va-checkin-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .va-checkin-fields.space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 0; margin-bottom: 0; }
+  .va-checkin-mood { align-self: stretch; }
+}
+@media (max-width: 767px) {
+  .va-login { padding-top: 68px; padding-bottom: 24px; }
+  .va-login section > div { padding-top: 24px; padding-bottom: 24px; }
+
+  .va-coach-dashboard .va-dashboard-welcome { padding: 22px; }
+}
+
+.va-message-thread { width: 100%; max-width: 1040px; margin-inline: auto; height: calc(100dvh - 150px); min-height: 360px; }
+@media (max-width: 1023px) {
+  .va-message-thread { height: calc(100dvh - 270px); }
+}
+
+.va-assign-dialog { width: min(480px,calc(100vw - 32px)); max-height: calc(100dvh - 48px); margin: auto; padding: 28px; overflow-y: auto; border: 1px solid var(--app-border); border-radius: 24px; background: #fff; color: var(--app-text); font-family: Inter,sans-serif; box-shadow: var(--app-shadow-floating); }
+.va-assign-dialog::backdrop { background: rgb(17 34 25 / .38); backdrop-filter: blur(3px); }
+.va-assign-dialog :is(button,input):focus-visible { outline: 3px solid #287451; outline-offset: 3px; }
+
+@media (max-width: 1023px) { .va-ai-page { min-height: 500px; height: calc(100dvh - 260px); } }

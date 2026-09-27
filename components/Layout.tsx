@@ -16,6 +16,7 @@ import {
 } from './appShellHelpers';
 import { trackProductEventOnce } from './productEvents';
 import './app-shell.css';
+import './visual-polish.css';
 
 interface LayoutProps {
   user: User;

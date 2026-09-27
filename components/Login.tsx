@@ -135,7 +135,7 @@ export const Login: React.FC<{ initialMode?: 'login' | 'choose_account' | 'regis
   const isAccountChoice = mode === 'choose_account';
 
   return (
-    <main className="relative flex min-h-[100svh] flex-col items-center justify-center bg-[#f4f5ef] px-4 pb-8 pt-20 text-[#15241c] sm:px-6 sm:pb-12 sm:pt-24">
+    <main className="va-login relative flex min-h-[100svh] flex-col items-center justify-center bg-[#f4f5ef] px-4 pb-8 pt-20 text-[#15241c] sm:px-6 sm:pb-12 sm:pt-24">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -right-24 -top-28 h-80 w-80 rounded-full border border-[#dce5db] sm:right-[8%] sm:top-[-9rem] sm:h-[30rem] sm:w-[30rem]" />
         <div className="absolute -right-12 -top-16 h-56 w-56 rounded-full border border-[#e3e9e0] sm:right-[11%] sm:top-[-6rem] sm:h-[24rem] sm:w-[24rem]" />
@@ -149,7 +149,7 @@ export const Login: React.FC<{ initialMode?: 'login' | 'choose_account' | 'regis
         Retour au site
       </Link>
 
-      <section className="relative z-[1] my-auto w-full max-w-[960px] overflow-hidden rounded-[28px] border border-[#dfe5dd] bg-white shadow-[0_28px_90px_-45px_rgba(19,48,34,0.32)] md:grid md:min-h-[570px] md:grid-cols-[0.88fr_1.12fr]" aria-labelledby="login-title">
+      <section className="relative z-[1] my-auto w-full max-w-[960px] overflow-hidden rounded-[28px] border border-[#dfe5dd] bg-white shadow-[0_18px_60px_-36px_rgba(19,48,34,0.2)] md:grid md:min-h-[570px] md:grid-cols-[0.88fr_1.12fr]" aria-labelledby="login-title">
         <aside className="relative hidden flex-col justify-between overflow-hidden bg-[#173f2e] p-10 text-white md:flex lg:p-12">
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 -left-20 h-80 w-80 rounded-full border border-white/10" />
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-12 -left-8 h-60 w-60 rounded-full border border-white/10" />
@@ -170,7 +170,7 @@ export const Login: React.FC<{ initialMode?: 'login' | 'choose_account' | 'regis
           <div className="w-full max-w-[390px]">
             <div className="mb-5 flex items-center justify-between gap-3 md:hidden">
               <AppLogo />
-              <VelatraMascot state={mascotState} size={90} interactive={false} ariaLabel="Mascotte Velatra" autoWave={false} />
+              <VelatraMascot state={mascotState} size={74} interactive={false} ariaLabel="Compagnon Velatra" autoWave={false} />
             </div>
 
             <header className="mb-7">
