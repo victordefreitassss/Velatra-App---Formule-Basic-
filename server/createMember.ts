@@ -1,10 +1,11 @@
 import { randomInt } from 'node:crypto';
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
-import { validateMemberRegistration } from './memberRegistration';
+import { validateMemberRegistration } from './memberRegistration.ts';
 
 export class MemberCreationError extends Error {
-  constructor(public status: number, message: string) { super(message); }
+  status: number;
+  constructor(status: number, message: string) { super(message); this.status = status; }
 }
 
 export async function createManagedMember(auth: Auth, db: Firestore, requesterUid: string, body: any) {

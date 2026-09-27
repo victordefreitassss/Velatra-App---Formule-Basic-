@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
-import { MemberCreationError } from './createMember';
+import { MemberCreationError } from './createMember.ts';
 
 const fail = (status: number, message: string): never => { throw new MemberCreationError(status, message); };
 const dayKey = (date: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);

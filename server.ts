@@ -1,6 +1,6 @@
-import { completeWorkout } from './server/completeWorkout';
-import { recordPaidInvoice } from './server/stripePayments';
-import { reserveBooking, cancelBooking } from './server/bookings';
+import { completeWorkout } from './server/completeWorkout.ts';
+import { recordPaidInvoice } from './server/stripePayments.ts';
+import { reserveBooking, cancelBooking } from './server/bookings.ts';
 import express from "express";
 import path from "path";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -8,13 +8,13 @@ import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore, type Firestore } from "firebase-admin/firestore";
 import nodemailer from "nodemailer";
 import Stripe from "stripe";
-import { createManagedMember, MemberCreationError } from "./server/createMember";
+import { createManagedMember, MemberCreationError } from "./server/createMember.ts";
 import { randomInt } from "node:crypto";
-import { validateMemberRegistration } from "./server/memberRegistration";
-import { validatePublicProspect } from "./server/prospectValidation";
-import { validatePublicContact } from "./server/contactValidation";
-import { calculateCheckInReward, parseDailyCheckInInput } from "./server/memberDailyCheckIn";
-import { parseAIConversation } from "./server/aiConversation";
+import { validateMemberRegistration } from "./server/memberRegistration.ts";
+import { validatePublicProspect } from "./server/prospectValidation.ts";
+import { validatePublicContact } from "./server/contactValidation.ts";
+import { calculateCheckInReward, parseDailyCheckInInput } from "./server/memberDailyCheckIn.ts";
+import { parseAIConversation } from "./server/aiConversation.ts";
 
 declare global {
   namespace Express {

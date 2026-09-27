@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { FieldValue, type Firestore } from 'firebase-admin/firestore';
-import { MemberCreationError as BookingError } from './createMember';
+import { MemberCreationError as BookingError } from './createMember.ts';
 
 const fail = (status: number, message: string): never => { throw new BookingError(status, message); };
 const dayParts = (date: Date) => {
