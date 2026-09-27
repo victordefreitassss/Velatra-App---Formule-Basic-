@@ -624,7 +624,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
-      <section ref={bookingSection} tabIndex={-1} aria-label="Paramètres du planning" className="scroll-mt-6 outline-none">
+      <section ref={bookingSection} tabIndex={-1} aria-label="Paramètres du planning" className="scroll-mt-40 lg:scroll-mt-28 outline-none">
       <Card className="p-8 border-zinc-200 bg-zinc-50">
         <div className="flex items-center gap-4 mb-8">
           <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
@@ -642,8 +642,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               <h3 className="font-bold text-zinc-900">Activer le module de planning</h3>
               <p className="text-sm text-zinc-500">Permet aux adhérents de réserver des créneaux avec vous.</p>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" checked={planningEnabled} onChange={(e) => setPlanningEnabled(e.target.checked)} />
+            <label className="relative inline-flex shrink-0 items-center cursor-pointer">
+              <input type="checkbox" aria-label="Activer le planning" className="sr-only peer" checked={planningEnabled} onChange={(e) => setPlanningEnabled(e.target.checked)} />
               <div className="w-11 h-6 bg-zinc-100 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
             </label>
           </div>
@@ -666,9 +666,10 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             
             <div className="space-y-3">
               {sessionTypes.map((type, idx) => (
-                <div key={type.id} className="flex gap-3 items-center bg-zinc-50 p-3 rounded-xl border border-zinc-200">
-                  <div className="flex-1">
-                    <Input
+                <div key={type.id} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:flex gap-3 items-end bg-zinc-50 p-3 rounded-xl border border-zinc-200">
+                  <div className="col-span-3 min-w-0 md:flex-1">
+                    <label htmlFor={`session-name-${type.id}`} className="mb-1 block text-xs text-zinc-700">Nom de la séance</label>
+                    <Input id={`session-name-${type.id}`}
                       value={type.name}
                       onChange={(e) => {
                         const newTypes = [...sessionTypes];
@@ -678,8 +679,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                       placeholder="Nom (ex: Séance 45 min)"
                     />
                   </div>
-                  <div className="w-24">
-                    <Input
+                  <div className="min-w-0 md:w-28">
+                    <label htmlFor={`session-duration-${type.id}`} className="mb-1 block text-xs text-zinc-700">Durée (min)</label>
+                    <Input id={`session-duration-${type.id}`}
                       type="number"
                       value={type.duration}
                       onChange={(e) => {
@@ -690,8 +692,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                       placeholder="Durée (min)"
                     />
                   </div>
-                  <div className="w-32">
-                    <Input
+                  <div className="min-w-0 md:w-32">
+                    <label htmlFor={`session-places-${type.id}`} className="mb-1 block text-xs text-zinc-700">Places</label>
+                    <Input id={`session-places-${type.id}`}
                       type="number"
                       value={type.maxParticipants || 1}
                       onChange={(e) => {
@@ -705,7 +708,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                   </div>
                   <Button
                     variant="ghost"
-                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 !p-2"
+                    aria-label={`Retirer le type ${type.name}`}
+                    className="text-red-800 hover:text-red-900 hover:bg-red-50 !p-2 !h-11 !w-11 shrink-0"
                     onClick={() => {
                       setSessionTypes(sessionTypes.filter((_, i) => i !== idx));
                     }}
@@ -769,13 +773,13 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               {['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'].map((dayName, index) => {
                 const daySchedule = schedule.find(s => s.day === index) || { day: index, slots: [] };
                 return (
-                  <div key={index} className="flex items-start gap-4 p-4 border border-zinc-200 rounded-xl bg-zinc-50">
-                    <div className="w-32 font-bold text-zinc-900 pt-2">{dayName}</div>
-                    <div className="flex-1 space-y-2">
+                  <div key={index} className="flex flex-col lg:flex-row items-stretch gap-3 p-3 sm:p-4 border border-zinc-200 rounded-xl bg-zinc-50">
+                    <div className="lg:w-24 shrink-0 font-bold text-zinc-900 pt-2">{dayName}</div>
+                    <div className="min-w-0 flex-1 space-y-3">
                       {daySchedule.slots.map((slot, slotIndex) => (
-                        <div key={slotIndex} className="flex items-center gap-2">
+                        <div key={slotIndex} className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:flex lg:flex-wrap items-center gap-2">
                           <Input 
-                            type="time" 
+                            type="time" aria-label={`${dayName} · début du créneau ${slotIndex + 1}`}
                             value={slot.start} 
                             onChange={(e) => {
                               const newSchedule = [...schedule];
@@ -785,11 +789,11 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                                 setSchedule(newSchedule);
                               }
                             }}
-                            className="!py-1 !px-2 w-32"
+                            className="!py-2 !px-2 !min-w-0 !w-full lg:!w-32 min-h-11"
                           />
                           <span className="text-zinc-500">à</span>
                           <Input 
-                            type="time" 
+                            type="time" aria-label={`${dayName} · fin du créneau ${slotIndex + 1}`}
                             value={slot.end} 
                             onChange={(e) => {
                               const newSchedule = [...schedule];
@@ -799,9 +803,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                                 setSchedule(newSchedule);
                               }
                             }}
-                            className="!py-1 !px-2 w-32"
+                            className="!py-2 !px-2 !min-w-0 !w-full lg:!w-32 min-h-11"
                           />
-                          <select
+                          <select aria-label={`${dayName} · type du créneau ${slotIndex + 1}`}
                             value={slot.sessionTypeId || ''}
                             onChange={(e) => {
                               const newSchedule = [...schedule];
@@ -811,7 +815,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                                 setSchedule(newSchedule);
                               }
                             }}
-                            className="px-4 py-3 rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all !py-1 !px-2 w-40"
+                            className="px-4 py-3 rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all !py-2 !px-2 min-w-0 w-full lg:w-40 col-span-2 min-h-11"
                           >
                             <option value="">Séance Standard</option>
                             {sessionTypes.map(t => (
@@ -819,7 +823,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                             ))}
                           </select>
                           {clubCoaches.length > 1 && (
-                            <select
+                            <select aria-label={`${dayName} · coach du créneau ${slotIndex + 1}`}
                               value={slot.coachId || ''}
                               onChange={(e) => {
                                 const newSchedule = [...schedule];
@@ -829,7 +833,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                                   setSchedule(newSchedule);
                                 }
                               }}
-                              className="px-4 py-3 rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all !py-1 !px-2 w-40"
+                              className="px-4 py-3 rounded-xl border border-zinc-200 bg-white text-zinc-900 focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all !py-2 !px-2 min-w-0 w-full lg:w-40 col-span-2 min-h-11"
                             >
                               <option value="">Tous les coachs</option>
                               {clubCoaches.map(c => (
@@ -839,7 +843,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                           )}
                           <Button 
                             variant="secondary"  
-                            className="!p-1 !h-8 !w-8 flex items-center justify-center text-red-400 border-red-500/20 hover:bg-red-500/10"
+                            aria-label={`Retirer le créneau ${slotIndex + 1} du ${dayName}`}
+                            className="!p-1 !h-11 !w-11 justify-self-end flex items-center justify-center text-red-800 border-red-300 hover:bg-red-50"
                             onClick={() => {
                               const newSchedule = [...schedule];
                               const dayIdx = newSchedule.findIndex(s => s.day === index);
