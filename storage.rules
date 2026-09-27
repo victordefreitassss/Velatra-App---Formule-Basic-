@@ -71,16 +71,28 @@ service firebase.storage {
 
     function imageUpload(maxBytes) {
       return request.resource != null && request.resource.size <= maxBytes &&
+        request.resource.contentType is string &&
         request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }
 
     function documentUpload(maxBytes) {
       return request.resource != null && request.resource.size <= maxBytes &&
+        request.resource.contentType is string &&
         request.resource.contentType in [
           'application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'text/plain',
           'application/msword',
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         ];
+    }
+
+    function videoUpload(maxBytes) {
+      return request.resource != null && request.resource.size <= maxBytes &&
+        request.resource.contentType is string &&
+        request.resource.contentType.matches('video/[a-zA-Z0-9.+_-]+');
+    }
+
+    function ownerInClub(clubId) {
+      return profileExists() && profile().clubId == clubId && profile().role == 'owner';
     }
 
     match /avatars/{ownerUid}/{fileName} {
@@ -102,17 +114,17 @@ service firebase.storage {
     }
 
     match /clubs/{clubId}/{fileName} {
-      allow read: if signedIn();
+      allow read: if profileExists() && (profile().clubId == clubId || isSuperAdmin());
       allow create, update: if staffInClub(clubId) && imageUpload(5 * 1024 * 1024);
       allow delete: if staffInClub(clubId);
     }
 
     match /videos/{clubId}/{uploaderUid}/{fileName} {
-      allow read: if signedIn() && (clubId == 'global' || profileExists() && profile().clubId == clubId);
+      // There is no global video catalogue. Preserve club-scoped reads even for admins.
+      allow read: if profileExists() && profile().clubId == clubId;
       allow create, update: if signedIn() && request.auth.uid == uploaderUid &&
-        staffInClub(clubId) && request.resource != null && request.resource.size <= 50 * 1024 * 1024 &&
-        request.resource.contentType.matches('video/.*');
-      allow delete: if signedIn() && request.auth.uid == uploaderUid && staffInClub(clubId);
+        staffInClub(clubId) && videoUpload(50 * 1024 * 1024);
+      allow delete: if (signedIn() && request.auth.uid == uploaderUid && staffInClub(clubId)) || ownerInClub(clubId);
     }
 
     match /drive/{clubId}/{uploaderUid}/{fileId}/{fileName} {
@@ -124,10 +136,17 @@ service firebase.storage {
         return firestore.get(/databases/(default)/documents/driveFiles/$(fileId)).data;
       }
 
+      function matchingDriveFile() {
+        return driveFileExists() && driveFile().id == fileId &&
+          driveFile().clubId == clubId && driveFile().name == fileName &&
+          driveFile().path == 'drive/' + clubId + '/' + uploaderUid + '/' + fileId + '/' + fileName;
+      }
+
       function canReadDriveFile() {
         return signedIn() && profileExists() && (profile().clubId == clubId || isSuperAdmin()) && (
-          request.auth.uid == uploaderUid || staffInClub(clubId) ||
-          (driveFileExists() && driveFile().clubId == clubId &&
+          // Staff read before metadata is created: upload -> download URL -> Firestore.
+          staffInClub(clubId) ||
+          (matchingDriveFile() &&
             'sharedWith' in driveFile() && driveFile().sharedWith is list &&
             driveFile().sharedWith.hasAny([profile().id]))
         );
@@ -135,16 +154,14 @@ service firebase.storage {
 
       function canDeleteDriveFile() {
         return signedIn() && profileExists() && (profile().clubId == clubId || isSuperAdmin()) && (
-          request.auth.uid == uploaderUid || isSuperAdmin() ||
-          (driveFileExists() && staffInClub(clubId) &&
-            (profile().role == 'owner' || driveFile().uploadedBy == profile().id))
+          (request.auth.uid == uploaderUid && staffInClub(clubId)) ||
+          isSuperAdmin() || ownerInClub(clubId)
         );
       }
 
       allow read: if canReadDriveFile();
       allow create, update: if signedIn() && request.auth.uid == uploaderUid && staffInClub(clubId) &&
-        request.resource != null && request.resource.size <= 25 * 1024 * 1024 &&
-        request.resource.contentType != null;
+        (documentUpload(25 * 1024 * 1024) || imageUpload(25 * 1024 * 1024) || videoUpload(25 * 1024 * 1024));
       allow delete: if canDeleteDriveFile();
     }
 
