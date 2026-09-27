@@ -1,23 +1,25 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Velatra
 
-# Run and deploy your AI Studio app
+Application web de coaching : React, TypeScript et Vite, API Express, Firebase et Gemini côté serveur. Déploiement via Vercel.
 
-This contains everything you need to run your app locally.
+## Développement local
 
-View your app in AI Studio: https://ai.studio/apps/b80dc370-7dfb-4c83-8d03-6fe42e41a878
+Prérequis : Node 24 ; Java 21 pour les émulateurs Firebase.
 
-## Run Locally
+```sh
+npm ci
+npm run dev
+```
 
-**Prerequisites:**  Node.js
+L'application est servie sur `http://localhost:3000`. Pour travailler avec des comptes fictifs et les émulateurs, suivre la [recette locale isolée](docs/QA-LOCAL.md), qui utilise `npm run dev:qa`.
 
+Les intégrations réelles nécessitent leurs variables d'environnement côté serveur, notamment `GEMINI_API_KEY` pour l'IA. Ne pas les versionner ni les injecter dans le code navigateur.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Repères
+
+- `components/`, `pages/` : interfaces ; `server/`, `server.ts`, `api/` : API.
+- `scripts/qa/`, `tests/` : recette et tests ; `docs/` : procédures et audits techniques.
+- `public/` : ressources publiques. `functions/` est un backend Firebase historique conservé, distinct du déploiement Vercel courant.
 
 ## Validation et publication
 

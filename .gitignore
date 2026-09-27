@@ -25,3 +25,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Known local debug outputs (keep text fixtures and documentation trackable)
+/output.txt
+/indexOfLog.txt
+/lint.txt
+/black_bg.txt
+/framer_indexof.txt
+/recharts_index[Oo]f.txt
+
+# Temporary compiled API fixtures, including interrupted test runs
+/.runtime-test-*/
