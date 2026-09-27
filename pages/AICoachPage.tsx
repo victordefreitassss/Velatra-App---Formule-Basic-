@@ -8,6 +8,7 @@ import { MessagesPage } from './MessagesPage';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenAI } from '../services/aiService';
 import { apiFetch } from '../firebase';
+import { useMemberConversationViewport } from '../components/useMemberConversationViewport';
 
 type AIMessage = { role: 'user' | 'model'; text: string; transient?: boolean };
 const MAX_SAVED_MESSAGES = 20;
@@ -34,6 +35,7 @@ export const AICoachPage: React.FC<{ state: AppState, setState: any, showToast: 
   const coach = state.users.find(u => u.role === 'coach' || u.role === 'owner');
   const coachName = coach ? coach.name : state.user?.role === 'member' ? 'Mon coach' : 'Coach Humain';
   const isMember = state.user?.role === 'member';
+  const conversationRef = useMemberConversationViewport(isMember);
   const canSelectMember = state.user?.role === 'coach' || state.user?.role === 'owner';
   const availableMembers = state.users.filter(member => member.role === 'member' && member.clubId === state.user?.clubId && (
     state.user?.role !== 'coach' || member.assignedCoachUid === state.user.firebaseUid
@@ -183,9 +185,10 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="va-ai-page space-y-4 h-[calc(100dvh-144px)] md:h-[calc(100dvh-96px)] flex flex-col"
+      ref={conversationRef}
+      className={`va-ai-page ${isMember ? 'va-member-ai' : ''} space-y-4 h-[calc(100dvh-144px)] md:h-[calc(100dvh-96px)] flex flex-col`}
     >
-      <motion.div variants={itemVariants} className="flex items-center justify-between px-1 shrink-0">
+      <motion.div variants={itemVariants} className="va-ai-title flex items-center justify-between px-1 shrink-0">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Discussions</h1>
           <p className="text-sm font-normal text-zinc-600">Ton coach et Velatra AI, dans un même espace.</p>
@@ -206,7 +209,7 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
           className={`flex-1 py-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'ai' ? 'bg-emerald-500 text-zinc-900 shadow-lg shadow-emerald-500/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white'}`}
           onClick={() => setActiveTab('ai')}
         >
-          <BotIcon size={16} /> Coach IA
+          <BotIcon size={16} /> Velatra AI
         </button>
       </motion.div>
 
@@ -236,7 +239,7 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 flex flex-col overflow-hidden bg-white rounded-3xl border border-zinc-200/50 shadow-sm"
+            className="va-ai-workspace flex-1 flex flex-col overflow-hidden bg-white rounded-3xl border border-zinc-200/50 shadow-sm"
           >
             {messages.length <= 1 && !loading && (
               <div className="flex items-center gap-3 border-b border-zinc-200/60 bg-white/70 px-4 py-3 sm:px-5">
@@ -256,7 +259,7 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
                 <button onClick={clearConversation} disabled={loading} className="text-xs font-medium text-zinc-500 hover:text-red-600 disabled:opacity-50">Effacer cet historique</button>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-4">
               {messages.map((msg, idx) => (
                 <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
                   {msg.role === 'model' && (
@@ -291,7 +294,7 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
               )}
               <div ref={messagesEndRef} />
             </div>
-            <div className="p-4 bg-zinc-100 backdrop-blur-md border-t border-zinc-200/50">
+            <div className="va-ai-input p-4 bg-zinc-100 backdrop-blur-md border-t border-zinc-200/50">
               <div className="flex gap-2 items-end">
                 <Textarea
                   value={input}
@@ -318,11 +321,7 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
                   <SendIcon size={20} />
                 </button>
               </div>
-              <p className="mt-2 text-[11px] leading-relaxed text-zinc-500">
-                {isMember
-                  ? "Tes échanges sont enregistrés dans ton compte et peuvent être effacés. L'assistant s'appuie sur ton programme disponible; il ne remplace pas ton coach ni un professionnel de santé."
-                  : "Les échanges sont enregistrés dans ton compte et peuvent être effacés. Les changements demandent toujours ta validation."}
-              </p>
+              {isMember ? <details className="va-ai-notice"><summary>À propos de cet échange</summary><p>Échanges enregistrés dans votre compte, effaçables. L’IA utilise votre programme disponible et ne remplace ni votre coach ni un professionnel de santé.</p></details> : <p className="mt-2 text-xs text-zinc-600">Les échanges sont enregistrés dans votre compte et peuvent être effacés. Les changements demandent toujours votre validation.</p>}
             </div>
           </motion.div>
         ) : (
@@ -332,7 +331,7 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 overflow-hidden bg-zinc-50 backdrop-blur-xl rounded-3xl border border-zinc-200/50 p-4 shadow-sm"
+            className={`min-h-0 flex-1 overflow-hidden bg-zinc-50 rounded-3xl border border-zinc-200/50 ${isMember ? 'p-2' : 'p-4'} shadow-sm`}
           >
             <MessagesPage state={state} setState={setState} showToast={showToast} embedded={true} />
           </motion.div>

@@ -129,7 +129,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="space-y-8 pb-20"
+      className="va-member-page"
     >
       <motion.div variants={itemVariants} className="flex justify-between items-center px-1">
         <div>
@@ -139,7 +139,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
       </motion.div>
 
       <MemberTrainingProgress state={state} setState={setState} />
-      <details className="rounded-3xl border border-zinc-200 bg-white p-5"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-zinc-900">Mesures corporelles, graphiques et records</summary><div className="mt-5 space-y-8">
+      <details className="va-member-disclosure"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-zinc-900">Analyses avancées et mensurations</summary><div className="mt-5 space-y-8">
       {/* Weight Chart */}
       <motion.div variants={itemVariants}>
         <Card className="bg-white backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-sm">

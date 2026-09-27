@@ -1,0 +1,158 @@
+/* Member presentation only. The coach shell and Liquid Navigation are unchanged. */
+.va-member-shell { --member-ink:#173a2a; --member-muted:#536158; }
+.va-member-shell .va-content { max-width:1120px; margin-inline:auto; }
+.va-member-page { max-width:920px; margin-inline:auto; display:flex; flex-direction:column; gap:24px; }
+.va-member-shell .va-content h1 { font-size:28px; line-height:1.2; font-weight:650; letter-spacing:-.035em; }
+.va-member-shell .va-content h2 { font-size:20px; line-height:1.3; font-weight:650; }
+.va-member-shell .va-content :is(button,a,summary) { -webkit-tap-highlight-color:transparent; }
+.va-member-shell .va-content :is(button,summary) { min-height:44px; }
+.va-member-shell .va-content button { min-width:44px; }
+.va-member-shell .va-content :is(input,textarea,select) { font-size:16px!important; scroll-margin-block:100px; }
+.va-member-shell .va-content :is(button,a,summary):focus-visible { outline:3px solid #537c62; outline-offset:3px; }
+.va-member-shell .va-content :is(.font-black,.font-extrabold) { font-weight:650; }
+.va-member-shell .va-content :is(.uppercase,.italic) { text-transform:none; font-style:normal; letter-spacing:normal; }
+.va-today-heading { display:flex; flex-direction:column; gap:5px; }
+.va-today-heading p,.va-member-page>header p { color:#536158; font-size:14px; line-height:1.5; margin:0; }
+.va-member-shell .va-today-heading h1 { margin:0; }
+.va-member-next { padding:24px; border-radius:24px; background:#193e2c; color:#fff; display:flex; flex-direction:column; gap:12px; }
+.va-member-shell .va-member-next :is(h2,p,span) { color:#fff!important; }
+.va-member-shell .va-member-next>p:first-child { color:#d5e3d6!important; font-size:13px; font-weight:500; }
+.va-member-shell .va-member-next h2 { font-size:27px; }
+.va-member-shell .va-member-next>p { font-size:14px; line-height:1.5; }
+.va-member-shell .va-member-next .va-start-button { background:#f4f7ed!important; color:#173a2a!important; box-shadow:none!important; border-radius:14px; margin-top:6px; min-height:56px; }
+.va-member-shell .va-member-next>button:not(.va-start-button) { color:#fff!important; align-self:flex-start; }
+.va-member-shell .va-member-next>button:disabled { opacity:.65; }
+.va-member-progress { display:flex; flex-direction:column; gap:20px; }
+.va-member-section-heading { display:flex; flex-wrap:wrap; gap:8px; justify-content:space-between; align-items:center; }
+.va-member-section-heading h2 { margin:0; }
+.va-member-text-link { color:#234c37; font-size:14px; font-weight:600; min-height:44px; display:inline-flex; align-items:center; gap:8px; text-decoration:underline; text-underline-offset:4px; }
+.va-member-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; padding-block:8px 18px; border-bottom:1px solid #d5ddd2; }
+.va-member-metrics dd { font-size:28px; font-weight:650; color:#183d29; line-height:1.2; }
+.va-member-metrics dt { font-size:13px; line-height:1.5; color:#536158; margin-top:5px; }
+.va-member-timeline { display:flex; flex-direction:column; }
+.va-member-session { border-bottom:1px solid #d8dfd5; padding:4px 0; }
+.va-member-session summary { list-style:none; cursor:pointer; display:flex; gap:12px; align-items:center; padding:14px 0; }
+.va-member-session summary::-webkit-details-marker { display:none; }
+.va-member-session summary>span { flex:1; min-width:0; }
+.va-member-session summary svg { width:18px; height:18px; flex-shrink:0; color:#45604e; }
+.va-member-session[open] summary svg { transform:rotate(180deg); }
+.va-member-session small { display:block; color:#536158; font-size:13px; line-height:1.5; }
+.va-member-session strong { display:block; color:#1e3025; font-weight:600; font-size:16px; line-height:1.5; }
+.va-member-session-content { padding:6px 0 18px 14px; border-left:2px solid #a7bda3; margin-bottom:8px; display:grid; gap:16px; }
+.va-member-session-content h3 { font-size:15px; font-weight:600; margin-bottom:6px; }
+.va-member-session-content li { font-size:14px; line-height:1.8; color:#46594c; }
+.va-member-comparison { background:#fff; border:1px solid #d5ddd2; border-radius:18px; padding:16px; }
+.va-member-comparison h3 { font-size:16px; font-weight:600; }
+.va-member-comparison dl { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px; }
+.va-member-comparison dt { font-size:12px; color:#536158; margin-bottom:4px; }
+.va-member-comparison dd { font-size:14px; font-weight:600; }
+.va-member-comparison p { font-size:13px; color:#214c32; margin-top:10px; }
+.va-member-coach-row { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; padding-block:16px; border-block:1px solid #d5ddd2; }
+.va-member-coach-row button { display:inline-flex; align-items:center; gap:12px; padding:0; border:0; font-size:14px; background:transparent; }
+.va-daily-checkin { border-radius:20px; border:1px solid #d8dfd5; background:#fff; padding:18px; }
+.va-member-disclosure { border-top:1px solid #d8dfd5; padding-top:4px; }
+.va-member-disclosure>summary { padding-block:14px; cursor:pointer; font-size:15px; color:#234432; font-weight:600; }
+.va-member-empty { border:1px solid #d5ddd2; background:#fff; border-radius:20px; padding:24px; }
+.va-member-empty>svg { width:30px; height:30px; color:#345a40; margin-bottom:16px; }
+.va-member-empty p { font-size:15px; line-height:1.6; color:#536158; margin-block:8px 16px; max-width:55ch; }
+.va-member-primary { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:52px!important; padding:12px 18px; border-radius:14px; background:#234c37; color:#fff!important; font-size:15px; font-weight:600; }
+.va-member-files { display:flex; flex-direction:column; }
+.va-member-file { display:flex; align-items:center; gap:14px; padding:18px 0; border-bottom:1px solid #d5ddd2; min-height:76px; color:#193e2c; text-decoration:none; }
+.va-member-file>svg { flex-shrink:0; width:22px; height:22px; }
+.va-member-file>span { flex:1; min-width:0; }
+.va-member-file strong { display:block; font-size:15px; font-weight:600; overflow-wrap:anywhere; }
+.va-member-file small { display:block; font-size:13px; color:#536158; margin-top:6px; }
+.va-member-file:hover { background:#edf2e8; }
+.va-member-profile .va-profile-identity { display:flex; align-items:center; gap:18px; }
+.va-member-profile .va-profile-avatar { width:64px; height:64px; font-size:24px; border-radius:20px; box-shadow:none; background:#234c37; color:white; }
+.va-member-shell .va-member-profile .va-profile-avatar { color:#fff!important; }
+.va-member-profile .va-profile-contact { overflow-wrap:anywhere; min-width:0; }
+.va-member-profile .va-profile-card { padding:20px!important; box-shadow:none; background:#fff; }
+.va-member-profile .va-profile-sticky { position:sticky; bottom:calc(94px + env(safe-area-inset-bottom)); background:#f5f7ef; padding:12px 0; z-index:20; }
+.va-member-profile .va-profile-sticky button { min-height:52px; }
+.va-member-profile label { font-size:13px; color:#46594c; }
+.va-member-profile :is(input,select) { min-height:48px; width:100%; min-width:0; }
+.va-member-chat { min-height:0!important; height:var(--member-conversation-height,calc(100dvh - 210px))!important; }
+.va-member-chat>header { padding:8px 0 12px; margin-bottom:12px; background:transparent; border-radius:0; gap:12px; }
+.va-member-chat>header>div:first-of-type { width:40px; height:40px; font-size:14px; background:#234c37; color:white; box-shadow:none; }
+.va-member-chat>header>div:last-child>div:first-child { font-size:17px; }
+.va-member-chat .va-chat-scroll { overscroll-behavior:contain; padding-right:0; }
+.va-member-chat .va-chat-bubble { max-width:88%; overflow-wrap:anywhere; white-space:pre-wrap; box-shadow:none; backdrop-filter:none; font-size:15px; line-height:1.5; }
+.va-member-chat .va-chat-bubble.is-mine { background:#234c37; color:#fff; }
+.va-member-chat .va-chat-time { font-size:11px; color:#536158; }
+.va-member-chat .is-mine .va-chat-time { color:#dbe8dc; }
+.va-member-shell .va-member-chat .va-chat-bubble.is-mine,
+.va-member-shell .va-member-chat>header>div:first-of-type { color:#fff!important; }
+.va-member-chat .va-chat-composer { background:#fff; margin-top:12px; padding:6px; border:1px solid #d5ddd2; border-radius:16px; box-shadow:none; }
+.va-member-chat .va-chat-composer textarea { background:white!important; box-shadow:none; border:0!important; font-size:16px; }
+.va-member-chat .va-chat-composer button { box-shadow:none!important; }
+.va-member-shell .va-ai-page.va-member-ai { min-height:0; height:var(--member-conversation-height,calc(100dvh - 200px)); gap:12px; }
+.va-member-ai>.va-ai-title { display:none; }
+.va-member-ai .va-ai-workspace { min-height:0; border-radius:20px; }
+.va-member-ai .va-ai-input { padding:10px; flex-shrink:0; background:#fff; }
+.va-member-ai .va-ai-input textarea { font-size:16px; min-height:52px; }
+.va-member-ai .va-ai-notice { font-size:12px; color:#536158; padding-top:5px; }
+.va-member-ai .va-ai-notice summary { min-height:44px!important; display:flex; align-items:center; cursor:pointer; }
+.va-member-ai .va-ai-notice p { font-size:12px; line-height:1.5; }
+.va-member-nutrition { padding:0!important; max-width:920px!important; }
+.va-member-nutrition .va-nutrition-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; padding-block:12px; border-bottom:1px solid #d5ddd2; }
+.va-nutrition-energy { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:14px; }
+.va-nutrition-energy strong { font-size:24px; color:#193e2c; }
+.va-nutrition-energy p { font-size:14px; color:#536158; }
+.va-member-nutrition .va-nutrition-summary>div { padding:0; background:transparent; border:0; box-shadow:none; }
+.va-member-nutrition .va-nutrition-summary :is(div,p) { color:#345241!important; font-size:13px; }
+.va-member-nutrition .va-nutrition-summary .text-2xl { font-size:20px; font-weight:600; }
+.va-member-nutrition .va-meal-list { padding:0!important; background:transparent; box-shadow:none; border:0; }
+.va-member-nutrition .va-meal-list>div>div { border-bottom:1px solid #d5ddd2; padding-block:10px; }
+.va-member-nutrition .va-meal-list h4 { font-size:15px; }
+.va-member-nutrition .va-meal-list :is(button,label) { font-size:13px!important; }
+.va-member-nutrition .va-meal-form { background:#fff; padding:16px; border:1px solid #d5ddd2; border-radius:18px; scroll-margin-top:100px; }
+.va-member-nutrition .va-meal-form .va-meal-actions { position:sticky; bottom:calc(92px + env(safe-area-inset-bottom)); background:white; padding-block:12px; z-index:5; border-top:1px solid #d5ddd2; }
+.va-member-shell.va-keyboard-open .va-profile-sticky,.va-member-shell.va-keyboard-open .va-meal-actions { bottom:0; }
+@media(max-width:1023px) {
+ .va-member-shell .va-topbar.va-context-bar { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; column-gap:10px; padding:6px 16px; }
+ .va-member-shell .va-context-main { min-width:0; }
+ .va-member-shell .va-context-heading { min-height:44px; display:flex; align-items:center; padding:0; }
+ .va-member-shell .va-context-tabs { grid-column:1/-1; padding-bottom:2px; }
+ .va-member-shell .va-context-main:has(.va-context-tabs) { display:contents; }
+ .va-member-shell .va-topbar-tools { grid-column:2; grid-row:1; min-height:44px; }
+ .va-member-shell .va-context-heading span { display:none; }
+ .va-member-shell .va-profile-menu { top:54px; }
+ .va-member-shell .va-content { padding:20px 16px 20px; }
+ .va-member-shell .va-content>div { padding-bottom:12px; }
+ .va-member-shell .va-member-page { gap:24px; }
+ .va-member-shell .va-mobile-sheet-group { margin-top:10px; }
+ .va-member-shell .va-mobile-sheet-group h3 { text-transform:none; letter-spacing:0; font-size:13px; }
+ .va-member-shell .va-content :is(.pb-20,.pb-24) { padding-bottom:12px; }
+ .va-member-profile .va-profile-identity { flex-direction:row; align-items:flex-start; }
+ .va-member-profile .va-profile-avatar { width:52px; height:52px; font-size:20px; border-radius:16px; }
+ .va-member-profile .va-profile-card { padding:16px!important; }
+ .va-member-profile .va-profile-contact h2 { font-size:20px; }
+}
+@media(min-width:768px) {
+ .va-member-shell .va-content { padding-inline:32px; }
+ .va-member-next { padding:28px; }
+ .va-member-next .va-start-button { max-width:440px; }
+ .va-member-comparisons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+ .va-member-comparisons>h2 { grid-column:1/-1; }
+}
+@media(prefers-reduced-motion:reduce) { .va-member-shell .va-content * { animation-duration:.01ms!important; transition-duration:.01ms!important; } }
+.va-member-next { padding:20px; gap:10px; }
+.va-member-shell .va-member-next>button:not(.va-start-button) { background:transparent!important; }
+.va-member-shell .va-member-next>button.va-button--secondary { border:1px solid #a7bda3!important; }
+.va-member-chat.va-member-chat-embedded { height:100%!important; }
+.va-member-chat .va-chat-bubble a { min-width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; color:#234c37!important; }
+.va-member-chat .va-chat-bubble.is-mine>div:has(a) { color:#234c37; }
+.va-member-ai>.va-ai-title { display:block; position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+.va-member-nutrition .va-meal-form label { color:#46594c!important; }
+.va-member-nutrition .va-meal-actions button { flex:1; min-height:52px; }
+.va-member-nutrition .va-meal-list>div>div { padding-block:4px; }
+.va-member-nutrition .va-meal-list .border-dashed { background:transparent!important; border:0; text-align:left; padding:4px 8px; }
+.va-member-nutrition .va-meal-list .border-dashed p { color:#536158!important; font-style:normal; }
+.va-member-nutrition .va-meal-list :is(.text-blue-500,.text-green-500,.text-yellow-600) { color:#46594c!important; }
+.va-member-nutrition .va-meal-list .text-red-400 { color:#a13c32!important; }
+@media(max-width:1023px) {
+ .va-member-shell .va-topbar.va-context-bar { row-gap:0; }
+ .va-member-profile .va-profile-sticky { position:fixed; left:16px; right:16px; bottom:calc(88px + env(safe-area-inset-bottom)); z-index:40; border-top:1px solid #d5ddd2; }
+ .va-member-shell .va-profile-identity { align-items:center; }
+}

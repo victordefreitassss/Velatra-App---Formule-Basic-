@@ -28,7 +28,7 @@ const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; chi
   );
 };
 
-export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
+export const DrivePage: React.FC<{ state: AppState; setState?: React.Dispatch<React.SetStateAction<AppState>> }> = ({ state, setState }) => {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -253,6 +253,10 @@ export const DrivePage: React.FC<{ state: AppState }> = ({ state }) => {
   };
 
   const clients = state.users.filter(u => u.role === 'member');
+
+  if (!isCoach) return <div className="va-member-page"><header><h1>Mes documents</h1><p>Les ressources partagées par votre coach.</p></header>
+    {files.length?<div className="va-member-files">{files.map(file=><a key={file.id} className="va-member-file" href={file.url} target="_blank" rel="noopener noreferrer" aria-label={`Ouvrir ${file.name} dans un nouvel onglet`}><FileIcon/><span><strong>{file.name}</strong><small>{formatFileSize(file.size)} · {new Date(file.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}</small></span><EyeIcon aria-hidden="true"/></a>)}</div>:<section className="va-member-empty"><FolderIcon/><h2>Aucun document pour le moment</h2><p>Votre coach n’a pas encore partagé de ressource avec vous. Demandez-lui le document dont vous avez besoin.</p>{setState&&<button className="va-member-primary" onClick={()=>setState(p=>({...p,page:'messages'}))}>Écrire à mon coach</button>}</section>}
+  </div>;
 
   return (
     <div 

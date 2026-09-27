@@ -1173,7 +1173,7 @@ export default function App() {
         case 'crm_finances': return <FinancesPage state={state} setState={setState} showToast={showToast} />;
         case 'calendar': return <PlanningPage state={state} setState={setState} showToast={showToast} />;
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;
-        case 'drive': return <DrivePage state={state} />;
+        case 'drive': return <DrivePage state={state} setState={setState} />;
         case 'marketing': return <MarketingPage state={state} setState={setState} />;
         case 'guide': return <GuidePage onNavigate={(p) => setState(s => ({ ...s, page: p }))} />;
         default: return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
@@ -1192,7 +1192,7 @@ export default function App() {
       case 'profile': return <ProfilePage state={state} setState={setState} showToast={showToast} />;
       case 'messages': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
       case 'supplements': return <MemberSupplementsPage state={state} showToast={showToast} />;
-      case 'drive': return <DrivePage state={state} />;
+      case 'drive': return <DrivePage state={state} setState={setState} />;
       case 'evolution': return <EvolutionGalleryPage state={state} setState={setState} showToast={showToast} />;
       default: return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
     }

@@ -1,24 +1,19 @@
 import React from 'react';
 import type { AppState } from '../types';
 import { MemberWorkoutEntry } from '../components/MemberWorkoutEntry';
+import { SessionRows } from '../components/MemberTrainingProgress';
+import { memberLogs } from '../components/workoutSession';
 
-export const CalendarPage: React.FC<{ state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }> = ({ state, setState }) => {
-  const user = state.user!;
-  const program = state.programs.find(p => p.clubId === user.clubId && Number(p.memberId) === Number(user.id) && !p.isPlannedSession);
-  const total = program?.durationWeeks ? program.nbDays * program.durationWeeks : null;
-  const progress = program && total ? Math.min(100, Math.round(program.currentDayIndex / total * 100)) : null;
-  return <div className="mx-auto max-w-4xl space-y-6 pb-24">
-    <header><h1 className="font-display text-3xl font-bold text-zinc-900">Mes séances</h1><p className="mt-2 text-sm text-zinc-700">Votre programme et votre séance en cours.</p></header>
-    <MemberWorkoutEntry state={state} setState={setState} showProgramLink={false} />
-    {program && <section className="rounded-3xl border border-zinc-200 bg-white p-5 sm:p-7 space-y-4" aria-label="Mon programme">
-      <h2 className="font-display text-xl font-bold text-zinc-900">{program.name}</h2>
-      <p className="text-sm text-zinc-700">{program.currentDayIndex} séance{program.currentDayIndex === 1 ? '' : 's'} terminée{program.currentDayIndex === 1 ? '' : 's'} dans ce programme{total ? ` sur ${total}` : ' · programme continu'}.</p>
-      {progress !== null && <progress className="w-full accent-emerald-900" value={progress} max={100} aria-label="Progression du programme" />}
-      <div className="space-y-3">{program.days.map((day, index) => <details key={index} className="rounded-2xl border border-zinc-200 px-4 py-1">
-        <summary className="min-h-14 cursor-pointer py-3 text-sm font-semibold leading-6 text-zinc-900">{day.name}<span className="block text-xs font-normal text-zinc-700">{day.exercises.length} exercice{day.exercises.length === 1 ? '' : 's'}{index === program.currentDayIndex % program.nbDays ? ' · prochaine séance' : ''}</span></summary>
-        <ul className="space-y-3 pb-4">{day.exercises.map((entry, exerciseIndex) => <li key={exerciseIndex} className="text-sm text-zinc-700"><strong className="block text-zinc-900">{state.exercises.find(exercise => exercise.id === entry.exId)?.name || 'Exercice'}</strong>{entry.sets} séries · {entry.reps || entry.duration || 'selon consignes'}{entry.notes && <p className="mt-1 leading-6">{entry.notes}</p>}</li>)}</ul>
-      </details>)}</div>
-    </section>}
-    <button type="button" className="min-h-11 text-sm font-semibold text-emerald-900 underline" onClick={() => setState(previous => ({ ...previous, page: 'history' }))}>Retrouver mes séances enregistrées</button>
-  </div>;
+export const CalendarPage: React.FC<{state:AppState;setState:React.Dispatch<React.SetStateAction<AppState>>}>=({state,setState})=>{
+ const user=state.user!,program=state.programs.find(p=>p.clubId===user.clubId&&Number(p.memberId)===Number(user.id)&&!p.isPlannedSession);
+ const logs=memberLogs(state.logs,user);
+ const bookings=state.bookings.filter(b=>Number(b.memberId)===Number(user.id)&&b.status==='confirmed'&&new Date(b.startTime)>new Date()).sort((a,b)=>a.startTime.localeCompare(b.startTime));
+ return <div className="va-member-page"><header><h1>Mes séances</h1><p>Votre entraînement, au bon moment.</p></header>
+  <MemberWorkoutEntry state={state} setState={setState} showProgramLink={false}/>
+  <section><div className="va-member-section-heading"><h2>À venir</h2><button className="va-member-text-link" onClick={()=>setState(p=>({...p,page:'planning'}))}>Réserver →</button></div>
+   {bookings.length?bookings.slice(0,2).map(b=><button key={b.id} className="va-member-file w-full text-left" onClick={()=>setState(p=>({...p,page:'planning'}))}><span><strong>{new Date(b.startTime).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'short'})}</strong><small>{new Date(b.startTime).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} · Réservation confirmée</small></span><span aria-hidden="true">→</span></button>):<p className="text-sm text-zinc-700 leading-6">{program ? 'Aucun cours réservé. Votre programme reste accessible ci-dessus.' : 'Aucun cours réservé. Consultez le planning pour choisir un créneau.'}</p>}
+  </section>
+  {program&&<details className="va-member-disclosure"><summary>Mon programme · {program.name}</summary><p className="text-sm text-zinc-700 mb-3">{program.currentDayIndex} séances terminées{program.durationWeeks?` · ${program.durationWeeks} semaines`:' · programme continu'}.</p>{program.days.map((day,i)=><details key={i} className="va-member-session"><summary><span><strong>{day.name}</strong><small>{day.exercises.length} exercices{i===program.currentDayIndex%program.nbDays?' · prochaine séance':''}</small></span><span aria-hidden="true">⌄</span></summary><ul className="va-member-session-content">{day.exercises.map((entry,j)=><li key={j}><strong>{state.exercises.find(ex=>ex.id===entry.exId)?.name||'Exercice'}</strong><p>{entry.sets} séries · {entry.reps||entry.duration||'Selon consignes'}</p>{entry.notes&&<p>{entry.notes}</p>}</li>)}</ul></details>)}</details>}
+  <section><div className="va-member-section-heading"><h2>Terminées</h2><button className="va-member-text-link" onClick={()=>setState(p=>({...p,page:'history'}))}>Historique →</button></div>{logs.length?<SessionRows state={state} logs={logs.slice(0,3)}/>:<p className="text-sm text-zinc-700 leading-6">Votre première séance enregistrée apparaîtra ici.</p>}</section>
+ </div>;
 };

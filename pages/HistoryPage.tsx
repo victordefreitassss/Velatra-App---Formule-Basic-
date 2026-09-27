@@ -4,6 +4,8 @@ import { AppState } from '../types';
 import { Card, Badge, Input } from '../components/UI';
 import { HistoryIcon, DumbbellIcon, CalendarIcon, UserIcon, ClockIcon } from '../components/Icons';
 import { motion } from 'framer-motion';
+import { SessionRows } from '../components/MemberTrainingProgress';
+import { memberLogs } from '../components/workoutSession';
 
 export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ state }) => {
   const user = state.user!;
@@ -95,6 +97,17 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
       transition: { type: "spring", stiffness: 300, damping: 24 }
     }
   };
+
+  if (user.role === 'member') {
+    const logs = memberLogs(state.logs, user).filter(log => (log.dayName || '').toLocaleLowerCase().includes(searchTerm.toLocaleLowerCase()));
+    return <div className="va-member-page"><header><h1>Mon historique</h1><p>Retrouvez vos séances et vos programmes.</p></header>
+      <Input aria-label="Rechercher dans mon historique" placeholder="Nom d’une séance ou d’un programme" value={searchTerm} onChange={event=>setSearchTerm(event.target.value)}/>
+      <div className="flex gap-3 border-b border-zinc-200" role="group" aria-label="Type d’historique"><button className="va-member-text-link" aria-pressed={activeTab==='sessions'} onClick={()=>setActiveTab('sessions')}>Séances</button><button className="va-member-text-link" aria-pressed={activeTab==='programs'} onClick={()=>setActiveTab('programs')}>Programmes</button></div>
+      {activeTab==='sessions'?<><SessionRows state={state} logs={logs}/>{!logs.length&&<p className="text-sm text-zinc-700">{searchTerm?'Aucune séance ne correspond à ce nom.':'Vos séances enregistrées apparaîtront ici.'}</p>}
+        {filteredSessions.some(s=>s.type==='booking')&&<section><h2>Cours réservés passés</h2>{filteredSessions.filter(s=>s.type==='booking').map(s=><div key={s.data.id} className="va-member-file"><span><strong>{new Date(s.data.startTime).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}</strong><small>{s.data.status==='cancelled'?'Annulé':s.data.status==='completed'?'Terminé':'Réservation passée'}</small></span></div>)}</section>}
+      </>:<section>{archives.length?archives.map(prog=><details key={prog.id} className="va-member-session"><summary><span><strong>{prog.name}</strong><small>{prog.days.length} séances dans le programme</small></span><span aria-hidden="true">⌄</span></summary><div className="va-member-session-content">{prog.days.map((day,i)=><p key={i}>{day.name} · {day.exercises.length} exercices</p>)}</div></details>):<p className="text-sm text-zinc-700">{searchTerm?'Aucun programme trouvé.':'Vos anciens programmes apparaîtront ici lorsque votre coach les archivera.'}</p>}</section>}
+    </div>;
+  }
 
   return (
     <motion.div 

@@ -17,6 +17,7 @@ import {
 import { trackProductEventOnce } from './productEvents';
 import './app-shell.css';
 import './visual-polish.css';
+import './member-mobile.css';
 
 interface LayoutProps {
   user: User;
@@ -287,7 +288,7 @@ export const Layout: React.FC<LayoutProps> = ({
   }, []);
 
   React.useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: effectiveRole === 'member' ? 'instant' : 'smooth' });
   }, [activePage]);
 
   const filteredCommandItems = React.useMemo(() => {
@@ -359,7 +360,7 @@ export const Layout: React.FC<LayoutProps> = ({
   const profileLabel = effectiveRole === 'member' ? 'Mon profil et mes objectifs' : effectiveRole === 'superadmin' ? 'Administration' : 'Paramètres du compte';
 
   return (
-    <div className={`velatra-app-shell min-h-screen flex flex-col md:flex-row ${isVirtualKeyboardOpen ? 'va-keyboard-open' : ''} ${isWorkspaceMode ? 'va-workspace-mode' : ''}`}>
+    <div className={`velatra-app-shell ${effectiveRole === 'member' ? 'va-member-shell' : ''} min-h-screen flex flex-col md:flex-row ${isVirtualKeyboardOpen ? 'va-keyboard-open' : ''} ${isWorkspaceMode ? 'va-workspace-mode' : ''}`}>
       <aside className="va-rail" aria-label="Navigation de Velatra">
         <AppLogo />
         <nav className="va-rail-nav" aria-label="Espaces principaux">
@@ -545,10 +546,10 @@ export const Layout: React.FC<LayoutProps> = ({
         <AnimatePresence mode="wait">
           <motion.div 
             key={activePage}
-            initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, y: -12, filter: 'blur(4px)' }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
+            initial={effectiveRole === 'member' ? { opacity: 0 } : { opacity: 0, y: 12, filter: 'blur(4px)' }}
+            animate={effectiveRole === 'member' ? { opacity: 1 } : { opacity: 1, y: 0, filter: 'blur(0px)' }}
+            exit={effectiveRole === 'member' ? { opacity: 0 } : { opacity: 0, y: -12, filter: 'blur(4px)' }}
+            transition={{ duration: effectiveRole === 'member' ? .12 : .25, ease: "easeOut" }}
             className="va-content max-w-none w-full"
           >
             {children}
@@ -644,8 +645,8 @@ export const Layout: React.FC<LayoutProps> = ({
                   </div>
                 )}
 
-                {mobileMoreGroups.map(group => {
-                  const items = group.items;
+                {(effectiveRole === 'member' ? [...mobileMoreGroups].sort((a, b) => Number(b.label === 'Plus') - Number(a.label === 'Plus')) : mobileMoreGroups).map(group => {
+                  const items = effectiveRole === 'member' ? [...group.items].sort((a, b) => Number(b.id === 'messages') - Number(a.id === 'messages')) : group.items;
                   if (!items.length) return null;
                   return (
                     <div className="va-mobile-sheet-group" key={group.label}>

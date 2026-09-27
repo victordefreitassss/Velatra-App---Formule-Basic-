@@ -15,20 +15,20 @@ export const MemberWorkoutEntry: React.FC<{state: AppState; setState: React.Disp
   const currentEntry = step && day ? day.exercises[step.exercise] : null;
   const currentExercise = currentEntry ? state.exercises.find(exercise => exercise.id === currentEntry.exId) : null;
   const label = draft?.status === 'saved' ? 'Voir ma séance terminée' : draft?.status === 'pending' ? 'Confirmer ma séance' : draft ? 'Reprendre ma séance' : 'Commencer ma séance';
-  return <section aria-label="Ma prochaine action" className="rounded-3xl border border-emerald-900/15 bg-white p-5 sm:p-7 space-y-4 shadow-sm">
-    <p className="text-sm font-semibold text-emerald-900">{draft ? 'Votre séance vous attend' : 'Votre prochaine action'}</p>
+  return <section aria-label="Ma prochaine action" className="va-member-next">
+    <p className="text-sm font-semibold text-emerald-900">{draft?.status === 'active' ? 'Séance en cours' : draft?.status === 'pending' ? 'À confirmer' : 'Votre prochaine séance'}</p>
     <h2 className="font-display text-2xl font-bold leading-tight text-zinc-900">{day?.name || 'Préparons votre prochaine séance'}</h2>
     {program && day ? <>
       <p className="text-sm leading-6 text-zinc-700">{program.name} · {day.exercises.length} exercice{day.exercises.length === 1 ? '' : 's'}{day.duration ? ` · environ ${day.duration} min` : ''}</p>
-      {draft && <p className="text-sm text-zinc-700">{draft.status === 'saved' ? 'Enregistrement confirmé.' : `${draft.confirmed.length} / ${executionSteps(day).length} séries validées · brouillon sur cet appareil.`}</p>}
+      {draft && <p className="text-sm text-zinc-700">{draft.status === 'saved' ? 'Enregistrement confirmé.' : `${draft.confirmed.length} / ${executionSteps(day).length} séries validées.`}</p>}
       {draft?.status === 'active' && step && currentEntry && <p className="text-base font-semibold text-zinc-900">{currentExercise?.name || 'Exercice du programme'}<span className="block text-sm font-normal text-zinc-700">Série {step.set + 1} / {setCount(currentEntry)}</span></p>}
-      <Button fullWidth className="!min-h-14 !text-base" disabled={!day.exercises.length} onClick={() => setState(previous => ({ ...previous, workout: program, workoutMember: user }))}>{label}</Button>
+      <Button fullWidth className="va-start-button !min-h-14 !text-base" disabled={!day.exercises.length} onClick={() => setState(previous => ({ ...previous, workout: program, workoutMember: user }))}>{label}</Button>
       {!day.exercises.length && <p className="text-sm text-zinc-700">Votre coach doit encore ajouter les exercices. Retrouvez-le dans Messages.</p>}
-      {showProgramLink && <button type="button" className="min-h-11 text-sm font-semibold text-emerald-900 underline" onClick={() => setState(previous => ({ ...previous, page: 'calendar' }))}>Voir mon programme</button>}
+      {showProgramLink && !draft && <button type="button" className="min-h-11 text-sm font-semibold text-emerald-900 underline" onClick={() => setState(previous => ({ ...previous, page: 'calendar' }))}>Voir mon programme</button>}
     </> : <>
       <p className="text-sm leading-6 text-zinc-700">Votre coach n’a pas encore activé de programme. Échangez avec lui pour préparer la suite.</p>
-      {onRequestPlan && <Button fullWidth disabled={requesting || user.planRequested} onClick={async () => { setRequesting(true); try { await onRequestPlan(); } finally { setRequesting(false); } }}>{user.planRequested ? 'Programme demandé au coach' : requesting ? 'Envoi de la demande…' : 'Demander mon programme'}</Button>}
-      <Button fullWidth variant={onRequestPlan ? 'secondary' : 'primary'} onClick={() => setState(previous => ({ ...previous, page: 'messages' }))}>Écrire à mon coach</Button>
+      {onRequestPlan && <Button fullWidth className="va-start-button" disabled={requesting || user.planRequested} onClick={async () => { setRequesting(true); try { await onRequestPlan(); } finally { setRequesting(false); } }}>{user.planRequested ? 'Programme demandé au coach' : requesting ? 'Envoi de la demande…' : 'Demander mon programme'}</Button>}
+      <Button fullWidth className={onRequestPlan ? '' : 'va-start-button'} variant={onRequestPlan ? 'secondary' : 'primary'} onClick={() => setState(previous => ({ ...previous, page: 'messages' }))}>Écrire à mon coach</Button>
     </>}
   </section>;
 };

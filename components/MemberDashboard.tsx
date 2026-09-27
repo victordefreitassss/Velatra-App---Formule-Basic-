@@ -304,43 +304,13 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
       animate="visible"
       className="va-member-dashboard mx-auto w-full max-w-6xl space-y-6 page-transition pb-24"
     >
-      {/* Header Section */}
-      <motion.div variants={itemVariants} className="flex items-center justify-between px-2 pt-2">
-        <div>
-          <h1 className="text-3xl font-display font-bold tracking-tight leading-none mb-1 text-zinc-900">Salut, {user.name.split(' ')[0]}</h1>
-          <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
-            <span className="text-zinc-600">{formatDate(new Date().toISOString())}</span>
-            <div className="flex items-center gap-1.5 text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-900/10">
-               <FlameIcon size={13} /> {user.streak || 0} jours de suite
-            </div>
-          </div>
-        </div>
-        <motion.button
-          type="button"
-          aria-label="Ouvrir mon profil"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
-          onClick={() => setState(s => ({ ...s, page: 'profile' }))}
-        >
-          <div className="w-12 h-12 rounded-full bg-emerald-800 flex items-center justify-center font-semibold text-lg text-white ring-2 ring-zinc-200 cursor-pointer overflow-hidden">
-            {user.avatar?.startsWith('http') ? (
-              <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
-            ) : (
-              user.avatar || user.name.substring(0, 2).toUpperCase()
-            )}
-          </div>
-          <div className="absolute -bottom-1 -right-1 bg-zinc-900 text-white text-xs font-semibold px-1.5 py-0.5 rounded-full ring-2 ring-white">
-            LVL {Math.floor(user.xp / 1000) + 1}
-          </div>
-        </motion.button>
-      </motion.div>
+      <header className="va-today-heading"><p>Aujourd’hui</p><h1>Bonjour {user.name.split(' ')[0]}</h1></header>
 
       <MemberWorkoutEntry state={state} setState={setState} onRequestPlan={requestPlan} />
       <MemberTrainingProgress state={state} setState={setState} compact />
-      <section aria-label="Mon coach et mon objectif" className="rounded-2xl border border-zinc-200 bg-white p-5 flex flex-wrap items-center justify-between gap-3">
+      <section aria-label="Mon coach et mon objectif" className="va-member-coach-row">
         <div><p className="text-sm font-semibold text-zinc-900">Mon objectif</p><p className="mt-1 text-sm text-zinc-700">{user.objectifs?.[0] || 'À définir avec votre coach'}</p></div>
-        <button type="button" className="min-h-11 rounded-xl border border-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-900" onClick={() => setState(previous => ({ ...previous, page: 'messages' }))}>Écrire à mon coach</button>
+        <button type="button" className="min-h-11 rounded-xl border border-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-900" onClick={() => setState(previous => ({ ...previous, page: 'messages' }))}>Parler à mon coach <span aria-hidden="true">→</span></button>
       </section>
       {nextBooking && (
         <motion.section variants={itemVariants} className="px-2">
@@ -357,14 +327,14 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
 
       {/* Daily Ritual Habit Check-In Widget */}
       <motion.section variants={itemVariants} className="px-2">
-        <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 sm:p-6 shadow-sm relative overflow-hidden">
+        <div className="va-daily-checkin">
 
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
+            <h3 className="text-base font-semibold text-zinc-900 flex items-center gap-2">
               <SparklesIcon size={16} className="text-emerald-800" /> Suivi du jour
             </h3>
             <Badge className={isCheckedInToday ? "bg-emerald-100 text-emerald-900 border-emerald-200" : "bg-amber-50 text-amber-900 border-amber-200"}>
-              {isCheckedInToday ? "Enregistré" : "À compléter · +50 XP"}
+              {isCheckedInToday ? "Enregistré" : "À compléter"}
             </Badge>
           </div>
 
@@ -497,14 +467,14 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                 disabled={isCheckingIn}
                 className="w-full !py-3.5 bg-emerald-700 text-white hover:bg-emerald-800 font-semibold text-sm !rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 focus-visible:ring-offset-2"
               >
-                {isCheckingIn ? "Enregistrement…" : "Enregistrer le suivi du jour · +50 XP"}
+                {isCheckingIn ? "Enregistrement…" : "Enregistrer mon suivi"}
               </Button>
             </div>
           )}
         </div>
       </motion.section>
 
-      {/* Leveling & Gamification Center */}
+      <details className="va-member-disclosure"><summary>Mes repères personnels</summary>
       <motion.div variants={itemVariants} className="px-2">
         <div className="bg-zinc-50 border border-zinc-200 rounded-[2rem] p-6 shadow-sm">
           <div className="flex justify-between items-center mb-3">
@@ -563,7 +533,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           </div>
         </div>
       </motion.div>
-
+      </details>
       <details className="rounded-2xl border border-zinc-200 bg-white p-4"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-zinc-800">Autres repères et outils</summary><div className="mt-4 space-y-6">
       {/* AI Coach Quick Access */}
       <motion.section variants={itemVariants} className="px-2">
@@ -584,7 +554,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
             </div>
             <div className="flex-1 pt-1">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Discussions</h3>
+                <h3 className="text-base font-semibold text-zinc-900">Discussions</h3>
               </div>
               <p className="text-sm text-zinc-700 font-medium leading-relaxed">
                 Échange avec ton coach ou le Coach IA.
@@ -640,7 +610,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
       <motion.section variants={itemVariants} className="px-2">
         <div className="bg-zinc-50 border border-zinc-200 rounded-[2rem] p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
+            <h3 className="text-base font-semibold text-zinc-900 flex items-center gap-2">
               <FlameIcon size={16} className="text-orange-500" /> État Musculaire
             </h3>
             <div className="flex gap-2 text-xs font-medium uppercase tracking-wider text-zinc-500">

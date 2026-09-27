@@ -66,14 +66,14 @@ export const ProfilePage: React.FC<{
           thighs: Number(formData.thighs),
         }
       });
-      
+
       // Update nutrition plan if it exists
       const plan = state.nutritionPlans?.find(p => p.memberId === Number(user.id));
       if (plan && Number(formData.weight) !== user.weight) {
         const updatedPlan = updateNutritionPlanForWeight(plan, Number(formData.weight));
         await updateDoc(doc(db, "nutritionPlans", plan.id.toString()), updatedPlan);
       }
-      
+
       setState(prev => ({
         ...prev,
         user: {
@@ -93,7 +93,7 @@ export const ProfilePage: React.FC<{
           }
         }
       }));
-      
+
       setIsEditing(false);
       showToast("Profil mis à jour avec succès");
     } catch (error) {
@@ -121,7 +121,7 @@ export const ProfilePage: React.FC<{
       });
 
       if (!res.ok) throw new Error("Erreur lors de la création du portail");
-      
+
       const { session } = await res.json();
       if (session?.url) {
         window.location.href = session.url;
@@ -133,49 +133,51 @@ export const ProfilePage: React.FC<{
   };
 
   return (
-    <motion.div 
+    <motion.div
       variants={containerVariants}
       initial="hidden"
       animate="show"
-      className="space-y-8 pb-24 max-w-2xl mx-auto"
+      className="va-member-page va-member-profile"
     >
       <motion.div variants={itemVariants} className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-display font-bold tracking-tight leading-none mb-1 text-zinc-900">Mon Profil</h1>
-          <p className="text-[10px] uppercase tracking-[2px] font-bold text-zinc-500">Gérez vos informations personnelles</p>
+          <h1 className="text-3xl font-display font-bold tracking-tight leading-none mb-1 text-zinc-900">Mon profil</h1>
+          <p className="text-[10px] uppercase tracking-[2px] font-bold text-zinc-500">Vos objectifs et vos informations</p>
         </div>
-        <Button 
-          variant={isEditing ? "success" : "secondary"} 
-          onClick={isEditing ? handleSave : () => setIsEditing(true)}
+        <Button
+          variant="secondary"
+          onClick={() => { if(isEditing) setFormData({birthDate:user.birthDate||'',height:user.height||0,weight:user.weight||0,experienceLevel:user.experienceLevel||'Débutant',equipment:user.equipment||'Salle de sport',email:user.email||'',phone:user.phone||'',chest:user.measurements?.chest||0,waist:user.measurements?.waist||0,hips:user.measurements?.hips||0,arms:user.measurements?.arms||0,thighs:user.measurements?.thighs||0}); setIsEditing(value=>!value); }}
           disabled={isSaving}
           className="!rounded-xl"
         >
           {isEditing ? (
-            <><SaveIcon size={16} className="mr-2" /> Enregistrer</>
+            <>Annuler</>
           ) : (
             <><Edit2Icon size={16} className="mr-2" /> Modifier</>
           )}
         </Button>
       </motion.div>
 
+      <section className="va-member-coach-row" aria-label="Mon objectif"><div><p className="text-sm text-zinc-700">Mon objectif principal</p><h2>{user.objectifs?.[0] || 'À définir ensemble'}</h2><p className="mt-2 text-sm text-zinc-700">{user.objectifs?.length ? 'Votre prochaine étape : faites le point sur cet objectif avec votre coach.' : 'Parlez de votre objectif à votre coach pour choisir la prochaine étape.'}</p></div><button className="va-member-text-link" onClick={()=>setState(p=>({...p,page:'messages'}))}>En parler à mon coach →</button>{(user.objectifs?.length || 0)>1&&<p className="text-sm text-zinc-700">Autres objectifs : {user.objectifs!.slice(1).join(' · ')}</p>}</section>
+
       <motion.div variants={itemVariants}>
-        <Card className="!p-8 bg-white backdrop-blur-xl  relative overflow-hidden shadow-xl">
+        <Card className="va-profile-card !p-8 bg-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full -mr-32 -mt-32 blur-3xl" />
-          
-          <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-8">
-            <div className="relative group w-32 h-32 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center font-bold text-5xl shadow-[0_0_30px_rgba(16,185,129,0.3)] text-zinc-900 ring-4 ring-zinc-200 shrink-0 overflow-hidden">
+
+          <div className="va-profile-identity relative z-10">
+            <div className="va-profile-avatar relative group w-32 h-32 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center font-bold text-5xl shadow-[0_0_30px_rgba(16,185,129,0.3)] text-zinc-900 ring-4 ring-zinc-200 shrink-0 overflow-hidden">
               {user.avatar?.startsWith('http') ? (
                 <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
               ) : (
                 user.avatar || user.name.substring(0, 2).toUpperCase()
               )}
               {isEditing && (
-                <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-100 cursor-pointer">
                   <span className="text-white text-xs font-medium uppercase tracking-wider">Photo</span>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
                     onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (file) {
@@ -186,10 +188,10 @@ export const ProfilePage: React.FC<{
                           const avatarRef = ref(storage, `avatars/${auth.currentUser.uid}/${Date.now()}`);
                           await uploadBytes(avatarRef, file);
                           const url = await getDownloadURL(avatarRef);
-                          
+
                           const userRef = doc(db, "users", (user as any).firebaseUid);
                           await updateDoc(userRef, { avatar: url });
-                          
+
                           setState(prev => ({
                             ...prev,
                             user: { ...prev.user!, avatar: url }
@@ -205,26 +207,26 @@ export const ProfilePage: React.FC<{
                 </label>
               )}
             </div>
-            
-            <div className="flex-1 space-y-6 w-full">
+
+            <div className="va-profile-contact flex-1 space-y-3">
               <div>
                 <h2 className="text-2xl font-black text-zinc-900">{user.name}</h2>
                 {isEditing ? (
                   <div className="space-y-3 mt-4">
                     <div>
                       <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">Email</label>
-                      <input 
-                        type="email" 
-                        value={formData.email}
+                      <input
+                        type="email"
+                        aria-label="Email" value={formData.email}
                         disabled
                         className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                       />
                     </div>
                     <div>
                       <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">Téléphone</label>
-                      <input 
-                        type="tel" 
-                        value={formData.phone}
+                      <input
+                        type="tel"
+                        aria-label="Téléphone" value={formData.phone}
                         onChange={(e) => setFormData({...formData, phone: e.target.value})}
                         className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                       />
@@ -243,9 +245,9 @@ export const ProfilePage: React.FC<{
                   </div>
                 )}
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
-                <Badge variant="blue" className="uppercase tracking-widest text-[10px]">{user.role}</Badge>
+                <Badge variant="blue" className="uppercase tracking-widest text-[10px]">{user.role === 'member' ? 'Adhérent' : user.role}</Badge>
                 {user.gender && (
                   <Badge variant="dark" className="uppercase tracking-widest text-[10px] bg-zinc-100 text-zinc-900 ">
                     {user.gender === 'M' ? 'Homme' : 'Femme'}
@@ -260,23 +262,23 @@ export const ProfilePage: React.FC<{
         </Card>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <details className="va-member-disclosure" open={isEditing || undefined}><summary>Mes informations d’entraînement</summary>      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <motion.div variants={itemVariants}>
-          <Card className="!p-6 bg-zinc-50 backdrop-blur-xl  shadow-lg h-full">
+          <Card className="va-profile-card !p-6 bg-zinc-50 h-full">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                 <ActivityIcon size={20} />
               </div>
               <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Physique</h3>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Date de naissance</label>
                 {isEditing ? (
-                  <input 
-                    type="date" 
-                    value={formData.birthDate}
+                  <input
+                    type="date"
+                    aria-label="Date de naissance" value={formData.birthDate}
                     onChange={(e) => setFormData({...formData, birthDate: e.target.value})}
                     className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
@@ -288,9 +290,9 @@ export const ProfilePage: React.FC<{
               <div>
                 <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Taille (cm)</label>
                 {isEditing ? (
-                  <input 
-                    type="number" 
-                    value={formData.height}
+                  <input
+                    type="number" inputMode="decimal"
+                    aria-label="Taille en cm" value={formData.height}
                     onChange={(e) => setFormData({...formData, height: Number(e.target.value)})}
                     className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
@@ -298,13 +300,13 @@ export const ProfilePage: React.FC<{
                   <div className="text-lg font-medium text-zinc-900">{user.height ? `${user.height} cm` : 'Non renseigné'}</div>
                 )}
               </div>
-              
+
               <div>
                 <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Poids (kg)</label>
                 {isEditing ? (
-                  <input 
-                    type="number" 
-                    value={formData.weight}
+                  <input
+                    type="number" inputMode="decimal"
+                    aria-label="Poids en kg" value={formData.weight}
                     onChange={(e) => setFormData({...formData, weight: Number(e.target.value)})}
                     className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
@@ -317,20 +319,20 @@ export const ProfilePage: React.FC<{
         </motion.div>
 
         <motion.div variants={itemVariants}>
-          <Card className="!p-6 bg-zinc-50 backdrop-blur-xl  shadow-lg h-full">
+          <Card className="va-profile-card !p-6 bg-zinc-50 h-full">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                 <DumbbellIcon size={20} />
               </div>
               <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Entraînement</h3>
             </div>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Niveau</label>
                 {isEditing ? (
-                  <select 
-                    value={formData.experienceLevel}
+                  <select
+                    aria-label="Niveau d’entraînement" value={formData.experienceLevel}
                     onChange={(e) => setFormData({...formData, experienceLevel: e.target.value as any})}
                     className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   >
@@ -342,12 +344,12 @@ export const ProfilePage: React.FC<{
                   <div className="text-lg font-medium text-zinc-900">{user.experienceLevel || 'Non renseigné'}</div>
                 )}
               </div>
-              
+
               <div>
                 <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Équipement</label>
                 {isEditing ? (
-                  <select 
-                    value={formData.equipment}
+                  <select
+                    aria-label="Équipement" value={formData.equipment}
                     onChange={(e) => setFormData({...formData, equipment: e.target.value as any})}
                     className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   >
@@ -364,39 +366,17 @@ export const ProfilePage: React.FC<{
         </motion.div>
       </div>
 
+      </details>
+      <details className="va-member-disclosure" open={isEditing || undefined}><summary>Mes mensurations</summary>      {/* Measurements Section */}
       <motion.div variants={itemVariants}>
-        <Card className="!p-6 bg-zinc-50 backdrop-blur-xl  shadow-lg">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
-              <TargetIcon size={20} />
-            </div>
-            <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Objectifs</h3>
-          </div>
-          
-          <div className="flex flex-wrap gap-3">
-            {user.objectifs && user.objectifs.length > 0 ? (
-              user.objectifs.map((obj, idx) => (
-                <div key={idx} className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-medium text-zinc-900 shadow-sm">
-                  {obj}
-                </div>
-              ))
-            ) : (
-              <p className="text-zinc-500 italic text-sm">Aucun objectif renseigné.</p>
-            )}
-          </div>
-        </Card>
-      </motion.div>
-
-      {/* Measurements Section */}
-      <motion.div variants={itemVariants}>
-        <Card className="!p-6 bg-zinc-50 backdrop-blur-xl  shadow-lg">
+        <Card className="va-profile-card !p-6 bg-zinc-50">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
               <ActivityIcon size={20} />
             </div>
             <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Mensurations (cm)</h3>
           </div>
-          
+
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {[
               { label: 'Poitrine', key: 'chest' },
@@ -408,9 +388,9 @@ export const ProfilePage: React.FC<{
               <div key={measurement.key}>
                 <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">{measurement.label}</label>
                 {isEditing ? (
-                  <input 
-                    type="number" 
-                    value={(formData as any)[measurement.key]}
+                  <input
+                    type="number" inputMode="decimal"
+                    aria-label={measurement.label + " en cm"} value={(formData as any)[measurement.key]}
                     onChange={(e) => setFormData({...formData, [measurement.key]: Number(e.target.value)})}
                     className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
@@ -423,16 +403,18 @@ export const ProfilePage: React.FC<{
         </Card>
       </motion.div>
 
+      </details>
+      {isEditing&&<div className="va-profile-sticky"><Button fullWidth onClick={handleSave} disabled={isSaving}>{isSaving?'Enregistrement…':'Enregistrer mes informations'}</Button></div>}
       {user.role === 'member' && (
         <motion.div variants={itemVariants}>
-          <Card className="!p-6 bg-zinc-50 backdrop-blur-xl  shadow-lg">
+          <Card className="va-profile-card !p-6 bg-zinc-50">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                 <CalendarIcon size={20} />
               </div>
               <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Historique Coaching</h3>
             </div>
-            
+
             <div className="space-y-4">
               {(state.logs || []).filter(log => log.memberId === Number(user.id) && log.isCoaching).length > 0 ? (
                 <div className="space-y-4">
@@ -476,7 +458,7 @@ export const ProfilePage: React.FC<{
 
       {user.role === 'member' && (
         <motion.div variants={itemVariants}>
-          <Card className="!p-6 bg-zinc-50 backdrop-blur-xl  shadow-lg">
+          <Card className="va-profile-card !p-6 bg-zinc-50">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
@@ -490,7 +472,7 @@ export const ProfilePage: React.FC<{
                 </Button>
               )}
             </div>
-            
+
             <div className="space-y-4">
               {(() => {
                 const subscription = state.subscriptions.find(s => s.memberId === Number(user.id) && s.status === 'active');
@@ -532,7 +514,7 @@ export const ProfilePage: React.FC<{
 
       {selectedLog && createPortal(
         <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-white/80 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white border border-zinc-200 rounded-3xl p-6 max-w-lg w-full shadow-2xl"
@@ -547,7 +529,7 @@ export const ProfilePage: React.FC<{
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
             </div>
-            
+
             <div className="space-y-6">
               <div>
                 <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Séance</div>

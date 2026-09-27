@@ -11,9 +11,12 @@ export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: s
   const user = memberId ? state.users.find(u => Number(u.id) === memberId) : state.user!;
   if (!user) return null;
   const plan = state.nutritionPlans.find(p => p.memberId === Number(user.id));
-  
+
+  const isMemberView = state.user?.role === 'member' && !readOnly;
+  const mealFormRef = React.useRef<HTMLDivElement>(null);
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [addingMealType, setAddingMealType] = useState<'breakfast' | 'lunch' | 'dinner' | 'snack' | null>(null);
+  React.useEffect(() => { if (isMemberView && addingMealType) mealFormRef.current?.scrollIntoView({block:'start',behavior:'smooth'}); }, [addingMealType,isMemberView]);
   const [newFood, setNewFood] = useState({ name: '', quantity: 100, unit: 'g', calories: 0, protein: 0, carbs: 0, fat: 0, mealType: 'breakfast' as 'breakfast' | 'lunch' | 'dinner' | 'snack' });
   const [isSaving, setIsSaving] = useState(false);
   const [isEstimating, setIsEstimating] = useState(false);
@@ -98,7 +101,7 @@ export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: s
     setIsSaving(true);
     try {
       let foodToAdd = { ...newFood, id: Date.now().toString() };
-      
+
       // Auto-calculate if all macros are 0
       if (newFood.calories === 0 && newFood.protein === 0 && newFood.carbs === 0 && newFood.fat === 0) {
         showToast("Calcul automatique des macros en cours...", "success");
@@ -126,7 +129,7 @@ export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: s
       showToast("Aliment ajouté");
     } catch (err) {
       console.error(err);
-      showToast("Erreur lors de l'ajout", "error");
+      showToast("Repas non enregistré. Vos saisies sont conservées ; réessayez.", "error");
     } finally {
       setIsSaving(false);
     }
@@ -189,7 +192,7 @@ export const MemberNutritionView: React.FC<{ state: AppState, showToast: (msg: s
     setIsGenerating(true);
     try {
       const ai = new GoogleGenAI({ apiKey: 'PROXY' });
-      
+
       const prompt = `Propose un repas (juste le nom et les ingrédients principaux) qui correspond EXACTEMENT à ces macros :
 - Calories : ${newFood.calories} kcal
 - Protéines : ${newFood.protein}g
@@ -227,23 +230,24 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
   }
 
   return (
-    <div className="space-y-6 page-transition pb-20 p-4 sm:p-6 max-w-3xl mx-auto">
+    <div className={`${isMemberView?'va-member-nutrition':''} space-y-6 page-transition pb-20 p-4 sm:p-6 max-w-3xl mx-auto`}>
       <div className="flex items-center justify-between">
         {!readOnly ? (
           <div>
-            <h1 className="text-3xl font-display font-bold tracking-tight text-zinc-900 leading-none">Journal</h1>
-            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[3px] mt-2">Suivi Nutritionnel</p>
+            <h1 className="text-3xl font-display font-bold tracking-tight text-zinc-900 leading-none">{isMemberView ? 'Ma nutrition' : 'Journal'}</h1>
+            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[3px] mt-2">{isMemberView ? 'Un repas à la fois.' : 'Suivi Nutritionnel'}</p>
           </div>
         ) : (
           <div></div>
         )}
         <div className="flex items-center gap-2 bg-white rounded-xl p-1 border ">
-          <button onClick={() => changeDate(-1)} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"><ChevronLeftIcon size={16} /></button>
+          <button aria-label="Jour précédent" onClick={() => changeDate(-1)} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"><ChevronLeftIcon size={16} /></button>
           <span className="text-sm font-bold px-2">{new Date(currentDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}</span>
-          <button onClick={() => changeDate(1)} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"><ChevronRightIcon size={16} /></button>
+          <button aria-label="Jour suivant" onClick={() => changeDate(1)} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"><ChevronRightIcon size={16} /></button>
         </div>
       </div>
 
+      {isMemberView ? <section aria-label="Repères nutritionnels"><div className="va-nutrition-energy"><div><p>Énergie renseignée</p><strong>{totalCalories} <span className="text-sm font-normal">/ {targetCalories} kcal</span></strong></div></div><Button fullWidth className="!min-h-14" onClick={()=>setAddingMealType('breakfast')}>Noter un repas</Button><details className="va-member-disclosure mt-4"><summary>Mes repères du jour</summary><div className="va-nutrition-summary">{[['Protéines',totalProtein,targetProtein],['Glucides',totalCarbs,targetCarbs],['Lipides',totalFat,targetFat]].map(([label,total,target])=><div key={label}><p>{label}</p><div className="text-2xl">{total} g</div><p>Repère : {target} g</p></div>)}</div></details></section> : <>
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="p-4 bg-zinc-50 text-zinc-900 border-none">
@@ -268,67 +272,10 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
         </Card>
       </div>
 
-      {/* AI Assistants */}
-      {!readOnly && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card className="p-4 bg-zinc-50  flex flex-col items-center text-center gap-3">
-            <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center">
-              <CameraIcon size={24} />
-            </div>
-            <div>
-              <h3 className="font-bold text-zinc-900">Scanner un repas</h3>
-              <p className="text-xs text-zinc-500 mt-1">Prenez votre assiette en photo, l'IA estime les macros.</p>
-            </div>
-            <input 
-              type="file" 
-              accept="image/*" 
-              capture="environment"
-              className="hidden" 
-              ref={mealInputRef} 
-              onChange={(e) => handleImageUpload(e, 'meal')} 
-            />
-            <Button 
-              variant="primary" 
-              className="w-full mt-2 !py-2 text-xs" 
-              onClick={() => mealInputRef.current?.click()}
-              disabled={isScanningMeal}
-            >
-              {isScanningMeal ? <RefreshCwIcon size={14} className="animate-spin mr-2" /> : <CameraIcon size={14} className="mr-2" />}
-              {isScanningMeal ? "Analyse en cours..." : "Prendre une photo"}
-            </Button>
-          </Card>
-
-          <Card className="p-4 bg-zinc-50  flex flex-col items-center text-center gap-3">
-            <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center">
-              <ChefHatIcon size={24} />
-            </div>
-            <div>
-              <h3 className="font-bold text-zinc-900">Recette Anti-Gaspi</h3>
-              <p className="text-xs text-zinc-500 mt-1">Prenez votre frigo en photo, l'IA crée une recette saine.</p>
-            </div>
-            <input 
-              type="file" 
-              accept="image/*" 
-              className="hidden" 
-              ref={fridgeInputRef} 
-              onChange={(e) => handleImageUpload(e, 'fridge')} 
-            />
-            <Button 
-              variant="primary" 
-              className="w-full mt-2 !py-2 text-xs" 
-              onClick={() => fridgeInputRef.current?.click()}
-              disabled={isGeneratingRecipe}
-            >
-              {isGeneratingRecipe ? <RefreshCwIcon size={14} className="animate-spin mr-2" /> : <ChefHatIcon size={14} className="mr-2" />}
-              {isGeneratingRecipe ? "Génération..." : "Photo des ingrédients"}
-            </Button>
-          </Card>
-        </div>
-      )}
-
+      </>}
       {recipeResult && (
         <Card className="p-6 bg-zinc-50 border-emerald-500/30 shadow-md shadow-emerald-500/10 relative">
-          <button 
+          <button
             onClick={() => setRecipeResult(null)}
             className="absolute top-4 right-4 p-2 text-zinc-500 hover:text-zinc-900 bg-zinc-100 hover:bg-zinc-100 rounded-full transition-colors"
           >
@@ -349,7 +296,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
 
 
       {/* Food List */}
-      <Card className="p-6 bg-zinc-50 ">
+      <Card className="va-meal-list p-6 bg-zinc-50 ">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <h2 className="text-lg font-black uppercase">Repas du jour</h2>
         </div>
@@ -372,32 +319,33 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                     {mealCalories > 0 && <span className="text-zinc-500 font-normal">({mealCalories} kcal)</span>}
                   </h4>
                   {!readOnly && (
-                    <Button 
-                      variant="secondary" 
-                      onClick={() => setAddingMealType(mealType.id as any)} 
+                    <Button
+                      variant="secondary"
+                      aria-label={`Ajouter au repas : ${mealType.label.toLowerCase()}`} onClick={() => setAddingMealType(mealType.id as any)}
                       className="!py-1 !px-2 !text-[10px] flex items-center gap-1 bg-zinc-50  text-zinc-600 hover:bg-white"
                     >
-                      <PlusIcon size={12} /> AJOUTER
+                      <PlusIcon size={14} /> Ajouter
                     </Button>
                   )}
                 </div>
 
                 {addingMealType === mealType.id && (
-                  <div className="bg-white p-4 rounded-2xl mb-4 space-y-4 border ">
+                  <div ref={mealFormRef} className="va-meal-form bg-white p-4 rounded-2xl mb-4 space-y-4 border ">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-xs font-black uppercase tracking-widest text-zinc-900">Ajouter à {mealType.label.toLowerCase()}</h4>
-                      <button onClick={() => setAddingMealType(null)} className="text-zinc-500 hover:text-zinc-600">
+                      <button aria-label="Fermer la saisie du repas" onClick={() => setAddingMealType(null)} className="text-zinc-500 hover:text-zinc-600">
                         <Trash2Icon size={16} />
                       </button>
                     </div>
+                    {isMemberView&&<label className="block text-sm text-zinc-700">Repas<select aria-label="Repas à renseigner" className="mt-2 block w-full min-h-11 rounded-xl border border-zinc-200 px-3" value={addingMealType} onChange={event=>setAddingMealType(event.target.value as typeof addingMealType)}><option value="breakfast">Petit-déjeuner</option><option value="lunch">Déjeuner</option><option value="snack">Collation</option><option value="dinner">Dîner</option></select></label>}
                     <div>
                       <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 ml-1">Aliment / Repas</label>
                       <div className="flex gap-2">
-                        <Input 
-                          type="text" 
-                          placeholder="Ex: Poulet, Riz, Brocolis..." 
-                          value={newFood.name} 
-                          onChange={e => setNewFood({...newFood, name: e.target.value})} 
+                        <Input
+                          type="text"
+                          aria-label="Aliment ou repas" placeholder="Ex. poulet, riz, brocolis"
+                          value={newFood.name}
+                          onChange={e => setNewFood({...newFood, name: e.target.value})}
                           onKeyDown={e => {
                             if (e.key === 'Enter' && newFood.name) {
                               e.preventDefault();
@@ -406,8 +354,8 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                           }}
                           className="flex-1"
                         />
-                        <Button 
-                          variant="secondary" 
+                        <Button
+                          variant="secondary"
                           onClick={handleAutoCalculate}
                           disabled={isEstimating || !newFood.name}
                           className="!px-3 !py-0 h-[42px] flex items-center justify-center bg-zinc-100  text-zinc-600 hover:bg-zinc-100"
@@ -415,16 +363,16 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                         >
                           {isEstimating ? <RefreshCwIcon size={18} className="animate-spin" /> : <Wand2Icon size={18} />}
                         </Button>
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          capture="environment" 
-                          ref={mealInputRef} 
-                          onChange={(e) => handleImageUpload(e, 'meal')} 
-                          className="hidden" 
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          ref={mealInputRef}
+                          onChange={(e) => handleImageUpload(e, 'meal')}
+                          className="hidden"
                         />
-                        <Button 
-                          variant="secondary" 
+                        <Button
+                          variant="secondary"
                           onClick={() => mealInputRef.current?.click()}
                           disabled={isScanningMeal}
                           className="!px-3 !py-0 h-[42px] flex items-center justify-center bg-zinc-100  text-zinc-600 hover:bg-zinc-100"
@@ -438,17 +386,17 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 ml-1">Quantité</label>
-                        <Input 
-                          type="number" 
-                          value={newFood.quantity || ''} 
-                          onChange={e => setNewFood({...newFood, quantity: parseFloat(e.target.value) || 0})} 
-                          placeholder="100" 
+                        <Input
+                          type="number" inputMode="decimal"
+                          aria-label="Quantité" value={newFood.quantity || ''}
+                          onChange={e => setNewFood({...newFood, quantity: parseFloat(e.target.value) || 0})}
+                          placeholder="100"
                         />
                       </div>
                       <div>
                         <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 ml-1">Unité</label>
-                        <select 
-                          value={newFood.unit} 
+                        <select
+                          aria-label="Unité" value={newFood.unit}
                           onChange={e => setNewFood({...newFood, unit: e.target.value})}
                           className="w-full h-[42px] px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
                         >
@@ -463,32 +411,33 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div>
                         <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 ml-1">Kcal</label>
-                        <Input type="number" value={newFood.calories || ''} onChange={e => setNewFood({...newFood, calories: Number(e.target.value)})} className="!text-center" />
+                        <Input type="number" inputMode="decimal" aria-label="Calories" value={newFood.calories || ''} onChange={e => setNewFood({...newFood, calories: Number(e.target.value)})} className="!text-center" />
                       </div>
                       <div>
                         <label className="text-xs font-black uppercase text-zinc-500 text-blue-400 ml-1">Prot (g)</label>
-                        <Input type="number" value={newFood.protein || ''} onChange={e => setNewFood({...newFood, protein: Number(e.target.value)})} className="!text-center" />
+                        <Input type="number" inputMode="decimal" aria-label="Protéines en grammes" value={newFood.protein || ''} onChange={e => setNewFood({...newFood, protein: Number(e.target.value)})} className="!text-center" />
                       </div>
                       <div>
                         <label className="text-xs font-black uppercase text-zinc-500 text-green-400 ml-1">Gluc (g)</label>
-                        <Input type="number" value={newFood.carbs || ''} onChange={e => setNewFood({...newFood, carbs: Number(e.target.value)})} className="!text-center" />
+                        <Input type="number" inputMode="decimal" aria-label="Glucides en grammes" value={newFood.carbs || ''} onChange={e => setNewFood({...newFood, carbs: Number(e.target.value)})} className="!text-center" />
                       </div>
                       <div>
                         <label className="text-xs font-black uppercase text-zinc-500 text-yellow-500 ml-1">Lip (g)</label>
-                        <Input type="number" value={newFood.fat || ''} onChange={e => setNewFood({...newFood, fat: Number(e.target.value)})} className="!text-center" />
+                        <Input type="number" inputMode="decimal" aria-label="Lipides en grammes" value={newFood.fat || ''} onChange={e => setNewFood({...newFood, fat: Number(e.target.value)})} className="!text-center" />
                       </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row justify-between gap-2 pt-2">
-                      <Button 
-                        variant="secondary" 
-                        onClick={handleGenerateIdea} 
-                        disabled={isGenerating || !newFood.calories || !newFood.protein || !newFood.carbs || !newFood.fat} 
+                    <details className="va-member-disclosure"><summary>Une idée de plat avec ces repères ?</summary>
+                      <Button
+                        variant="secondary"
+                        onClick={handleGenerateIdea}
+                        disabled={isGenerating || !newFood.calories || !newFood.protein || !newFood.carbs || !newFood.fat}
                         className="!py-2 flex items-center justify-center gap-2"
                       >
                         {isGenerating ? <RefreshCwIcon size={14} className="animate-spin" /> : <SparklesIcon size={14} />}
                         Suggérer un plat (IA)
-                      </Button>
-                      <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                      </Button></details>
+                    <div className="va-meal-actions flex justify-between gap-2 pt-2">
+                      <div className="flex gap-2 w-full">
                         <Button variant="secondary" onClick={() => setAddingMealType(null)} className="!py-2">Annuler</Button>
                         <Button variant="primary" onClick={handleAddFood} disabled={isSaving || !newFood.name} className="!py-2">
                           {isSaving ? "Ajout..." : "Valider"}
@@ -514,16 +463,16 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                         </div>
                       </div>
                       {!readOnly && (
-                        <button onClick={() => handleDeleteFood(food.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">
+                        <button aria-label={`Retirer ${food.name}`} onClick={() => handleDeleteFood(food.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors">
                           <Trash2Icon size={16} />
                         </button>
                       )}
                     </div>
                   ))}
-                  
+
                   {mealFoods.length === 0 && addingMealType !== mealType.id && (
                     <div className="text-center py-4 border border-dashed  rounded-xl bg-zinc-50/50">
-                      <p className="text-zinc-500 text-xs italic">Aucun aliment</p>
+                      <p className="text-zinc-500 text-xs italic">Rien de renseigné pour ce repas.</p>
                     </div>
                   )}
                 </div>
@@ -572,11 +521,11 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
                     {repas.calories || 0} kcal
                   </div>
                 </div>
-                
+
                 <div className="text-sm text-zinc-500 mb-4 whitespace-pre-wrap">
                   {repas.description}
                 </div>
-                
+
                 <div className="flex gap-4 text-xs font-medium uppercase tracking-wider">
                   <div className="text-blue-400">Prot: {repas.protein || 0}g</div>
                   <div className="text-emerald-400">Gluc: {repas.carbs || 0}g</div>
@@ -586,6 +535,64 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
             ))}
           </div>
         </Card>
+      )}
+
+      {/* AI Assistants */}
+      {!readOnly && (
+        <details className="va-member-disclosure" open={!isMemberView || undefined}><summary>Photo et idées de repas avec l’IA</summary><div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Card className="p-4 bg-zinc-50  flex flex-col items-center text-center gap-3">
+            <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center">
+              <CameraIcon size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-zinc-900">Scanner un repas</h3>
+              <p className="text-xs text-zinc-500 mt-1">Prenez votre assiette en photo, l'IA estime les macros.</p>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              ref={mealInputRef}
+              onChange={(e) => handleImageUpload(e, 'meal')}
+            />
+            <Button
+              variant="primary"
+              className="w-full mt-2 !py-2 text-xs"
+              onClick={() => mealInputRef.current?.click()}
+              disabled={isScanningMeal}
+            >
+              {isScanningMeal ? <RefreshCwIcon size={14} className="animate-spin mr-2" /> : <CameraIcon size={14} className="mr-2" />}
+              {isScanningMeal ? "Analyse en cours..." : "Prendre une photo"}
+            </Button>
+          </Card>
+
+          <Card className="p-4 bg-zinc-50  flex flex-col items-center text-center gap-3">
+            <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center">
+              <ChefHatIcon size={24} />
+            </div>
+            <div>
+              <h3 className="font-bold text-zinc-900">Recette Anti-Gaspi</h3>
+              <p className="text-xs text-zinc-500 mt-1">Prenez votre frigo en photo, l'IA crée une recette saine.</p>
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={fridgeInputRef}
+              onChange={(e) => handleImageUpload(e, 'fridge')}
+            />
+            <Button
+              variant="primary"
+              className="w-full mt-2 !py-2 text-xs"
+              onClick={() => fridgeInputRef.current?.click()}
+              disabled={isGeneratingRecipe}
+            >
+              {isGeneratingRecipe ? <RefreshCwIcon size={14} className="animate-spin mr-2" /> : <ChefHatIcon size={14} className="mr-2" />}
+              {isGeneratingRecipe ? "Génération..." : "Photo des ingrédients"}
+            </Button>
+          </Card>
+        </div></details>
       )}
 
       {/* Shopping List */}
@@ -623,9 +630,9 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
           <div className="space-y-2">
             {plan.liste_courses.map((item, idx) => (
               <div key={item.id} className="flex items-center gap-3 p-2 bg-white rounded-xl border border-zinc-200">
-                <input 
-                  type="checkbox" 
-                  checked={item.checked} 
+                <input
+                  type="checkbox"
+                  checked={item.checked}
                   disabled={readOnly}
                   onChange={async (e) => {
                     if (readOnly) return;

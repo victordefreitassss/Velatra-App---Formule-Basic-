@@ -75,6 +75,13 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
     setTempCoaches(tempCoaches.map(c => c.id === id ? { ...c, [field]: value } : c));
   };
 
+  if (user?.role === 'member') return <div className="va-member-page"><header><h1>Mon club</h1><p>{state.currentClub?.name || 'Votre espace de coaching'}</p></header>
+    <section className="va-member-empty"><h2>Nous contacter</h2><p>Une question sur votre accompagnement ou votre accès au club ?</p>{aboutInfo.phone?<a className="va-member-primary" href={`tel:${aboutInfo.phone}`}>Appeler le club</a>:<p>Le téléphone du club n’est pas encore renseigné.</p>}{aboutInfo.email&&<a className="va-member-file" href={`mailto:${aboutInfo.email}`}><span><strong>Envoyer un email</strong><small>{aboutInfo.email}</small></span><span aria-hidden="true">→</span></a>}</section>
+    <section><h2>Horaires</h2><p className="mt-2 text-sm leading-6 text-zinc-700 whitespace-pre-line">{aboutInfo.horaires || 'Contactez le club pour connaître ses horaires.'}</p></section>
+    {aboutInfo.description&&<section><h2>Votre espace</h2><p className="mt-2 text-sm leading-6 text-zinc-700">{aboutInfo.description}</p></section>}
+    {coaches.length>0&&<section><h2>L’équipe</h2>{coaches.map(coach=><div className="va-member-file" key={coach.id}><span><strong>{coach.name}</strong><small>{coach.role}</small></span></div>)}</section>}
+  </div>;
+
   return (
     <div className="space-y-10 pb-24 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">

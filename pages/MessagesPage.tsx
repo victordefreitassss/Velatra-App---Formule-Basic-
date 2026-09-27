@@ -5,6 +5,7 @@ import { Card, Button, Input, Textarea } from '../components/UI';
 import { MessageCircleIcon, PlusIcon, ChevronLeftIcon, FileIcon, DownloadIcon } from '../components/Icons';
 import { apiFetch, db, doc, setDoc, addDoc, collection, updateDoc } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useMemberConversationViewport } from '../components/useMemberConversationViewport';
 
 export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast: any, embedded?: boolean }> = ({ state, setState, showToast, embedded }) => {
   const [text, setText] = useState("");
@@ -52,14 +53,16 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
     ? state.users.filter(u => u.role === 'member' && u.name.toLowerCase().includes(searchContact.toLowerCase())) 
     : memberCoach ? [memberCoach] : [];
 
+  const conversationRef = useMemberConversationViewport(user.role === 'member' && !embedded && !memberCoachLoading && !!memberCoach);
   const thread = state.messages.filter(m => 
     (m.from === user.id && m.to === selectedDest) || 
     (m.from === selectedDest && m.to === user.id)
-  );
+  ).sort((a,b)=>a.date.localeCompare(b.date));
 
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [thread]);
+    const container=scrollRef.current?.parentElement;
+    if(container) container.scrollTop=container.scrollHeight;
+  }, [thread.length, selectedDest]);
 
   useEffect(() => {
     const unreadMessages = thread.filter(m => m.to === user.id && !m.read);
@@ -75,20 +78,12 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
   }, [thread, user.id]);
 
   if (user.role === 'member' && memberCoachLoading) {
-    return <div className="flex min-h-64 items-center justify-center text-sm text-zinc-500">Chargement de votre coach…</div>;
+    return <div className="va-member-page" role="status"><div className="h-12 rounded-xl bg-zinc-100"/><p className="text-sm text-zinc-700">Ouverture de votre conversation…</p></div>;
   }
 
   if (user.role === 'member' && !memberCoach) {
     return (
-      <div className="flex min-h-64 items-center justify-center p-6">
-        <div className="max-w-md rounded-2xl border border-zinc-200 bg-white p-6 text-center shadow-sm">
-          <MessageCircleIcon size={28} className="mx-auto mb-3 text-emerald-600" />
-          <h2 className="font-display text-xl font-semibold text-zinc-900">Votre coach n’est pas encore affecté</h2>
-          <p className="mt-2 text-sm text-zinc-600">
-            {memberCoachError || "Demandez au responsable du club de vous affecter un coach pour démarrer une conversation."}
-          </p>
-        </div>
-      </div>
+      <div className="va-member-page"><header><h1>Mon coach</h1></header><section className="va-member-empty"><MessageCircleIcon/><h2>{memberCoachError ? 'Conversation indisponible' : 'Votre coach arrive bientôt'}</h2><p>{memberCoachError || 'Le club doit vous attribuer un coach pour ouvrir votre conversation privée.'}</p><button className="va-member-primary" onClick={()=>setState((p:AppState)=>({...p,page:'about'}))}>Contacter mon club</button></section></div>
     );
   }
 
@@ -135,7 +130,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
       setFileData(null);
       setFileName(null);
     } catch (err) {
-      showToast("Erreur d'envoi", "error");
+      showToast("Message non envoyé. Votre texte est conservé ; réessayez.", "error");
     }
   };
 
@@ -257,7 +252,8 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className={`flex flex-col ${embedded ? 'h-full' : 'va-message-thread'}`}
+      ref={conversationRef}
+      className={`flex flex-col ${user.role === 'member' ? 'va-member-chat' : ''} ${embedded ? 'va-member-chat-embedded h-full' : 'va-message-thread'}`}
     >
       <header className="shrink-0 flex items-center gap-4 mb-6 pb-4 border-b border-zinc-200/50 bg-zinc-50 backdrop-blur-md p-4 rounded-2xl">
         {(user.role === 'coach' || user.role === 'owner') && (
@@ -280,11 +276,11 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
         <div>
           <div className="font-semibold text-xl tracking-tight leading-tight text-zinc-900">{dest?.name}</div>
-          <div className="text-xs text-zinc-600 mt-1">Conversation privée</div>
+          <div className="text-xs text-zinc-600 mt-1">{user.role === 'member' ? 'Votre coach · conversation privée' : 'Conversation privée'}</div>
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+      <div className="va-chat-scroll flex-1 min-h-0 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
         {thread.length === 0 && <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center">
           <MessageCircleIcon size={26} className="mx-auto mb-3 text-emerald-800" />
           <h2 className="font-display text-xl font-semibold">Votre échange commence ici</h2>
@@ -298,18 +294,18 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
               animate={{ opacity: 1, y: 0, scale: 1 }}
               className={`flex ${m.from === user.id ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm backdrop-blur-md ${m.from === user.id ? 'bg-emerald-500/90 text-zinc-900 rounded-tr-none' : 'bg-zinc-100 border border-zinc-200/50 rounded-tl-none text-zinc-900'}`}>
+              <div className={`va-chat-bubble ${m.from === user.id ? 'is-mine' : ''} max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm backdrop-blur-md ${m.from === user.id ? 'bg-emerald-500/90 text-zinc-900 rounded-tr-none' : 'bg-zinc-100 border border-zinc-200/50 rounded-tl-none text-zinc-900'}`}>
                 {m.text}
                 {m.file && (
                   <div className={`mt-2 p-2 rounded-xl flex items-center gap-3 border ${m.from === user.id ? 'bg-zinc-50 border-zinc-400' : 'bg-white/50 border-zinc-200/50'}`}>
                     <FileIcon size={16} />
                     <span className="text-[10px] truncate flex-1 font-medium">Document joint</span>
-                    <a href={m.file} download="document" className={`p-1 transition-colors ${m.from === user.id ? 'hover:text-zinc-700' : 'hover:text-emerald-500'}`}>
+                    <a aria-label="Télécharger le document joint" href={m.file} download="document" className={`p-1 transition-colors ${m.from === user.id ? 'hover:text-zinc-700' : 'hover:text-emerald-500'}`}>
                       <DownloadIcon size={14} />
                     </a>
                   </div>
                 )}
-                <div className={`text-[9px] mt-1 text-right font-medium ${m.from === user.id ? 'text-zinc-900/70' : 'text-zinc-500'}`}>
+                <div className={`va-chat-time text-[9px] mt-1 text-right font-medium ${m.from === user.id ? 'text-zinc-900/70' : 'text-zinc-500'}`}>
                   {new Date(m.date).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
                 </div>
               </div>
@@ -328,16 +324,16 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
           <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500">
             <FileIcon size={14} /> {fileName}
           </div>
-          <button onClick={() => { setFileData(null); setFileName(null); }} className="text-zinc-500 hover:text-zinc-900 transition-colors">
+          <button aria-label="Retirer la pièce jointe" onClick={() => { setFileData(null); setFileName(null); }} className="text-zinc-500 hover:text-zinc-900 transition-colors">
             <PlusIcon size={14} className="rotate-45" />
           </button>
         </motion.div>
       )}
 
-      <div className="mt-4 shrink-0 flex gap-2 items-end bg-zinc-50 backdrop-blur-md p-2 rounded-2xl border border-zinc-200/50 shadow-sm">
-        <label className="p-3 bg-zinc-50 border border-zinc-200/50 rounded-xl cursor-pointer hover:bg-white transition-all text-zinc-500 hover:text-emerald-500 shadow-sm flex items-center justify-center shrink-0 h-[50px] w-[50px]">
+      <div className="va-chat-composer mt-4 shrink-0 flex gap-2 items-end bg-zinc-50 backdrop-blur-md p-2 rounded-2xl border border-zinc-200/50 shadow-sm">
+        <label title="Joindre un fichier" className="p-3 bg-zinc-50 border border-zinc-200/50 rounded-xl cursor-pointer hover:bg-white transition-all text-zinc-500 hover:text-emerald-500 shadow-sm flex items-center justify-center shrink-0 h-[50px] w-[50px]">
           <PlusIcon size={20} />
-          <input type="file" className="hidden" onChange={handleFileChange} accept=".pdf,image/*" />
+          <input type="file" aria-label="Joindre un fichier PDF ou une image" className="sr-only" onChange={handleFileChange} accept=".pdf,image/*" />
         </label>
         <Textarea 
           placeholder="Écrivez votre message…" aria-label="Votre message"
@@ -353,7 +349,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
           rows={1}
         />
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="shrink-0 h-[50px] w-[50px]">
-          <Button aria-label="Envoyer le message" onClick={sendMessage} className="!p-3 h-full w-full shadow-lg shadow-emerald-500/20 flex items-center justify-center">
+          <Button aria-label="Envoyer le message" onClick={sendMessage} disabled={!text.trim() && !fileData} className="!p-3 h-full w-full shadow-lg shadow-emerald-500/20 flex items-center justify-center">
             <MessageCircleIcon size={20} />
           </Button>
         </motion.div>
