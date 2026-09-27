@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { AppState, BodyData } from '../types';
-import { Card, Badge, Input } from '../components/UI';
+import { Card, Badge, Input, Button } from '../components/UI';
 import { TargetIcon, BarChartIcon, TrophyIcon, DatabaseIcon, SearchIcon } from '../components/Icons';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, Legend, BarChart, Bar
@@ -23,7 +23,7 @@ const itemVariants: import('framer-motion').Variants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
-export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state }) => {
+export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state, setState }) => {
   const [searchPR, setSearchPR] = useState("");
   const user = state.user!;
   const myPerfs = state.performances.filter(p => Number(p.memberId) === Number(user.id));
@@ -156,7 +156,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
     >
       <motion.div variants={itemVariants} className="flex justify-between items-center px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Analyses <span className="text-emerald-500">PERFORMANCE</span></h1>
+          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Mes performances</h1>
           <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">Suivi biométrique & Records</p>
         </div>
       </motion.div>
@@ -257,9 +257,11 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center gap-4 opacity-30">
-                <DatabaseIcon size={48} />
-                <div className="text-[10px] text-zinc-900 uppercase font-black tracking-widest italic">Aucun scan enregistré</div>
+              <div className="h-full flex flex-col items-center justify-center gap-3 px-4 text-center text-zinc-600">
+                <DatabaseIcon size={28} className="text-emerald-800" />
+                <p className="text-sm font-semibold text-zinc-900">Vos premières mesures apparaîtront ici</p>
+                <p className="max-w-md text-sm">Votre coach peut compléter ce suivi. Vous pouvez aussi suivre votre évolution en images.</p>
+                <Button variant="secondary" onClick={() => setState((previous: AppState) => ({ ...previous, page: 'evolution' }))}>Voir mon évolution</Button>
               </div>
             )}
           </div>
@@ -305,8 +307,8 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center gap-4 opacity-30">
-                <DatabaseIcon size={48} />
+              <div className="h-full flex flex-col items-center justify-center gap-3 px-4 text-center text-zinc-600">
+                <DatabaseIcon size={28} className="text-emerald-800" />
                 <div className="text-[10px] text-zinc-900 uppercase font-black tracking-widest italic">Aucune donnée</div>
               </div>
             )}
@@ -346,8 +348,8 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state 
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center gap-4 opacity-30">
-                <DatabaseIcon size={48} />
+              <div className="h-full flex flex-col items-center justify-center gap-3 px-4 text-center text-zinc-600">
+                <DatabaseIcon size={28} className="text-emerald-800" />
                 <div className="text-[10px] text-zinc-900 uppercase font-black tracking-widest italic">Aucune donnée de force</div>
               </div>
             )}

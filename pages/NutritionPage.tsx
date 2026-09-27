@@ -782,7 +782,7 @@ export const NutritionPage: React.FC<{ state: AppState, setState: any, showToast
                         {hasPlan ? (
                           <span className="text-emerald-400 flex items-center gap-1"><AppleIcon size={10} /> Plan Actif</span>
                         ) : (
-                          <span className="opacity-50">Aucun plan</span>
+                          <span className="text-zinc-600">Aucun plan</span>
                         )}
                       </div>
                     </div>

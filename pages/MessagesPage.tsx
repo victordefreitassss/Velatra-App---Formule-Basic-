@@ -178,11 +178,11 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="space-y-6"
+        className="space-y-6 va-polish-page"
       >
         <motion.div variants={itemVariants} className="px-1">
           <h1 className="text-3xl font-display font-black tracking-tight text-zinc-900 leading-none mb-2">Discussion</h1>
-          <p className="text-xs font-medium uppercase text-emerald-600 tracking-wider">Messagerie avec vos membres</p>
+          <p className="text-sm text-zinc-600">Échangez avec vos adhérents.</p>
         </motion.div>
         
         <motion.div variants={itemVariants} className="relative">
@@ -190,7 +190,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
           </div>
           <Input 
-            placeholder="Rechercher un membre..." 
+            placeholder="Rechercher un membre…" aria-label="Rechercher un contact"
             className="pl-14 !bg-white backdrop-blur-xl !border-zinc-200/50 !rounded-2xl font-bold shadow-sm focus:!bg-white" 
             value={searchContact} 
             onChange={e => setSearchContact(e.target.value)} 
@@ -240,8 +240,10 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
             })}
           </AnimatePresence>
           {contacts.length === 0 && (
-            <motion.div variants={itemVariants} className="col-span-full text-center py-12 text-zinc-500 text-sm italic bg-white backdrop-blur-md rounded-3xl border border-zinc-200/50">
-              Aucun membre à contacter pour le moment.
+            <motion.div variants={itemVariants} className="col-span-full text-center py-12 text-zinc-500 text-sm bg-white rounded-3xl border border-zinc-200/50">
+              <p className="font-semibold text-zinc-900">{searchContact ? 'Aucun contact trouvé' : 'Aucun adhérent à contacter'}</p>
+              <p className="mt-2">{searchContact ? 'Essayez un autre nom.' : 'Ajoutez un adhérent pour commencer une conversation.'}</p>
+              <Button variant="secondary" className="mx-auto mt-4" onClick={() => searchContact ? setSearchContact('') : setState((previous: AppState) => ({ ...previous, page: 'users', pendingUiAction: 'add-member' }))}>{searchContact ? 'Effacer la recherche' : 'Ajouter un adhérent'}</Button>
             </motion.div>
           )}
         </motion.div>
@@ -255,13 +257,14 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className={`flex flex-col ${embedded ? 'h-full' : 'h-[calc(100dvh-144px)] md:h-[calc(100dvh-96px)]'}`}
+      className={`flex flex-col ${embedded ? 'h-full' : 'va-message-thread'}`}
     >
-      <header className="flex items-center gap-4 mb-6 pb-4 border-b border-zinc-200/50 bg-zinc-50 backdrop-blur-md p-4 rounded-t-3xl -mx-4 -mt-4">
+      <header className="shrink-0 flex items-center gap-4 mb-6 pb-4 border-b border-zinc-200/50 bg-zinc-50 backdrop-blur-md p-4 rounded-2xl">
         {(user.role === 'coach' || user.role === 'owner') && (
           <motion.button 
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
+            aria-label="Retour aux conversations"
             onClick={() => setSelectedDest(null)} 
             className="text-zinc-500 hover:text-zinc-900 transition-colors bg-zinc-50 p-2 rounded-xl shadow-sm"
           >
@@ -276,12 +279,17 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
           )}
         </div>
         <div>
-          <div className="font-black text-xl uppercase italic tracking-tight leading-none text-zinc-900">{dest?.name}</div>
-          <div className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest mt-1">En ligne</div>
+          <div className="font-semibold text-xl tracking-tight leading-tight text-zinc-900">{dest?.name}</div>
+          <div className="text-xs text-zinc-600 mt-1">Conversation privée</div>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+        {thread.length === 0 && <div className="rounded-2xl border border-zinc-200 bg-white p-6 text-center">
+          <MessageCircleIcon size={26} className="mx-auto mb-3 text-emerald-800" />
+          <h2 className="font-display text-xl font-semibold">Votre échange commence ici</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-zinc-600">Un retour sur la séance, une question ou un encouragement : écrivez votre premier message ci-dessous.</p>
+        </div>}
         <AnimatePresence initial={false}>
           {thread.map(m => (
             <motion.div 
@@ -326,13 +334,13 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
         </motion.div>
       )}
 
-      <div className="mt-4 flex gap-2 items-end bg-zinc-50 backdrop-blur-md p-2 rounded-2xl border border-zinc-200/50 shadow-sm">
+      <div className="mt-4 shrink-0 flex gap-2 items-end bg-zinc-50 backdrop-blur-md p-2 rounded-2xl border border-zinc-200/50 shadow-sm">
         <label className="p-3 bg-zinc-50 border border-zinc-200/50 rounded-xl cursor-pointer hover:bg-white transition-all text-zinc-500 hover:text-emerald-500 shadow-sm flex items-center justify-center shrink-0 h-[50px] w-[50px]">
           <PlusIcon size={20} />
           <input type="file" className="hidden" onChange={handleFileChange} accept=".pdf,image/*" />
         </label>
         <Textarea 
-          placeholder="Message..." 
+          placeholder="Écrivez votre message…" aria-label="Votre message"
           value={text} 
           onChange={e => setText(e.target.value)} 
           onKeyPress={e => {
@@ -345,7 +353,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
           rows={1}
         />
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="shrink-0 h-[50px] w-[50px]">
-          <Button onClick={sendMessage} className="!p-3 h-full w-full shadow-lg shadow-emerald-500/20 flex items-center justify-center">
+          <Button aria-label="Envoyer le message" onClick={sendMessage} className="!p-3 h-full w-full shadow-lg shadow-emerald-500/20 flex items-center justify-center">
             <MessageCircleIcon size={20} />
           </Button>
         </motion.div>

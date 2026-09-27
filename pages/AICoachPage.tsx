@@ -183,12 +183,12 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-4 h-[calc(100dvh-144px)] md:h-[calc(100dvh-96px)] flex flex-col"
+      className="va-ai-page space-y-4 h-[calc(100dvh-144px)] md:h-[calc(100dvh-96px)] flex flex-col"
     >
       <motion.div variants={itemVariants} className="flex items-center justify-between px-1 shrink-0">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">Discussions</h1>
-          <p className="text-zinc-900 text-xs font-medium uppercase text-zinc-500 tracking-wider">Échange avec ton coach</p>
+          <p className="text-sm font-normal text-zinc-600">Ton coach et Velatra AI, dans un même espace.</p>
         </div>
         <div className="p-4 bg-emerald-500/10 rounded-2xl text-emerald-500 shadow-inner backdrop-blur-md">
           <MessageCircleIcon size={32} />
@@ -197,13 +197,13 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
 
       <motion.div variants={itemVariants} className="flex bg-white backdrop-blur-md rounded-xl p-1 shrink-0 border border-zinc-200/50 shadow-sm">
         <button 
-          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'human' ? 'bg-emerald-500 text-zinc-900 shadow-lg shadow-emerald-500/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white'}`} 
+          className={`flex-1 py-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'human' ? 'bg-emerald-500 text-zinc-900 shadow-lg shadow-emerald-500/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white'}`}
           onClick={() => setActiveTab('human')}
         >
           <MessageCircleIcon size={16} /> {coachName}
         </button>
         <button 
-          className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'ai' ? 'bg-emerald-500 text-zinc-900 shadow-lg shadow-emerald-500/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white'}`} 
+          className={`flex-1 py-3 text-sm font-semibold rounded-lg flex items-center justify-center gap-2 transition-all ${activeTab === 'ai' ? 'bg-emerald-500 text-zinc-900 shadow-lg shadow-emerald-500/20' : 'text-zinc-500 hover:text-zinc-900 hover:bg-white'}`}
           onClick={() => setActiveTab('ai')}
         >
           <BotIcon size={16} /> Coach IA
@@ -236,7 +236,7 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 flex flex-col overflow-hidden bg-zinc-50 backdrop-blur-xl rounded-3xl border border-zinc-200/50 shadow-sm"
+            className="flex-1 flex flex-col overflow-hidden bg-white rounded-3xl border border-zinc-200/50 shadow-sm"
           >
             {messages.length <= 1 && (
               <div className="flex items-center gap-3 border-b border-zinc-200/60 bg-white/70 px-4 py-3 sm:px-5">
@@ -270,7 +270,7 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
                       )}
                     </div>
                   )}
-                  <div className={`max-w-[85%] p-4 rounded-2xl ${msg.role === 'user' ? 'bg-emerald-500 text-zinc-900 rounded-br-sm shadow-md shadow-emerald-500/20' : 'bg-white text-zinc-700 rounded-bl-sm border border-zinc-200/50 shadow-sm'}`}>
+                  <div className={`max-w-[min(85%,65ch)] p-4 rounded-2xl ${msg.role === 'user' ? 'bg-emerald-500 text-zinc-900 rounded-br-sm shadow-md shadow-emerald-500/20' : 'bg-white text-zinc-700 rounded-bl-sm border border-zinc-200/50 shadow-sm'}`}>
                     {msg.role === 'model' ? (
                       <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-headings:font-display prose-a:text-emerald-500">
                         <Markdown urlTransform={(value: string | undefined | null) => typeof value === 'string' ? value : ''}>{String(msg.text || '')}</Markdown>
@@ -303,6 +303,7 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
                     }
                   }}
                   placeholder="Pose ta question au coach IA..."
+                  aria-label={activeTab === 'ai' ? 'Votre question à Velatra AI' : 'Votre message au coach'}
                   className="flex-1 bg-white border-zinc-200/50 focus:border-emerald-500 focus:ring-emerald-500/20 shadow-sm rounded-xl min-h-[56px] max-h-[120px]"
                   disabled={loading || !conversationReady}
                   maxLength={3500}
@@ -310,6 +311,7 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
                 />
                 <button
                   onClick={handleSend}
+                  aria-label="Envoyer le message"
                   disabled={loading || !conversationReady || !input.trim()}
                   className="bg-emerald-500 text-zinc-900 p-4 rounded-xl hover:bg-emerald-500/90 disabled:opacity-50 transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center shrink-0 h-[56px] w-[56px]"
                 >
