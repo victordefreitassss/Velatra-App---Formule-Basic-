@@ -48,9 +48,15 @@ L'ordre est bloquant, sans `continue-on-error`. `pretest` vérifie le projet `de
 3. Attendre `quality-gate` vert sur le dernier commit et une branche à jour, puis fusionner la PR.
 4. Vérifier la CI sur `main`, le déploiement Vercel et l'application en production.
 
-Configuration de protection visée après validation réelle : PR obligatoire, check `quality-gate` requis depuis GitHub Actions, branche à jour, suppression et force-push interdits. Aucun avis externe imposé pour ne pas bloquer le propriétaire seul. Le bypass administrateur reste disponible pour une urgence et doit rester exceptionnel : un push direct administrateur peut lancer Vercel avant la fin de la CI. Cette protection n'est pas une garantie contre un administrateur qui la contourne ou modifie le workflow.
+Protection enregistrée et relue dans GitHub le 28 septembre 2026 : **PR obligatoire**, **`quality-gate` requis depuis GitHub Actions** (App ID 15368), **branche à jour**, suppression et force-push interdits. Aucun avis externe imposé pour ne pas bloquer le propriétaire seul. Le bypass administrateur reste disponible pour une urgence et doit rester exceptionnel : un push direct administrateur peut lancer Vercel avant la fin de la CI. Cette protection n'est pas une garantie contre un administrateur qui la contourne ou modifie le workflow.
 
 Pour revenir sur une modification, créer une PR de revert et repasser le même gate. Ne pas retirer le check requis pendant un rollback produit. Un retrait exceptionnel du workflow exige d'adapter explicitement la protection pour ne pas laisser un check attendu sans producteur.
+
+## Preuves GitHub
+
+Livraison par la [PR #3](https://github.com/victordefreitassss/Velatra-App---Formule-Basic-/pull/3). Le [premier run réel](https://github.com/victordefreitassss/Velatra-App---Formule-Basic-/actions/runs/36353818685) est vert : postinstall vérifié, Node 24.21.0, Java 21.0.12, 5 + 81 tests réussis. Les suites d'isolation Firestore/Storage et la création Auth figurent dans le log du job. Preview Vercel réussi. Aucun credential ni jeton n'a été trouvé par le contrôle ciblé des logs ; les fixtures sont fictives.
+
+Le [test négatif réel](https://github.com/victordefreitassss/Velatra-App---Formule-Basic-/actions/runs/36354034278), commit `e69d9de` exclusivement sur la PR, a ajouté une assertion volontairement fausse : 81 tests applicatifs réussis, **1 échec**, `quality-gate = failure`, `mergeable_state = blocked`, check marqué **Required** dans GitHub. Vercel Preview restait vert : il ne remplace donc pas le gate. Les émulateurs se sont arrêtés après l'échec. Le commit de sonde a ensuite été annulé ; ce fichier ne fait pas partie de la livraison finale. La PR doit repasser au vert avant sa fusion, sans utiliser le bypass.
 
 ## Limites
 
