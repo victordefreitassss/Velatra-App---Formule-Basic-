@@ -637,14 +637,14 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
 
         <div className="space-y-8">
-          <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
             <div>
               <h3 className="font-bold text-zinc-900">Activer le module de planning</h3>
               <p className="text-sm text-zinc-500">Permet aux adhérents de réserver des créneaux avec vous.</p>
             </div>
-            <label className="relative inline-flex shrink-0 items-center cursor-pointer">
-              <input type="checkbox" aria-label="Activer le planning" className="sr-only peer" checked={planningEnabled} onChange={(e) => setPlanningEnabled(e.target.checked)} />
-              <div className="w-11 h-6 bg-zinc-100 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+            <label className="inline-flex min-h-11 shrink-0 items-center gap-2 cursor-pointer text-sm font-semibold text-zinc-900">
+              <input type="checkbox" aria-label="Activer le planning" className="h-5 w-5 accent-emerald-900" checked={planningEnabled} onChange={(e) => setPlanningEnabled(e.target.checked)} />
+              <span>{planningEnabled ? 'Activé' : 'Désactivé'}</span>
             </label>
           </div>
 

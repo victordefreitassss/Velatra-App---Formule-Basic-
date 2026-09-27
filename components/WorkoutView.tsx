@@ -452,7 +452,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                               )}
                               {exEntry.rest && (
                                 <button onClick={() => startTimer(parseInt(exEntry.rest) || 90)} className="hover:scale-105 transition-transform active:scale-95">
-                                  <Badge variant="dark" className="uppercase flex items-center gap-1 cursor-pointer !bg-zinc-800 hover:!bg-zinc-700">
+                                  <Badge variant="dark" className="uppercase flex items-center gap-1 cursor-pointer !bg-zinc-100 !text-zinc-900 hover:!bg-zinc-200">
                                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                                     Repos: {exEntry.rest}s
                                   </Badge>
