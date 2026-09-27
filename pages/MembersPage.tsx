@@ -1804,7 +1804,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   });
 
   return (
-    <div className="space-y-5 page-transition">
+    <div className="va-members-page va-polish-page space-y-5 page-transition">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 px-1">
         <div>
           <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900">Membres</h1>
@@ -1883,7 +1883,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
-        <div className="hidden lg:grid grid-cols-[minmax(220px,1.5fr)_minmax(130px,1fr)_minmax(150px,1fr)_minmax(140px,1fr)_auto] items-center gap-4 border-b border-zinc-200 bg-zinc-50 px-5 py-3 text-xs font-semibold text-zinc-600">
+        <div className="va-members-columns hidden lg:grid grid-cols-[minmax(220px,1.5fr)_minmax(130px,1fr)_minmax(150px,1fr)_minmax(140px,1fr)_auto] items-center gap-4 border-b border-zinc-200 bg-zinc-50 px-5 py-3 text-xs font-semibold text-zinc-600">
           <span>Membre</span><span>Statut</span><span>Programme</span><span>Dernière activité</span><span className="sr-only">Actions</span>
         </div>
         {members.length === 0 ? (
@@ -1893,6 +1893,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               <>
                 <p className="font-semibold text-zinc-900">Aucun membre trouvé</p>
                 <p className="mt-1 text-sm text-zinc-600">Modifiez la recherche ou choisissez un autre filtre.</p>
+                <Button variant="secondary" className="mx-auto mt-4" onClick={() => { setSearch(''); setFilter('Tous'); }}>Réinitialiser les filtres</Button>
               </>
             ) : (
               <>
@@ -1926,7 +1927,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               type="button"
               variants={itemVariants}
               onClick={() => setSelectedProfile(u)}
-              className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-zinc-100 px-4 py-4 text-left transition-colors last:border-b-0 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-700 lg:grid-cols-[minmax(220px,1.5fr)_minmax(130px,1fr)_minmax(150px,1fr)_minmax(140px,1fr)_auto] lg:gap-4 lg:px-5"
+              className="va-members-row group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-zinc-100 px-4 py-4 text-left transition-colors last:border-b-0 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-700 lg:grid-cols-[minmax(220px,1.5fr)_minmax(130px,1fr)_minmax(150px,1fr)_minmax(140px,1fr)_auto] lg:gap-4 lg:px-5"
             >
               <span className="flex min-w-0 items-center gap-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-zinc-100 text-sm font-semibold text-zinc-700">
@@ -2015,10 +2016,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="w-full max-w-[1450px] bg-zinc-100 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-3xl border border-zinc-200 shadow-2xl relative overflow-hidden my-0 md:my-8"
+                className="va-member-dossier w-full max-w-[1360px] bg-white min-h-screen md:min-h-0 md:rounded-3xl border border-zinc-200 shadow-2xl relative overflow-hidden my-0 md:my-4" role="dialog" aria-modal="true" aria-label={`Dossier de ${selectedProfile.name}`}
               >
                 <ErrorBoundary>
-                <button onClick={closeProfile} className="fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-zinc-100 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border border-zinc-200 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
+                <button onClick={closeProfile} aria-label="Fermer le dossier adhérent" className="va-dossier-close fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-zinc-100 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border border-zinc-200 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
 
                 {selectedProfile.planRequested && (
                   <div className="bg-orange-500 text-zinc-900 p-4 flex items-center justify-between z-[500] relative">
@@ -2051,9 +2052,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
                 <div className="flex flex-col md:flex-row h-full min-h-[85vh]">
                   {/* SIDEBAR */}
-                  <div className="w-full md:w-72 lg:w-80 bg-zinc-50 border-r border-zinc-200 p-4 md:p-6 flex flex-col gap-3 md:gap-6 shrink-0 md:h-[calc(100vh)] md:sticky top-0 overflow-y-auto hide-scrollbar pt-20 md:pt-10">
+                  <div className="va-dossier-sidebar w-full md:w-72 lg:w-80 bg-zinc-50 border-r border-zinc-200 p-4 md:p-6 flex flex-col gap-3 md:gap-6 shrink-0 md:h-[calc(100vh)] md:sticky top-0 overflow-y-auto hide-scrollbar pt-20 md:pt-10">
                   <div className="relative flex items-center gap-3 text-left md:block md:text-center">
-                    <div className="w-12 h-12 md:w-24 md:h-24 shrink-0 rounded-2xl md:rounded-[32px] bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-lg md:text-4xl font-black md:mx-auto md:mb-6 shadow-2xl overflow-hidden">
+                    <div className="va-dossier-avatar w-12 h-12 md:w-16 md:h-16 shrink-0 rounded-2xl bg-emerald-900 text-white flex items-center justify-center text-lg md:text-2xl font-semibold md:mx-auto md:mb-4 overflow-hidden">
                       {selectedProfile.avatar?.startsWith('http') ? (
                         <img src={selectedProfile.avatar} alt={selectedProfile.name} className="w-full h-full object-cover" />
                       ) : (
@@ -2080,7 +2081,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     >
                       <Edit2Icon size={16} />
                     </button>
-                    <h2 className="min-w-0 truncate text-base md:text-3xl font-semibold md:font-black text-zinc-900 md:uppercase md:italic tracking-normal md:tracking-tighter flex items-center md:justify-center gap-2">
+                    <h2 className="min-w-0 truncate text-base md:text-xl font-semibold text-zinc-900 tracking-normal flex items-center md:justify-center gap-2">
                       {selectedProfile.name}
                       {selectedProfile.status === 'paused' && <Badge variant="dark" className="!bg-zinc-800 !text-white !border-zinc-800 !px-2 !py-0.5 !text-[10px] not-italic">EN PAUSE</Badge>}
                     </h2>
@@ -2090,13 +2091,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
                       
                       return lastAutonomousSession ? (
-                        <div className="hidden md:inline-flex text-[10px] font-bold text-emerald-800 uppercase tracking-widest mt-2 items-center justify-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
-                          Dernière séance en autonomie : {new Date(lastAutonomousSession.date).toLocaleDateString('fr-FR')}
+                        <div className="hidden md:inline-flex text-xs font-medium text-emerald-800 mt-2 items-center justify-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
+                          Dernière séance : {new Date(lastAutonomousSession.date).toLocaleDateString('fr-FR')}
                         </div>
                       ) : null;
                     })()}
                     <div className="hidden md:block mt-3">
-                      <Badge variant="accent" className="!px-4 !py-1.5">ÉVOLUTION</Badge>
+                      <p className="text-sm leading-5 text-zinc-600">{selectedProfile.objectifs?.join(', ') || 'Objectif à définir'}</p>
                     </div>
                   </div>
                   <nav className="flex flex-row md:flex-col gap-1.5 mt-1 md:mt-4 overflow-x-auto md:overflow-visible pb-1 md:pb-0 hide-scrollbar scrollbar-none">
@@ -2129,12 +2130,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 </div>
 
                 {/* MAIN GRAPHS & AI */}
-                <div className="flex-1 min-w-0 bg-white p-4 sm:p-6 md:p-10 lg:p-12 overflow-y-auto space-y-8 custom-scrollbar md:h-[calc(100vh)]">
+                <div className="va-dossier-content flex-1 min-w-0 bg-white p-4 sm:p-6 md:p-10 lg:p-12 overflow-y-auto space-y-8 custom-scrollbar md:h-[calc(100vh)]">
                     <div className="sticky top-0 z-30 -mx-4 -mt-4 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 pr-16 backdrop-blur-sm sm:-mx-6 sm:-mt-6 sm:px-6 sm:pr-16 md:-mx-10 md:-mt-10 md:px-10 md:pr-32 lg:-mx-12 lg:-mt-12 lg:px-12 lg:pr-32">
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-zinc-700">{assignedCoach ? `Coach · ${assignedCoach.name}` : 'Coach non attribué'}{stats.program?.name ? ` · ${stats.program.name}` : ' · Aucun programme'}</p>
                       <div className="flex min-w-0 items-center gap-2">
-                        <h2 className="truncate text-base font-semibold text-zinc-900 sm:text-lg">{selectedProfile.name}</h2>
+                        <h2 className="truncate text-base font-semibold text-zinc-900 sm:text-lg">Suivi et programme</h2>
                         {selectedProfile.status === 'paused' && <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">En pause</span>}
                       </div>
                     </div>
@@ -2189,12 +2190,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       {selectedProfile.notes?.trim() && <p className="mt-3 line-clamp-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-3 text-sm text-zinc-800"><span className="font-semibold">Note coach · </span>{selectedProfile.notes}</p>}
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <details className="va-member-assistance"><summary className="va-assistance-heading flex items-center gap-3">
                        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900"><BotIcon size={21} /></div>
-                       <h3 className="text-xl font-semibold tracking-tight text-zinc-900">Velatra AI</h3>
-                    </div>
+                       <span className="font-semibold">Programmation, nutrition et outils IA</span>
+                    </summary>
                     
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="va-assistance-grid grid grid-cols-1 gap-4 md:grid-cols-2">
                       {/* Feature 1: Auto Program */}
                       <div className="flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
                         <div>
@@ -2327,10 +2328,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
                     </div>
 
+                    </details>
                     {/* NOTES DE SUIVI SECTION */}
                     <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 mt-6 shadow-sm space-y-4">
                       <div className="flex items-center justify-between border-b border-zinc-200/60 pb-3">
-                        <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                           <FileTextIcon size={20} className="text-emerald-500" />
                           <h4 className="text-base font-semibold text-zinc-900">
                             Notes de suivi de l’adhérent

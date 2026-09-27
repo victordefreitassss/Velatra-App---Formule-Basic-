@@ -502,12 +502,12 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   const hasMoreActions = allPresets.length > 0 || !isSingleSession || (!readOnly && isSingleSession);
 
   return (
-      <div className="space-y-6 max-w-6xl mx-auto pb-[calc(1.5rem+env(safe-area-inset-bottom))] px-4 page-transition">
+      <div className="va-editor-page space-y-6 max-w-6xl mx-auto pb-[calc(1.5rem+env(safe-area-inset-bottom))] px-4 page-transition">
       
       {/* Top Professional Sticky Header Bar */}
       {saveError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">{saveError}</p>}
       {isSaving && <p role="status" className="px-4 py-2 text-sm text-zinc-700">Enregistrement en cours…</p>}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-zinc-200 -mx-4 px-3 sm:px-6 pt-[calc(.5rem+env(safe-area-inset-top))] pb-2 sm:py-3 flex items-center justify-between gap-2 mb-4 shadow-sm">
+      <header className="va-editor-header sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-zinc-200 -mx-4 px-3 sm:px-6 pt-[calc(.5rem+env(safe-area-inset-top))] pb-2 sm:py-3 flex items-center justify-between gap-2 mb-4 shadow-sm">
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           <motion.button 
             type="button"
@@ -536,7 +536,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
               <Play size={14} className="mr-1.5 inline fill-zinc-950" /> Démarrer
             </Button>
           ) : (
-            <Button type="button" disabled={isSaving} onClick={() => handleSave()} variant="success" className="!h-11 !min-h-11 !rounded-lg !px-3 sm:!px-4 !text-xs !font-semibold !normal-case !tracking-normal !bg-emerald-400 hover:!bg-emerald-500 !text-zinc-950">
+            <Button type="button" disabled={isSaving} onClick={() => handleSave()} variant="primary" className="min-h-11 px-3 text-sm">
               <SaveIcon size={15} className="mr-1.5 inline" /> Enregistrer
             </Button>
           ))}
@@ -599,7 +599,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
       </AnimatePresence>
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(240px,1.2fr)_minmax(190px,.8fr)_minmax(190px,.8fr)]">
+        <div className="va-editor-metadata grid grid-cols-1 gap-3 lg:grid-cols-[minmax(240px,1.2fr)_minmax(190px,.8fr)_minmax(190px,.8fr)]">
           <div className="min-w-0">
             <label htmlFor="program-name" className="mb-1 block text-xs font-medium text-zinc-700">{isSingleSession ? 'Nom de la séance' : 'Nom du programme'}</label>
             <Input id="program-name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="!h-11 !rounded-lg !bg-white !text-sm !font-semibold" placeholder={isSingleSession ? 'Ex. Séance haut du corps' : 'Ex. Force · Bloc 1'} />
@@ -799,9 +799,11 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
                   <label className="space-y-1 text-xs font-medium text-zinc-700">{cardio ? 'Intensité' : 'Tempo'}<input value={entry.tempo || ''} placeholder={cardio ? 'Ex. RPE 7' : 'Ex. 2010'} onChange={e => handleUpdateEx(selectedDayIdx, selectedExerciseIdx, 'tempo', e.target.value)} className="h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-900 placeholder:text-zinc-500 focus:border-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-800/20" /></label>
                 </div>
                 <label className="block space-y-1 text-xs font-medium text-zinc-700">Type de série<select value={entry.setType || 'normal'} onChange={e => handleUpdateEx(selectedDayIdx, selectedExerciseIdx, 'setType', e.target.value)} className="h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-900 focus:border-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-800/20"><option value="normal">Série standard</option><option value="superset">Superset</option><option value="biset">Bi-set</option><option value="triset">Tri-set</option><option value="giantset">Giant-set</option><option value="dropset">Drop-set</option></select></label>
+                <details className="va-editor-presets"><summary>Réglages rapides</summary>
                 {!cardio && <div className="space-y-2"><p className="text-xs font-medium text-zinc-700">Répétitions rapides</p><div className="flex flex-wrap gap-1.5">{REPS_PRESETS.slice(0, 6).map(value => <button key={value} type="button" onClick={() => handleUpdateEx(selectedDayIdx, selectedExerciseIdx, 'reps', value)} className="min-h-10 rounded-md border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-700 hover:border-emerald-700 hover:bg-emerald-50">{value}</button>)}</div></div>}
                 <div className="space-y-2"><p className="text-xs font-medium text-zinc-700">Repos rapide</p><div className="flex flex-wrap gap-1.5">{REST_PRESETS.map(value => <button key={value} type="button" onClick={() => handleUpdateEx(selectedDayIdx, selectedExerciseIdx, 'rest', value.replace('s', ''))} className="min-h-10 rounded-md border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-700 hover:border-emerald-700 hover:bg-emerald-50">{value}</button>)}</div></div>
                 {!cardio && <div className="space-y-2"><p className="text-xs font-medium text-zinc-700">Tempo rapide</p><div className="flex flex-wrap gap-1.5">{TEMPO_PRESETS.slice(0, 3).map(value => <button key={value} type="button" onClick={() => handleUpdateEx(selectedDayIdx, selectedExerciseIdx, 'tempo', value)} className="min-h-10 rounded-md border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-700 hover:border-emerald-700 hover:bg-emerald-50">{value}</button>)}</div></div>}
+                </details>
                 <label className="block space-y-1 text-xs font-medium text-zinc-700">Consigne du coach<textarea rows={3} value={entry.notes || ''} placeholder="Consignes, adaptations ou points de vigilance" onChange={e => handleUpdateEx(selectedDayIdx, selectedExerciseIdx, 'notes', e.target.value)} className="w-full resize-y rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:border-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-800/20" /></label>
               </div>;
             })() : <div className="flex min-h-40 flex-col items-center justify-center text-center"><DumbbellIcon size={22} className="mb-2 text-zinc-500" /><p className="text-sm font-semibold text-zinc-900">Aucun exercice sélectionné</p><p className="mt-1 text-sm text-zinc-700">Ajoutez un mouvement pour définir ses paramètres.</p></div>}

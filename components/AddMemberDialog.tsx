@@ -26,7 +26,7 @@ export function AddMemberDialog({ data, setData, busy, onSave, onClose }: {
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }} aria-labelledby={id + '-title'} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }}
-      className="m-auto w-[calc(100%_-_2rem)] max-w-2xl rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-2xl backdrop:bg-black/35">
+      className="va-member-dialog m-auto w-[calc(100%_-_2rem)] max-w-2xl rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-2xl backdrop:bg-black/35">
       <form onSubmit={async event => { event.preventDefault(); if (busy) return; setError(''); try { await onSave(); } catch (error) { setError(error instanceof Error ? error.message : 'La création a échoué. Réessayez.'); } }} className="flex max-h-[90dvh] flex-col p-5 sm:p-8">
         <header className="mb-5 flex items-start justify-between gap-4">
           <div><h2 id={id + '-title'} className="font-display text-2xl font-semibold">Ajouter un adhérent</h2><p className="mt-1 text-sm text-zinc-600">Créez son accès et préparez son suivi.</p></div>

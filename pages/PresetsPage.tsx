@@ -13,6 +13,8 @@ import { trackProductEventOnce } from '../components/productEvents';
 
 export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [assigningTo, setAssigningTo] = useState<Preset | null>(null);
+  const assignDialogRef = React.useRef<HTMLDialogElement>(null);
+  React.useEffect(() => { if (assigningTo && !assignDialogRef.current?.open) assignDialogRef.current?.showModal(); }, [assigningTo]);
   const [memberSearch, setMemberSearch] = useState("");
   const [filterDays, setFilterDays] = useState<number | null>(null);
   const [filterGoal, setFilterGoal] = useState<string>("");
@@ -22,7 +24,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
     const newP: Preset = {
       id: createNumericId(),
       clubId: state.user!.clubId,
-      name: "Nouveau Preset",
+      name: "Nouveau modèle",
       objectifs: [],
       remarks: "",
       nbDays: 1,
@@ -81,14 +83,14 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   return (
-    <div className="space-y-8 page-transition pb-20">
+    <div className="va-presets-page va-polish-page space-y-6 page-transition pb-20">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-1">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Modèles <span className="text-emerald-500">PRESETS</span></h1>
-          <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">{state.presets.length} Templates dispos</p>
+          <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Modèles de programmes</h1>
+          <p className="text-sm text-zinc-600 mt-2">Des séances réutilisables, adaptées à chaque adhérent.</p>
         </div>
-        <Button onClick={handleNewPreset} variant="primary" className="!py-2.5 sm:!py-3 !px-4 sm:!px-6 !rounded-2xl shadow-xl shadow-emerald-500/20 font-black text-xs italic whitespace-nowrap">
-          <PlusIcon size={18} className="mr-2 inline" /> CRÉER UN MODÈLE
+        <Button onClick={handleNewPreset} variant="primary" className="!py-2.5 sm:!py-3 !px-4 sm:!px-6 !rounded-2xl font-semibold text-sm whitespace-nowrap">
+          <PlusIcon size={18} className="mr-2 inline" /> Créer un modèle
         </Button>
       </div>
 
@@ -96,7 +98,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
         <div className="relative">
           <SearchIcon size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-900" />
           <Input 
-            placeholder="Rechercher un modèle..." 
+            aria-label="Rechercher un modèle" placeholder="Rechercher un modèle…"
             className="pl-14 \!bg-white \!border-zinc-200 !rounded-2xl font-bold" 
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
@@ -114,6 +116,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
           <div className="relative">
             <select 
               className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterGoal !== "" ? 'bg-emerald-500 text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+              aria-label="Filtrer par objectif"
               value={filterGoal}
               onChange={e => setFilterGoal(e.target.value)}
             >
@@ -132,6 +135,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
           <div className="relative">
             <select 
               className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none ${filterDays !== null ? 'bg-emerald-500 text-zinc-900' : 'bg-zinc-50 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50'}`}
+              aria-label="Filtrer par nombre de jours"
               value={filterDays || ""}
               onChange={e => setFilterDays(e.target.value ? parseInt(e.target.value) : null)}
             >
@@ -165,7 +169,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
             const clubHasPresets = state.presets.some(preset => preset.clubId === state.user?.clubId);
             const hasActiveFilter = Boolean(searchQuery.trim() || filterGoal || filterDays);
             return (
-              <div className="col-span-full flex min-h-[360px] items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-zinc-50 px-6 py-10 text-center">
+              <div className="col-span-full flex min-h-[280px] items-center justify-center rounded-3xl border border-dashed border-zinc-200 bg-zinc-50 px-6 py-10 text-center">
                 <div className="max-w-sm">
                   <VelatraMascot state={hasActiveFilter ? 'thinking' : 'idle'} size={112} interactive={false} autoWave={!hasActiveFilter} className="mx-auto" />
                   <h2 className="mt-1 font-display text-xl font-semibold text-zinc-900">
@@ -187,14 +191,14 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
           }
 
           return filteredPresets.map(p => (
-            <Card key={p.id} className="group border-none ring-1  hover:ring-emerald-500/30 transition-all !p-8 bg-white flex flex-col justify-between">
+            <Card key={p.id} className="va-preset-card group bg-white flex flex-col justify-between">
               <div className="space-y-6">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
-                    <div className="font-black text-xl text-zinc-900 uppercase italic tracking-tighter group-hover:text-emerald-500 transition-colors">{p.name}</div>
-                    <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">{p.nbDays} JOURS • {p.durationWeeks ? `${p.durationWeeks} SEMAINES • ` : ''}{p.days.reduce((acc, d) => acc + d.exercises.length, 0)} MOUVEMENTS</div>
+                    <div className="font-display font-semibold text-lg text-zinc-900 tracking-tight group-hover:text-emerald-500 transition-colors">{p.name}</div>
+                    <div className="text-xs font-medium text-zinc-600">{p.nbDays} {p.nbDays > 1 ? 'jours' : 'jour'} · {p.durationWeeks ? `${p.durationWeeks} semaines · ` : ''}{p.days.reduce((acc, d) => acc + d.exercises.length, 0)} mouvement{p.days.reduce((acc, d) => acc + d.exercises.length, 0) > 1 ? 's' : ''}</div>
                   </div>
-                  <Badge variant="blue" className="!bg-blue-500/10 !text-blue-500 !border-blue-500/20 italic">TEMPLATE</Badge>
+                  <Badge variant="dark">Modèle</Badge>
                 </div>
                 
                 <div className="flex flex-wrap gap-2">
@@ -205,12 +209,12 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
               
               <div className="mt-8 space-y-3">
-                <Button variant="primary" fullWidth className="!py-3.5 !text-[10px] !rounded-xl font-black tracking-widest italic" onClick={() => setAssigningTo(p)}>
-                  <CheckIcon size={16} className="mr-2" /> ASSIGNER À UN ATHLÈTE
+                <Button variant="primary" fullWidth className="min-h-11" onClick={() => setAssigningTo(p)}>
+                  <CheckIcon size={16} className="mr-2" /> Attribuer à un adhérent
                 </Button>
                 <div className="flex flex-col sm:flex-row gap-2">
-                  <Button variant="secondary" fullWidth className="!py-3 !text-[10px] !rounded-xl font-black tracking-widest italic" onClick={() => setState((s:AppState) => ({ ...s, editingPreset: p }))}>
-                    <Edit2Icon size={14} className="mr-2" /> MODIFIER
+                  <Button variant="secondary" fullWidth className="min-h-11" onClick={() => setState((s:AppState) => ({ ...s, editingPreset: p }))}>
+                    <Edit2Icon size={14} className="mr-2" /> Modifier
                   </Button>
                   <button 
                     onClick={async () => {
@@ -226,14 +230,14 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
                       }
                     }}
                     className="p-3 bg-zinc-50 text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all"
-                    title="Dupliquer"
+                    title="Dupliquer" aria-label="Dupliquer le modèle"
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                   </button>
                   <button 
                     onClick={() => setConfirmDeletePresetId(p.id)}
-                    className="p-3 bg-red-500/5 text-red-500/30 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                    title="Supprimer"
+                    className="p-3 bg-red-500/5 text-red-700 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
+                    title="Supprimer" aria-label="Supprimer le modèle"
                   >
                     <Trash2Icon size={18} />
                   </button>
@@ -247,20 +251,20 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
       {createPortal(
       <>
       {assigningTo && (
-        <div className="fixed inset-0 bg-white/95 backdrop-blur-xl z-[600] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <Card className="w-full max-w-md !p-10  relative shadow-[0_0_100px_rgba(0,0,0,1)]">
-            <button onClick={() => setAssigningTo(null)} className="absolute top-8 right-8 text-zinc-900/40 hover:text-zinc-900">
+        <dialog ref={assignDialogRef} onCancel={() => setAssigningTo(null)} aria-labelledby="assign-preset-title" className="va-assign-dialog">
+          <div className="relative">
+            <button onClick={() => setAssigningTo(null)} aria-label="Fermer l’attribution" className="absolute top-0 right-0 h-11 w-11 flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-600 hover:bg-zinc-50">
               <XIcon size={24} />
             </button>
             
-            <h2 className="text-2xl font-black mb-1 uppercase italic">Assigner Preset</h2>
-            <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-8">Modèle : {assigningTo.name}</p>
+            <h2 id="assign-preset-title" className="font-display text-2xl font-semibold mb-2 pr-12">Attribuer le modèle</h2>
+            <p className="text-sm text-zinc-600 mb-6 pr-10">Modèle : {assigningTo.name}</p>
 
             <div className="space-y-6">
               <div className="relative">
                 <SearchIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-900" />
                 <Input 
-                  placeholder="Chercher un athlète..." 
+                  autoFocus aria-label="Rechercher un adhérent" placeholder="Rechercher un adhérent…"
                   className="pl-12 !bg-white" 
                   value={memberSearch} 
                   onChange={e => setMemberSearch(e.target.value)} 
@@ -277,22 +281,22 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
                       className="w-full p-4 rounded-2xl bg-zinc-50 border border-zinc-200 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all flex items-center justify-between group"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center font-black text-emerald-500 group-hover:bg-emerald-500 group-hover:text-zinc-900 transition-all overflow-hidden">
+                        <div className="w-10 h-10 rounded-xl bg-zinc-50 flex items-center justify-center font-semibold text-emerald-900 group-hover:bg-emerald-100 group-hover:text-emerald-950 transition-all overflow-hidden">
                           {member.avatar?.startsWith('http') ? (
                             <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
                           ) : (
                             member.avatar || member.name.substring(0, 2).toUpperCase()
                           )}
                         </div>
-                        <span className="font-black text-xs uppercase italic text-zinc-900">{member.name}</span>
+                        <span className="font-semibold text-sm text-zinc-900">{member.name}</span>
                       </div>
                       <CheckIcon size={18} className="text-zinc-900 group-hover:text-emerald-500 transition-colors" />
                     </button>
                   ))}
               </div>
             </div>
-          </Card>
-        </div>
+          </div>
+        </dialog>
       )}
       </>,
       document.body
