@@ -116,6 +116,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [nutritionPlan, setNutritionPlan] = useState<any>(null);
   const [showNutritionLog, setShowNutritionLog] = useState(false);
   const [isAddingMember, setIsAddingMember] = useState(false);
+  const [newAccessMemberId, setNewAccessMemberId] = useState<number | null>(null);
   const [newMemberData, setNewMemberData] = useState<Partial<User> & { password?: string }>({
     name: '', email: '', password: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: ''
   });
@@ -1539,6 +1540,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       setNewMemberData({ name: '', email: '', password: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: '' });
       // Select the new member automatically
       setSelectedProfile(created.member);
+      setNewAccessMemberId(Number(created.member.id));
     } catch (err: any) {
       console.error("Error creating member", err);
       throw new Error(err.message || "Erreur lors de la création");
@@ -2145,6 +2147,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </div>
                   
                   
+                  {newAccessMemberId === Number(selectedProfile.id) && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                    <p className="font-semibold">{selectedProfile.name} a maintenant son accès Velatra.</p>
+                    <p className="mt-2 leading-6">Transmettez-lui le lien de connexion, son email et le mot de passe provisoire choisi. Aucun email d’invitation n’a été envoyé. Vous pouvez maintenant préparer son programme.</p>
+                    <p className="mt-2 break-all">{window.location.origin}/login</p>
+                    <button type="button" onClick={() => setNewAccessMemberId(null)} className="mt-2 min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800">J’ai noté les informations</button>
+                  </div>}
                   {/* Assistants IA */}
                   {memberTab === 'overview' && (
                   <section className="space-y-8">

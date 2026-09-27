@@ -23,7 +23,7 @@ interface CoachOnboardingDashboardProps {
 }
 
 const stepCopy = {
-  spaceComplete: { title: 'Compléter mon espace', action: 'Compléter mon espace', page: 'about' },
+  spaceComplete: { title: 'Compléter mon espace', action: 'Compléter mon espace', page: 'about', pendingUiAction: 'edit-space' },
   firstMemberAdded: { title: 'Ajouter mon premier adhérent', action: 'Ajouter un adhérent', page: 'users' },
   firstProgramAssigned: { title: 'Créer son premier programme', action: 'Créer le programme', page: 'program' },
   firstSessionPlanned: { title: 'Planifier une première séance', action: 'Ouvrir le planning', page: 'calendar' },
@@ -115,7 +115,7 @@ export const CoachOnboardingDashboard: React.FC<CoachOnboardingDashboardProps> =
   }, [firstValueReached, dismissedStorageKey]);
 
   const openStep = (step: keyof CoachOnboardingChecklist) => {
-    if (step === 'spaceComplete') setState(previous => ({ ...previous, page: 'about' }));
+    if (step === 'spaceComplete') setState(previous => ({ ...previous, page: 'about', pendingUiAction: 'edit-space' }));
     if (step === 'firstMemberAdded') setState(previous => ({ ...previous, page: 'users', pendingUiAction: 'add-member' }));
     if (step === 'firstProgramAssigned') {
       const target = members.find(member => !hasAssignedProgram([member], assignedPrograms)) || members[0];
@@ -209,6 +209,7 @@ export const CoachOnboardingDashboard: React.FC<CoachOnboardingDashboardProps> =
         <div className="va-coach-start-action mt-6 rounded-2xl bg-[#f3f7f1] p-4 sm:p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">Votre prochaine action</p>
           <h2 className="mt-1 text-lg font-semibold text-zinc-900">{activeCopy.title}</h2>
+          {activeStep === 'spaceComplete' && <p className="mt-2 text-sm text-zinc-700">Vérifiez votre email et ajoutez votre téléphone pour que vos adhérents puissent vous joindre.</p>}
           <Button onClick={stepAction} className="mt-4 min-h-11 w-full sm:w-auto">{activeCopy.action}</Button>
           {activeStep === 'firstMemberAdded' && members.length === 0 && (
             <button type="button" onClick={requestClubInviteDialog} className="mt-3 min-h-11 w-full rounded-xl px-4 text-sm font-semibold text-emerald-900 underline-offset-4 hover:bg-white hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 sm:ml-2 sm:mt-0 sm:w-auto">

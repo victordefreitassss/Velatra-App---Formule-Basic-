@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppState, ClubInfo, CoachInfo } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { TargetIcon, HomeIcon, DumbbellIcon, MessageCircleIcon, Edit2Icon, SaveIcon, XIcon, PlusIcon, Trash2Icon } from '../components/Icons';
@@ -11,12 +11,21 @@ import { trackProductEventOnce } from '../components/productEvents';
 export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state, setState }) => {
   const { aboutInfo, coaches, user } = state;
   const isCoach = user?.role === 'coach' || user?.role === 'owner';
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(state.pendingUiAction === 'edit-space');
+  const [saveStatus, setSaveStatus] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  useEffect(() => {
+    if (state.pendingUiAction !== 'edit-space' || !setState) return;
+    setIsEditing(true);
+    setState((previous: AppState) => ({ ...previous, pendingUiAction: undefined }));
+  }, [state.pendingUiAction, setState]);
   const [tempInfo, setTempInfo] = useState<ClubInfo>(aboutInfo);
   const [tempCoaches, setTempCoaches] = useState<CoachInfo[]>(coaches);
 
   const handleSave = async () => {
-    if (!state.user?.clubId) return;
+    if (!state.user?.clubId || isSaving) return;
+    setIsSaving(true);
+    setSaveStatus('');
     
     try {
       await updateDoc(doc(db, "clubs", state.user.clubId), {
@@ -39,10 +48,11 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
         trackProductEventOnce('coach_profile_completed', state.user?.firebaseUid || state.user?.id);
       }
       setIsEditing(false);
+      setSaveStatus('Vos informations sont enregistrées.');
     } catch (err) {
       console.error("Error updating club info", err);
-      alert("Erreur lors de la mise à jour des informations.");
-    }
+      setSaveStatus('Impossible d’enregistrer. Vos modifications restent affichées ; réessayez.');
+    } finally { setIsSaving(false); }
   };
 
   const handleAddCoach = () => {
@@ -70,7 +80,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
         <div className="text-center sm:text-left">
           <h1 className="text-4xl font-display font-bold tracking-tight leading-none mb-2 text-zinc-900">INFOS CLUB</h1>
-          <p className="text-emerald-500 text-xs font-medium uppercase text-zinc-500 tracking-wider">VELATRA Application numéro 1</p>
+          <p className="text-emerald-500 text-xs font-medium uppercase text-zinc-500 tracking-wider">Les coordonnées partagées avec vos adhérents</p>
         </div>
         
         {isCoach && !isEditing && (
@@ -84,13 +94,18 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
             <Button variant="danger" onClick={() => setIsEditing(false)} className="!rounded-full !py-2 !px-4">
               ANNULER
             </Button>
-            <Button variant="success" onClick={handleSave} className="!rounded-full !py-2 !px-4">
-              ENREGISTRER
+            <Button variant="success" onClick={handleSave} disabled={isSaving} aria-busy={isSaving} className="!rounded-full !py-2 !px-4">
+              {isSaving ? 'Enregistrement…' : 'ENREGISTRER'}
             </Button>
           </div>
         )}
       </div>
 
+      {isEditing && <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700">Pour compléter votre espace, renseignez votre téléphone et votre email. La description, les horaires et l’équipe peuvent être complétés plus tard.</p>}
+      {saveStatus && <div role="status" className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-800">
+        <p>{saveStatus}</p>
+        {!isEditing && setState && isClubProfileComplete(state.currentClub, aboutInfo) && <Button className="mt-3 min-h-11" onClick={() => setState((previous: AppState) => ({ ...previous, page: 'home' }))}>Continuer mon démarrage</Button>}
+      </div>}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Section Club Principale */}
         <Card className="space-y-6 !p-8 border-none ring-1  bg-gradient-to-br from-white/[0.03] to-transparent">
@@ -107,7 +122,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                 <label className="text-[9px] font-black uppercase text-emerald-500 tracking-widest ml-1">Description du club</label>
                 <textarea 
                   className="w-full bg-white border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:outline-none focus:border-emerald-500 h-32 resize-none"
-                  value={tempInfo.description}
+                  aria-label="Description de votre espace" value={tempInfo.description}
                   onChange={e => setTempInfo({...tempInfo, description: e.target.value})}
                 />
               </div>
@@ -126,7 +141,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                {isEditing ? (
                  <textarea 
                    className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-xs text-zinc-900 focus:outline-none focus:border-emerald-500 h-24 resize-none"
-                   value={tempInfo.horaires}
+                   aria-label="Horaires" value={tempInfo.horaires}
                    onChange={e => setTempInfo({...tempInfo, horaires: e.target.value})}
                  />
                ) : (
@@ -144,7 +159,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                     <label className="text-[9px] font-black uppercase text-emerald-500 tracking-widest ml-1">Téléphone</label>
                     <Input 
                       className="!py-2 !text-xs"
-                      value={tempInfo.phone}
+                      aria-label="Téléphone" type="tel" value={tempInfo.phone}
                       onChange={e => setTempInfo({...tempInfo, phone: e.target.value})}
                     />
                   </div>
@@ -152,7 +167,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                     <label className="text-[9px] font-black uppercase text-emerald-500 tracking-widest ml-1">Email</label>
                     <Input 
                       className="!py-2 !text-xs"
-                      value={tempInfo.email}
+                      aria-label="Email" type="email" value={tempInfo.email}
                       onChange={e => setTempInfo({...tempInfo, email: e.target.value})}
                     />
                   </div>
@@ -160,7 +175,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
                     <label className="text-[9px] font-black uppercase text-emerald-500 tracking-widest ml-1">Lien Avis Google</label>
                     <Input 
                       className="!py-2 !text-xs"
-                      value={tempInfo.googleReview}
+                      aria-label="Lien Avis Google" value={tempInfo.googleReview}
                       onChange={e => setTempInfo({...tempInfo, googleReview: e.target.value})}
                     />
                   </div>
