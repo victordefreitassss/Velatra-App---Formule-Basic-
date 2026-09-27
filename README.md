@@ -18,3 +18,16 @@ View your app in AI Studio: https://ai.studio/apps/b80dc370-7dfb-4c83-8d03-6fe42
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Validation et publication
+
+Avec Node 24 et Java 21, sans credentials de production :
+
+```sh
+npm ci
+npm run lint
+npm run build
+npm run test:emulators
+```
+
+Créer une branche puis une Pull Request vers `main` et attendre le check `quality-gate` avant fusion. Voir le [workflow de release](docs/CI-RELEASE-GATE.md) pour la couverture, les protections et leurs limites.
