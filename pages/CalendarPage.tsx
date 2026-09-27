@@ -38,8 +38,8 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
 
   const currentDayInWeek = program.currentDayIndex % program.nbDays;
   const currentWeek = Math.floor(program.currentDayIndex / program.nbDays) + 1;
-  const totalWeeks = program.durationWeeks || 1;
-  const progressPercent = Math.min(100, Math.round((program.currentDayIndex / (program.nbDays * totalWeeks)) * 100));
+  const totalWeeks = program.durationWeeks && program.durationWeeks > 0 ? program.durationWeeks : null;
+  const progressPercent = totalWeeks ? Math.min(100, Math.round((program.currentDayIndex / (program.nbDays * totalWeeks)) * 100)) : Math.round(currentDayInWeek / program.nbDays * 100);
 
   const containerVariants: any = {
     hidden: { opacity: 0 },
@@ -75,12 +75,12 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
       <motion.div variants={itemVariants} className="bg-white backdrop-blur-xl p-6 rounded-3xl border border-zinc-200 shadow-sm">
         <div className="flex justify-between items-end mb-4">
           <div>
-            <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">Progression Globale</div>
+            <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">{totalWeeks ? 'Progression globale' : 'Progression du cycle'}</div>
             <div className="text-2xl font-black italic text-zinc-900">{progressPercent}%</div>
           </div>
           <div className="text-right">
             <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">Semaine</div>
-            <div className="text-sm font-black italic text-emerald-500">{currentWeek} / {totalWeeks}</div>
+            <div className="text-sm font-black italic text-emerald-500">{currentWeek}{totalWeeks ? ` / ${totalWeeks}` : ' · Programme continu'}</div>
           </div>
         </div>
         <div className="w-full bg-white/50 rounded-full h-3 overflow-hidden shadow-inner">
@@ -117,7 +117,7 @@ export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ sta
                   <Badge variant="success" className="uppercase !text-[10px] shrink-0 ml-2 shadow-sm">Terminé</Badge>
                 ) : (
                   <motion.div whileHover={!isLocked ? { scale: 1.05 } : {}} whileTap={!isLocked ? { scale: 0.95 } : {}}>
-                    <Button variant={isCurrent ? "primary" : "secondary"} className={`!p-3 md:!p-4 !rounded-2xl shadow-lg shrink-0 ml-2 ${isCurrent ? 'shadow-emerald-500/20' : 'bg-white hover:bg-white'}`} onClick={() => startSession(idx)} disabled={isLocked}>
+                    <Button aria-label={`Démarrer ${day.name}`} variant={isCurrent ? "primary" : "secondary"} className={`!p-3 md:!p-4 !rounded-2xl shadow-lg shrink-0 ml-2 ${isCurrent ? 'shadow-emerald-500/20' : 'bg-white hover:bg-white'}`} onClick={() => startSession(idx)} disabled={isLocked}>
                        <PlayIcon size={20} className={isCurrent ? "ml-1" : "ml-1 opacity-50"} />
                     </Button>
                   </motion.div>

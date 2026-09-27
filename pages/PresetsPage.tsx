@@ -1,3 +1,4 @@
+import { localDateKey, createNumericId } from '../components/dataHelpers';
 
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -19,7 +20,7 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const handleNewPreset = () => {
     const newP: Preset = {
-      id: Date.now(),
+      id: createNumericId(),
       clubId: state.user!.clubId,
       name: "Nouveau Preset",
       objectifs: [],
@@ -31,6 +32,12 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
     };
     setState((s: AppState) => ({ ...s, editingPreset: newP }));
   };
+
+  React.useEffect(() => {
+    if (state.pendingUiAction !== 'add-preset') return;
+    handleNewPreset();
+    setState((previous: AppState) => ({ ...previous, pendingUiAction: undefined }));
+  }, [state.pendingUiAction]);
 
   const [confirmDeletePresetId, setConfirmDeletePresetId] = useState<number | null>(null);
 
@@ -49,14 +56,14 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const handleAssign = async (preset: Preset, member: User) => {
     const newProg: Program = {
-      id: Date.now(),
+      id: createNumericId(),
       clubId: member.clubId,
       memberId: Number(member.id),
       name: preset.name,
       presetId: preset.id,
       nbDays: preset.nbDays,
       durationWeeks: preset.durationWeeks || state.currentClub?.settings?.defaultProgramDuration || 7,
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: localDateKey(),
       completedWeeks: [],
       currentDayIndex: 0,
       days: JSON.parse(JSON.stringify(preset.days)) // Deep copy

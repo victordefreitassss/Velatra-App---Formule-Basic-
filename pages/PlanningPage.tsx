@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { AppState, Booking, User, Program } from '../types';
 import { Card, Button, Badge } from '../components/UI';
 import { CalendarIcon, PlusIcon, ClockIcon, UserIcon, CheckIcon, XIcon, TargetIcon, PlayIcon, Trash2Icon } from '../components/Icons';
-import { db, collection, addDoc, updateDoc, doc, deleteDoc, query, where, getDocs } from '../firebase';
+import { apiFetch, db, collection, addDoc, updateDoc, doc, deleteDoc, query, where, getDocs } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { trackProductEventOnce } from '../components/productEvents';
 
@@ -28,13 +28,15 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date, end: Date, sessionTypeId?: string, coachId?: string } | null>(null);
   const [selectedCoachId, setSelectedCoachId] = useState<string>('');
+  const [bookingMemberId, setBookingMemberId] = useState('');
+  const [isBooking, setIsBooking] = useState(false);
   const [filterCoachId, setFilterCoachId] = useState<string>('all');
 
   const isCoach = state.user?.role === 'coach' || state.user?.role === 'owner' || state.user?.role === 'superadmin';
 
   // Get available coaches
   const clubCoaches = useMemo(() => {
-    return state.users.filter(u => u.clubId === state.currentClub?.id && ['coach', 'owner', 'superadmin'].includes(u.role));
+    return [state.user!, ...state.users.filter(u => u.id !== state.user?.id)].filter(u => u.clubId === state.currentClub?.id && ['coach', 'owner', 'superadmin'].includes(u.role));
   }, [state.users, state.currentClub?.id]);
 
   useEffect(() => {
@@ -44,10 +46,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   }, [clubCoaches, selectedCoachId]);
 
   // Get booking settings
-  const bookingSettings = state.currentClub?.settings?.booking || {
-    sessionDuration: 60,
-    schedule: []
-  };
+  const bookingSettings = { sessionDuration: 60, ...state.currentClub?.settings?.booking, schedule: state.currentClub?.settings?.booking?.schedule || [] };
 
   // Generate week dates
   const weekDates = useMemo(() => {
@@ -80,6 +79,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
         const sessionType = bookingSettings.sessionTypes?.find(t => t.id === timeSlot.sessionTypeId);
         const durationMs = (sessionType ? sessionType.duration : (bookingSettings.sessionDuration || 60)) * 60000;
         
+        if (!Number.isFinite(durationMs) || durationMs <= 0) return;
         let currentStart = new Date(date);
         currentStart.setHours(startHour, startMin, 0, 0);
         
@@ -124,108 +124,23 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   };
 
   const handleBookSlot = async () => {
-    if (!selectedSlot || !state.user || !state.user.clubId) return;
-
-    let creditType = 'standard';
-    let availableCredits = state.user.credits || 0;
-
-    if (selectedSlot.sessionTypeId) {
-      creditType = selectedSlot.sessionTypeId;
-      availableCredits = state.user.sessionCredits?.[creditType] || 0;
-    }
-
-    if (!isCoach) {
-      if (availableCredits <= 0) {
-        showToast("Vous n'avez pas assez de crédits pour réserver ce type de séance.", "error");
-        return;
-      }
-
-      const now = new Date();
-      const hoursUntilSlot = (selectedSlot.start.getTime() - now.getTime()) / (1000 * 60 * 60);
-      const minAdvance = bookingSettings.minAdvanceBookingHours || 0;
-      
-      if (hoursUntilSlot < minAdvance) {
-        showToast(`Vous devez réserver au moins ${minAdvance}h à l'avance.`, "error");
-        return;
-      }
-
-      const maxBookings = bookingSettings.maxBookingsPerWeek || 0;
-      if (maxBookings > 0) {
-        // Calculate start and end of current week
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1));
-        startOfWeek.setHours(0, 0, 0, 0);
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        endOfWeek.setHours(23, 59, 59, 999);
-
-        const bookingsThisWeek = state.bookings.filter(b => 
-          b.memberId === Number(state.user?.id) && 
-          b.status === 'confirmed' &&
-          new Date(b.startTime) >= startOfWeek &&
-          new Date(b.startTime) <= endOfWeek
-        ).length;
-
-        if (bookingsThisWeek >= maxBookings) {
-          showToast(`Vous avez atteint la limite de ${maxBookings} réservations cette semaine.`, "error");
-          return;
-        }
-      }
-    }
-
+    if (!selectedSlot || !state.user || isBooking) return;
+    if (isCoach && !bookingMemberId) { showToast('Choisissez un adhérent pour cette séance.', 'error'); return; }
+    setIsBooking(true);
     try {
-      const newBooking: Omit<Booking, 'id'> = {
-        clubId: state.user.clubId,
-        memberId: Number(state.user.id),
-        coachId: selectedSlot.coachId || selectedCoachId || state.currentClub?.ownerId || '',
-        startTime: selectedSlot.start.toISOString(),
-        endTime: selectedSlot.end.toISOString(),
-        status: 'confirmed',
-        type: 'coaching',
-        sessionTypeId: creditType !== 'standard' ? creditType : undefined
-      };
-
-      await addDoc(collection(db, "bookings"), newBooking);
-      if (newBooking.memberId) {
-        const bookingCoachKey = state.users.find(person => String(person.id) === newBooking.coachId)?.firebaseUid || state.currentClub?.ownerId;
-        trackProductEventOnce('first_session_planned', bookingCoachKey, { source: 'booking' });
-      }
-
-      // Create notification for the coach
-      if (!isCoach) {
-        if (newBooking.coachId) {
-          await addDoc(collection(db, 'notifications'), {
-            clubId: state.currentClub?.id,
-            userId: newBooking.coachId,
-            title: 'Nouvelle réservation',
-            message: `${state.user?.name} a réservé une séance le ${new Date(newBooking.startTime).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}.`,
-            type: 'info',
-            read: false,
-            createdAt: new Date().toISOString(),
-            link: 'calendar'
-          });
-        }
-      }
-
-      if (!isCoach && state.user.firebaseUid) {
-        if (creditType === 'standard') {
-          await updateDoc(doc(db, "users", state.user.firebaseUid), {
-            credits: availableCredits - 1
-          });
-        } else {
-          await updateDoc(doc(db, "users", state.user.firebaseUid), {
-            [`sessionCredits.${creditType}`]: availableCredits - 1
-          });
-        }
-      }
-
-      showToast("Réservation confirmée !");
-      setIsBookingModalOpen(false);
-      setSelectedSlot(null);
-    } catch (error) {
-      console.error("Error booking slot:", error);
-      showToast("Erreur lors de la réservation", "error");
-    }
+      const response = await apiFetch('/api/bookings/reserve', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId: isCoach ? Number(bookingMemberId) : state.user.id,
+          coachId: selectedSlot.coachId || selectedCoachId || state.currentClub?.ownerId,
+          startTime: selectedSlot.start.toISOString(), endTime: selectedSlot.end.toISOString(), sessionTypeId: selectedSlot.sessionTypeId })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Impossible de réserver cette séance.');
+      if (isCoach) trackProductEventOnce('first_session_planned', state.user.firebaseUid || state.user.id);
+      showToast('Réservation confirmée !');
+      setIsBookingModalOpen(false); setSelectedSlot(null);
+    } catch (error: any) { showToast(error.message || 'Impossible de réserver cette séance.', 'error'); }
+    finally { setIsBooking(false); }
   };
 
   const [confirmCancelBookingId, setConfirmCancelBookingId] = useState<string | null>(null);
@@ -236,25 +151,10 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
     if (!booking) return;
 
     try {
-      if (booking.id) {
-        await updateDoc(doc(db, "bookings", booking.id), { status: 'cancelled' });
-
-        // Refund credit
-        const member = state.users.find(u => Number(u.id) === booking.memberId);
-        if (member && member.firebaseUid) {
-          if (booking.sessionTypeId) {
-            await updateDoc(doc(db, "users", member.firebaseUid), {
-              [`sessionCredits.${booking.sessionTypeId}`]: (member.sessionCredits?.[booking.sessionTypeId] || 0) + 1
-            });
-          } else {
-            await updateDoc(doc(db, "users", member.firebaseUid), {
-              credits: (member.credits || 0) + 1
-            });
-          }
-        }
-
-        showToast("Réservation annulée et crédit remboursé.");
-      }
+      const response = await apiFetch('/api/bookings/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: booking.id }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Impossible d’annuler cette séance.');
+      showToast(result.refunded ? 'Réservation annulée et crédit remboursé.' : 'Réservation annulée.');
     } catch (error) {
       console.error("Error cancelling booking:", error);
       showToast("Erreur lors de l'annulation", "error");
@@ -515,22 +415,6 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                 );
               }
 
-              if (isCoach) {
-                return (
-                  <motion.div key={sIdx} variants={itemVariants} className="p-4 rounded-xl border border-dashed border-zinc-300 text-zinc-700 bg-white flex flex-col justify-center min-h-[100px] shadow-sm relative">
-                    <div className="font-semibold text-lg mb-1 text-zinc-900">{formatTime(slot.start)} - {formatTime(slot.end)}</div>
-                    {sessionType && <div className="text-xs text-zinc-700 font-medium mb-1">{sessionType.name}</div>}
-                    {slot.coachId && (
-                      <div className="text-xs text-zinc-700 flex items-center gap-1 mb-1">
-                        <UserIcon size={12} />
-                        {state.users.find(u => String(u.id) === slot.coachId)?.name || 'Coach'}
-                      </div>
-                    )}
-                    <div className="text-xs font-medium">Créneau libre ({bookingsForSlot.length}/{maxParticipants})</div>
-                  </motion.div>
-                );
-              }
-
               return (
                 <motion.button
                   key={sIdx}
@@ -556,7 +440,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                       {bookingsForSlot.length}/{maxParticipants} places
                     </div>
                   )}
-                  <div className="text-sm font-semibold text-zinc-700 group-hover:text-emerald-900">Réserver</div>
+                  <div className="text-sm font-semibold text-zinc-700 group-hover:text-emerald-900">{isCoach ? "Planifier une séance" : "Réserver"}</div>
                 </motion.button>
               );
             });
@@ -589,6 +473,12 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
               </div>
               
               <div className="space-y-6">
+                {isCoach && <label className="block text-sm font-semibold text-zinc-800">Adhérent
+                  <select value={bookingMemberId} onChange={event => setBookingMemberId(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-zinc-300 bg-white p-3">
+                    <option value="">Choisir un adhérent</option>
+                    {state.users.filter(user => user.role === 'member').map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
+                  </select>
+                </label>}
                 <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 flex items-center gap-4 shadow-sm">
                   <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500 shadow-inner">
                     <CalendarIcon size={24} />
@@ -616,7 +506,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                   </div>
                 )}
 
-                <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 flex items-center justify-between shadow-sm">
+                {!isCoach && <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 flex items-center justify-between shadow-sm">
                   <div>
                     <div className="text-xs font-medium text-zinc-700 mb-1">Coût</div>
                     <div className="font-bold text-zinc-900">1 Crédit {selectedSlot.sessionTypeId ? (bookingSettings.sessionTypes?.find(t => t.id === selectedSlot.sessionTypeId)?.name || 'Coaching') : 'Standard'}</div>
@@ -627,13 +517,13 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                       {selectedSlot.sessionTypeId ? (state.user?.sessionCredits?.[selectedSlot.sessionTypeId] || 0) : (state.user?.credits || 0)} Crédits
                     </div>
                   </div>
-                </div>
+                </div>}
 
                 <Button 
                   variant="primary" 
                   className="w-full !py-4 shadow-lg shadow-emerald-500/20" 
-                  onClick={handleBookSlot}
-                  disabled={!isCoach && (selectedSlot.sessionTypeId ? (state.user?.sessionCredits?.[selectedSlot.sessionTypeId] || 0) <= 0 : (state.user?.credits || 0) <= 0)}
+                  aria-busy={isBooking} onClick={handleBookSlot}
+                  disabled={isBooking || (isCoach ? !bookingMemberId : (selectedSlot.sessionTypeId ? (state.user?.sessionCredits?.[selectedSlot.sessionTypeId] || 0) <= 0 : (state.user?.credits || 0) <= 0))}
                 >
                   <CheckIcon size={18} className="mr-2" />
                   CONFIRMER LA RÉSERVATION

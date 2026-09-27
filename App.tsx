@@ -58,7 +58,11 @@ const handleFirestoreError = (error: unknown, operationType: OperationType, path
 };
 
 const onSnapshot = (ref: any, callback: any) => {
-  return originalOnSnapshot(ref, callback, (error: any) => {
+  const sessionUid = auth.currentUser?.uid;
+  return originalOnSnapshot(ref, (snapshot: any) => {
+    if (sessionUid && auth.currentUser?.uid === sessionUid) callback(snapshot);
+  }, (error: any) => {
+    if (!sessionUid || auth.currentUser?.uid !== sessionUid) return;
     const path = getRefPath(ref);
     const code = handleFirestoreError(error, OperationType.GET, path);
     if (isGcpBillingOrSuspendedError(error)) {
@@ -191,6 +195,7 @@ const INITIAL_STATE: AppState = {
 
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { trackProductEventOnce } from './components/productEvents';
+import { sameUserDataScope } from './components/dataHelpers';
 
 export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
@@ -373,6 +378,7 @@ export default function App() {
     let unsubUserDoc: () => void;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (unsubUserDoc) { unsubUserDoc(); unsubUserDoc = undefined; }
       setAuthResolved(true);
       // Never carry locally cached health, program, or club data across sessions.
       if (typeof window !== 'undefined') {
@@ -389,7 +395,7 @@ export default function App() {
             const userData = userDoc.data() as User;
             
             const cachedUser = { ...userData, id: Number(userData.id), firebaseUid: firebaseUser.uid };
-            setState(prev => ({ ...prev, user: cachedUser, onboardingDataReady: false }));
+            setState(prev => ({ ...prev, user: cachedUser, onboardingDataReady: sameUserDataScope(prev.user, cachedUser) ? prev.onboardingDataReady : false }));
 
             // Move any old Stripe key out of the club document before loading client-readable settings.
             if (cachedUser.role === 'owner' || cachedUser.role === 'superadmin') {
@@ -464,7 +470,7 @@ export default function App() {
     const markOnboardingSourceReady = (source: string) => {
       if (!needsCoachDashboardReadiness) return;
       readyOnboardingSources.add(source);
-      if (['club', 'users', 'programs', 'bookings'].every(name => readyOnboardingSources.has(name))) {
+      if (['club', 'users', 'programs', 'bookings', 'tasks'].every(name => readyOnboardingSources.has(name))) {
         setState(previous => previous.onboardingDataReady ? previous : { ...previous, onboardingDataReady: true });
       }
     };
@@ -801,6 +807,7 @@ export default function App() {
 
       snap.forEach(d => tasks.push(d.data() as Task));
       setState(prev => ({ ...prev, tasks }));
+      markOnboardingSourceReady('tasks');
 
       if (!isInitialTasksLoad && hasNewTask && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouvelle tâche", {
@@ -1043,7 +1050,7 @@ export default function App() {
 
     return () => {
       unsubClub(); unsubUsers(); unsubProgs(); unsubPresets(); unsubNutritionPresets(); 
-      unsubArchives(); unsubPerfs(); unsubProducts(); unsubOrders();
+      unsubArchives(); unsubPerfs(); unsubProducts(); unsubBoutiqueProducts(); unsubOrders();
       unsubLogs(); unsubMessages(); unsubFeed(); unsubBody();
       unsubProspects(); unsubNewsletters(); unsubExercises();
       unsubTasks(); unsubBookings(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubFixedCosts(); unsubNutritionPlans(); unsubNutritionLogs();
@@ -1418,6 +1425,7 @@ export default function App() {
                 club={state.currentClub} 
                 activePage={state.page} 
                 onPageChange={(p) => setState(s => ({ ...s, page: p }))} 
+                onCreateAction={(action) => setState(s => ({ ...s, selectedMember: null, page: action === 'add-member' ? 'users' : action === 'add-preset' ? 'presets' : 'crm_pipeline', pendingUiAction: action }))}
                 onLogout={handleLogout} 
                 unreadMessagesCount={unreadMessagesCount} 
                 unreadNotificationsCount={unreadNotificationsCount}
@@ -1444,44 +1452,9 @@ export default function App() {
                     showToast={showToast}
                     isProgramSession={state.workoutIsProgramSession}
                     onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }))}
-                    onComplete={async (log, perfs) => {
-                      const logWithClub = { ...log, clubId: state.user?.clubId };
-                      const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
-                      
-                      try {
-                        if (!navigatorOnline || isOfflineBackupActive || gcpBillingError) {
-                          throw new Error("offline");
-                        }
-                        await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
-                        for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
-                        
-                        if (state.workout?.isPlannedSession) {
-                          await deleteDoc(doc(db, "programs", state.workout.id.toString()));
-                        }
-                        
-                        if (state.workout?.bookingId) {
-                          await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
-                        }
-                        
-                        setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
-                        showToast("Séance de coaching enregistrée !");
-                      } catch (err) {
-                        console.warn("Offline/failed save, caching coaching logs locally:", err);
-                        queueForSync('logs', logWithClub);
-                        queueForSync('performances', perfsWithClub);
-                        
-                        if (state.workout?.isPlannedSession) {
-                          const pid = state.workout.id;
-                          setState(prev => ({
-                            ...prev,
-                            programs: prev.programs.filter(p => p.id !== pid)
-                          }));
-                          queueForSync('delete_program', { id: pid });
-                        }
-                        
-                        setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
-                        showToast("Séance sauvegardée localement en cache (Hors-ligne) !", "info");
-                      }
+                    onComplete={() => {
+                      setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }));
+                      showToast("Séance de coaching enregistrée !");
                     }}
                   />
                 ) : (
@@ -1493,44 +1466,9 @@ export default function App() {
                     showToast={showToast}
                     isCoachView={false}
                     onClose={() => setState(s => ({ ...s, workout: null, workoutMember: null }))}
-                    onComplete={async (log, perfs) => {
-                      const logWithClub = { ...log, clubId: state.user?.clubId };
-                      const perfsWithClub = perfs.map(p => ({ ...p, clubId: state.user?.clubId }));
-                      
-                      try {
-                        if (!navigatorOnline || isOfflineBackupActive || gcpBillingError) {
-                          throw new Error("offline");
-                        }
-                        await setDoc(doc(db, "logs", log.id.toString()), logWithClub);
-                        for (const p of perfsWithClub) await setDoc(doc(db, "performances", p.id.toString()), p);
-
-                        if (state.workout?.isPlannedSession) {
-                          await deleteDoc(doc(db, "programs", state.workout.id.toString()));
-                        }
-                        
-                        if (state.workout?.bookingId) {
-                          await updateDoc(doc(db, "bookings", state.workout.bookingId), { status: 'completed' });
-                        }
-
-                        setState(s => ({ ...s, workout: null, workoutMember: null }));
-                        showToast("Séance enregistrée !");
-                      } catch (err) {
-                        console.warn("Offline/failed save, caching member logs locally:", err);
-                        queueForSync('logs', logWithClub);
-                        queueForSync('performances', perfsWithClub);
-                        
-                        if (state.workout?.isPlannedSession) {
-                          const pid = state.workout.id;
-                          setState(prev => ({
-                            ...prev,
-                            programs: prev.programs.filter(p => p.id !== pid)
-                          }));
-                          queueForSync('delete_program', { id: pid });
-                        }
-
-                        setState(s => ({ ...s, workout: null, workoutMember: null }));
-                        showToast("Séance sauvegardée localement en cache (Hors-ligne) !", "info");
-                      }
+                    onComplete={() => {
+                      setState(s => ({ ...s, workout: null, workoutMember: null }));
+                      showToast("Séance enregistrée !");
                     }}
                   />
                 )

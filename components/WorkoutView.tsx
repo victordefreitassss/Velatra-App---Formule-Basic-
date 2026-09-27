@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { Program, User, Exercise, AppState, SessionLog, Performance, ExerciseEntry } from '../types';
 import { Button, Input, Badge, Card } from './UI';
 import { XIcon, CheckIcon, DumbbellIcon, InfoIcon, RefreshCwIcon, SparklesIcon, TrophyIcon, LinkIcon, VideoIcon } from './Icons';
-import { db, doc, setDoc, updateDoc, deleteDoc } from '../firebase';
+import { apiFetch } from '../firebase';
 import { PROGRAM_DURATION_WEEKS } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -210,7 +210,14 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
     groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
   }
 
+  const completionRequestId = React.useRef(crypto.randomUUID());
+  const savingSession = React.useRef(false);
+  const [isSavingSession, setIsSavingSession] = useState(false);
+  const [saveSessionError, setSaveSessionError] = useState('');
   const finishSession = async () => {
+    if (savingSession.current) return;
+    savingSession.current = true; setIsSavingSession(true); setSaveSessionError('');
+    try {
     const sessionExercisesList = currentDay.exercises.map((exEntry, exIndex) => {
       const baseEx = state.exercises.find(e => e.id === exEntry.exId);
       const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
@@ -279,58 +286,18 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
       }
     });
 
-    if (hasNewPR) {
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#f43f5e', '#10b981', '#3b82f6']
-      });
-      showToast("NOUVEAU RECORD PERSONNEL ! 🎉", "success");
-    }
-
-    const userRef = doc(db, "users", (member as any).firebaseUid);
-    const newStreak = (member.lastWorkoutDate === new Date(Date.now() - 86400000).toISOString().split('T')[0]) ? (member.streak || 0) + 1 : 1;
-    const totalXP = (member.xp || 0) + sessionXP + loyaltyPoints;
-    const oldLevel = Math.floor((member.xp || 0) / 1000) + 1;
-    const newLevel = Math.floor(totalXP / 1000) + 1;
-
-    await updateDoc(userRef, { xp: totalXP, streak: newStreak, lastWorkoutDate: log.date });
-
-    // Resolve any "Relance" tasks for this member
-    const relanceTasks = state.tasks?.filter(t => t.relatedMemberId === member.id && t.status === 'todo' && t.title.includes('Relance')) || [];
-    for (const t of relanceTasks) {
-      try {
-        await updateDoc(doc(db, "tasks", t.id.toString()), { status: 'done' });
-      } catch (err) {
-        console.error("Error updating task:", err);
-      }
-    }
-
-    if (newLevel > oldLevel) {
-      showToast(`NOUVEAU NIVEAU ATTEINT : ${newLevel} ! 🏆`, "success");
-    }
-
-    // Vérification fin de programme
-    const durationWeeks = program.durationWeeks;
-    const nextDayIndex = program.currentDayIndex + 1;
-
-    if (durationWeeks) {
-      const totalSessionsInCycle = program.nbDays * durationWeeks;
-      if (nextDayIndex >= totalSessionsInCycle) {
-        // ARCHIVAGE AUTOMATIQUE
-        const archiveRef = doc(db, "archivedPrograms", program.id.toString());
-        await setDoc(archiveRef, { ...program, clubId: member.clubId, endDate: log.date, memberName: member.name, status: "completed" });
-        await deleteDoc(doc(db, "programs", program.id.toString()));
-        alert(`FÉLICITATIONS ! Vous avez terminé votre cycle de ${durationWeeks} semaines. Le programme est désormais archivé.`);
-      } else {
-        await updateDoc(doc(db, "programs", program.id.toString()), { currentDayIndex: nextDayIndex });
-      }
-    } else {
-      await updateDoc(doc(db, "programs", program.id.toString()), { currentDayIndex: nextDayIndex });
-    }
-
-    onComplete(log, perfs);
+    const targetProgram = program;
+    const response = await apiFetch('/api/workouts/complete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestId: completionRequestId.current, programId: targetProgram.id,
+        dayIndex: targetProgram.currentDayIndex, advanceProgram: true, log, performances: perfs })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Impossible d’enregistrer la séance.');
+    onComplete(result.log, result.performances);
+    } catch (error) {
+      setSaveSessionError(error instanceof Error && !error.message.includes('fetch') ? error.message : 'La séance n’a pas pu être enregistrée. Gardez cet écran ouvert et réessayez après reconnexion.');
+    } finally { savingSession.current = false; setIsSavingSession(false); }
   };
 
   return createPortal(
@@ -340,6 +307,8 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
       exit={{ opacity: 0, y: 50 }}
       className="fixed inset-0 bg-white z-[100] flex flex-col page-transition"
     >
+      {saveSessionError && <p role="alert" className="fixed top-4 left-4 right-4 z-[250] rounded-xl border border-red-200 bg-red-50 p-4 text-red-900">{saveSessionError}</p>}
+
       <header className="glass border-b  px-4 py-4 md:px-8 md:py-6 flex flex-col sticky top-0 z-20">
         <div className="flex items-center justify-between w-full">
           <div className="flex-1">
@@ -358,7 +327,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
           <motion.button 
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={onClose} 
+            onClick={onClose} disabled={isSavingSession}
             className="p-3 bg-white rounded-full text-zinc-500 hover:text-zinc-900 transition-all hover:bg-red-500 shrink-0"
           >
             <XIcon size={20} />
@@ -618,7 +587,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
            <div className="text-sm font-black text-emerald-500 italic">+{loyaltyPoints} XP</div>
         </div>
         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-          <Button variant="success" fullWidth onClick={finishSession} className="!py-6 !rounded-[32px] font-black text-xl italic shadow-2xl shadow-emerald-500/20" disabled={completedExercises.length < currentDay.exercises.length}>
+          <Button variant="success" fullWidth onClick={finishSession} className="!py-6 !rounded-[32px] font-black text-xl italic shadow-2xl shadow-emerald-500/20" disabled={isSavingSession || completedExercises.length < currentDay.exercises.length}>
             TERMINER MA SÉANCE
           </Button>
         </motion.div>

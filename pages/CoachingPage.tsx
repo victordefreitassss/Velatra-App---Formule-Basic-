@@ -26,9 +26,9 @@ export const CoachingPage: React.FC<CoachingPageProps> = ({ state, setState, sho
       let nextSessionName = '';
       
       if (program) {
-        const totalDays = program.nbDays * (program.durationWeeks || 1);
-        progress = Math.min(100, Math.round((program.currentDayIndex / totalDays) * 100));
-        isFinished = program.currentDayIndex >= totalDays;
+        const totalDays = program.durationWeeks ? program.nbDays * program.durationWeeks : null;
+        progress = totalDays ? Math.min(100, Math.round((program.currentDayIndex / totalDays) * 100)) : Math.round((program.currentDayIndex % program.nbDays) / program.nbDays * 100);
+        isFinished = Boolean(totalDays && program.currentDayIndex >= totalDays);
         nextSessionName = program.days[program.currentDayIndex % program.nbDays]?.name || '';
       }
 

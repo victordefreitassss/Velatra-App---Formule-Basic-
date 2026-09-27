@@ -22,6 +22,7 @@ interface LayoutProps {
   club: Club | null;
   activePage: Page;
   onPageChange: (p: Page) => void;
+  onCreateAction?: (action: 'add-member' | 'add-preset' | 'add-prospect') => void;
   onLogout: () => void;
   children: React.ReactNode;
   unreadMessagesCount?: number;
@@ -67,7 +68,7 @@ export const Layout: React.FC<LayoutProps> = ({
   user, club, activePage, onPageChange, onLogout, children, 
   unreadMessagesCount = 0, unreadNotificationsCount = 0, 
   logs = [], payments = [], users = [],
-  adminPerspective = 'superadmin', onChangePerspective, isWorkspaceMode = false
+  adminPerspective = 'superadmin', onChangePerspective, isWorkspaceMode = false, onCreateAction
 }) => {
   const planningEnabled = club?.settings?.booking?.enabled ?? true;
 
@@ -428,9 +429,9 @@ export const Layout: React.FC<LayoutProps> = ({
                 {showCreateMenu && (
                   <div id="va-create-menu" className="va-create-menu" role="menu" aria-label="Créer ou ouvrir un outil">
                     <span className="va-menu-caption">ACCÈS RAPIDE</span>
-                    <button type="button" role="menuitem" onClick={() => goToPage('users')}><UsersIcon size={17} /><span><strong>Ajouter un adhérent</strong><small>Membres · bouton « Ajouter un membre »</small></span></button>
-                    <button type="button" role="menuitem" onClick={() => goToPage('presets')}><LayersIcon size={17} /><span><strong>Créer un modèle de programme</strong><small>Programmes · bouton « Créer un modèle »</small></span></button>
-                    <button type="button" role="menuitem" onClick={() => goToPage('crm_pipeline')}><TargetIcon size={17} /><span><strong>Ajouter un prospect</strong><small>Prospects · bouton « Nouveau Lead »</small></span></button>
+                    <button type="button" role="menuitem" onClick={() => { setShowCreateMenu(false); onCreateAction ? onCreateAction('add-member') : goToPage('users'); }}><UsersIcon size={17} /><span><strong>Ajouter un adhérent</strong><small>Ouvrir le formulaire adhérent</small></span></button>
+                    <button type="button" role="menuitem" onClick={() => { setShowCreateMenu(false); onCreateAction ? onCreateAction('add-preset') : goToPage('presets'); }}><LayersIcon size={17} /><span><strong>Créer un modèle de programme</strong><small>Ouvrir l’éditeur de programme</small></span></button>
+                    <button type="button" role="menuitem" onClick={() => { setShowCreateMenu(false); onCreateAction ? onCreateAction('add-prospect') : goToPage('crm_pipeline'); }}><TargetIcon size={17} /><span><strong>Ajouter un prospect</strong><small>Ouvrir le formulaire prospect</small></span></button>
                     <button type="button" role="menuitem" onClick={() => goToPage('calendar')}><CalendarIcon size={17} /><span><strong>Ouvrir le planning</strong><small>Consulter les créneaux et réservations</small></span></button>
                     <button type="button" role="menuitem" disabled={!club?.id} onClick={openInviteDialog}><UserRound size={17} /><span><strong>Inviter un adhérent</strong><small>{club?.id ? 'Copier le code de votre espace' : 'Espace indisponible'}</small></span></button>
                     <div className="va-menu-divider" />

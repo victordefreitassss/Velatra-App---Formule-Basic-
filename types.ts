@@ -692,7 +692,7 @@ export interface AppState {
   coaches: CoachInfo[];
   page: Page;
   /** One-time UI request consumed by its destination page; never persisted to Firebase. */
-  pendingUiAction?: 'add-member';
+  pendingUiAction?: 'add-member' | 'add-preset' | 'add-prospect';
   onboardingDataReady?: boolean;
   selectedMember: User | null;
   selectedDay: number;

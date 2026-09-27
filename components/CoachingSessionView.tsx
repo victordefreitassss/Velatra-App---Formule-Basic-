@@ -6,7 +6,7 @@ import { XIcon, CheckIcon, DumbbellIcon, InfoIcon, RefreshCwIcon, SparklesIcon, 
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 
-import { db, doc, updateDoc } from '../firebase';
+import { apiFetch } from '../firebase';
 
 const getTargetRepsForSet = (repsString: string | number | undefined, setIndex: number): string => {
   if (typeof repsString === 'number') return String(repsString);
@@ -187,7 +187,14 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
     return Math.min(100, Math.max(0, Math.round(baseScore + rpeModifier)));
   };
 
+  const completionRequestId = React.useRef(crypto.randomUUID());
+  const savingSession = React.useRef(false);
+  const [isSavingSession, setIsSavingSession] = useState(false);
+  const [saveSessionError, setSaveSessionError] = useState('');
   const finishSession = async () => {
+    if (savingSession.current) return;
+    savingSession.current = true; setIsSavingSession(true); setSaveSessionError('');
+    try {
     const totalVolume = calculateVolume();
     const score = calculateScore();
     const sessionExercisesList = sessionExercises.map((exEntry, exIndex) => {
@@ -275,49 +282,18 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
       }
     });
 
-    if (hasNewPR) {
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#f43f5e', '#10b981', '#3b82f6']
-      });
-      showToast("NOUVEAU RECORD PERSONNEL ! 🎉", "success");
-    }
-
-    if (isProgramSession || program.originalProgramId) {
-      const targetProgramId = program.originalProgramId || program.id;
-      const targetProgram = state.programs.find(p => p.id === targetProgramId);
-      
-      if (targetProgram) {
-        const nextDayIndex = targetProgram.currentDayIndex + 1;
-        try {
-          await updateDoc(doc(db, "programs", targetProgramId.toString()), { currentDayIndex: nextDayIndex });
-        } catch (err) {
-          console.error("Error updating program index:", err);
-        }
-      }
-    }
-
-    if (member.firebaseUid) {
-      try {
-        const userRef = doc(db, "users", member.firebaseUid);
-        await updateDoc(userRef, { lastWorkoutDate: log.date });
-      } catch (err) {
-        console.error("Error updating user lastWorkoutDate:", err);
-      }
-    }
-
-    const relanceTasks = state.tasks?.filter(t => t.relatedMemberId === member.id && t.status === 'todo' && t.title.includes('Relance')) || [];
-    for (const t of relanceTasks) {
-      try {
-        await updateDoc(doc(db, "tasks", t.id.toString()), { status: 'done' });
-      } catch (err) {
-        console.error("Error updating task:", err);
-      }
-    }
-
-    onComplete(log, perfs);
+    const targetProgram = state.programs.find(p => p.id === (program.originalProgramId || program.id)) || program;
+    const response = await apiFetch('/api/workouts/complete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestId: completionRequestId.current, programId: targetProgram.id,
+        dayIndex: targetProgram.currentDayIndex, advanceProgram: Boolean(isProgramSession || program.originalProgramId), log, performances: perfs })
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Impossible d’enregistrer la séance.');
+    onComplete(result.log, result.performances);
+    } catch (error) {
+      setSaveSessionError(error instanceof Error && !error.message.includes('fetch') ? error.message : 'La séance n’a pas pu être enregistrée. Gardez cet écran ouvert et réessayez après reconnexion.');
+    } finally { savingSession.current = false; setIsSavingSession(false); }
   };
 
   const activeEx = sessionExercises[currentExIndex];
@@ -329,10 +305,11 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
 
   return createPortal(
     <div className="fixed inset-0 z-50 bg-white text-zinc-900 flex flex-col overflow-hidden">
+      {saveSessionError && <p role="alert" className="fixed top-4 left-4 right-4 z-[250] rounded-xl border border-red-200 bg-red-50 p-4 text-red-900">{saveSessionError}</p>}
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b  bg-zinc-50/50 backdrop-blur-md z-10">
         <div className="flex items-center gap-3">
-          <button onClick={onClose} className="p-2 text-zinc-500 hover:text-zinc-900 transition-colors">
+          <button onClick={onClose} disabled={isSavingSession} className="p-2 text-zinc-500 hover:text-zinc-900 transition-colors">
             <XIcon size={24} />
           </button>
           <div>
@@ -405,6 +382,8 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
             animate={{ opacity: 1, x: 0 }}
             className="px-4 space-y-6"
           >
+
+
             {/* Exercise Header */}
             <div className="flex gap-4 items-start">
               <div className="w-24 h-24 rounded-2xl bg-white overflow-hidden shrink-0 border ">
@@ -637,11 +616,8 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                 />
               </div>
 
-              <Button variant="primary" fullWidth onClick={() => {
-                setShowSummaryModal(false);
-                finishSession();
-              }} className="!py-4">
-                ENREGISTRER DÉFINITIVEMENT
+              <Button variant="primary" fullWidth disabled={isSavingSession} onClick={() => void finishSession()} className="!py-4">
+                {isSavingSession ? 'ENREGISTREMENT…' : 'ENREGISTRER DÉFINITIVEMENT'}
               </Button>
             </motion.div>
           </motion.div>

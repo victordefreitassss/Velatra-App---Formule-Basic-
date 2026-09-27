@@ -1,3 +1,4 @@
+import { localDateKey, createNumericId } from './dataHelpers';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { AppState, Program, User } from '../types';
 import { Button } from './UI';
@@ -30,13 +31,13 @@ const stepCopy = {
 } as const;
 
 const newProgramFor = (member: User): Program => ({
-  id: Date.now(),
+  id: createNumericId(),
   clubId: member.clubId,
   memberId: Number(member.id),
   name: `Plan - ${member.name.split(' ')[0] || 'Adhérent'}`,
   presetId: null,
   nbDays: 1,
-  startDate: new Date().toISOString().slice(0, 10),
+  startDate: localDateKey(),
   completedWeeks: [],
   currentDayIndex: 0,
   days: [{ name: 'Jour 1', isCoaching: false, exercises: [] }],
@@ -49,7 +50,7 @@ export const CoachOnboardingDashboard: React.FC<CoachOnboardingDashboardProps> =
   const assignedPrograms = (state.programs || []).filter(program =>
     program.clubId === coach.clubId && !program.isPlannedSession && memberIds.has(Number(program.memberId))
   );
-  const memberWithProgram = members.find(member => assignedPrograms.some(program => Number(program.memberId) === Number(member.id)));
+  const memberWithProgram = members.find(member => hasAssignedProgram([member], assignedPrograms));
   const firstValueReached = Boolean(memberWithProgram && hasAssignedProgram([memberWithProgram], assignedPrograms));
   const planningEnabled = state.currentClub?.settings?.booking?.enabled !== false;
   const coachKey = String(coach.firebaseUid || coach.id);

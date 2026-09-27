@@ -300,7 +300,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="va-member-dashboard space-y-6 page-transition pb-24"
+      className="va-member-dashboard mx-auto w-full max-w-6xl space-y-6 page-transition pb-24"
     >
       {/* Header Section */}
       <motion.div variants={itemVariants} className="flex items-center justify-between px-2 pt-2">
@@ -743,7 +743,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 disabled={isSavingRemark || !remark || remark === (program?.memberRemarks || "")}
-                onClick={saveRemark}
+                onClick={saveRemark} aria-label="Envoyer la remarque au coach"
                 className="w-12 h-12 rounded-xl bg-emerald-500 text-zinc-900 flex items-center justify-center disabled:opacity-30 transition-all"
               >
                 {isSavingRemark ? <RefreshCwIcon size={16} className="animate-spin" /> : <SendIcon size={16} />}

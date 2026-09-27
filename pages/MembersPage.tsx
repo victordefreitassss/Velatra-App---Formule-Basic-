@@ -1,3 +1,5 @@
+import { AddMemberDialog } from '../components/AddMemberDialog';
+import { localDateKey, createNumericId } from '../components/dataHelpers';
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
@@ -7,7 +9,7 @@ import {
   SearchIcon, InfoIcon, UserIcon, ActivityIcon, DollarSignIcon,
   XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon, MailIcon, ImageIcon, SparklesIcon, PlusIcon, PlayCircleIcon, SettingsIcon, PhoneIcon
 } from '../components/Icons';
-import { apiFetch, createMemberProfile, db, doc, setDoc, updateDoc, deleteDoc, auth, secondaryAuth, createUserWithEmailAndPassword, sendPasswordResetEmail, collection, query, where, getDocs, getStorageClient, addDoc } from '../firebase';
+import { apiFetch, createMemberAccount, db, doc, setDoc, updateDoc, deleteDoc, auth, sendPasswordResetEmail, collection, query, where, getDocs, getStorageClient, addDoc } from '../firebase';
 import { ref, uploadBytes, getDownloadURL, uploadBytesResumable, deleteObject } from 'firebase/storage';
 import { GOALS } from '../constants';
 import { calculateNutritionPlan, updateNutritionPlanForWeight } from '../utils';
@@ -40,7 +42,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [selectedEvolutionPhoto, setSelectedEvolutionPhoto] = useState<string | null>(null);
 
   const [coachingNotes, setCoachingNotes] = useState("");
-  const [coachingNoteDate, setCoachingNoteDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [coachingNoteDate, setCoachingNoteDate] = useState<string>(localDateKey());
   const [isSavingCoachingNotes, setIsSavingCoachingNotes] = useState(false);
   const [bookingStatusFilter, setBookingStatusFilter] = useState<string>('all');
   const [bookingTypeFilter, setBookingTypeFilter] = useState<string>('all');
@@ -88,7 +90,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [isAssigningPlan, setIsAssigningPlan] = useState(false);
   const [isEditingSub, setIsEditingSub] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState('');
-  const [subStartDate, setSubStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [subStartDate, setSubStartDate] = useState(localDateKey());
   const [subCommitmentDate, setSubCommitmentDate] = useState('');
   const [subContractUrl, setSubContractUrl] = useState('');
   const [isGeneratingNutrition, setIsGeneratingNutrition] = useState(false);
@@ -118,7 +120,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     name: '', email: '', password: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: ''
   });
   const [isAddingPayment, setIsAddingPayment] = useState(false);
-  const [newPayment, setNewPayment] = useState<Partial<Payment>>({ amount: 0, method: 'cash', status: 'paid', date: new Date().toISOString().split('T')[0] });
+  const [newPayment, setNewPayment] = useState<Partial<Payment>>({ amount: 0, method: 'cash', status: 'paid', date: localDateKey() });
   const [isUploadingDriveFile, setIsUploadingDriveFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [confirmDeleteFileId, setConfirmDeleteFileId] = useState<string | null>(null);
@@ -136,7 +138,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     if (selectedProfile) {
       setVisibleCoachingLogs(5);
       setCoachingNotes(selectedProfile.notes || "");
-      setCoachingNoteDate(new Date().toISOString().split('T')[0]);
+      setCoachingNoteDate(localDateKey());
       setSelectedDateForPhoto("");
       setMeasurementsSubTab('scans');
     }
@@ -179,7 +181,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     setIsImportingClients(true);
 
     let successCount = 0;
-    let duplicateCount = 0;
+    let errorCount = 0;
+    let emailFailureCount = 0;
     
     // Process sequentially to not hammer Firebase too hard
     for (const index of selectedClientsToImport) {
@@ -188,17 +191,6 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       
       try {
         const dummyPwd = createTemporaryPassword();
-        let userCred;
-        try {
-          userCred = await createUserWithEmailAndPassword(secondaryAuth, client.email, dummyPwd);
-        } catch (authErr: any) {
-          if (authErr.code === 'auth/email-already-in-use') {
-            duplicateCount++;
-            continue;
-          }
-          throw authErr;
-        }
-        
         const newUser: User = {
           id: 0, // The authenticated server endpoint allocates the actual member ID.
           clubId: state.user?.clubId || '1',
@@ -210,7 +202,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           pointsFidelite: 0,
           createdAt: new Date().toISOString(),
           role: 'member',
-          firebaseUid: userCred.user.uid,
+          firebaseUid: '',
           name: client.name || "Nouveau Membre",
           email: client.email,
           phone: client.phone || undefined,
@@ -226,17 +218,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         };
 
         // Create doc in users
-        await createMemberProfile(userCred.user.uid, newUser as unknown as Record<string, unknown>);
+        await createMemberAccount(newUser as unknown as Record<string, unknown>, dummyPwd);
         
         // Immediately send reset email via primary auth so they can set their password
-        await sendPasswordResetEmail(auth, client.email);
-        
         successCount++;
+        try { await sendPasswordResetEmail(auth, client.email); }
+        catch { emailFailureCount++; }
       } catch (err: any) {
         console.error("Error creating user from CSV:", client.email, err);
-        if (err.code === 'auth/email-already-in-use') {
-          duplicateCount++;
-        }
+        errorCount++;
       }
     }
 
@@ -246,11 +236,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
     if (successCount > 0) trackProductEventOnce('first_member_created', state.user?.firebaseUid || state.user?.id, { source: 'csv_import' });
     
-    if (duplicateCount > 0) {
-      showToast(`${successCount} comptes créés. ${duplicateCount} ignorés (email déjà utilisé).`, successCount > 0 ? "success" : "error");
-    } else {
-      showToast(`${successCount} comptes clients créés avec envoi d'emails de réinitialisation !`, "success");
-    }
+    showToast(`${successCount} comptes créés, ${errorCount} non créés.${emailFailureCount ? ` ${emailFailureCount} invitations à renvoyer depuis la fiche adhérent.` : ''}`, successCount > 0 ? "success" : "error");
   };
 
   const members = state.users.filter(u => {
@@ -286,7 +272,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
 
     const scanData: BodyData = {
-      id: Date.now(),
+      id: createNumericId(),
       clubId: selectedProfile.clubId,
       memberId: Number(selectedProfile.id),
       date: new Date().toISOString(),
@@ -407,7 +393,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       }) : null);
       
       setCoachingNotes("");
-      setCoachingNoteDate(new Date().toISOString().split('T')[0]);
+      setCoachingNoteDate(localDateKey());
     } catch (err) {
       console.error("Error saving coaching notes:", err);
       showToast("Erreur lors de l'enregistrement de la note", "error");
@@ -549,13 +535,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       setState((prev: AppState) => ({ ...prev, editingProg: existingProg }));
     } else {
       const newProg: Program = {
-        id: Date.now(),
+        id: createNumericId(),
         clubId: member.clubId,
         memberId: Number(member.id),
         name: `Plan - ${member.name.split(' ')[0]}`,
         presetId: null,
         nbDays: 1,
-        startDate: new Date().toISOString().split('T')[0],
+        startDate: localDateKey(),
         completedWeeks: [],
         currentDayIndex: 0,
         days: [{ name: "Jour 1", isCoaching: false, exercises: [] }]
@@ -573,7 +559,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         clubId: selectedProfile.clubId,
         memberId: Number(selectedProfile.id),
         amount: Number(newPayment.amount),
-        date: newPayment.date || new Date().toISOString().split('T')[0],
+        date: newPayment.date || localDateKey(),
         method: newPayment.method as any,
         status: newPayment.status as any,
         category: newPayment.category || 'other',
@@ -582,7 +568,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       await setDoc(doc(db, "payments", paymentData.id), paymentData);
       showToast("Paiement ajouté avec succès");
       setIsAddingPayment(false);
-      setNewPayment({ amount: 0, method: 'cash', status: 'paid', date: new Date().toISOString().split('T')[0], category: 'other' });
+      setNewPayment({ amount: 0, method: 'cash', status: 'paid', date: localDateKey(), category: 'other' });
     } catch (err) {
       console.error("Error adding payment:", err);
       showToast("Erreur lors de l'ajout du paiement", "error");
@@ -861,7 +847,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
       const mid = Number(selectedProfile.id);
       const existingProg = state.programs.find(p => Number(p.memberId) === mid && !p.isPlannedSession);
-      const progId = existingProg ? existingProg.id : Date.now();
+      const progId = existingProg ? existingProg.id : createNumericId();
       
       const newProg: Program = {
         id: progId,
@@ -870,7 +856,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         name: generatedData.name || `Programme IA - ${(selectedProfile.name || 'Membre').split(' ')[0]}`,
         presetId: null,
         nbDays: validDays.length,
-        startDate: existingProg ? existingProg.startDate : new Date().toISOString().split('T')[0],
+        startDate: existingProg ? existingProg.startDate : localDateKey(),
         completedWeeks: existingProg ? existingProg.completedWeeks : [],
         currentDayIndex: existingProg ? existingProg.currentDayIndex : 0,
         days: validDays
@@ -1108,7 +1094,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         await deleteDoc(doc(db, "programs", existingProg.id.toString()));
       }
       
-      const newProgId = Date.now();
+      const newProgId = createNumericId();
       const newProgram: Program = {
         id: newProgId,
         clubId: selectedProfile.clubId,
@@ -1117,7 +1103,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         presetId: preset.id,
         nbDays: preset.nbDays,
         durationWeeks: preset.durationWeeks || 4,
-        startDate: new Date().toISOString().split('T')[0],
+        startDate: localDateKey(),
         completedWeeks: [],
         currentDayIndex: 0,
         days: preset.days || []
@@ -1449,17 +1435,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         try {
           // Create each imported account with a unique, undisclosed temporary password.
           const temporaryPassword = createTemporaryPassword();
-          let userCredential;
-          try {
-            userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, temporaryPassword);
-          } catch (authErr: any) {
-            throw authErr;
-          }
-          const firebaseUid = userCredential.user.uid;
-
-          const newUserId = Date.now() + i; // Ensure unique ID
           const newUser: User = {
-            id: newUserId,
+            id: 0,
             clubId: state.user?.clubId || '',
             code: "",
             pwd: "", // Handled by Firebase Auth
@@ -1482,10 +1459,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             notes: ''
           };
 
-          await createMemberProfile(firebaseUid, newUser as unknown as Record<string, unknown>);
+          await createMemberAccount(newUser as unknown as Record<string, unknown>, temporaryPassword);
           successCount++;
           try {
-            await sendPasswordResetEmail(secondaryAuth, email);
+            await sendPasswordResetEmail(auth, email);
           } catch {
             passwordSetupEmailErrorCount++;
           }
@@ -1505,22 +1482,16 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     reader.readAsText(file);
   };
 
+  const [isCreatingMember, setIsCreatingMember] = useState(false);
   const handleCreateMember = async () => {
+    if (isCreatingMember) return;
     if (!newMemberData.name || !newMemberData.email || !newMemberData.password || !state.user?.clubId) {
       showToast("Veuillez renseigner le nom, l'email et le mot de passe", "error");
       return;
     }
     
+    setIsCreatingMember(true);
     try {
-      // Create Firebase Auth user with potential orphaned account cleanup/retry
-      let userCredential;
-      try {
-        userCredential = await createUserWithEmailAndPassword(secondaryAuth, newMemberData.email, newMemberData.password);
-      } catch (authErr: any) {
-        throw authErr;
-      }
-      const firebaseUid = userCredential.user.uid;
-
       let calculatedAge = 30;
       if (newMemberData.birthDate) {
         const birthDate = new Date(newMemberData.birthDate);
@@ -1532,9 +1503,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         }
       }
 
-      const newUserId = Date.now();
       const newUser: User = {
-        id: newUserId,
+        id: 0,
         clubId: state.user.clubId,
         code: "", // Not used anymore
         pwd: "", // We use Firebase Auth
@@ -1552,22 +1522,27 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         weight: newMemberData.weight || 70,
         height: newMemberData.height || 175,
         objectifs: newMemberData.objectifs || [],
+        experienceLevel: newMemberData.experienceLevel || 'Débutant',
+        equipment: newMemberData.equipment || 'Salle complète',
+        trainingDays: newMemberData.trainingDays || 3,
+        sessionDuration: newMemberData.sessionDuration || 60,
+        injuries: newMemberData.injuries || '',
         notes: newMemberData.notes || '',
         createdAt: new Date().toISOString(),
-        firebaseUid: firebaseUid
+        firebaseUid: ''
       };
 
-      await createMemberProfile(firebaseUid, newUser as unknown as Record<string, unknown>);
+      const created = await createMemberAccount(newUser as unknown as Record<string, unknown>, newMemberData.password);
       trackProductEventOnce('first_member_created', state.user.firebaseUid || state.user.id, { source: 'member_form' });
       showToast(`Membre créé avec succès !`);
       setIsAddingMember(false);
       setNewMemberData({ name: '', email: '', password: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: '' });
       // Select the new member automatically
-      setSelectedProfile(newUser);
+      setSelectedProfile(created.member);
     } catch (err: any) {
       console.error("Error creating member", err);
-      showToast(err.message || "Erreur lors de la création", "error");
-    }
+      throw new Error(err.message || "Erreur lors de la création");
+    } finally { setIsCreatingMember(false); }
   };
 
   const isStripeConnected = Boolean(state.currentClub?.settings?.payment?.stripeConnected);
@@ -2681,7 +2656,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                         onClick={async () => {
                                           if (confirm(`Voulez-vous vraiment annuler la réservation de ${selectedProfile.name} le ${dayNum} à ${timeStr} ?`)) {
                                             try {
-                                              await updateDoc(doc(db, "bookings", booking.id), { status: 'cancelled' });
+                                              const response = await apiFetch('/api/bookings/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: booking.id }) });
+                                              if (!response.ok) throw new Error('Cancellation failed');
                                               showToast("Réservation annulée avec succès");
                                             } catch (err) {
                                               console.error(err);
@@ -4268,161 +4244,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       document.body
       )}
 
-      {createPortal(
-      <AnimatePresence>
-      {isAddingMember && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
-        >
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="w-full max-w-2xl"
-          >
-            <Card className="w-full !p-8 bg-zinc-100 backdrop-blur-xl  relative shadow-2xl max-h-[90vh] flex flex-col">
-              <button onClick={() => setIsAddingMember(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 bg-zinc-50 backdrop-blur-xl border border-zinc-200 p-2 rounded-full transition-colors z-10 shadow-sm">
-                <XIcon size={20} />
-              </button>
-            
-            <div className="shrink-0">
-              <h2 className="text-2xl font-black mb-1 text-zinc-900 uppercase italic">Nouveau Profil</h2>
-              <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-6">Créer un membre manuellement</p>
-            </div>
-
-            <div className="space-y-5 overflow-y-auto custom-scrollbar pr-2 flex-1 min-h-0 pb-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Nom Complet</label>
-                  <Input 
-                    value={newMemberData.name}
-                    onChange={e => setNewMemberData({...newMemberData, name: e.target.value})}
-                    placeholder="Jean Dupont"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Email</label>
-                  <Input 
-                    type="email"
-                    value={newMemberData.email}
-                    onChange={e => setNewMemberData({...newMemberData, email: e.target.value})}
-                    placeholder="jean@email.com"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Mot de passe provisoire</label>
-                <Input 
-                  type="text"
-                  value={newMemberData.password}
-                  onChange={e => setNewMemberData({...newMemberData, password: e.target.value})}
-                  placeholder="Ex: password2026"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-black uppercase text-zinc-500 tracking-widest ml-1">Date de naissance</label>
-                <Input 
-                  type="date"
-                  value={newMemberData.birthDate || ''}
-                  onChange={e => setNewMemberData({...newMemberData, birthDate: e.target.value})}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Poids (kg)</label>
-                  <Input 
-                    type="number"
-                    value={newMemberData.weight || ''}
-                    onChange={e => setNewMemberData({...newMemberData, weight: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Taille (cm)</label>
-                  <Input 
-                    type="number"
-                    value={newMemberData.height || ''}
-                    onChange={e => setNewMemberData({...newMemberData, height: parseInt(e.target.value) || 0})}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Expérience</label>
-                  <select 
-                    className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-emerald-500 shadow-sm"
-                    value={newMemberData.experienceLevel || 'Débutant'}
-                    onChange={e => setNewMemberData({...newMemberData, experienceLevel: e.target.value as any})}
-                  >
-                    <option value="Débutant" className="bg-white">Débutant</option>
-                    <option value="Intermédiaire" className="bg-white">Intermédiaire</option>
-                    <option value="Avancé" className="bg-white">Avancé</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Équipement</label>
-                  <select 
-                    className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-3 text-zinc-900 focus:outline-none focus:border-emerald-500 shadow-sm"
-                    value={newMemberData.equipment || 'Salle complète'}
-                    onChange={e => setNewMemberData({...newMemberData, equipment: e.target.value as any})}
-                  >
-                    <option value="Salle complète" className="bg-white">Salle complète</option>
-                    <option value="Haltères/Kettlebells" className="bg-white">Haltères/Kettlebells</option>
-                    <option value="Poids du corps" className="bg-white">Poids du corps</option>
-                    <option value="Élastiques" className="bg-white">Élastiques</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Jours / Semaine</label>
-                  <Input 
-                    type="number" min="1" max="7"
-                    value={newMemberData.trainingDays || ''}
-                    onChange={e => setNewMemberData({...newMemberData, trainingDays: parseInt(e.target.value) || 0})}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Durée (min)</label>
-                  <Input 
-                    type="number" step="15"
-                    value={newMemberData.sessionDuration || ''}
-                    onChange={e => setNewMemberData({...newMemberData, sessionDuration: parseInt(e.target.value) || 0})}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Blessures / Douleurs</label>
-                <Input 
-                  value={newMemberData.injuries || ''}
-                  onChange={e => setNewMemberData({...newMemberData, injuries: e.target.value})}
-                  placeholder="Ex: Douleur épaule droite..."
-                />
-              </div>
-            </div>
-
-            <div className="pt-4 shrink-0 flex flex-col sm:flex-row gap-3 border-t mt-2 sticky bottom-0 bg-zinc-100 z-10 pb-2">
-              <Button variant="secondary" fullWidth onClick={() => setIsAddingMember(false)}>ANNULER</Button>
-              <Button variant="success" fullWidth onClick={handleCreateMember}>
-                CRÉER LE MEMBRE <CheckIcon size={18} className="ml-2" />
-              </Button>
-            </div>
-          </Card>
-        </motion.div>
-      </motion.div>
-      )}
-      </AnimatePresence>,
-      document.body
-      )}
+      {isAddingMember && <AddMemberDialog data={newMemberData} setData={setNewMemberData} busy={isCreatingMember} onSave={handleCreateMember} onClose={() => setIsAddingMember(false)} />}
 
       {createPortal(
       <AnimatePresence>

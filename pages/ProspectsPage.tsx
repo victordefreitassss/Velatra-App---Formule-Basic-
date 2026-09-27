@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Prospect, User } from '../types';
-import { createMemberProfile, db, doc, updateDoc, setDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, collection, query, where, getDocs } from '../firebase';
+import { createMemberAccount, db, doc, updateDoc, setDoc, deleteDoc, auth, collection, query, where, getDocs } from '../firebase';
 import { Plus, Search, Trash2, Mail, Phone, Clock, CheckCircle, XCircle, UserPlus, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Card, Button } from '../components/UI';
@@ -61,12 +61,9 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
     }
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, convertData.password);
-      const firebaseUid = userCredential.user.uid;
 
-      const newUserId = Date.now();
       const newUser: User = {
-        id: newUserId,
+        id: 0,
         clubId: state.user!.clubId,
         code: "",
         pwd: "",
@@ -85,18 +82,18 @@ export const ProspectsPage: React.FC<Props> = ({ state, setState, showToast }) =
         xp: 0,
         streak: 0,
         pointsFidelite: 0,
-        firebaseUid: firebaseUid
+        firebaseUid: ''
       };
       
       // Create user document
-      await createMemberProfile(firebaseUid, newUser as unknown as Record<string, unknown>);
+      const created = await createMemberAccount(newUser as unknown as Record<string, unknown>, convertData.password);
       // Update prospect status
       await updateDoc(doc(db, "prospects", convertingProspect.firebaseUid), { status: 'won' });
       
       setConvertingProspect(null);
       showToast(`Membre créé avec succès !`, "success");
       // Redirect to members page and select the new member
-      setState(prev => ({ ...prev, page: 'users', selectedMember: newUser }));
+      setState(prev => ({ ...prev, page: 'users', selectedMember: created.member }));
     } catch (err: any) {
       console.error("Error converting prospect", err);
       showToast(err.message || "Erreur lors de la conversion", "error");

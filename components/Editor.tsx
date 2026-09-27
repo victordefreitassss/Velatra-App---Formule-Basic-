@@ -1,3 +1,4 @@
+import { localDateKey, createNumericId } from './dataHelpers';
 import React, { useState, useRef, useEffect } from 'react';
 import { Program, Preset, Exercise, Day, ExerciseEntry } from '../types';
 import { Button, Input, Card } from './UI';
@@ -178,7 +179,7 @@ interface ProgramEditorProps {
   preset: Preset | null;
   exercises: Exercise[];
   clubId: string;
-  onSave: (data: any, action?: 'plan' | 'start') => void;
+  onSave: (data: any, action?: 'plan' | 'start') => void | Promise<void>;
   onCancel: () => void;
   allPresets?: Preset[]; 
   member?: any;
@@ -197,23 +198,47 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   readOnly = false
 }) => {
   const isEditingProgram = !!program;
-  const initialData = program || preset || {
-    id: Date.now(),
+  const [initialData] = useState(() => program || preset || {
+    id: createNumericId(),
     clubId: clubId,
     name: "",
     nbDays: 1,
     days: [{ name: "Jour 1", isCoaching: false, exercises: [] }],
     memberId: 0,
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: localDateKey(),
     completedWeeks: [],
     currentDayIndex: 0,
     objectifs: [],
     remarks: "",
     memberRemarks: "",
     createdBy: 0
-  };
+  });
 
-  const [formData, setFormData] = useState<any>(initialData);
+  const [initialSnapshot] = useState(() => JSON.stringify(initialData));
+  const [formData, setFormData] = useState<any>(() => structuredClone(initialData));
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const savingRef = React.useRef(false);
+  const dirty = !readOnly && JSON.stringify(formData) !== initialSnapshot;
+  React.useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+  const handleExit = () => {
+    if (!isSaving && (!dirty || window.confirm('Quitter sans enregistrer les modifications ?'))) onCancel();
+  };
+  const handleSave = async (action?: 'plan' | 'start') => {
+    if (savingRef.current) return;
+    if (!formData.name?.trim()) { setSaveError('Donnez un nom au programme avant de l’enregistrer.'); return; }
+    savingRef.current = true;
+    setIsSaving(true);
+    setSaveError('');
+    try { await onSave(formData, action); }
+    catch { setSaveError('Le programme n’a pas pu être enregistré. Vos modifications sont conservées ici. Vérifiez votre connexion et réessayez.'); }
+    finally { savingRef.current = false; setIsSaving(false); }
+  };
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
   const [selectedExerciseIdx, setSelectedExerciseIdx] = useState(0);
   const [showPresets, setShowPresets] = useState(false);
@@ -480,13 +505,15 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
       <div className="space-y-6 max-w-6xl mx-auto pb-[calc(1.5rem+env(safe-area-inset-bottom))] px-4 page-transition">
       
       {/* Top Professional Sticky Header Bar */}
+      {saveError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">{saveError}</p>}
+      {isSaving && <p role="status" className="px-4 py-2 text-sm text-zinc-700">Enregistrement en cours…</p>}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-zinc-200 -mx-4 px-3 sm:px-6 pt-[calc(.5rem+env(safe-area-inset-top))] pb-2 sm:py-3 flex items-center justify-between gap-2 mb-4 shadow-sm">
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           <motion.button 
             type="button"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={onCancel} 
+            onClick={handleExit} disabled={isSaving}
             aria-label="Retour"
             className="flex h-11 w-11 shrink-0 items-center justify-center text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100/80 transition-all rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
           >
@@ -505,11 +532,11 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
 
         <div className="flex shrink-0 items-center gap-1.5">
           {!readOnly && (isSingleSession ? (
-            <Button type="button" onClick={() => onSave(formData, 'start')} variant="primary" className="!h-11 !min-h-11 !rounded-lg !px-3 !text-xs !font-semibold !normal-case !tracking-normal !bg-emerald-500 hover:!bg-emerald-600 !text-zinc-950">
+            <Button type="button" disabled={isSaving} onClick={() => handleSave('start')} variant="primary" className="!h-11 !min-h-11 !rounded-lg !px-3 !text-xs !font-semibold !normal-case !tracking-normal !bg-emerald-500 hover:!bg-emerald-600 !text-zinc-950">
               <Play size={14} className="mr-1.5 inline fill-zinc-950" /> Démarrer
             </Button>
           ) : (
-            <Button type="button" onClick={() => onSave(formData)} variant="success" className="!h-11 !min-h-11 !rounded-lg !px-3 sm:!px-4 !text-xs !font-semibold !normal-case !tracking-normal !bg-emerald-400 hover:!bg-emerald-500 !text-zinc-950">
+            <Button type="button" disabled={isSaving} onClick={() => handleSave()} variant="success" className="!h-11 !min-h-11 !rounded-lg !px-3 sm:!px-4 !text-xs !font-semibold !normal-case !tracking-normal !bg-emerald-400 hover:!bg-emerald-500 !text-zinc-950">
               <SaveIcon size={15} className="mr-1.5 inline" /> Enregistrer
             </Button>
           ))}
@@ -520,7 +547,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
             <div className="absolute right-0 top-full z-[70] mt-2 min-w-52 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-lg">
               {allPresets.length > 0 && <button type="button" onClick={() => setShowPresets(value => !value)} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-zinc-800 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700">{showPresets ? 'Masquer les modèles' : 'Charger un modèle'}</button>}
               {!isSingleSession && <button type="button" onClick={() => { import('../services/pdfService').then(m => m.exportProgramToPDF(formData, exercises, null, member?.name)); }} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-zinc-800 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700">Exporter en PDF</button>}
-              {!readOnly && isSingleSession && <button type="button" onClick={() => onSave(formData, 'plan')} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-zinc-800 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"><CalendarIcon size={15} className="mr-2" /> Planifier</button>}
+              {!readOnly && isSingleSession && <button type="button" disabled={isSaving} onClick={() => handleSave('plan')} className="flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-medium text-zinc-800 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"><CalendarIcon size={15} className="mr-2" /> Planifier</button>}
             </div>
           </details>}
         </div>

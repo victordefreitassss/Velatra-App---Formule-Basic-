@@ -1,3 +1,6 @@
+import { completeWorkout } from './server/completeWorkout';
+import { recordPaidInvoice } from './server/stripePayments';
+import { reserveBooking, cancelBooking } from './server/bookings';
 import express from "express";
 import path from "path";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -5,6 +8,7 @@ import { getAuth } from "firebase-admin/auth";
 import { FieldValue, getFirestore, type Firestore } from "firebase-admin/firestore";
 import nodemailer from "nodemailer";
 import Stripe from "stripe";
+import { createManagedMember, MemberCreationError } from "./server/createMember";
 import { randomInt } from "node:crypto";
 import { validateMemberRegistration } from "./server/memberRegistration";
 import { validatePublicProspect } from "./server/prospectValidation";
@@ -118,41 +122,13 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
     }
 
     if (event.type === 'invoice.paid' || event.type === 'invoice.payment_succeeded') {
-      const invoice = event.data.object as any;
-      const stripeSubscriptionId = invoice.subscription as string;
-      console.log(`[Stripe Webhook] Invoice Paid: subId=${stripeSubscriptionId}`);
-
-      if (stripeSubscriptionId) {
-        const subsSnapshot = await db.collection("subscriptions")
-          .where("stripeSubscriptionId", "==", stripeSubscriptionId)
-          .get();
-
-        if (!subsSnapshot.empty) {
-          const subDoc = subsSnapshot.docs[0];
-          const subData = subDoc.data();
-          const clubId = subData.clubId;
-          const memberId = subData.memberId;
-          
-          await db.collection("payments").add({
-            id: Date.now().toString(),
-            clubId: clubId,
-            memberId: memberId,
-            amount: invoice.amount_paid / 100, // Stripe returns cents
-            date: new Date(invoice.created * 1000).toISOString(),
-            status: 'paid',
-            method: 'card',
-            category: 'subscription',
-            stripeChargeId: invoice.charge
-          });
-          console.log(`Logged payment for subscription ${stripeSubscriptionId}`);
-        }
-      }
+      await recordPaidInvoice(db, event.data.object);
     }
 
     res.json({received: true});
   } catch (err: any) {
     console.error(`Webhook Error: ${err.message}`);
-    res.status(400).send(`Webhook Error: ${err.message}`);
+    res.status(400).send('Webhook could not be processed.');
   }
 });
 
@@ -521,83 +497,41 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
 // All remaining API routes require a verified session and a server-side profile.
 app.use("/api", verifyFirebaseSession, requireUserProfile);
 
-app.post('/api/create-member-profile', async (req: any, res: any) => {
+for (const action of ['reserve', 'cancel'] as const) {
+  app.post(`/api/bookings/${action}`, async (req, res) => {
+    try {
+      const result = action === 'reserve'
+        ? await reserveBooking(admin.firestore(), req.auth.uid, req.body)
+        : await cancelBooking(admin.firestore(), req.auth.uid, String(req.body?.id || ''));
+      return res.json(result);
+    } catch (error: any) {
+      if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
+      console.error('Booking operation failed', { code: error?.code || 'unknown' });
+      return res.status(500).json({ error: 'La réservation n’a pas pu être mise à jour. Rechargez le planning avant de réessayer.' });
+    }
+  });
+}
+
+app.post('/api/create-member', async (req: any, res: any) => {
   try {
-    const requester = req.profile;
-    if (!['owner', 'coach'].includes(requester?.role) || !requester.clubId) {
-      return res.status(403).json({ error: "Seuls les coachs et propriétaires peuvent ajouter un adhérent." });
-    }
-    const uid = String(req.body?.uid || '');
-    const submitted = req.body?.profile;
-    if (!uid || !submitted || typeof submitted !== 'object' || Array.isArray(submitted)) {
-      return res.status(400).json({ error: "Le profil adhérent est incomplet." });
-    }
-    if (uid === req.auth.uid) return res.status(400).json({ error: "Impossible de remplacer votre propre profil." });
-
-    const account = await admin.auth().getUser(uid);
-    if (!account.email || String(submitted.email || '').trim().toLowerCase() !== account.email.toLowerCase()) {
-      return res.status(400).json({ error: "L'adresse e-mail ne correspond pas au compte créé." });
-    }
-    const userRef = admin.firestore().collection('users').doc(uid);
-    const coachRef = admin.firestore().collection('users').doc(req.auth.uid);
-    if ((await userRef.get()).exists) return res.status(409).json({ error: "Un profil existe déjà pour ce compte." });
-
-    const allowedFields = [
-      'code', 'name', 'phone', 'address', 'gender', 'age', 'weight', 'height', 'birthDate',
-      'objectifs', 'notes', 'experienceLevel', 'trainingDays', 'sessionDuration', 'equipment',
-      'injuries', 'blessures', 'createdAt', 'xp', 'streak', 'pointsFidelite', 'status',
-      'avatar', 'onboardingCompleted', 'planRequested', 'measurements'
-    ];
-    const cleanProfile: Record<string, any> = {};
-    for (const field of allowedFields) {
-      if (Object.prototype.hasOwnProperty.call(submitted, field)) cleanProfile[field] = submitted[field];
-    }
-    cleanProfile.pwd = '';
-    cleanProfile.email = account.email;
-    cleanProfile.clubId = requester.clubId;
-    cleanProfile.role = 'member';
-    cleanProfile.firebaseUid = uid;
-    cleanProfile.createdAt = cleanProfile.createdAt || new Date().toISOString();
-    if (requester.role === 'coach') cleanProfile.assignedCoachUid = req.auth.uid;
-
-    let memberId: number | null = null;
-    await admin.firestore().runTransaction(async (transaction) => {
-      const [latest, coachSnapshot] = await Promise.all([
-        transaction.get(userRef),
-        requester.role === 'coach' ? transaction.get(coachRef) : Promise.resolve(null)
-      ]);
-      if (latest.exists) throw new Error('PROFILE_ALREADY_EXISTS');
-      if (requester.role === 'coach' && (!coachSnapshot?.exists || coachSnapshot.data()?.role !== 'coach' || coachSnapshot.data()?.clubId !== requester.clubId)) {
-        throw new Error('COACH_PROFILE_CHANGED');
-      }
-      const assignedIds: number[] = Array.isArray(coachSnapshot?.data()?.assignedMemberIds)
-        ? coachSnapshot.data()!.assignedMemberIds.map(Number).filter(Number.isFinite)
-        : [];
-      for (let attempt = 0; attempt < 8; attempt += 1) {
-        const candidateId = randomInt(1_000_000_000_000, 2_000_000_000_000);
-        const collision = await transaction.get(admin.firestore().collection('users').where('id', '==', candidateId).limit(1));
-        if (collision.empty) {
-          memberId = candidateId;
-          transaction.create(userRef, { ...cleanProfile, id: candidateId });
-          if (requester.role === 'coach') {
-            transaction.update(coachRef, {
-              assignedMemberIds: [...new Set([...assignedIds, candidateId])],
-              assignmentIndexVersion: 1
-            });
-          }
-          return;
-        }
-      }
-      throw new Error('MEMBER_ID_ALLOCATION_FAILED');
-    });
-    return res.json({ success: true, uid, memberId });
+    return res.json(await createManagedMember(admin.auth(), admin.firestore(), req.auth.uid, req.body));
   } catch (error: any) {
-    if (error?.message === 'PROFILE_ALREADY_EXISTS') {
-      return res.status(409).json({ error: "Un profil existe déjà pour ce compte." });
-    }
-    console.error('Error creating member profile:', error.message);
-    return res.status(500).json({ error: "Impossible de créer le profil adhérent." });
+    if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
+    console.error('Member creation failed', { code: error?.code || 'unknown' });
+    return res.status(500).json({ error: "La création n’a pas pu aboutir. Rechargez la liste des adhérents avant de réessayer." });
   }
+});
+
+app.post('/api/workouts/complete', async (req: any, res: any) => {
+  try { return res.json(await completeWorkout(admin.firestore(), req.auth.uid, req.body)); }
+  catch (error: any) {
+    return res.status(error instanceof MemberCreationError ? error.status : 500).json({ error: error instanceof MemberCreationError ? error.message : 'La séance n’a pas pu être enregistrée. Réessayez.' });
+  }
+});
+
+// Old clients must reload; accepting an arbitrary Auth UID allowed account claiming.
+app.post('/api/create-member-profile', (_req, res) => {
+  res.status(410).json({ error: 'Rechargez Velatra pour utiliser la nouvelle création d’adhérent.' });
 });
 
 app.get('/api/member/assigned-coach', async (req: any, res: any) => {
@@ -1315,7 +1249,7 @@ app.post("/api/gemini/generateContent", async (req, res) => {
     const rawApiKey = process.env.GEMINI_API_KEY;
     if (!rawApiKey) {
       console.warn("[Gemini Proxy] Access failed: GEMINI_API_KEY is not defined in environment variables.");
-      return res.status(500).json({ error: "Clé API Gemini côté serveur manquante. Veuillez configurer l'environnement variable 'GEMINI_API_KEY' dans Vercel." });
+      return res.status(503).json({ error: "L’assistant IA est temporairement indisponible. Réessayez plus tard ou contactez votre coach." });
     }
     const apiKey = rawApiKey.replace(/[^\x20-\x7E]/g, '').trim().replace(/^['"]|['"]$/g, '');
     
@@ -1350,14 +1284,14 @@ app.post("/api/gemini/generateContent", async (req, res) => {
     }
 
     // Map other generation settings from client config format to REST API format
-    const generationConfig: any = {};
+    const generationConfig: any = { maxOutputTokens: 2048 };
     if (config) {
       if (config.temperature !== undefined) generationConfig.temperature = config.temperature;
       if (config.responseMimeType !== undefined) generationConfig.responseMimeType = config.responseMimeType;
       if (config.responseSchema !== undefined) generationConfig.responseSchema = config.responseSchema;
       if (config.topP !== undefined) generationConfig.topP = config.topP;
       if (config.topK !== undefined) generationConfig.topK = config.topK;
-      if (config.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = Math.min(Number(config.maxOutputTokens) || 1024, 2048);
+      if (config.maxOutputTokens !== undefined) generationConfig.maxOutputTokens = Math.max(1, Math.min(Number(config.maxOutputTokens) || 1024, 2048));
       if (config.stopSequences !== undefined) generationConfig.stopSequences = config.stopSequences;
     }
 
@@ -1365,13 +1299,13 @@ app.post("/api/gemini/generateContent", async (req, res) => {
     const payload: any = {
       contents: contents || []
     };
-    if (systemInstruction) {
+    {
       const roleGuidance = req.profile?.role === 'member'
         ? "L'utilisateur est un adhérent. Ne prétends pas avoir consulté ses données personnelles, séances ou programmes sauf si elles sont explicitement présentes dans la conversation. Pour toute douleur, blessure ou question médicale, recommande de contacter son coach et un professionnel de santé."
         : "L'utilisateur est un coach. Présente les conseils comme des suggestions que le coach doit vérifier avant tout changement de programme ou de nutrition. Ne prétends pas avoir consulté des données d'adhérents qui ne sont pas explicitement présentes dans la conversation.";
       const instructionText = typeof systemInstruction === 'string'
         ? systemInstruction
-        : systemInstruction.parts?.map((part: any) => part.text || '').join('\n') || '';
+        : systemInstruction?.parts?.map((part: any) => part.text || '').join('\n') || '';
       payload.systemInstruction = { parts: [{ text: `${roleGuidance}\n${instructionText}` }] };
     }
     if (Object.keys(generationConfig).length > 0) {
@@ -1387,7 +1321,8 @@ app.post("/api/gemini/generateContent", async (req, res) => {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(45000)
     });
 
     if (!apiRes.ok) {
@@ -1405,52 +1340,10 @@ app.post("/api/gemini/generateContent", async (req, res) => {
     res.json({ text });
   } catch (error: any) {
     console.error("Error proxying Gemini request:", error);
-    let errorMsg = "Failed to call Gemini";
-    
-    const errText = error.message ? String(error.message) : "";
-    
-    // Parse Google REST error response if it's JSON inside the thrown Error
-    let googleErrorMessage = "";
-    const jsonStart = errText.indexOf("{");
-    if (jsonStart !== -1) {
-      try {
-        const jsonStr = errText.substring(jsonStart);
-        const parsed = JSON.parse(jsonStr);
-        if (parsed.error && parsed.error.message) {
-          googleErrorMessage = parsed.error.message;
-        }
-      } catch (e) {}
-    }
-
-    const isSuspended = error.status === 403 || 
-                        errText.includes("status 403") ||
-                        errText.includes("suspended") || 
-                        errText.includes("Consumer 'api_key") ||
-                        errText.includes("PERMISSION_DENIED") ||
-                        (googleErrorMessage && (
-                          googleErrorMessage.toLowerCase().includes("suspended") ||
-                          googleErrorMessage.toLowerCase().includes("permission_denied") ||
-                          googleErrorMessage.toLowerCase().includes("disabled")
-                        ));
-                        
-    if (isSuspended) {
-      errorMsg = "La clé API Gemini par défaut est actuellement inactive ou suspendue. Pour utiliser les fonctionnalités d'IA (générateur de programmes, nutrition, recettes, stagnation, etc.), veuillez configurer votre propre clé 'GEMINI_API_KEY' dans les paramètres (Settings) de votre projet Google AI Studio.";
-    } else if (error.status === 429 || errText.includes("quota") || (googleErrorMessage && googleErrorMessage.toLowerCase().includes("quota"))) {
-      errorMsg = "Quota dépassé ou clé API invalide.";
-    } else if (googleErrorMessage) {
-      errorMsg = `Erreur Google API : ${googleErrorMessage}`;
-    } else if (error.message) {
-      errorMsg = error.message;
-    }
-    
-    // Prevent sending massive JSON strings if error.message is stringified JSON
-    if (errorMsg.startsWith("{")) {
-       try {
-         const parsed = JSON.parse(errorMsg);
-         if (parsed.error && parsed.error.message) errorMsg = parsed.error.message;
-       } catch(e) {}
-    }
-    res.status(500).json({ error: errorMsg });
+    const limited = error.status === 429 || /status 429|quota/i.test(String(error.message));
+    res.status(limited ? 429 : 503).json({ error: limited
+      ? 'L’assistant reçoit trop de demandes. Réessayez dans quelques instants.'
+      : 'L’assistant IA est temporairement indisponible. Votre demande n’a pas modifié votre programme.' });
   }
 });
 

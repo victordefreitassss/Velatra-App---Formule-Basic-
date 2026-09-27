@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useId } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 
 export type VelatraMascotState = 'idle' | 'wave' | 'thinking' | 'success' | 'error';
@@ -25,6 +25,9 @@ export const VelatraMascot: React.FC<VelatraMascotProps> = ({
   onClick,
 }) => {
   const rootRef = useRef<HTMLButtonElement | HTMLDivElement>(null);
+  const svgId = useId().replace(/:/g, '');
+  const waveTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(waveTimer.current), []);
   const reduceMotion = useReducedMotion();
   const [look, setLook] = useState({ x: 0, y: 0 });
   const [temporaryState, setTemporaryState] = useState<VelatraMascotState | null>(null);
@@ -66,7 +69,8 @@ export const VelatraMascot: React.FC<VelatraMascotProps> = ({
   const triggerWave = () => {
     if (!reduceMotion && effectiveState === 'idle') {
       setTemporaryState('wave');
-      window.setTimeout(() => setTemporaryState(null), 1100);
+      window.clearTimeout(waveTimer.current);
+      waveTimer.current = window.setTimeout(() => setTemporaryState(null), 1100);
     }
     onClick?.();
   };
@@ -94,7 +98,7 @@ export const VelatraMascot: React.FC<VelatraMascotProps> = ({
       onClick={interactive || onClick ? triggerWave : undefined}
       className={`relative inline-flex select-none items-center justify-center border-0 bg-transparent p-0 outline-none ${interactive || onClick ? 'cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-4 rounded-[32px]' : ''} ${className}`}
       style={{ width: size, height: size * 1.18 }}
-      aria-label={interactive || onClick ? ariaLabel : undefined}
+      aria-label={ariaLabel}
       role={interactive || onClick ? undefined : 'img'}
       whileTap={interactive && !reduceMotion ? { scale: 0.985 } : undefined}
     >
@@ -108,23 +112,23 @@ export const VelatraMascot: React.FC<VelatraMascotProps> = ({
         transition={success ? { duration: 0.55, ease: 'easeOut' } : error ? { duration: 0.28 } : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
       >
         <defs>
-          <linearGradient id="velatraMascotHead" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={`${svgId}-Head`} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#fffef9" />
             <stop offset="100%" stopColor="#f1f1e8" />
           </linearGradient>
-          <linearGradient id="velatraMascotGreen" x1="0" y1="0" x2="0.85" y2="1">
+          <linearGradient id={`${svgId}-Green`} x1="0" y1="0" x2="0.85" y2="1">
             <stop offset="0%" stopColor="#245e43" />
             <stop offset="100%" stopColor="#0e3828" />
           </linearGradient>
-          <filter id="velatraMascotShadow" x="-30%" y="-30%" width="160%" height="160%">
+          <filter id={`${svgId}-Shadow`} x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation="4" />
           </filter>
-          <clipPath id="velatraMascotBadgeClip">
+          <clipPath id={`${svgId}-BadgeClip`}>
             <rect x="99" y="151" width="22" height="22" rx="6" />
           </clipPath>
         </defs>
 
-        <ellipse cx="110" cy="238" rx="51" ry="9" fill="#143c2b" opacity="0.12" filter="url(#velatraMascotShadow)" />
+        <ellipse cx="110" cy="238" rx="51" ry="9" fill="#143c2b" opacity="0.12" filter={`url(#${svgId}-Shadow)`} />
 
         <motion.g
           initial={false}
@@ -133,7 +137,7 @@ export const VelatraMascot: React.FC<VelatraMascotProps> = ({
           style={{ transformOrigin: '68px 137px' }}
         >
           <circle cx="68" cy="137" r="13" fill="#174a35" />
-          <rect x="51" y="136" width="21" height="52" rx="10.5" fill="url(#velatraMascotGreen)" />
+          <rect x="51" y="136" width="21" height="52" rx="10.5" fill={`url(#${svgId}-Green)`} />
           <rect x="52.5" y="166" width="18" height="20" rx="9" fill="#f6f4ec" />
           <circle cx="61.5" cy="188" r="11" fill="#174a35" />
           {waving && (
@@ -150,16 +154,16 @@ export const VelatraMascot: React.FC<VelatraMascotProps> = ({
           style={{ transformOrigin: '152px 137px' }}
         >
           <circle cx="152" cy="137" r="13" fill="#174a35" />
-          <rect x="148" y="136" width="21" height="52" rx="10.5" fill="url(#velatraMascotGreen)" />
+          <rect x="148" y="136" width="21" height="52" rx="10.5" fill={`url(#${svgId}-Green)`} />
           <rect x="149.5" y="166" width="18" height="20" rx="9" fill="#f6f4ec" />
           <circle cx="158.5" cy="188" r="11" fill="#174a35" />
         </motion.g>
 
         <g>
-          <rect x="65" y="124" width="90" height="89" rx="41" fill="url(#velatraMascotHead)" stroke="#dce3da" strokeWidth="1.5" />
+          <rect x="65" y="124" width="90" height="89" rx="41" fill={`url(#${svgId}-Head)`} stroke="#dce3da" strokeWidth="1.5" />
           <path d="M67 151c8-11 15-17 24-21v80c-12-5-21-17-24-32zM153 151c-8-11-15-17-24-21v80c12-5 21-17 24-32z" fill="#174a35" opacity="0.96" />
           <rect x="95" y="112" width="30" height="22" rx="11" fill="#123d2c" />
-          <image href="/brand/velatra-mark.png" x="99" y="151" width="22" height="22" clipPath="url(#velatraMascotBadgeClip)" preserveAspectRatio="xMidYMid meet" />
+          <image href="/brand/velatra-mark.png" x="99" y="151" width="22" height="22" clipPath={`url(#${svgId}-BadgeClip)`} preserveAspectRatio="xMidYMid meet" />
         </g>
 
         <g>
@@ -174,9 +178,9 @@ export const VelatraMascot: React.FC<VelatraMascotProps> = ({
           transition={{ duration: 0.35 }}
           style={{ transformOrigin: '110px 91px' }}
         >
-          <rect x="45" y="34" width="130" height="108" rx="54" fill="url(#velatraMascotHead)" stroke="#dce3da" strokeWidth="1.5" />
+          <rect x="45" y="34" width="130" height="108" rx="54" fill={`url(#${svgId}-Head)`} stroke="#dce3da" strokeWidth="1.5" />
 
-          <path d="M70 45c9-26 30-33 47-25-4 8-7 14-6 25 12-20 28-26 42-19-2 21-11 35-26 43-19-15-36-20-57-24z" fill="url(#velatraMascotGreen)" />
+          <path d="M70 45c9-26 30-33 47-25-4 8-7 14-6 25 12-20 28-26 42-19-2 21-11 35-26 43-19-15-36-20-57-24z" fill={`url(#${svgId}-Green)`} />
           <path d="M118 24c6 7 8 17 7 28 9-16 17-22 28-25-5 18-13 29-27 38-2-17-4-28-8-41z" fill="#2c7552" opacity="0.72" />
 
           <motion.path

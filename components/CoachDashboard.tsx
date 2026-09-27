@@ -1,3 +1,5 @@
+import { createAutomaticTaskOnce } from './automaticTasks';
+import { localDateKey, createNumericId } from './dataHelpers';
 
 import React, { useState, useEffect } from 'react';
 import { AppState, User, Program, Task } from '../types';
@@ -38,7 +40,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   // 1. Actions Urgentes
   const planRequests = members.filter(u => u.planRequested);
   const unreadMessages = (state.messages || []).filter(m => !m.read && m.to === state.user?.id);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = localDateKey();
   const tasksToday = (state.tasks || []).filter(t => t.status === 'todo' && t.dueDate === todayStr);
 
   // 2. Prochaines Séances
@@ -56,7 +58,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
 
   // 3. Alertes de Rétention
   const membersAtRisk = members.filter(u => {
-    if (!u.lastWorkoutDate) return true;
+    if (!u.lastWorkoutDate) return Boolean(u.createdAt && Date.now() - new Date(u.createdAt).getTime() > 7 * 86400000);
     const last = new Date(u.lastWorkoutDate).getTime();
     const now = new Date().getTime();
     const isInactive = (now - last) > (86400000 * 7); // Plus de 7 jours sans séance
@@ -149,7 +151,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     const now = new Date();
     const currM = now.getMonth();
     const currY = now.getFullYear();
-    const todayStrStr = now.toISOString().split('T')[0];
+    const todayStrStr = localDateKey(now);
 
     // Start of this week (Monday)
     const Monday = new Date(now);
@@ -172,7 +174,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     }).length;
 
     const sToday = clubLogs.filter(l => {
-      return l.date.split('T')[0] === todayStrStr;
+      return localDateKey(new Date(l.date)) === todayStrStr;
     }).length;
 
     const rThisMonth = clubPayments.reduce((acc, p) => {
@@ -212,34 +214,36 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
 
   useEffect(() => {
     // Generate automated tasks for members at risk
-    if (!state.user?.clubId) return;
+    if (!state.user?.clubId || !state.onboardingDataReady) return;
     
     membersAtRisk.forEach(async (member) => {
       const taskExists = (state.tasks || []).some(t => t.relatedMemberId === member.id && t.status === 'todo' && t.title.includes('Relance'));
       if (!taskExists) {
-        const taskId = `auto_${member.id}_${Date.now()}`;
+        const week = new Date();
+        week.setDate(week.getDate() - (week.getDay() + 6) % 7);
+        const taskId = `auto_${state.user.clubId}_${member.id}_${localDateKey(week)}`;
         const newTask: Task = {
           id: taskId,
           clubId: state.user.clubId!,
           title: `Relance : ${member.name}`,
           description: `Ce membre n'a pas fait de séance depuis plus de 7 jours. Un appel ou un message est recommandé.`,
-          dueDate: new Date().toISOString().split('T')[0],
+          dueDate: localDateKey(),
           assignedTo: state.user.id.toString(),
           status: 'todo',
           relatedMemberId: member.id
         };
         try {
-          await setDoc(doc(db, "tasks", taskId), newTask);
+          await createAutomaticTaskOnce(newTask);
         } catch (e) {
           console.error("Error creating automated task", e);
         }
       }
     });
-  }, [membersAtRisk.length, state.tasks.length, state.user?.clubId]);
+  }, [membersAtRisk.map(m => m.id).join(','), state.tasks, state.user?.clubId, state.onboardingDataReady]);
 
   useEffect(() => {
     // Generate automated tasks for upcoming birthdays
-    if (!state.user?.clubId) return;
+    if (!state.user?.clubId || !state.onboardingDataReady) return;
     
     upcomingBirthdays.forEach(async (member) => {
       const today = new Date();
@@ -265,20 +269,20 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
             clubId: state.user.clubId!,
             title: taskTitle,
             description: `C'est l'anniversaire de ${member.name} le ${nextBirthday.toLocaleDateString('fr-FR')}. Pensez à lui souhaiter !`,
-            dueDate: nextBirthday.toISOString().split('T')[0],
+            dueDate: localDateKey(nextBirthday),
             assignedTo: state.user.id.toString(),
             status: 'todo',
             relatedMemberId: member.id
           };
           try {
-            await setDoc(doc(db, "tasks", taskId), newTask);
+            await createAutomaticTaskOnce(newTask);
           } catch (e) {
             console.error("Error creating automated birthday task", e);
           }
         }
       }
     });
-  }, [upcomingBirthdays.length, state.tasks.length, state.user?.clubId]);
+  }, [upcomingBirthdays.map(m => m.id).join(','), state.tasks, state.user?.clubId, state.onboardingDataReady]);
 
   const handleLaunchCoaching = (member: User) => {
     const program = (state.programs || []).find(p => p.memberId === Number(member.id) && !p.isPlannedSession);
@@ -346,7 +350,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
       const d = new Date();
       d.setDate(now.getDate() - i);
       const dateStr = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' });
-      const dayKey = d.toISOString().split('T')[0];
+      const dayKey = localDateKey(d);
       
       const count = (state.logs || []).filter(l => {
         if (l.clubId !== state.user?.clubId) return false;

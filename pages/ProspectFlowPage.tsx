@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Prospect, ProspectNote, User } from '../types';
-import { createMemberProfile, db, doc, updateDoc, setDoc, deleteDoc, secondaryAuth, createUserWithEmailAndPassword, sendPasswordResetEmail } from '../firebase';
+import { createMemberAccount, db, doc, updateDoc, setDoc, deleteDoc, auth, sendPasswordResetEmail } from '../firebase';
 import { Plus, Search, Trash2, Mail, Phone, Clock, CheckCircle, XCircle, UserPlus, Users, X, Calendar, AlertCircle, MessageSquare } from 'lucide-react';
 import { format, isToday, isPast, isSameDay, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -28,6 +28,11 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   
   // Modals state
   const [isAdding, setIsAdding] = useState(false);
+  React.useEffect(() => {
+    if (state.pendingUiAction !== 'add-prospect') return;
+    setIsAdding(true);
+    setState((previous: AppState) => ({ ...previous, pendingUiAction: undefined }));
+  }, [state.pendingUiAction]);
   const [newProspect, setNewProspect] = useState({ name: '', email: '', phone: '', status: 'lead', notes: '' });
   
   const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
@@ -185,15 +190,13 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
 
     showToast("Création du membre...", "info");
     try {
-      const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8).toUpperCase() + "1!";
-      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, convertData.email, randomPassword);
-      const firebaseUid = userCredential.user.uid;
+      const randomPassword = crypto.randomUUID() + "aA1!";
 
       const newUser: User = {
-        id: Date.now(),
+        id: 0,
         clubId: state.user!.clubId,
         code: "",
-        pwd: randomPassword, // purely for legacy display if needed
+        pwd: '',
         name: convertingProspect.name || 'Sans nom',
         email: convertData.email,
         phone: convertingProspect.phone || '',
@@ -209,12 +212,12 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
         xp: 0,
         streak: 0,
         pointsFidelite: 0,
-        firebaseUid: firebaseUid
+        firebaseUid: ''
       };
       
-      await createMemberProfile(firebaseUid, newUser as unknown as Record<string, unknown>);
+      const created = await createMemberAccount(newUser as unknown as Record<string, unknown>, randomPassword);
       await updateDoc(doc(db, "prospects", convertingProspect.firebaseUid), { status: 'won' });
-      await sendPasswordResetEmail(secondaryAuth, convertData.email);
+      await sendPasswordResetEmail(auth, convertData.email);
       
       setConvertingProspect(null);
       if (selectedProspect?.id === convertingProspect.id) setSelectedProspect(null);

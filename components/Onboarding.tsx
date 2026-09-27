@@ -21,10 +21,10 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
   const [injuries, setInjuries] = useState(user.injuries || '');
 
   const [profile, setProfile] = useState({
-    age: user.age === 30 ? '' : user.age?.toString() || '', // Coach default is often 30, leave blank if possible or keep
+    age: user.age?.toString() || '',
     gender: user.gender || 'M',
-    weight: user.weight === 70 ? '' : user.weight?.toString() || '',
-    height: user.height === 175 ? '' : user.height?.toString() || '',
+    weight: user.weight?.toString() || '',
+    height: user.height?.toString() || '',
     phone: user.phone || ''
   });
 
@@ -41,12 +41,20 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
   const totalSteps = 4;
 
   const handleNext = () => {
+    setError(null);
+    if (step === 1 && (!Number.isInteger(Number(profile.age)) || Number(profile.age) < 13 || Number(profile.age) > 110 || Number(profile.weight) < 20 || Number(profile.weight) > 500 || Number(profile.height) < 80 || Number(profile.height) > 260)) {
+      setError('Vérifiez votre âge (13–110 ans), votre poids (20–500 kg) et votre taille (80–260 cm).'); return;
+    }
+    if (step === 3 && (!Number.isInteger(training.trainingDays) || training.trainingDays < 1 || training.trainingDays > 7 || training.sessionDuration < 15 || training.sessionDuration > 240)) {
+      setError('Choisissez 1 à 7 séances par semaine et une durée de 15 à 240 minutes.'); return;
+    }
     if (step < totalSteps) {
       setStep(step + 1);
     }
   };
 
   const handlePrev = () => {
+    setError(null);
     if (step > 1) setStep(step - 1);
   };
 
@@ -59,8 +67,11 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
   };
 
   const finishOnboarding = async () => {
+    if (isProcessing) return;
+    setError(null);
     setIsProcessing(true);
     try {
+      if (!user.firebaseUid) throw new Error('Missing profile');
       if (user.firebaseUid) {
         await updateDoc(doc(db, "users", user.firebaseUid), {
           age: Number(profile.age) || 25,
@@ -75,14 +86,13 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
           objectifs: objectives,
           blessures: injuries,
           injuries: injuries, // sync both fields for consistency
-          onboardingCompleted: true,
-          paymentStatus: 'active'
+          onboardingCompleted: true
         });
       }
       onComplete();
     } catch (err) {
       console.error("Error saving onboarding data:", err);
-      setError("Erreur lors de l'enregistrement.");
+      setError("Votre profil n’a pas pu être enregistré. Vérifiez votre connexion puis réessayez.");
     } finally {
       setIsProcessing(false);
     }
@@ -108,14 +118,14 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
                 <label className="block text-sm font-bold text-zinc-700 mb-1">Sexe</label>
                 <div className="flex gap-2">
                   <Button 
-                    variant={profile.gender === 'M' ? 'primary' : 'secondary'} 
+                    aria-pressed={profile.gender === 'M'} variant={profile.gender === 'M' ? 'primary' : 'secondary'}
                     onClick={() => setProfile({...profile, gender: 'M'})} 
                     className="flex-1"
                   >
                     Homme
                   </Button>
                   <Button 
-                    variant={profile.gender === 'F' ? 'primary' : 'secondary'} 
+                    aria-pressed={profile.gender === 'F'} variant={profile.gender === 'F' ? 'primary' : 'secondary'}
                     onClick={() => setProfile({...profile, gender: 'F'})} 
                     className="flex-1"
                   >
@@ -124,20 +134,20 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Âge</label>
-                <Input type="number" placeholder="Ex: 28" value={profile.age} onChange={(e) => setProfile({...profile, age: e.target.value})} />
+                <label htmlFor="onboarding-age" className="block text-sm font-bold text-zinc-700 mb-1">Âge</label>
+                <Input type="number" placeholder="Ex: 28" id="onboarding-age" value={profile.age} onChange={(e) => setProfile({...profile, age: e.target.value})} />
               </div>
               <div>
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Poids (kg)</label>
-                <Input type="number" placeholder="Ex: 75" value={profile.weight} onChange={(e) => setProfile({...profile, weight: e.target.value})} />
+                <label htmlFor="onboarding-weight" className="block text-sm font-bold text-zinc-700 mb-1">Poids (kg)</label>
+                <Input type="number" placeholder="Ex: 75" id="onboarding-weight" value={profile.weight} onChange={(e) => setProfile({...profile, weight: e.target.value})} />
               </div>
               <div>
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Taille (cm)</label>
-                <Input type="number" placeholder="Ex: 180" value={profile.height} onChange={(e) => setProfile({...profile, height: e.target.value})} />
+                <label htmlFor="onboarding-height" className="block text-sm font-bold text-zinc-700 mb-1">Taille (cm)</label>
+                <Input type="number" placeholder="Ex: 180" id="onboarding-height" value={profile.height} onChange={(e) => setProfile({...profile, height: e.target.value})} />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Téléphone</label>
-                <Input type="tel" placeholder="Votre numéro de téléphone" value={profile.phone} onChange={(e) => setProfile({...profile, phone: e.target.value})} />
+                <label htmlFor="onboarding-phone" className="block text-sm font-bold text-zinc-700 mb-1">Téléphone</label>
+                <Input type="tel" placeholder="Votre numéro de téléphone" id="onboarding-phone" value={profile.phone} onChange={(e) => setProfile({...profile, phone: e.target.value})} />
               </div>
             </div>
           </motion.div>
@@ -158,11 +168,11 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {GOALS.map(obj => (
                 <button
-                  key={obj}
+                  key={obj} aria-pressed={objectives.includes(obj)}
                   onClick={() => handleObjectiveToggle(obj)}
                   className={`p-4 rounded-2xl border-2 transition-all text-left ${
                     objectives.includes(obj) 
-                      ? 'border-emerald-500 bg-emerald-500/5 text-emerald-500' 
+                      ? 'border-emerald-500 bg-emerald-500/5 text-emerald-900'
                       : 'border-zinc-200 hover:border-zinc-300 text-zinc-500 bg-white'
                   }`}
                 >
@@ -191,9 +201,9 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Niveau d'expérience</label>
+                <label htmlFor="onboarding-experienceLevel" className="block text-sm font-bold text-zinc-700 mb-1">Niveau d'expérience</label>
                 <select 
-                  value={training.experienceLevel}
+                  id="onboarding-experienceLevel" value={training.experienceLevel}
                   onChange={(e) => setTraining({...training, experienceLevel: e.target.value as any})}
                   className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
                 >
@@ -205,19 +215,19 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-zinc-700 mb-1">Séances / Semaine</label>
-                  <Input type="number" min="1" max="7" value={training.trainingDays} onChange={(e) => setTraining({...training, trainingDays: Number(e.target.value)})} />
+                  <label htmlFor="onboarding-trainingDays" className="block text-sm font-bold text-zinc-700 mb-1">Séances / Semaine</label>
+                  <Input type="number" min="1" max="7" id="onboarding-trainingDays" value={training.trainingDays} onChange={(e) => setTraining({...training, trainingDays: Number(e.target.value)})} />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-zinc-700 mb-1">Durée (min)</label>
-                  <Input type="number" min="15" max="180" step="15" value={training.sessionDuration} onChange={(e) => setTraining({...training, sessionDuration: Number(e.target.value)})} />
+                  <label htmlFor="onboarding-sessionDuration" className="block text-sm font-bold text-zinc-700 mb-1">Durée (min)</label>
+                  <Input type="number" min="15" max="180" step="15" id="onboarding-sessionDuration" value={training.sessionDuration} onChange={(e) => setTraining({...training, sessionDuration: Number(e.target.value)})} />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-zinc-700 mb-1">Équipement à disposition</label>
+                <label htmlFor="onboarding-equipment" className="block text-sm font-bold text-zinc-700 mb-1">Équipement à disposition</label>
                 <select 
-                  value={training.equipment}
+                  id="onboarding-equipment" value={training.equipment}
                   onChange={(e) => setTraining({...training, equipment: e.target.value as any})}
                   className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
                 >
@@ -243,7 +253,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
               <h2 className="text-3xl font-display font-bold text-zinc-900 mb-2">Santé & Antécédents</h2>
               <p className="text-zinc-500">Avez-vous des blessures ou des contraintes médicales dont votre coach doit avoir connaissance ?</p>
             </div>
-            <textarea
+            <textarea aria-label="Blessures ou contraintes à signaler au coach" maxLength={1000}
               value={injuries}
               onChange={(e) => setInjuries(e.target.value)}
               placeholder="Ex: Douleur à l'épaule droite, entorse cheville il y a 2 ans..."
@@ -269,13 +279,14 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center p-6 mt-8">
-        <div className="w-full max-w-2xl bg-zinc-50 border border-zinc-200 rounded-[40px] shadow-xl p-8 md:p-12 relative overflow-hidden">
+        <div className="w-full max-w-2xl bg-zinc-50 border border-zinc-200 rounded-[40px] shadow-xl p-5 sm:p-8 md:p-12 relative overflow-hidden">
           
           <AnimatePresence mode="wait">
             {renderStep()}
           </AnimatePresence>
 
-          <div className="mt-12 flex items-center justify-between pt-6 border-t border-zinc-200">
+          {error && <p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-6 border-t border-zinc-200">
             {step > 1 ? (
               <Button variant="secondary" onClick={handlePrev} disabled={isProcessing}>
                 <ArrowLeftIcon size={20} className="mr-2" /> Retour

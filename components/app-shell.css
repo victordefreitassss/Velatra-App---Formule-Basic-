@@ -1,4 +1,4 @@
-.velatra-app-shell {
+:root, .velatra-app-shell {
   --app-bg: #f7f8f2;
   --app-surface: #fff;
   --app-surface-muted: #f1f4ec;
@@ -30,6 +30,9 @@
   --app-space-8: 32px;
   --app-motion-fast: 160ms;
   --app-motion: 260ms;
+}
+
+.velatra-app-shell {
   min-height: 100dvh;
   color: var(--app-text);
   background:
