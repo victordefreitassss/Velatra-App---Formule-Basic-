@@ -22,6 +22,10 @@ export const logTimestamp = (log: SessionLog) => new Date(log.completedAt || log
 export const memberLogs = (logs: SessionLog[], user: Pick<User, 'id' | 'clubId'>) => logs.filter(l => l.clubId === user.clubId && Number(l.memberId) === Number(user.id)).sort((a, b) => logTimestamp(b) - logTimestamp(a));
 export const latestExerciseLog = (logs: SessionLog[], user: User, exId: number) => memberLogs(logs, user).find(log => log.exercises?.some(ex => ex.exId === exId));
 export const isTimedExercise = (exercise: Exercise | undefined, entry: ExerciseEntry) => /gainage|planche|chaise/i.test(exercise?.name || '') || /^\s*\d+(?:[.,]\d+)?\s*(s|sec|secondes?)\s*$/i.test(entry.reps);
+export const isBodyweightExercise = (exercise: Exercise | undefined) => /^poids du corps$/i.test(exercise?.equip?.trim() || '');
+export const remainingRest = (until: number | null, now: number) => until ? Math.max(0, Math.ceil((until - now) / 1000)) : 0;
+export const extendRest = (until: number | null, now: number) => Math.max(until || now, now) + 30000;
+export const displayNumber = (value: string | number) => String(value).replace('.', ',');
 export function executionSteps(day: Day): WorkoutStep[] {
   const steps: WorkoutStep[] = [];
   for (let index = 0; index < day.exercises.length;) {
@@ -64,7 +68,7 @@ export function validSet(values: SetValues, cardio: boolean): boolean {
   return /^\d+(?:\.\d+)?$/.test(weight) && Number(weight) <= 2000 && /^\d+$/.test(reps) && Number(reps) > 0 && Number(reps) <= 10000;
 }
 export const emptySet = (): SetValues => ({ weight: '', reps: '', duration: '' });
-export function createWorkoutDraft(program: Program, user: User, logs: SessionLog[], exercises: Exercise[], now = Date.now(), requestId = crypto.randomUUID()): WorkoutDraft {
+export function createWorkoutDraft(program: Program, user: User, logs: SessionLog[], exercises: Exercise[], now = Date.now(), requestId: string = crypto.randomUUID()): WorkoutDraft {
   const values: Record<string, SetValues> = {};
   const day = workoutDay(program);
   executionSteps(day).forEach(step => {
@@ -74,7 +78,7 @@ export function createWorkoutDraft(program: Program, user: User, logs: SessionLo
     const target = String(entry.reps || '').split(',')[step.set] || String(entry.reps || '').split(',').at(-1) || '';
     // Only actual measurements or a single numeric prescription are proposed; a range is never a result.
     values[stepKey(step)] = {
-      weight: previous?.weight || '',
+      weight: previous?.weight || (isBodyweightExercise(exercise) ? '0' : ''),
       reps: previous?.reps || (/^\d+\s*(?:s|sec)?$/.test(target.trim()) ? String(parseInt(target, 10)) : ''),
       duration: previous?.duration || (exercise?.cat === 'Cardio' ? entry.duration || '' : ''),
     };
@@ -124,4 +128,50 @@ export function completionPayload(draft: WorkoutDraft, user: User, exercises: Ex
   return { requestId: draft.requestId, programId: draft.program.id, dayIndex: draft.program.currentDayIndex, advanceProgram: true,
     log: { memberId: Number(user.id), exercises: performed, duration: Math.min(86400, Math.max(0, Math.round((now - draft.startedAt) / 1000))) }, performances };
 }
-export const formatSet = (values: SetValues) => values.duration || `${values.weight || '—'} kg × ${values.reps || '—'}`;
+export const formatSet = (values: SetValues, bodyweight = false, timed = false) => {
+  const load = values.weight === '' ? '—' : displayNumber(values.weight);
+  const measure = values.duration || `${displayNumber(values.reps || '—')}${timed ? ' s' : ' reps'}`;
+  if (values.duration && !timed) return displayNumber(values.duration);
+  if (bodyweight && Number(values.weight.replace(',', '.')) === 0) return `Poids du corps · ${measure}`;
+  return `${bodyweight ? '+' : ''}${load} kg · ${measure}`;
+};
+
+// Propose the just-performed set only where the next set still matches its initial
+// suggestion. Keep manual changes, confirmed sets, dropsets and differing targets.
+export function prepareFollowingSet(draft: WorkoutDraft, baseline: Record<string, SetValues>): Record<string, SetValues> {
+  const day = workoutDay(draft.program), steps = executionSteps(day), current = steps[draft.cursor];
+  const entry = day.exercises[current.exercise], key = stepKey(current), next = { exercise: current.exercise, set: current.set + 1 };
+  const nextKey = stepKey(next);
+  if (next.set >= setCount(entry) || entry.setType === 'dropset' || draft.confirmed.includes(nextKey)) return draft.values;
+  const actual = draft.values[key], target = draft.values[nextKey], original = baseline[nextKey];
+  if (!actual || !target || !original) return draft.values;
+  const prescriptions = entry.reps.split(',').map(value => value.trim());
+  const sameRepsTarget = prescriptions.length < 2 || prescriptions[current.set] === prescriptions[next.set];
+  const copied = { ...target };
+  for (const field of ['weight', 'reps', 'duration'] as const) {
+    if (field === 'reps' && !sameRepsTarget) continue;
+    if (target[field] === original[field]) copied[field] = actual[field];
+  }
+  return { ...draft.values, [nextKey]: copied };
+}
+
+export function updateSetValue(draft: WorkoutDraft, key: string, field: keyof SetValues, value: string): WorkoutDraft {
+  if (draft.values[key]?.[field] === value) return draft;
+  return { ...draft, values: { ...draft.values, [key]: { ...draft.values[key], [field]: value } }, confirmed: draft.confirmed.filter(item => item !== key) };
+}
+
+export function comparableLoadGain(current: SetValues[], prior: SetValues[] | undefined, timed: boolean, cardio: boolean): number | null {
+  if (timed || cardio || !prior?.length || !current.length || [...current, ...prior].some(set => set.duration || !validSet(set, false))) return null;
+  const best = (sets: SetValues[]) => [...sets].sort((a, b) => Number(numberText(b.weight)) - Number(numberText(a.weight)) || Number(b.reps) - Number(a.reps))[0];
+  const before = best(prior), after = best(current);
+  if (Number(before.reps) !== Number(after.reps)) return null;
+  const gain = Number(numberText(after.weight)) - Number(numberText(before.weight));
+  return gain > 0 ? Number(gain.toFixed(2)) : null;
+}
+
+// Cardio values may mix time and distance: a dated reference is not a maximum.
+export function performanceReference(current: Performance, previous: Performance | undefined, exercise: Exercise | undefined): Performance {
+  if (!previous) return current;
+  if (exercise?.cat === 'Cardio') return current.date > previous.date ? current : previous;
+  return Number(current.weight) > Number(previous.weight) || Number(current.weight) === Number(previous.weight) && Number(current.reps) > Number(previous.reps) ? current : previous;
+}

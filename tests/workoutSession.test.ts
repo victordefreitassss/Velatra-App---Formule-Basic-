@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { Exercise, ExerciseEntry, Program, SessionLog, User } from '../types';
-import { completionPayload, createWorkoutDraft, draftKey, draftOwner, executionSteps, latestExerciseLog, matchesCurrentProgram, readWorkoutDraft, restAfter, restSeconds, validSet, writeWorkoutDraft } from '../components/workoutSession.ts';
+import type { Exercise, ExerciseEntry, Program, SessionLog, User, Performance } from '../types';
+import { completionPayload, createWorkoutDraft, draftKey, draftOwner, executionSteps, latestExerciseLog, matchesCurrentProgram, readWorkoutDraft, restAfter, restSeconds, validSet, writeWorkoutDraft, isBodyweightExercise, prepareFollowingSet, updateSetValue, remainingRest, extendRest, comparableLoadGain, formatSet, performanceReference } from '../components/workoutSession.ts';
 const user = { id: 7, firebaseUid: 'member-a', clubId: 'club-a' } as User;
 const exercise = { id: 1, name: 'Squat', cat: 'Jambes', perfId: 'squat' } as Exercise;
 const entry = (extra: Partial<ExerciseEntry> = {}): ExerciseEntry => ({ exId: 1, sets: 3, reps: '8-12', rest: '90', tempo: '', duration: '', notes: '', setGroup: null, setType: 'normal', setName: null, ...extra });
@@ -116,4 +116,79 @@ test('malformed local series and out-of-range cursor cannot crash recovery', () 
  for(const broken of [{...draft,cursor:99},{...draft,values:{'0:0':{weight:7,reps:'1',duration:''}}},{...draft,confirmed:['other']}]) {
  storage.setItem(draftKey(draft.owner),JSON.stringify(broken)); assert.equal(readWorkoutDraft(user,storage),null);
  }
+});
+
+
+test('bodyweight equipment proposes zero while a barbell still requires a load, and legacy drafts stay valid', () => {
+  const body = { ...exercise, equip: 'Poids du corps' };
+  assert.equal(isBodyweightExercise(body), true);
+  assert.equal(isBodyweightExercise({ ...body, equip: 'Barre' }), false);
+  assert.equal(createWorkoutDraft(program(),user,[],[body],1000,id).values['0:0'].weight,'0');
+  assert.equal(createWorkoutDraft(program(),user,[],[exercise],1000,id).values['0:0'].weight,'');
+  assert.match(formatSet({weight:'0',reps:'10',duration:''},true),/Poids du corps/);
+  assert.match(formatSet({weight:'7.5',reps:'10',duration:''},true),/\+7,5 kg/);
+});
+
+test('following series copies actual values without validating, while historical reference remains unchanged', () => {
+  const history=[log('2026-09-27T09:00:00Z','77.5')];
+  const draft=createWorkoutDraft(program(),user,history,[exercise],1000,id);
+  const baseline=structuredClone(draft.values);
+  draft.values['0:0']={weight:'80',reps:'9',duration:''};
+  const proposed=prepareFollowingSet(draft,baseline);
+  assert.deepEqual(proposed['0:1'],draft.values['0:0']);
+  assert.deepEqual(draft.confirmed,[]);
+  assert.equal(history[0].exercises?.[0].sets[0].weight,'77.5');
+  const storage=store();writeWorkoutDraft({...draft,values:proposed,cursor:1,confirmed:['0:0']},storage);
+  assert.equal(readWorkoutDraft(user,storage)?.values['0:1'].weight,'80');
+});
+
+test('following series preserves manual future values, confirmed sets, dropsets and differing repetition targets', () => {
+  const draft=createWorkoutDraft(program(),user,[],[exercise],1000,id), baseline=structuredClone(draft.values);
+  draft.values['0:0']={weight:'80',reps:'10',duration:''};draft.values['0:1']={weight:'60',reps:'12',duration:''};
+  assert.equal(prepareFollowingSet(draft,baseline)['0:1'].weight,'60');
+  assert.equal(prepareFollowingSet({...draft,confirmed:['0:1']},baseline),draft.values);
+  const drops=createWorkoutDraft(program([entry({setType:'dropset'})]),user,[],[exercise],1000,id);
+  assert.equal(prepareFollowingSet(drops,drops.values),drops.values);
+  const pyramid=createWorkoutDraft(program([entry({reps:'10,8,6'})]),user,[],[exercise],1000,id), initial=structuredClone(pyramid.values);
+  pyramid.values['0:0']={weight:'30',reps:'11',duration:''};
+  assert.equal(prepareFollowingSet(pyramid,initial)['0:1'].reps,'8');
+});
+
+test('superset prepares the next round of the same exercise without changing the other exercise', () => {
+  const draft=createWorkoutDraft(program([entry({sets:2,setGroup:1,setType:'superset'}),entry({exId:2,sets:2,setGroup:1,setType:'superset'})]),user,[],[exercise],1000,id);
+  const baseline=structuredClone(draft.values);draft.values['0:0']={weight:'20',reps:'9',duration:''};
+  const proposed=prepareFollowingSet(draft,baseline);
+  assert.equal(proposed['0:1'].weight,'20');assert.deepEqual(proposed['1:0'],baseline['1:0']);
+});
+
+test('only an actual edit invalidates its series; reading it and unchanged input retain confirmation', () => {
+  const draft=createWorkoutDraft(program(),user,[],[exercise],1000,id);draft.values['0:0']={weight:'80',reps:'10',duration:''};draft.confirmed=['0:0','0:1'];
+  assert.equal(updateSetValue(draft,'0:0','reps','10'),draft);
+  const edited=updateSetValue(draft,'0:0','reps','8');
+  assert.deepEqual(edited.confirmed,['0:1']);assert.equal(edited.values['0:0'].reps,'8');
+  assert.deepEqual(draft.confirmed,['0:0','0:1']);
+});
+
+test('rest deadline survives a suspended clock and extension adds thirty real seconds', () => {
+  assert.equal(remainingRest(91000,1000),90);assert.equal(remainingRest(91000,46000),45);
+  assert.equal(remainingRest(91000,100000),0);
+  assert.equal(extendRest(91000,46000),121000);assert.equal(extendRest(91000,100000),130000);
+});
+
+test('load comparison rejects incomplete, timed, cardio and different-repetition references', () => {
+  const set=(weight:string,reps='10',duration='')=>({weight,reps,duration});
+  assert.equal(comparableLoadGain([set('82,5')],[set('80')],false,false),2.5);
+  for(const prior of [undefined,[set('')],[set('80','8')],[set('80','10','30 s')]]) assert.equal(comparableLoadGain([set('85')],prior,false,false),null);
+  assert.equal(comparableLoadGain([set('85')],[set('80')],true,false),null);
+  assert.equal(comparableLoadGain([set('85')],[set('80')],false,true),null);
+  assert.equal(comparableLoadGain([set('75')],[set('80')],false,false),null);
+});
+
+
+test('cardio reference uses the date, never compares meters to minutes; equal strength loads retain more reps', () => {
+ const previous={exId:'row',date:'2026-09-26',weight:0,reps:0,duration:'500 m'} as Performance;
+ const current={...previous,date:'2026-09-27',duration:'2 min'};
+ assert.equal(performanceReference(current,previous,{...exercise,cat:'Cardio'}),current);
+ assert.equal(performanceReference({...previous,date:'2026-09-25'},current,{...exercise,cat:'Cardio'}),current);
+ assert.equal(performanceReference({...current,weight:20,reps:10},{...previous,weight:20,reps:8},exercise).reps,10);
 });

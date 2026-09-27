@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { motion } from 'framer-motion';
 import { MemberTrainingProgress } from '../components/MemberTrainingProgress';
+import { displayNumber, isBodyweightExercise, performanceReference } from '../components/workoutSession';
 
 const containerVariants: import('framer-motion').Variants = {
   hidden: { opacity: 0 },
@@ -48,7 +49,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
       }
     });
     
-    const colors = ['#6366f1', '#10b981', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'];
+    const colors = ['#234432', '#4b6b54', '#78875b', '#426f70', '#706951', '#485564'];
     return Object.entries(counts).map(([name, value], index) => ({
       name,
       value,
@@ -56,35 +57,10 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
     }));
   }, [myPerfs, state.exercises]);
 
-  const parseDuration = (dur: string | undefined): number => {
-    if (!dur) return 0;
-    const lower = dur.toLowerCase();
-    let totalMins = 0;
-    const hMatch = lower.match(/(\d+)\s*(h|heure)/);
-    if (hMatch) totalMins += parseInt(hMatch[1]) * 60;
-    const mMatch = lower.match(/(\d+)\s*(m|min|minute)/);
-    if (mMatch) totalMins += parseInt(mMatch[1]);
-    if (!hMatch && !mMatch) {
-      const num = parseInt(lower);
-      if (!isNaN(num)) totalMins += num;
-    }
-    return totalMins;
-  };
-
   // Grouper par exercice pour avoir le record max
   const bests = myPerfs.reduce((acc: any, curr) => {
     const ex = state.exercises.find(e => e.perfId === curr.exId);
-    if (ex?.cat === 'Cardio') {
-      const currDur = parseDuration(curr.duration);
-      const accDur = acc[curr.exId] ? parseDuration(acc[curr.exId].duration) : -1;
-      if (currDur > accDur) {
-        acc[curr.exId] = curr;
-      }
-    } else {
-      if (!acc[curr.exId] || acc[curr.exId].weight < curr.weight) {
-        acc[curr.exId] = curr;
-      }
-    }
+    acc[curr.exId] = performanceReference(curr, acc[curr.exId], ex);
     return acc;
   }, {});
 
@@ -117,7 +93,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
     const rmData: any[] = [];
     Object.values(bests).forEach((p: any) => {
       const ex = state.exercises.find(e => e.perfId === p.exId);
-      if (ex && ex.cat !== 'Cardio' && p.weight && p.reps) {
+      if (ex && ex.cat !== 'Cardio' && !isBodyweightExercise(ex) && p.weight && p.reps) {
         const repsNum = parseInt(p.reps);
         if (!isNaN(repsNum)) {
           rmData.push({
@@ -134,12 +110,12 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-zinc-100 border border-zinc-200 p-4 rounded-2xl backdrop-blur-xl shadow-2xl">
-          <p className="text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2">{label}</p>
+        <div className="bg-zinc-100 border border-zinc-200 p-4 rounded-2xl backdrop-blur-xl shadow-sm">
+          <p className="text-xs font-semibold text-zinc-900   mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex items-center justify-between gap-4">
-              <span className="text-xs font-black uppercase text-zinc-500" style={{ color: entry.color }}>{entry.name}</span>
-              <span className="text-sm font-black text-zinc-900">{entry.value}{entry.name === 'Poids' || entry.name === 'Muscle' ? 'kg' : '%'}</span>
+              <span className="text-xs font-semibold  text-zinc-500" style={{ color: entry.color }}>{entry.name}</span>
+              <span className="text-sm font-semibold text-zinc-900">{entry.value}{entry.name === 'Poids' || entry.name === 'Muscle' ? 'kg' : '%'}</span>
             </div>
           ))}
         </div>
@@ -158,7 +134,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
       <motion.div variants={itemVariants} className="flex justify-between items-center px-1">
         <div>
           <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Ma progression</h1>
-          <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">Vos séances, vos repères et votre évolution</p>
+          <p className="text-xs text-zinc-900 font-bold   mt-2">Vos séances, vos repères et votre évolution</p>
         </div>
       </motion.div>
 
@@ -166,32 +142,32 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
       <details className="rounded-3xl border border-zinc-200 bg-white p-5"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-zinc-900">Mesures corporelles, graphiques et records</summary><div className="mt-5 space-y-8">
       {/* Weight Chart */}
       <motion.div variants={itemVariants}>
-        <Card className="bg-white backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-xl">
+        <Card className="bg-white backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-sm">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full -mr-32 -mt-32 blur-3xl" />
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 shadow-inner">
+              <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-800 shadow-inner">
                 <BarChartIcon size={24} />
               </div>
               <div>
-                <h2 className="text-xl font-black text-zinc-900 uppercase italic leading-none">Évolution Corporelle</h2>
-                <p className="text-[10px] text-zinc-900 font-black uppercase tracking-widest mt-1">Données issues des scans club</p>
+                <h2 className="text-xl font-semibold text-zinc-900  leading-none">Évolution Corporelle</h2>
+                <p className="text-xs text-zinc-900 font-semibold   mt-1">Données issues des scans club</p>
               </div>
             </div>
             
             <div className="flex gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-[9px] font-black uppercase text-zinc-900 tracking-widest">Poids</span>
+                <span className="text-xs font-semibold  text-zinc-900 ">Poids</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                <span className="text-[9px] font-black uppercase text-zinc-900 tracking-widest">Muscle</span>
+                <span className="text-xs font-semibold  text-zinc-900 ">Muscle</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-blue-500" />
-                <span className="text-[9px] font-black uppercase text-zinc-900 tracking-widest">Gras (%)</span>
+                <span className="text-xs font-semibold  text-zinc-900 ">Gras (%)</span>
               </div>
             </div>
           </div>
@@ -273,7 +249,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
 
       {/* Category Distribution Chart */}
       <motion.div variants={itemVariants}>
-        <Card className="bg-white backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-xl">
+        <Card className="bg-white backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-sm">
           <div className="absolute top-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full -ml-32 -mt-32 blur-3xl" />
           
           <div className="flex items-center gap-4 relative z-10">
@@ -281,8 +257,8 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
               <TargetIcon size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-zinc-900 uppercase italic leading-none">Répartition par Catégorie</h2>
-              <p className="text-[10px] text-zinc-900 font-black uppercase tracking-widest mt-1">Vos exercices les plus pratiqués</p>
+              <h2 className="text-xl font-semibold text-zinc-900  leading-none">Répartition par Catégorie</h2>
+              <p className="text-xs text-zinc-900 font-semibold   mt-1">Vos exercices les plus pratiqués</p>
             </div>
           </div>
 
@@ -312,7 +288,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3 px-4 text-center text-zinc-600">
                 <DatabaseIcon size={28} className="text-emerald-800" />
-                <div className="text-[10px] text-zinc-900 uppercase font-black tracking-widest italic">Aucune donnée</div>
+                <div className="text-xs text-zinc-900  font-semibold ">Aucune donnée</div>
               </div>
             )}
           </div>
@@ -321,7 +297,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
 
       {/* 1RM Prediction Chart */}
       <motion.div variants={itemVariants}>
-        <Card className="bg-zinc-50 backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-xl">
+        <Card className="bg-zinc-50 backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-sm">
           <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 rounded-full -mr-32 -mt-32 blur-3xl" />
           
           <div className="flex items-center gap-4 relative z-10">
@@ -329,8 +305,8 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
               <BarChartIcon size={24} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-zinc-900 uppercase italic leading-none">Prédiction 1RM</h2>
-              <p className="text-[10px] text-zinc-900 font-black uppercase tracking-widest mt-1">Estimation de votre force maximale (Brzycki)</p>
+              <h2 className="text-xl font-semibold text-zinc-900  leading-none">Prédiction 1RM</h2>
+              <p className="text-xs text-zinc-900 font-semibold   mt-1">Estimation de votre force maximale (Brzycki)</p>
             </div>
           </div>
 
@@ -353,7 +329,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
             ) : (
               <div className="h-full flex flex-col items-center justify-center gap-3 px-4 text-center text-zinc-600">
                 <DatabaseIcon size={28} className="text-emerald-800" />
-                <div className="text-[10px] text-zinc-900 uppercase font-black tracking-widest italic">Aucune donnée de force</div>
+                <div className="text-xs text-zinc-900  font-semibold ">Aucune donnée de force</div>
               </div>
             )}
           </div>
@@ -361,7 +337,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
       </motion.div>
       
       <motion.div variants={itemVariants}>
-        <Card className="bg-zinc-50 backdrop-blur-xl  !p-8 relative overflow-hidden shadow-lg">
+        <Card className="bg-zinc-50 backdrop-blur-xl  !p-8 relative overflow-hidden shadow-sm">
           <div className="absolute top-0 right-0 w-64 h-64 bg-zinc-50 rounded-full -mr-32 -mt-32 blur-3xl" />
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
@@ -370,8 +346,8 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
                 <TrophyIcon size={24} />
               </div>
               <div>
-                <h2 className="text-xl font-black text-zinc-900 uppercase italic leading-none">Records Personnels</h2>
-                <p className="text-[10px] text-zinc-900 font-black uppercase tracking-widest mt-1">Vos meilleures performances</p>
+                <h2 className="text-xl font-semibold text-zinc-900  leading-none">Repères par exercice</h2>
+                <p className="text-xs text-zinc-900 font-semibold   mt-1">Charges, répétitions et mesures enregistrées</p>
               </div>
             </div>
             <div className="w-full md:w-64 relative">
@@ -392,32 +368,31 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
           <motion.div variants={itemVariants} className="col-span-full">
             <Card className="py-20 text-center bg-zinc-50 backdrop-blur-xl border border-dashed  rounded-[40px] shadow-sm">
               <TrophyIcon size={48} className="mx-auto mb-4 text-zinc-900/10" />
-              <p className="text-zinc-900 italic font-black uppercase tracking-widest text-xs">Aucune performance trouvée.</p>
+              <p className="text-zinc-900 font-semibold   text-xs">Aucune performance trouvée.</p>
             </Card>
           </motion.div>
         ) : (
           Object.entries(groupedRecords).map(([category, records]) => (
             <motion.div variants={containerVariants} key={category} className="mb-12">
               <div className="flex items-center gap-4 mb-6">
-                <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tighter">{category}</h3>
+                <h3 className="text-2xl font-semibold text-zinc-900  tracking-tighter">{category}</h3>
                 <div className="flex-1 h-px bg-zinc-200"></div>
-                <Badge variant="dark" className="!bg-zinc-100 !text-zinc-900 !text-[10px] uppercase font-black tracking-widest">
-                  {records.length} {records.length === 1 ? 'RECORD' : 'RECORDS'}
+                <Badge variant="dark" className="!bg-zinc-100 !text-zinc-900 !text-xs  font-semibold ">
+                  {records.length} {records.length === 1 ? 'repère' : 'repères'}
                 </Badge>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {records.map(({ p, ex }: any) => (
                   <motion.div variants={itemVariants} key={p.exId}>
-                    <Card className="group border-none ring-1 ring-zinc-200 hover:ring-emerald-500/50 transition-all !p-8 bg-white shadow-xl hover:shadow-2xl h-full relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl -mr-16 -mt-16 transition-all group-hover:bg-emerald-500/10"></div>
+                    <Card className="group border-none ring-1 ring-zinc-200 hover:ring-emerald-500/50 transition-all !p-5 sm:!p-8 bg-white shadow-sm hover:shadow-sm h-full relative overflow-hidden">
                       
                       <div className="flex justify-between items-start mb-6 relative z-10">
                         <div>
-                          <div className="text-[10px] text-emerald-500 font-black uppercase tracking-[3px] mb-1 italic">Record {category === 'Cardio' ? 'Cardio' : 'Personnel'}</div>
-                          <div className="font-black text-2xl text-zinc-900 uppercase italic tracking-tighter group-hover:text-emerald-500 transition-colors line-clamp-1" title={ex?.name || p.exId}>{ex?.name || p.exId}</div>
+                          <div className="text-xs text-emerald-800 font-semibold   mb-1">{category === 'Cardio' ? 'Repère cardio' : 'Meilleure charge enregistrée'}</div>
+                          <div className="font-semibold text-2xl text-zinc-900  tracking-tighter group-hover:text-emerald-800 transition-colors break-words" title={ex?.name || p.exId}>{ex?.name || p.exId}</div>
                         </div>
-                        <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-emerald-500 group-hover:bg-emerald-500 group-hover:text-zinc-900 transition-all shadow-sm shrink-0">
+                        <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center text-emerald-800 group-hover:bg-emerald-500 group-hover:text-zinc-900 transition-all shadow-sm shrink-0">
                           <TrophyIcon size={24} />
                         </div>
                       </div>
@@ -425,36 +400,32 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
                       <div className="grid grid-cols-2 gap-2 md:gap-4 relative z-10">
                          {ex?.cat === 'Cardio' ? (
                            <>
-                             <div className="bg-zinc-50 border border-zinc-100 p-4 rounded-2xl text-center group-hover:border-emerald-200 transition-all shadow-sm">
-                                <div className="text-[10px] uppercase text-zinc-500 font-black tracking-widest mb-1 group-hover:text-emerald-600 transition-colors">Durée Max</div>
-                                <div className="font-black text-xl text-zinc-900 italic">{p.duration || 'N/A'}</div>
-                             </div>
-                             <div className="bg-zinc-50 border border-zinc-100 p-4 rounded-2xl text-center group-hover:border-emerald-200 transition-all shadow-sm">
-                                <div className="text-[10px] uppercase text-zinc-500 font-black tracking-widest mb-1 group-hover:text-emerald-600 transition-colors">Calories</div>
-                                <div className="font-black text-xl text-zinc-900 italic">{parseDuration(p.duration) * 10}<span className="text-[10px] ml-0.5 opacity-50">kcal</span></div>
+                             <div className="col-span-2 bg-zinc-50 border border-zinc-100 p-4 rounded-2xl text-center group-hover:border-emerald-200 transition-all shadow-sm">
+                                <div className="text-xs  text-zinc-500 font-semibold  mb-1 group-hover:text-emerald-800 transition-colors">Temps ou distance</div>
+                                <div className="font-semibold text-xl text-zinc-900 break-words">{p.duration || 'Non renseigné'}</div>
                              </div>
                            </>
-                         ) : (
+                         ) : isBodyweightExercise(ex) ? <div className="col-span-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-4 text-center text-zinc-900"><div className="text-sm font-semibold">{Number(p.weight) === 0 ? 'Poids du corps' : `Lest ajouté : ${displayNumber(p.weight)} kg`}</div><p className="mt-1 text-sm">{p.reps} répétitions</p></div> : (
                            <>
                              <div className="bg-zinc-50 border border-zinc-100 p-4 rounded-2xl text-center group-hover:border-emerald-200 transition-all shadow-sm">
-                                <div className="text-[10px] uppercase text-zinc-500 font-black tracking-widest mb-1 group-hover:text-emerald-600 transition-colors">Charge Max</div>
-                                <div className="font-black text-xl text-zinc-900 italic">{p.weight}<span className="text-[10px] ml-0.5 opacity-50">kg</span></div>
-                                <div className="text-[9px] font-bold text-zinc-400 mt-1 uppercase tracking-widest">({p.reps} reps)</div>
+                                <div className="text-xs  text-zinc-500 font-semibold  mb-1 group-hover:text-emerald-800 transition-colors">Charge Max</div>
+                                <div className="font-semibold text-xl text-zinc-900">{displayNumber(p.weight)}<span className="text-xs ml-0.5 opacity-50">kg</span></div>
+                                <div className="text-xs font-bold text-zinc-600 mt-1  ">({p.reps} reps)</div>
                              </div>
                              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl text-center group-hover:bg-emerald-500 group-hover:border-emerald-500 transition-all shadow-sm group">
-                                <div className="text-[10px] uppercase text-emerald-600 font-black tracking-widest mb-1 group-hover:text-emerald-900 transition-colors">1RM Estimé</div>
-                                <div className="font-black text-xl text-emerald-600 italic group-hover:text-zinc-900 transition-colors">
-                                  {p.weight && p.reps ? calculate1RM(parseInt(p.weight), parseInt(p.reps)) : 'N/A'}
-                                  <span className="text-[10px] ml-0.5 opacity-70">kg</span>
+                                <div className="text-xs  text-emerald-800 font-semibold  mb-1 group-hover:text-emerald-900 transition-colors">1RM Estimé</div>
+                                <div className="font-semibold text-xl text-emerald-800 group-hover:text-zinc-900 transition-colors">
+                                  {p.weight && p.reps ? calculate1RM(Number(p.weight), Number(p.reps)) : 'N/A'}
+                                  <span className="text-xs ml-0.5 opacity-70">kg</span>
                                 </div>
-                                <div className="text-[9px] font-bold text-emerald-400 mt-1 uppercase tracking-widest group-hover:text-emerald-900/50 transition-colors">Brzycki</div>
+                                <div className="text-xs font-bold text-emerald-800 mt-1   group-hover:text-emerald-900/50 transition-colors">Brzycki</div>
                              </div>
                            </>
                          )}
                       </div>
                       
                       <div className="mt-6 pt-5 border-t border-zinc-100 flex justify-between items-center relative z-10">
-                        <div className="text-[9px] text-zinc-500 font-black uppercase tracking-widest flex items-center gap-2">
+                        <div className="text-xs text-zinc-500 font-semibold   flex items-center gap-2">
                            Le {new Date(p.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
                         </div>
                       </div>
