@@ -23,7 +23,7 @@ it('loads the compiled API graph and responds over HTTP without TypeScript sourc
       mkdirSync(path.dirname(destination), { recursive: true });
       writeFileSync(destination, compiled);
     }
-    const result = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    const result = spawnSync(process.execPath, ['--no-experimental-require-module', '--input-type=module', '-e', `
       const { default: app } = await import('./api/[...path].js');
       const server = app.listen(0, '127.0.0.1');
       await new Promise(resolve => server.once('listening', resolve));
@@ -39,6 +39,31 @@ it('loads the compiled API graph and responds over HTTP without TypeScript sourc
     assert.equal(result.status, 0, `${result.error?.message || ''}\n${result.stderr}`);
     assert.match(result.stdout, /COMPILED_RUNTIME_HTTP_OK/);
   } finally { rmSync(output, { recursive: true, force: true }); }
+});
+
+it('resolves signing keys and rejects a forged signature without require(ESM)', () => {
+  const result = spawnSync(process.execPath, ['--no-experimental-require-module', '--input-type=module', '-e', `
+    import { createRequire } from 'node:module';
+    import assert from 'node:assert/strict';
+    const require = createRequire(import.meta.url);
+    const adminRequire = createRequire(require.resolve('firebase-admin'));
+    const jwks = adminRequire('jwks-rsa');
+    const jose = await import('jose');
+    const keys = await jose.generateKeyPair('RS256');
+    const jwk = { ...await jose.exportJWK(keys.publicKey), kid: 'local-qa-key', alg: 'RS256', use: 'sig' };
+    const client = jwks({ fetcher: async () => ({ keys: [jwk] }), cache: false });
+    const signingKey = await client.getSigningKey('local-qa-key');
+    const publicKey = await jose.importSPKI(signingKey.getPublicKey(), 'RS256');
+    const token = await new jose.SignJWT({ sub: 'local-qa-user' }).setProtectedHeader({ alg: 'RS256', kid: jwk.kid }).sign(keys.privateKey);
+    assert.equal((await jose.jwtVerify(token, publicKey)).payload.sub, 'local-qa-user');
+    const attacker = await jose.generateKeyPair('RS256');
+    const forged = await new jose.SignJWT({ sub: 'local-qa-user' }).setProtectedHeader({ alg: 'RS256', kid: jwk.kid }).sign(attacker.privateKey);
+    await assert.rejects(jose.jwtVerify(forged, publicKey));
+    await assert.rejects(client.getSigningKey('unknown-key'));
+    console.log('SIGNING_KEY_VERIFICATION_OK');
+  `], { cwd: process.cwd(), encoding: 'utf8', timeout: 15000 });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /SIGNING_KEY_VERIFICATION_OK/);
 });
 
 it('loads the deployed API with native Node and rejects unauthenticated requests before accessing data', () => {
