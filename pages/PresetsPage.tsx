@@ -8,6 +8,7 @@ import { VelatraMascot } from '../components/VelatraMascot';
 import { PlusIcon, LayersIcon, Edit2Icon, Trash2Icon, SearchIcon, CheckIcon, UserIcon, XIcon } from '../components/Icons';
 import { db, doc, setDoc, deleteDoc } from '../firebase';
 import { GOALS } from '../constants';
+import { trackProductEventOnce } from '../components/productEvents';
 
 export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [assigningTo, setAssigningTo] = useState<Preset | null>(null);
@@ -63,6 +64,8 @@ export const PresetsPage: React.FC<{ state: AppState, setState: any, showToast: 
 
     try {
       await setDoc(doc(db, "programs", newProg.id.toString()), newProg);
+      trackProductEventOnce('first_program_created', state.user?.firebaseUid || state.user?.id);
+      trackProductEventOnce('first_program_assigned', state.user?.firebaseUid || state.user?.id);
       showToast(`Programme assigné à ${member.name}`, "success");
       setAssigningTo(null);
     } catch (err) {

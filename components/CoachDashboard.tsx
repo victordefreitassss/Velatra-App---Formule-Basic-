@@ -7,6 +7,8 @@ import { db, doc, deleteDoc, updateDoc, setDoc } from '../firebase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion, useReducedMotion } from 'framer-motion';
 import { countTodayUpcomingSessions } from './appShellHelpers';
+import { CoachOnboardingDashboard } from './CoachOnboardingDashboard';
+import { getCoachDashboardStage, hasAssignedProgram } from './coachOnboardingHelpers';
 
 const containerVariants: any = {
   hidden: { opacity: 0 },
@@ -355,6 +357,22 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     }
     return days;
   }, [state.logs, state.user?.clubId]);
+
+  const hasFirstValue = hasAssignedProgram(members, state.programs || []);
+  const dashboardStage = getCoachDashboardStage({
+    role: state.user?.role || '',
+    memberCount: members.length,
+    onboardingCompleted: state.user?.onboardingCompleted,
+    firstValueReached: hasFirstValue,
+  });
+
+  if ((state.user?.role === 'coach' || state.user?.role === 'owner') && state.onboardingDataReady === false) {
+    return <div className="mx-auto flex min-h-48 w-full max-w-5xl items-center justify-center rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600" role="status">Chargement de votre espace coach…</div>;
+  }
+
+  if (dashboardStage === 'onboarding' || dashboardStage === 'early') {
+    return <CoachOnboardingDashboard state={state} setState={setState} showToast={showToast} />;
+  }
 
   const todayPriorities = [
     { id: 'sessions', page: 'calendar', label: 'Séances à venir', count: todaySessionsCount, icon: CalendarIcon },

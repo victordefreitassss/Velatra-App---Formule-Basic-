@@ -691,6 +691,9 @@ export interface AppState {
   aboutInfo: ClubInfo;
   coaches: CoachInfo[];
   page: Page;
+  /** One-time UI request consumed by its destination page; never persisted to Firebase. */
+  pendingUiAction?: 'add-member';
+  onboardingDataReady?: boolean;
   selectedMember: User | null;
   selectedDay: number;
   editingProg: Program | null;

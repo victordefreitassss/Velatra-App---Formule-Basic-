@@ -5,6 +5,8 @@ import { Card, Button, Input, Badge } from '../components/UI';
 import { TargetIcon, HomeIcon, DumbbellIcon, MessageCircleIcon, Edit2Icon, SaveIcon, XIcon, PlusIcon, Trash2Icon } from '../components/Icons';
 
 import { db, doc, updateDoc } from '../firebase';
+import { isClubProfileComplete } from '../components/coachOnboardingHelpers';
+import { trackProductEventOnce } from '../components/productEvents';
 
 export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state, setState }) => {
   const { aboutInfo, coaches, user } = state;
@@ -32,6 +34,9 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
           aboutInfo: tempInfo,
           coaches: tempCoaches
         }));
+      }
+      if (isClubProfileComplete(state.currentClub, tempInfo)) {
+        trackProductEventOnce('coach_profile_completed', state.user?.firebaseUid || state.user?.id);
       }
       setIsEditing(false);
     } catch (err) {

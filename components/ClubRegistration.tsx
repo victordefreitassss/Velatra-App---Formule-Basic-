@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft, Check, Info, UserRound, Users } from 'lucide-react';
 import { Button, Input } from './UI';
 import { apiFetch, auth, createUserWithEmailAndPassword } from '../firebase';
+import { trackProductEventOnce } from './productEvents';
 
 interface ClubRegistrationProps {
   onSuccess: () => void;
@@ -63,6 +64,7 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'La création de l’espace a échoué.');
+      trackProductEventOnce('coach_signup_completed', auth.currentUser?.uid);
       setCreatedClubId(result.clubId);
     } catch (registrationError: any) {
       console.error('Registration Error:', registrationError);

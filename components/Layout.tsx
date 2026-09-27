@@ -14,6 +14,7 @@ import {
   AppHub, getAllContextItems, getAppHubForPage, getContextItemsForHub,
   getHubLabel, getMobileMoreGroups, getMobileTabForPage, getPrimaryHubsForRole,
 } from './appShellHelpers';
+import { trackProductEventOnce } from './productEvents';
 import './app-shell.css';
 
 interface LayoutProps {
@@ -333,11 +334,20 @@ export const Layout: React.FC<LayoutProps> = ({
     setShowInviteDialog(true);
   };
 
+  React.useEffect(() => {
+    const handleOpenInvite = () => {
+      if (user.role === 'coach' || user.role === 'owner') openInviteDialog();
+    };
+    window.addEventListener('velatra:open-club-invite', handleOpenInvite);
+    return () => window.removeEventListener('velatra:open-club-invite', handleOpenInvite);
+  }, [user.role]);
+
   const copyClubCode = async () => {
     if (!club?.id) return;
     try {
       await navigator.clipboard.writeText(String(club.id));
       setInviteCopyState('copied');
+      trackProductEventOnce('first_member_invited', user.firebaseUid || user.id, { method: 'club_code' });
     } catch {
       setInviteCopyState('error');
     }

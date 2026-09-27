@@ -5,6 +5,7 @@ import { Card, Button, Badge } from '../components/UI';
 import { CalendarIcon, PlusIcon, ClockIcon, UserIcon, CheckIcon, XIcon, TargetIcon, PlayIcon, Trash2Icon } from '../components/Icons';
 import { db, collection, addDoc, updateDoc, doc, deleteDoc, query, where, getDocs } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
+import { trackProductEventOnce } from '../components/productEvents';
 
 const containerVariants: import('framer-motion').Variants = {
   hidden: { opacity: 0 },
@@ -185,6 +186,10 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
       };
 
       await addDoc(collection(db, "bookings"), newBooking);
+      if (newBooking.memberId) {
+        const bookingCoachKey = state.users.find(person => String(person.id) === newBooking.coachId)?.firebaseUid || state.currentClub?.ownerId;
+        trackProductEventOnce('first_session_planned', bookingCoachKey, { source: 'booking' });
+      }
 
       // Create notification for the coach
       if (!isCoach) {
@@ -393,11 +398,23 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
 
             if (slots.length === 0) {
               return (
-                <motion.div variants={itemVariants} className="col-span-full text-center py-12 bg-white rounded-3xl border border-zinc-200 border-dashed">
-                  <div className="w-12 h-12 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-3 text-zinc-500 shadow-sm">
+                <motion.div variants={itemVariants} className="col-span-full rounded-3xl border border-dashed border-zinc-200 bg-white px-5 py-10 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-50 text-zinc-600 shadow-sm">
                     <ClockIcon size={24} />
                   </div>
-                  <p className="text-zinc-500 font-medium">Aucun créneau disponible ce jour</p>
+                  <p className="font-semibold text-zinc-900">{isCoach && state.currentClub?.settings?.booking?.enabled === false ? 'Le planning est désactivé' : 'Aucun créneau disponible ce jour'}</p>
+                  <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-zinc-600">
+                    {isCoach && state.currentClub?.settings?.booking?.enabled === false
+                      ? 'Activez le planning dans les paramètres pour proposer des créneaux à vos adhérents.'
+                      : isCoach
+                        ? 'Configurez vos disponibilités pour permettre aux adhérents de réserver une séance.'
+                        : 'Aucun créneau n’est proposé pour cette date. Essayez un autre jour ou contactez votre coach.'}
+                  </p>
+                  {isCoach && (
+                    <button type="button" onClick={() => setState((previous: AppState) => ({ ...previous, page: 'settings' }))} className="mt-4 min-h-11 rounded-xl bg-emerald-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2">
+                      {state.currentClub?.settings?.booking?.enabled === false ? 'Ouvrir les paramètres' : 'Configurer mes disponibilités'}
+                    </button>
+                  )}
                 </motion.div>
               );
             }

@@ -16,6 +16,8 @@ import {
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MemberNutritionView } from '../components/MemberNutritionView';
+import { getMemberActivationStatus, hasAssignedProgram } from '../components/coachOnboardingHelpers';
+import { requestClubInviteDialog, trackProductEventOnce } from '../components/productEvents';
 
 const itemVariants: any = {
   hidden: { opacity: 0, y: 10 },
@@ -51,6 +53,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       setFilter(state.memberFilter);
     }
   }, [state.memberFilter]);
+
+  useEffect(() => {
+    if (state.pendingUiAction !== 'add-member') return;
+    setIsAddingMember(true);
+    setState((previous: AppState) => ({ ...previous, pendingUiAction: undefined }));
+  }, [state.pendingUiAction, setState]);
 
   useEffect(() => {
     if (state.selectedMember) {
@@ -192,9 +200,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         }
         
         const newUser: User = {
-          id: Date.now() + Math.floor(Math.random() * 1000), // Fake sequential ID for now
+          id: 0, // The authenticated server endpoint allocates the actual member ID.
           clubId: state.user?.clubId || '1',
-          code: Math.random().toString(36).slice(-6).toUpperCase(),
+          code: '',
           pwd: '',
           avatar: '',
           xp: 0,
@@ -235,6 +243,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     setIsImportingClients(false);
     setIsCsvImportModalOpen(false);
     setIsConfirmingImport(false);
+
+    if (successCount > 0) trackProductEventOnce('first_member_created', state.user?.firebaseUid || state.user?.id, { source: 'csv_import' });
     
     if (duplicateCount > 0) {
       showToast(`${successCount} comptes créés. ${duplicateCount} ignorés (email déjà utilisé).`, successCount > 0 ? "success" : "error");
@@ -1548,6 +1558,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       };
 
       await createMemberProfile(firebaseUid, newUser as unknown as Record<string, unknown>);
+      trackProductEventOnce('first_member_created', state.user.firebaseUid || state.user.id, { source: 'member_form' });
       showToast(`Membre créé avec succès !`);
       setIsAddingMember(false);
       setNewMemberData({ name: '', email: '', password: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: '' });
@@ -1903,15 +1914,36 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         {members.length === 0 ? (
           <div className="px-6 py-14 text-center">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-600"><UserIcon size={22} /></div>
-            <p className="font-semibold text-zinc-900">Aucun membre trouvé</p>
-            <p className="mt-1 text-sm text-zinc-600">Modifiez la recherche ou choisissez un autre filtre.</p>
+            {state.users.some(user => user.role === 'member' && user.clubId === state.user?.clubId) ? (
+              <>
+                <p className="font-semibold text-zinc-900">Aucun membre trouvé</p>
+                <p className="mt-1 text-sm text-zinc-600">Modifiez la recherche ou choisissez un autre filtre.</p>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold text-zinc-900">Aucun adhérent pour le moment</p>
+                <p className="mx-auto mt-1 max-w-md text-sm text-zinc-600">Ajoutez votre premier adhérent ou partagez votre code d’accès pour qu’il rejoigne votre espace.</p>
+                <div className="mt-4 flex flex-col justify-center gap-2 sm:flex-row">
+                  <Button variant="primary" onClick={() => setIsAddingMember(true)} className="min-h-11">Ajouter un adhérent</Button>
+                  <Button variant="secondary" onClick={requestClubInviteDialog} className="min-h-11">Inviter avec le code</Button>
+                </div>
+              </>
+            )}
           </div>
         ) : members.map(u => {
           const stats = getMemberStats(u.id);
           const hasFeedback = Boolean(stats.program?.memberRemarks);
           const coach = state.users.find(person => person.firebaseUid === u.assignedCoachUid || String(person.id) === u.assignedCoachUid);
-          const isRecentlyActive = Boolean(u.lastWorkoutDate && (Date.now() - new Date(u.lastWorkoutDate).getTime()) < 30 * 24 * 60 * 60 * 1000);
           const programName = stats.program?.name;
+          const memberLogs = (state.logs || []).filter(log => Number(log.memberId) === Number(u.id));
+          const lastActivityAt = memberLogs.reduce<string | undefined>((latest, log) => !latest || new Date(log.date).getTime() > new Date(latest).getTime() ? log.date : latest, u.lastWorkoutDate);
+          const activationStatus = getMemberActivationStatus(Boolean(stats.program && hasAssignedProgram([u], [stats.program])), lastActivityAt);
+          const activationLabel = {
+            'programme-a-creer': 'Programme à créer',
+            pret: 'Prêt',
+            actif: 'Actif',
+            'a-relancer': 'À relancer',
+          }[activationStatus];
           const lastActivity = u.lastWorkoutDate ? new Date(u.lastWorkoutDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : null;
           return (
             <motion.button
@@ -1931,9 +1963,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 </span>
               </span>
               <span className="col-start-2 row-start-1 flex items-center justify-end gap-2 lg:col-auto lg:row-auto">
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${u.status === 'paused' ? 'bg-zinc-100 text-zinc-700' : isRecentlyActive ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${u.status === 'paused' ? 'bg-zinc-500' : isRecentlyActive ? 'bg-emerald-700' : 'bg-amber-600'}`} />
-                  {u.status === 'paused' ? 'En pause' : isRecentlyActive ? 'Actif' : 'À suivre'}
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${u.status === 'paused' ? 'bg-zinc-100 text-zinc-700' : activationStatus === 'actif' ? 'bg-emerald-50 text-emerald-800' : activationStatus === 'pret' ? 'bg-blue-50 text-blue-800' : 'bg-amber-50 text-amber-800'}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${u.status === 'paused' ? 'bg-zinc-500' : activationStatus === 'actif' ? 'bg-emerald-700' : activationStatus === 'pret' ? 'bg-blue-700' : 'bg-amber-600'}`} />
+                  {u.status === 'paused' ? 'En pause' : activationLabel}
                 </span>
               </span>
               <span className="col-start-1 row-start-2 min-w-0 pl-14 text-sm text-zinc-700 lg:col-auto lg:row-auto lg:pl-0">

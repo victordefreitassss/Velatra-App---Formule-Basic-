@@ -176,6 +176,7 @@ const INITIAL_STATE: AppState = {
   },
   coaches: [],
   page: 'home',
+  onboardingDataReady: false,
   selectedMember: null,
   selectedDay: 0,
   editingProg: null,
@@ -189,6 +190,7 @@ const INITIAL_STATE: AppState = {
 };
 
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { trackProductEventOnce } from './components/productEvents';
 
 export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
@@ -387,7 +389,7 @@ export default function App() {
             const userData = userDoc.data() as User;
             
             const cachedUser = { ...userData, id: Number(userData.id), firebaseUid: firebaseUser.uid };
-            setState(prev => ({ ...prev, user: cachedUser }));
+            setState(prev => ({ ...prev, user: cachedUser, onboardingDataReady: false }));
 
             // Move any old Stripe key out of the club document before loading client-readable settings.
             if (cachedUser.role === 'owner' || cachedUser.role === 'superadmin') {
@@ -457,6 +459,18 @@ export default function App() {
     const clubId = state.user.clubId;
     const isMember = state.user.role === 'member';
     const isCoach = state.user.role === 'coach';
+    const needsCoachDashboardReadiness = state.user.role === 'coach' || state.user.role === 'owner';
+    const readyOnboardingSources = new Set<string>();
+    const markOnboardingSourceReady = (source: string) => {
+      if (!needsCoachDashboardReadiness) return;
+      readyOnboardingSources.add(source);
+      if (['club', 'users', 'programs', 'bookings'].every(name => readyOnboardingSources.has(name))) {
+        setState(previous => previous.onboardingDataReady ? previous : { ...previous, onboardingDataReady: true });
+      }
+    };
+    if (needsCoachDashboardReadiness) {
+      setState(previous => previous.onboardingDataReady ? { ...previous, onboardingDataReady: false } : previous);
+    }
     const ownId = Number(state.user.id);
     const assignedMemberIds = [...new Set((state.user.assignedMemberIds || []).map(Number).filter(Number.isFinite))];
     const memberRecordQueries = (collectionName: string, ownerField = 'memberId') => {
@@ -512,6 +526,7 @@ export default function App() {
           }
         }));
       }
+      markOnboardingSourceReady('club');
     });
 
     const unsubUsers = isMember ? (() => {
@@ -533,6 +548,7 @@ export default function App() {
         } as any);
       });
       setState(prev => ({ ...prev, users: allUsers }));
+      markOnboardingSourceReady('users');
     });
 
     let isInitialProgsLoad = true;
@@ -578,6 +594,7 @@ export default function App() {
         });
       });
       setState(prev => ({ ...prev, programs: allProgs }));
+      markOnboardingSourceReady('programs');
 
       if (!isInitialProgsLoad && hasNewProgram && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouveau programme", {
@@ -810,6 +827,7 @@ export default function App() {
 
       snap.forEach(d => bookings.push({ ...d.data(), id: d.id } as Booking));
       setState(prev => ({ ...prev, bookings }));
+      markOnboardingSourceReady('bookings');
 
       if (!isInitialBookingsLoad && hasNewBooking && 'Notification' in window && Notification.permission === 'granted') {
         new Notification("Nouvelle réservation", {
@@ -1075,6 +1093,13 @@ export default function App() {
           onSave={async (data, action) => {
             const dataWithClub = { ...data, clubId: user.clubId };
             await setDoc(doc(db, state.editingProg ? "programs" : "presets", data.id.toString()), dataWithClub);
+            if (state.editingProg) {
+              const isNewProgram = !(state.programs || []).some(program => Number(program.id) === Number(data.id));
+              if (isNewProgram) {
+                trackProductEventOnce('first_program_created', user.firebaseUid || user.id);
+                trackProductEventOnce('first_program_assigned', user.firebaseUid || user.id);
+              }
+            }
             
             if (state.editingProg) {
               const member = (state.users || []).find(u => Number(u.id) === state.editingProg!.memberId);
