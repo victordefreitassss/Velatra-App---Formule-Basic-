@@ -37,6 +37,8 @@ it('atomically saves once under concurrent retry, grants one reward and rejects 
   assert.equal((await db.doc('programs/workout-program').get()).data()?.currentDayIndex, 1);
   const saved = (await db.doc(`logs/${results[0].log!.id}`).get()).data()!;
   assert.equal(saved.exerciseData['0-0-weight'], '20');
+  assert.equal(Number.isFinite(Date.parse(saved.completedAt)), true);
+  assert.equal(results[0].log!.completedAt, results[1].log!.completedAt);
   assert.equal(saved.totalVolume, 200);
   assert.equal(saved.rpe, 7);
   assert.equal((await db.doc('tasks/workout-reminder').get()).data()?.status, 'done');

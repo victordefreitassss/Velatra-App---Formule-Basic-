@@ -1,0 +1,20 @@
+import React from 'react';
+import type { AppState, SessionLog } from '../types';
+import { formatSet, memberLogs } from './workoutSession';
+
+export const MemberTrainingProgress: React.FC<{state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; compact?: boolean}> = ({ state, setState, compact = false }) => {
+  const user = state.user!;
+  const logs = memberLogs(state.logs, user);
+  const from = new Date(); from.setDate(from.getDate() - 6); from.setHours(0, 0, 0, 0);
+  const recent = logs.filter(log => new Date(`${log.date.slice(0, 10)}T12:00:00`) >= from);
+  const activeDays = new Set(recent.map(log => log.date.slice(0, 10))).size;
+  const series = (log: SessionLog) => log.exercises?.reduce((total, exercise) => total + exercise.sets.length, 0) || 0;
+  return <section aria-labelledby={compact ? 'home-training-progress' : 'training-progress'} className="rounded-3xl border border-zinc-200 bg-white p-5 sm:p-7 space-y-4">
+    <div className="flex flex-wrap items-center justify-between gap-2"><h2 id={compact ? 'home-training-progress' : 'training-progress'} className="font-display text-xl font-bold text-zinc-900">{compact ? 'Votre progression' : 'Votre carnet d’entraînement'}</h2>{compact && <button type="button" className="min-h-11 text-sm font-semibold text-emerald-900 underline" onClick={() => setState(previous => ({ ...previous, page: 'performances' }))}>Voir ma progression</button>}</div>
+    {logs.length ? <>
+      <dl className="grid grid-cols-3 gap-3"><div><dd className="text-2xl font-bold text-zinc-900">{logs.length}</dd><dt className="text-xs leading-5 text-zinc-700">séance{logs.length === 1 ? '' : 's'} enregistrée{logs.length === 1 ? '' : 's'}</dt></div><div><dd className="text-2xl font-bold text-zinc-900">{activeDays}</dd><dt className="text-xs leading-5 text-zinc-700">jour{activeDays === 1 ? '' : 's'} actif{activeDays === 1 ? '' : 's'} sur 7</dt></div><div><dd className="text-2xl font-bold text-zinc-900">{recent.reduce((total, log) => total + series(log), 0)}</dd><dt className="text-xs leading-5 text-zinc-700">séries sur 7 jours</dt></div></dl>
+      {(compact ? logs.slice(0, 1) : logs.slice(0, 10)).map(log => <details key={log.id} className="rounded-2xl border border-zinc-200 px-4 py-1"><summary className="min-h-14 cursor-pointer py-3 text-sm font-semibold leading-6 text-zinc-900">{log.dayName} · {new Date(log.date).toLocaleDateString('fr-FR', {day:'numeric',month:'short'})}<span className="block text-xs font-normal text-zinc-700">{series(log)} séries enregistrées{log.duration ? ` · ${Math.max(1, Math.round(log.duration / 60))} min écoulées` : ''} · Voir les détails</span></summary><div className="space-y-4 pb-4">{log.exercises?.map((exercise, index) => <div key={`${exercise.exId}-${index}`}><h3 className="text-sm font-semibold text-zinc-900">{exercise.name}</h3><ul className="mt-2 space-y-1 text-sm text-zinc-700">{exercise.sets.map((set, setIndex) => <li key={setIndex}>Série {setIndex + 1} · {formatSet(set)}</li>)}</ul></div>)}{!log.exercises?.length && <p className="text-sm text-zinc-700">Le détail des séries n’est pas disponible pour cette ancienne séance.</p>}</div></details>)}
+      {!compact && <button type="button" className="min-h-11 text-sm font-semibold text-emerald-900 underline" onClick={() => setState(previous => ({ ...previous, page: 'history' }))}>Tout mon historique</button>}
+    </> : <><p className="text-sm leading-6 text-zinc-700">Votre première séance enregistrée apparaîtra ici, avec les charges, répétitions et séries réalisées.</p><button type="button" className="min-h-11 rounded-xl bg-emerald-900 px-4 py-2 text-sm font-semibold text-white" onClick={() => setState(previous => ({ ...previous, page: 'calendar' }))}>Aller à mes séances</button></>}
+  </section>;
+};

@@ -1,711 +1,195 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Program, User, Exercise, AppState, SessionLog, Performance, ExerciseEntry } from '../types';
-import { Button, Input, Badge, Card } from './UI';
-import { XIcon, CheckIcon, DumbbellIcon, InfoIcon, RefreshCwIcon, SparklesIcon, TrophyIcon, LinkIcon, VideoIcon } from './Icons';
+import type { AppState, Performance, Program, SessionLog, User } from '../types';
 import { apiFetch } from '../firebase';
-import { PROGRAM_DURATION_WEEKS } from '../constants';
-import { motion, AnimatePresence } from 'framer-motion';
-import confetti from 'canvas-confetti';
-
-const getTargetRepsForSet = (repsString: string | number | undefined, setIndex: number): string => {
-  if (typeof repsString === 'number') return String(repsString);
-  if (!repsString) return '';
-  const parts = repsString.split(',').map(s => s.trim());
-  if (parts.length === 0) return '';
-  if (setIndex < parts.length) return parts[setIndex];
-  return parts[parts.length - 1];
-};
+import { Button } from './UI';
+import {
+  completionPayload, createWorkoutDraft, DRAFT_EVENT, draftKey, emptySet, executionSteps,
+  formatSet, isTimedExercise, latestExerciseLog, matchesCurrentProgram, readWorkoutDraft,
+  restAfter, setCount, stepKey, validSet, workoutDay, writeWorkoutDraft,
+  type SetValues, type WorkoutDraft,
+} from './workoutSession';
+import './member-workout.css';
 
 interface WorkoutViewProps {
-  program: Program;
-  member: User;
-  onClose: () => void;
-  onComplete: (log: SessionLog, perfs: Performance[]) => void;
-  state: AppState;
-  setState: React.Dispatch<React.SetStateAction<AppState>>;
-  showToast: (m: string, t?: any) => void;
-  isCoachView?: boolean;
+  program: Program; member: User; state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>;
+  onClose: () => void; onComplete: (log: SessionLog, perfs: Performance[]) => void;
+  showToast: (message: string, type?: any) => void; isCoachView?: boolean;
 }
+const timeLabel = (seconds: number) => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
 
-export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClose, onComplete, state, setState, showToast, isCoachView }) => {
-  const currentDay = program.days[program.currentDayIndex % program.nbDays];
-  const [sessionData, setSessionData] = useState<Record<string, string>>(() => {
-    const initialData: Record<string, string> = {};
-    
-    // Find the last session log for this specific day to pre-fill data
-    const lastLog = state.logs
-      ?.filter(l => l.memberId === Number(member.id) && l.dayName === currentDay.name)
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, state, setState, onClose, onComplete }) => {
+  const [draft, setDraft] = useState<WorkoutDraft>(() => readWorkoutDraft(member) || createWorkoutDraft(program, member, state.logs, state.exercises));
+  const live = useRef(draft);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  const [now, setNow] = useState(Date.now());
+  const [storageOk, setStorageOk] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [error, setError] = useState('');
+  const [online, setOnline] = useState(navigator.onLine);
+  const day = workoutDay(draft.program);
+  const steps = executionSteps(day);
+  const current = steps[Math.min(draft.cursor, steps.length - 1)];
+  const entry = current ? day.exercises[current.exercise] : null;
+  const exercise = state.exercises.find(ex => ex.id === entry?.exId);
+  const currentKey = current ? stepKey(current) : '';
+  const values = draft.values[currentKey] || emptySet();
+  const cardio = exercise?.cat === 'Cardio';
+  const timed = entry ? isTimedExercise(exercise, entry) : false;
+  const confirmedCount = steps.filter(step => draft.confirmed.includes(stepKey(step))).length;
+  const allDone = steps.length > 0 && confirmedCount === steps.length;
+  const changed = draft.status === 'active' && !matchesCurrentProgram(draft, state.programs);
+  const restLeft = draft.restUntil ? Math.max(0, Math.ceil((draft.restUntil - now) / 1000)) : 0;
+  const lastLog = entry ? latestExerciseLog(state.logs.filter(log => log.id !== draft.receipt?.log.id), member, entry.exId) : undefined;
+  const lastExercise = lastLog?.exercises?.find(ex => ex.exId === entry?.exId);
+  const lastSet = lastExercise?.sets[current?.set];
 
-    currentDay.exercises.forEach((exEntry, exIndex) => {
-      const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
-      
-      const baseEx = state.exercises.find(e => e.id === exEntry.exId);
-      const lastPerf = baseEx?.perfId ? state.performances.filter(p => p.memberId === Number(member.id) && p.exId === baseEx.perfId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0] : null;
-
-      // Find if this exercise was in the last log
-      const lastLogEx = lastLog?.exercises?.find(e => e.exId === exEntry.exId);
-
-      for (let i = 0; i < numSets; i++) {
-        // Pre-fill reps
-        const targetReps = getTargetRepsForSet(exEntry.reps, i);
-        if (lastLogEx && lastLogEx.sets[i] && lastLogEx.sets[i].reps) {
-          initialData[`${exIndex}-${i}-reps`] = lastLogEx.sets[i].reps;
-        } else if (targetReps) {
-          initialData[`${exIndex}-${i}-reps`] = targetReps;
-        }
-
-        // Pre-fill weight
-        if (lastLogEx && lastLogEx.sets[i] && lastLogEx.sets[i].weight) {
-          initialData[`${exIndex}-${i}-weight`] = lastLogEx.sets[i].weight;
-        } else if (lastPerf && lastPerf.weight) {
-          initialData[`${exIndex}-${i}-weight`] = String(lastPerf.weight);
-        }
-
-        // Pre-fill duration
-        if (lastLogEx && lastLogEx.sets[i] && lastLogEx.sets[i].duration) {
-          initialData[`${exIndex}-${i}-duration`] = lastLogEx.sets[i].duration;
-        }
-      }
-    });
-    return initialData;
-  });
-  const [completedExercises, setCompletedExercises] = useState<number[]>([]);
-  const [sessionXP, setSessionXP] = useState(0);
-  const [activeVideo, setActiveVideo] = useState<string | null>(null);
-  const [restTimer, setRestTimer] = useState<number | null>(null);
-  const [isTimerActive, setIsTimerActive] = useState(false);
-
+  const commit = (next: WorkoutDraft) => {
+    live.current = next; setDraft(next); setStorageOk(writeWorkoutDraft(next));
+    window.dispatchEvent(new Event(DRAFT_EVENT));
+  };
   useEffect(() => {
-    let interval: any;
-    if (isTimerActive && restTimer !== null && restTimer > 0) {
-      interval = setInterval(() => {
-        setRestTimer(prev => (prev !== null && prev > 0 ? prev - 1 : 0));
-      }, 1000);
-    } else if (restTimer === 0 && isTimerActive) {
-      setIsTimerActive(false);
-      try {
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-        audio.play();
-      } catch(e) {}
-    }
-    return () => clearInterval(interval);
-  }, [isTimerActive, restTimer]);
-
-  const startTimer = (seconds: number) => {
-    setRestTimer(seconds);
-    setIsTimerActive(true);
-  };
-
-  const containerVariants: any = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const itemVariants: any = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: { type: "spring", stiffness: 300, damping: 24 }
-    }
-  };
-
-  const handleInputChange = (exIndex: number, setIndex: number, field: string, value: string) => {
-    const key = `${exIndex}-${setIndex}-${field}`;
-    const newData = { ...sessionData, [key]: value };
-    if (setIndex === 0) {
-      const exEntry = currentDay.exercises[exIndex];
-      const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
-      const hasCommaReps = typeof exEntry.reps === 'string' && exEntry.reps.includes(',');
-      
-      for (let i = 1; i < numSets; i++) {
-        const targetKey = `${exIndex}-${i}-${field}`;
-        if (!newData[targetKey]) {
-          if (field === 'reps' && hasCommaReps) {
-            newData[targetKey] = getTargetRepsForSet(exEntry.reps, i);
-          } else {
-            newData[targetKey] = value;
-          }
-        }
-      }
-    }
-    setSessionData(newData);
-  };
-
-  const isExerciseComplete = (exIndex: number) => {
-    const exEntry = currentDay.exercises[exIndex];
-    const baseEx = state.exercises.find(e => e.id === exEntry.exId);
-    const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
-    for (let i = 0; i < numSets; i++) {
-      if (baseEx?.cat === 'Cardio') {
-        if (!sessionData[`${exIndex}-${i}-duration`]) return false;
-      } else {
-        if (!sessionData[`${exIndex}-${i}-weight`] || !sessionData[`${exIndex}-${i}-reps`]) return false;
-      }
-    }
-    return true;
-  };
-
-  const toggleExerciseValidation = (exIndex: number) => {
-    if (completedExercises.includes(exIndex)) {
-      setCompletedExercises(completedExercises.filter(i => i !== exIndex));
-      setSessionXP(prev => prev - 25);
-    } else {
-      if (isExerciseComplete(exIndex)) {
-        setCompletedExercises([...completedExercises, exIndex]);
-        // Gamification: Bonus XP for completing exercises
-        const bonus = 25 + (completedExercises.length * 5); 
-        setSessionXP(prev => prev + bonus);
-        showToast(`+${bonus} XP ! COMBO x${completedExercises.length + 1}`, "success");
-        
-        setTimeout(() => {
-          const nextEl = document.getElementById(`exercise-${exIndex + 1}`);
-          if (nextEl) {
-            nextEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }, 100);
-      } else {
-        const baseEx = state.exercises.find(exercise => exercise.id === currentDay.exercises[exIndex].exId);
-        showToast(baseEx?.cat === 'Cardio'
-          ? 'Renseignez la durée de chaque série avant de valider.'
-          : 'Renseignez la charge et les répétitions de chaque série. Sans charge ajoutée, indiquez 0 kg.', 'error');
-      }
-    }
-  };
-
-  const loyaltyPoints = state.currentClub?.settings?.loyalty?.pointsPerWorkout || 100;
-
-  const groupedExercises: { isGroup: boolean; groupName?: string; exercises: { entry: ExerciseEntry; index: number }[] }[] = [];
-  
-  let currentGroup: number | null = null;
-  let currentGroupType: string | null = null;
-  let currentGroupItems: { entry: ExerciseEntry; index: number }[] = [];
-
-  currentDay.exercises.forEach((exEntry, exIndex) => {
-    if (exEntry.setGroup && exEntry.setGroup > 0) {
-      if (currentGroup === exEntry.setGroup) {
-        currentGroupItems.push({ entry: exEntry, index: exIndex });
-      } else {
-        if (currentGroupItems.length > 0) {
-          groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
-        }
-        currentGroup = exEntry.setGroup;
-        currentGroupType = exEntry.setType;
-        currentGroupItems = [{ entry: exEntry, index: exIndex }];
-      }
-    } else {
-      if (currentGroupItems.length > 0) {
-        groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
-        currentGroupItems = [];
-        currentGroup = null;
-        currentGroupType = null;
-      }
-      groupedExercises.push({ isGroup: false, exercises: [{ entry: exEntry, index: exIndex }] });
-    }
-  });
-  if (currentGroupItems.length > 0) {
-    groupedExercises.push({ isGroup: currentGroup !== null, groupName: currentGroupType || '', exercises: currentGroupItems });
-  }
-
-  const completionRequestId = React.useRef(crypto.randomUUID());
-  const savingSession = React.useRef(false);
-  const [isSavingSession, setIsSavingSession] = useState(false);
-  const [saveSessionError, setSaveSessionError] = useState('');
-  const finishSession = async () => {
-    if (savingSession.current) return;
-    savingSession.current = true; setIsSavingSession(true); setSaveSessionError('');
-    try {
-    const sessionExercisesList = currentDay.exercises.map((exEntry, exIndex) => {
-      const baseEx = state.exercises.find(e => e.id === exEntry.exId);
-      const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
-      const sets = [];
-      for (let i = 0; i < numSets; i++) {
-        sets.push({
-          weight: sessionData[`${exIndex}-${i}-weight`] || "",
-          reps: sessionData[`${exIndex}-${i}-reps`] || "",
-          duration: sessionData[`${exIndex}-${i}-duration`] || ""
-        });
-      }
-      return {
-        exId: exEntry.exId,
-        name: baseEx?.name || String(exEntry.exId),
-        sets
-      };
-    });
-
-    const log: SessionLog = {
-      id: Date.now(),
-      clubId: member.clubId,
-      memberId: Number(member.id),
-      date: new Date().toISOString().split('T')[0],
-      week: Math.ceil((program.currentDayIndex + 1) / program.nbDays),
-      isCoaching: isCoachView || currentDay.isCoaching,
-      dayName: currentDay.name,
-      exerciseData: sessionData,
-      exercises: sessionExercisesList
+    const previousFocus = document.activeElement as HTMLElement | null;
+    dialog.current?.showModal();
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    setStorageOk(writeWorkoutDraft(live.current));
+    window.dispatchEvent(new Event(DRAFT_EVENT));
+    const clock = window.setInterval(() => setNow(Date.now()), 1000);
+    const connection = () => setOnline(navigator.onLine);
+    const flush = () => writeWorkoutDraft(live.current);
+    window.addEventListener('online', connection); window.addEventListener('offline', connection);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      clearInterval(clock); window.removeEventListener('online', connection); window.removeEventListener('offline', connection);
+      window.removeEventListener('pagehide', flush); document.body.style.overflow = overflow;
+      dialog.current?.close(); previousFocus?.focus();
     };
-
-    const perfs: Performance[] = [];
-    let hasNewPR = false;
-    currentDay.exercises.forEach((exEntry, exIndex) => {
-      const baseEx = state.exercises.find(e => e.id === exEntry.exId);
-      if (baseEx?.perfId) {
-        let maxWeight = 0, associatedReps = 0, duration = "";
-        const numSets = typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1;
-        for (let i = 0; i < numSets; i++) {
-          if (baseEx.cat === 'Cardio') {
-            duration = sessionData[`${exIndex}-${i}-duration`] || "";
-          } else {
-            const w = parseFloat(sessionData[`${exIndex}-${i}-weight`]), r = parseInt(sessionData[`${exIndex}-${i}-reps`], 10);
-            if (w > maxWeight) { maxWeight = w; associatedReps = r; }
-          }
-        }
-        
-        // Check for PR
-        const previousPerfs = state.performances.filter(p => p.memberId === Number(member.id) && p.exId === baseEx.perfId);
-        const previousMaxWeight = previousPerfs.length > 0 ? Math.max(...previousPerfs.map(p => p.weight)) : 0;
-        
-        if (maxWeight > previousMaxWeight && previousMaxWeight > 0) {
-          hasNewPR = true;
-        }
-
-        if (maxWeight > 0 || duration) perfs.push({ 
-          id: Date.now() + exIndex, 
-          clubId: member.clubId,
-          memberId: Number(member.id), 
-          date: log.date, 
-          exId: baseEx.perfId, 
-          weight: maxWeight, 
-          reps: associatedReps, 
-          duration: duration,
-          fromCoaching: log.isCoaching 
-        });
-      }
-    });
-
-    const targetProgram = program;
-    const response = await apiFetch('/api/workouts/complete', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ requestId: completionRequestId.current, programId: targetProgram.id,
-        dayIndex: targetProgram.currentDayIndex, advanceProgram: true, log, performances: perfs })
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Impossible d’enregistrer la séance.');
-    onComplete(result.log, result.performances);
-    } catch (error) {
-      setSaveSessionError(error instanceof Error && !error.message.includes('fetch') ? error.message : 'La séance n’a pas pu être enregistrée. Gardez cet écran ouvert et réessayez après reconnexion.');
-    } finally { savingSession.current = false; setIsSavingSession(false); }
+  }, []);
+  const clearDraft = () => {
+    try { localStorage.removeItem(draftKey(draft.owner)); } catch { /* The local copy may remain; its saved receipt is harmless. */ }
+    window.dispatchEvent(new Event(DRAFT_EVENT));
   };
+  const close = () => {
+    if (savingRef.current) return;
+    if (draft.status === 'saved' && draft.receipt) { clearDraft(); onComplete(draft.receipt.log, draft.receipt.performances); }
+    else if (storageOk || window.confirm('La copie locale est indisponible. Fermer maintenant peut perdre vos saisies. Fermer quand même ?')) onClose();
+  };
+  const changeValue = (field: keyof SetValues, value: string) => {
+    if (draft.status !== 'active' || changed || saving) return;
+    setError('');
+    commit({ ...live.current, values: { ...live.current.values, [currentKey]: { ...values, [field]: value } }, confirmed: live.current.confirmed.filter(key => key !== currentKey) });
+  };
+  const increment = (field: 'weight' | 'reps', amount: number) => {
+    const currentValue = Number(values[field].replace(',', '.')) || 0;
+    changeValue(field, String(Math.max(0, Math.round((currentValue + amount) * 100) / 100)));
+  };
+  const confirmSet = () => {
+    if (!entry || draft.status !== 'active' || changed) return;
+    if (!validSet(values, cardio)) { setError(cardio ? 'Indiquez un temps ou une distance, par exemple 10 min ou 500 m.' : `Indiquez une charge valide (0 kg sans charge ajoutée) et ${timed ? 'un nombre de secondes' : 'un nombre de répétitions'} supérieur à zéro.`); return; }
+    const confirmed = [...new Set([...draft.confirmed, currentKey])];
+    let nextIndex = steps.findIndex((step, index) => index > draft.cursor && !confirmed.includes(stepKey(step)));
+    if (nextIndex < 0) nextIndex = steps.findIndex(step => !confirmed.includes(stepKey(step)));
+    const rest = nextIndex === draft.cursor + 1 ? restAfter(day, steps, draft.cursor) : 0;
+    const nextValues = { ...draft.values };
+    if (nextIndex >= 0 && steps[nextIndex].exercise === current.exercise) {
+      const key = stepKey(steps[nextIndex]);
+      nextValues[key] = { ...(nextValues[key] || emptySet()), weight: nextValues[key]?.weight || values.weight };
+    }
+    commit({ ...draft, values: nextValues, confirmed, cursor: nextIndex < 0 ? draft.cursor : nextIndex, restUntil: rest ? Date.now() + rest * 1000 : null });
+    setNow(Date.now()); setError(''); heading.current?.focus({ preventScroll: true });
+    body.current?.scrollTo({ top: 0, behavior: 'instant' });
+  };
+  const finish = async () => {
+    if (savingRef.current || changed || (!allDone && draft.status !== 'pending')) return;
+    const payload = completionPayload(live.current, member, state.exercises);
+    const pending: WorkoutDraft = { ...live.current, status: 'pending', payload, restUntil: null };
+    commit(pending); setError(''); savingRef.current = true; setSaving(true);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 20000);
+    try {
+      const response = await apiFetch('/api/workouts/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal });
+      const result = await response.json();
+      if (!response.ok || !result.log) {
+        // These responses explicitly reject the transaction. Keep the measurements editable;
+        // uncertain network/5xx failures retain the frozen request for idempotent retry.
+        if ([400, 403, 409, 422].includes(response.status)) commit({ ...pending, status: 'active', payload: undefined });
+        throw new Error(result.error || 'La confirmation de la séance est indisponible.');
+      }
+      const receipt = { log: result.log as SessionLog, performances: (result.performances || []) as Performance[], alreadyCompleted: Boolean(result.alreadyCompleted) };
+      commit({ ...pending, status: 'saved', receipt });
+      setState(previous => ({ ...previous,
+        logs: [receipt.log, ...previous.logs.filter(log => log.id !== receipt.log.id)],
+        performances: [...receipt.performances, ...previous.performances.filter(perf => !receipt.performances.some(saved => saved.id === perf.id))],
+      }));
+    } catch (failure) {
+      setError(failure instanceof Error && !/fetch|network|abort|load failed/i.test(failure.message) ? failure.message : 'Aucune confirmation reçue. Vos saisies restent sur cet appareil. Réessayez quand la connexion est disponible.');
+    } finally { clearTimeout(timeout); savingRef.current = false; setSaving(false); }
+  };
+  const goToProgress = () => {
+    if (!draft.receipt) return;
+    clearDraft(); setState(previous => ({ ...previous, page: 'performances' }));
+    onComplete(draft.receipt.log, draft.receipt.performances);
+  };
+  const savedLog = draft.receipt?.log;
+  const videoUrl = exercise?.videoUrl && /^https?:\/\//i.test(exercise.videoUrl) ? exercise.videoUrl : null;
 
   return createPortal(
-    <motion.div 
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 50 }}
-      className="fixed inset-0 bg-white z-[100] flex flex-col page-transition"
-    >
-      {saveSessionError && <p role="alert" className="fixed top-4 left-4 right-4 z-[250] rounded-xl border border-red-200 bg-red-50 p-4 text-red-900">{saveSessionError}</p>}
-
-      <header className="glass border-b  px-4 py-4 md:px-8 md:py-6 flex flex-col sticky top-0 z-20">
-        <div className="flex items-center justify-between w-full">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-               {currentDay.duration && (
-                 <Badge variant="dark" className="!text-[10px] !px-1.5 !py-0.5 italic">
-                   ~{currentDay.duration} MIN
-                 </Badge>
-               )}
-               <div className="flex items-center gap-1 text-emerald-500 font-bold text-[10px] animate-pulse">
-                  <SparklesIcon size={12}/> {sessionXP} XP
-               </div>
-            </div>
-            <div className="font-display font-bold text-2xl md:text-3xl tracking-tight text-zinc-900 leading-none truncate pr-4">{currentDay.name}</div>
-          </div>
-          <motion.button 
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={onClose} disabled={isSavingSession}
-            className="p-3 bg-white rounded-full text-zinc-500 hover:text-zinc-900 transition-all hover:bg-red-500 shrink-0"
-          >
-            <XIcon size={20} />
-          </motion.button>
-        </div>
-        <div className="w-full h-1.5 bg-zinc-100 rounded-full mt-4 overflow-hidden">
-          <motion.div 
-            className="h-full bg-emerald-500"
-            initial={{ width: 0 }}
-            animate={{ width: `${(completedExercises.length / currentDay.exercises.length) * 100}%` }}
-            transition={{ duration: 0.5, ease: "easeInOut" }}
-          />
-        </div>
+    <dialog ref={dialog} className="va-workout" aria-labelledby="workout-heading" onCancel={event => { event.preventDefault(); close(); }}>
+      <header className="va-workout-header">
+        <div><p>{draft.status === 'saved' ? 'Votre carnet d’entraînement' : draft.program.name}</p><h1 id="workout-heading">{day.name}</h1></div>
+        <button type="button" onClick={close} disabled={saving} className="va-workout-secondary">{draft.status === 'saved' ? 'Fermer' : 'Pause'}</button>
       </header>
-      <motion.div 
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="flex-1 overflow-y-auto px-4 py-6 md:px-16 space-y-8 no-scrollbar"
-      >
-        <motion.div variants={itemVariants} className="flex justify-between items-center bg-white p-6 rounded-[32px] border ">
-           <div className="space-y-1">
-              <span className="text-xs font-black uppercase text-zinc-500 tracking-widest text-zinc-900">Progression Cycle</span>
-              <div className="text-sm font-black text-zinc-900 italic">
-                SEMAINE {Math.floor(program.currentDayIndex / program.nbDays) + 1} {program.durationWeeks ? `/ ${program.durationWeeks}` : ''} • JOUR {(program.currentDayIndex % program.nbDays) + 1}
-              </div>
-           </div>
-           <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 shadow-inner">
-              <TrophyIcon size={28} />
-           </div>
-        </motion.div>
-        {groupedExercises.map((group, gIndex) => {
-          const getGroupDescription = (type: string) => {
-            switch (type.toLowerCase()) {
-              case 'superset': return "Enchaînez ces exercices sans temps de repos entre eux.";
-              case 'biset': return "Enchaînez ces 2 exercices ciblant le même muscle sans repos.";
-              case 'triset': return "Enchaînez ces 3 exercices sans temps de repos.";
-              case 'giantset': return "Enchaînez ces 4 exercices ou plus sans temps de repos.";
-              case 'dropset': return "Allez jusqu'à l'échec, baissez le poids de 20% et repartez sans repos.";
-              default: return "Enchaînez ces exercices selon les indications.";
-            }
-          };
-
-          return (
-            <motion.div 
-              variants={itemVariants} 
-              key={gIndex} 
-              className={group.isGroup ? "relative pl-6 md:pl-10 space-y-8 mt-16" : "space-y-8"}
-              transition={{ duration: 0.3 }}
-            >
-              {group.isGroup && (
-                <>
-                  {/* Ligne verticale de liaison */}
-                  <motion.div 
-                    initial={{ height: 0 }}
-                    animate={{ height: '100%' }}
-                    transition={{ duration: 0.8, ease: "easeInOut" }}
-                    className="absolute left-0 top-0 w-2 bg-gradient-to-b from-emerald-500 to-emerald-400 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.5)]" 
-                  />
-                  
-                  <motion.div 
-                    initial={{ x: -20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                    className="absolute -top-8 left-0 bg-emerald-500 text-zinc-900 px-4 py-2 rounded-r-2xl rounded-tl-2xl shadow-lg z-10 flex flex-col gap-1"
-                  >
-                    <div className="text-xs font-black uppercase text-zinc-500 tracking-wider flex items-center gap-2">
-                      <LinkIcon size={12} /> {group.groupName || 'SUPERSET'}
-                    </div>
-                    <div className="text-[9px] font-bold opacity-80 leading-tight max-w-[200px]">
-                      {getGroupDescription(group.groupName || 'superset')}
-                    </div>
-                  </motion.div>
-                </>
-              )}
-              {group.exercises.map(({ entry: exEntry, index: exIndex }, i) => {
-                const baseEx = state.exercises.find(e => e.id === exEntry.exId);
-                const isValidated = completedExercises.includes(exIndex);
-                const pr = baseEx?.perfId ? state.performances.filter(p => p.memberId === Number(member.id) && p.exId === baseEx.perfId).sort((a, b) => b.weight - a.weight)[0] : null;
-                const isLastInGroup = i === group.exercises.length - 1;
-                
-                return (
-                  <div key={exIndex} className="relative">
-                    <div id={`exercise-${exIndex}`} className={`transition-all duration-500 ${isValidated ? 'opacity-30 grayscale scale-[0.98] pointer-events-none' : ''}`}>
-                      <Card className={`!p-6 md:!p-8 bg-zinc-50 shadow-xl relative border-none ring-1 ring-zinc-200 ${group.isGroup ? 'hover:ring-emerald-500/50 transition-all' : ''}`}>
-                        {group.isGroup && (
-                          <div className="absolute -left-6 md:-left-10 top-1/2 -translate-y-1/2 w-6 md:w-10 h-1 bg-emerald-500/30" />
-                        )}
-                        <div className="flex gap-4 md:gap-8 items-center mb-6 md:mb-10">
-                          <div className="w-20 h-20 md:w-24 md:h-24 rounded-3xl bg-white border border-zinc-200 flex items-center justify-center shrink-0 shadow-inner overflow-hidden">
-                            {baseEx?.photo ? (
-                              <img src={baseEx.photo} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="text-emerald-500">
-                                <DumbbellIcon size={40} />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-[10px] text-emerald-500 font-black uppercase tracking-[3px] mb-1 md:mb-2">{baseEx?.cat}</div>
-                            <div className="font-black text-2xl md:text-3xl tracking-tighter leading-none text-zinc-900 italic uppercase mb-2 md:mb-3 flex items-center gap-2">
-                              {baseEx?.name}
-                              {baseEx?.videoUrl && (
-                                <button 
-                                  onClick={() => setActiveVideo(baseEx.videoUrl!)}
-                                  className="p-1.5 bg-emerald-500/10 text-emerald-500 rounded-lg hover:bg-emerald-500/20 transition-colors"
-                                  title="Voir la vidéo"
-                                >
-                                  <VideoIcon size={18} />
-                                </button>
-                              )}
-                            </div>
-                            <div className="flex flex-wrap gap-2 mb-2">
-                              {exEntry.setType && exEntry.setType !== 'normal' && !group.isGroup && (
-                                <Badge variant="orange" className="uppercase">{exEntry.setType}</Badge>
-                              )}
-                              {exEntry.tempo && (
-                                <Badge variant="dark" className="uppercase">Tempo: {exEntry.tempo}</Badge>
-                              )}
-                              {exEntry.rest && (
-                                <button onClick={() => startTimer(parseInt(exEntry.rest) || 90)} className="hover:scale-105 transition-transform active:scale-95">
-                                  <Badge variant="dark" className="uppercase flex items-center gap-1 cursor-pointer !bg-zinc-100 !text-zinc-900 hover:!bg-zinc-200">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                                    Repos: {exEntry.rest}s
-                                  </Badge>
-                                </button>
-                              )}
-                            </div>
-                            {pr && (
-                              <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
-                                <TrophyIcon size={12} className="text-yellow-500" /> PR: {baseEx?.cat === 'Cardio' ? (pr.duration || 'N/A') : (baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? `${pr.weight}kg x ${pr.reps}s` : `${pr.weight}kg x ${pr.reps}`}
-                              </div>
-                            )}
-                            {exEntry.notes && (
-                              <div className="mt-3 p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl text-xs text-zinc-600 font-medium leading-relaxed">
-                                <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest block mb-1">Notes du coach</span>
-                                {exEntry.notes}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        {baseEx?.cat !== 'Cardio' && <p className="mb-4 text-sm leading-6 text-zinc-700">Indiquez la charge ajoutée en kg et les répétitions réalisées. Pour un exercice sans charge ajoutée, saisissez 0 kg.</p>}
-                        <div className="grid grid-cols-1 gap-4 md:gap-6 mb-8 md:mb-10">
-                          {Array.from({ length: (typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1) }).map((_, sIdx) => (
-                            <div key={sIdx} className="flex items-center gap-3 md:gap-6 group animate-in slide-in-from-left">
-                               <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-zinc-50 border border-zinc-200 flex items-center justify-center text-xs font-black text-zinc-900 group-focus-within:border-emerald-500 transition-all shrink-0">{sIdx+1}</div>
-                               <div className="flex-1 flex flex-col gap-1">
-                                 <div className="grid grid-cols-2 gap-2 md:gap-4">
-                                  {baseEx?.cat === 'Cardio' ? (
-                                    <div className="relative flex items-center col-span-2">
-                                      <Input 
-                                        placeholder={exEntry.duration || "DURÉE (ex: 15 min)"} 
-                                        className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-4" 
-                                        value={sessionData[`${exIndex}-${sIdx}-duration`] || ""} 
-                                        onChange={e => handleInputChange(exIndex, sIdx, 'duration', e.target.value)} 
-                                      />
-                                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-zinc-50 px-1 md:px-2 text-[7px] font-black text-zinc-500 uppercase">Temps / Distance</span>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <div className="relative flex items-center">
-                                         <button 
-                                           onClick={() => handleInputChange(exIndex, sIdx, 'weight', String(Math.max(0, (parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") - 1))))}
-                                           className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-white rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
-                                         >-</button>
-                                         <Input aria-label={`Charge en kg · série ${sIdx + 1} · ${baseEx?.name}`} type="number" min="0" inputMode="decimal" placeholder={(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "LEST" : "KG"} className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
-                                         <button 
-                                           onClick={() => handleInputChange(exIndex, sIdx, 'weight', String((parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") + 1)))}
-                                           className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-50 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
-                                         >+</button>
-                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-zinc-50 px-1 md:px-2 text-[7px] font-black text-zinc-500 uppercase">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? 'Lest' : 'Charge'}</span>
-                                      </div>
-                                      <div className="relative flex items-center">
-                                         <button 
-                                           onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") - 1))))}
-                                           className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-50 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
-                                         >-</button>
-                                         <Input aria-label={`Répétitions ou secondes · série ${sIdx + 1} · ${baseEx?.name}`} type="text" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || String(exEntry.reps).toLowerCase().includes('s')) ? "SEC" : "REPS")} className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
-                                         <button 
-                                           onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") + 1)))}
-                                           className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-50 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
-                                         >+</button>
-                                         <span className="absolute -top-2 left-1/2 -translate-x-1/2 bg-zinc-50 px-1 md:px-2 text-[7px] font-black text-zinc-500 uppercase whitespace-nowrap">{(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || getTargetRepsForSet(exEntry.reps, sIdx).toLowerCase().includes('s')) ? 'Temps (sec)' : 'Répétitions'} {exEntry.reps ? `(Cible: ${getTargetRepsForSet(exEntry.reps, sIdx)})` : ''}</span>
-                                      </div>
-                                    </>
-                                  )}
-                               </div>
-                               {baseEx?.cat !== 'Cardio' && sessionData[`${exIndex}-${sIdx}-weight`] && sessionData[`${exIndex}-${sIdx}-reps`] && (
-                                 <div className="text-[9px] font-bold text-zinc-400 text-right pr-2">
-                                   1RM Estimé : {Math.round(parseFloat(sessionData[`${exIndex}-${sIdx}-weight`]) * (1 + parseInt(sessionData[`${exIndex}-${sIdx}-reps`]) / 30))} kg
-                                 </div>
-                               )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                          <Button 
-                            variant={isValidated ? "success" : "primary"} 
-                            fullWidth 
-                            className={`!py-5 !rounded-[24px] font-black italic tracking-widest text-base shadow-xl transition-colors duration-300 ${isValidated ? 'shadow-emerald-500/20 bg-emerald-500 text-zinc-900' : 'shadow-emerald-500/20 text-zinc-900'}`} 
-                            onClick={() => toggleExerciseValidation(exIndex)}
-                          >
-                             <AnimatePresence mode="wait">
-                               {isValidated ? (
-                                 <motion.div 
-                                   key="validated"
-                                   initial={{ scale: 0, opacity: 0 }} 
-                                   animate={{ scale: 1, opacity: 1 }} 
-                                   exit={{ scale: 0, opacity: 0 }}
-                                   className="flex items-center justify-center gap-2"
-                                 >
-                                   <CheckIcon size={20} /> FAIT
-                                 </motion.div>
-                               ) : (
-                                 <motion.div 
-                                   key="validate"
-                                   initial={{ opacity: 0 }} 
-                                   animate={{ opacity: 1 }} 
-                                   exit={{ opacity: 0 }}
-                                 >
-                                   VALIDER MOUVEMENT
-                                 </motion.div>
-                               )}
-                             </AnimatePresence>
-                          </Button>
-                        </motion.div>
-                      </Card>
-                    </div>
-                    {group.isGroup && !isLastInGroup && (
-                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center justify-center">
-                        <motion.div 
-                          animate={{ 
-                            scale: [1, 1.2, 1],
-                            opacity: [0.5, 1, 0.5]
-                          }}
-                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                          className="w-8 h-8 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center backdrop-blur-sm border border-emerald-500/30"
-                        >
-                          <LinkIcon size={14} />
-                        </motion.div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </motion.div>
-          );
-        })}
-        <div className="h-32" />
-      </motion.div>
-      <motion.footer 
-        variants={itemVariants}
-        className="glass border-t  p-8 backdrop-blur-3xl flex flex-col gap-4"
-      >
-        <div className="flex justify-between items-center px-4">
-           <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">Récompense de séance</div>
-           <div className="text-sm font-black text-emerald-500 italic">+{loyaltyPoints} XP</div>
-        </div>
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-          <Button variant="success" fullWidth onClick={finishSession} className="!py-6 !rounded-[32px] font-black text-xl italic shadow-2xl shadow-emerald-500/20" disabled={isSavingSession || completedExercises.length < currentDay.exercises.length}>
-            TERMINER MA SÉANCE
-          </Button>
-        </motion.div>
-      </motion.footer>
-
-      <AnimatePresence>
-        {restTimer !== null && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.05 }}
-            className="fixed inset-0 bg-zinc-900 z-[200] flex flex-col items-center justify-center p-6"
-          >
-            <div className="absolute top-8 right-8">
-              <button 
-                onClick={() => { setRestTimer(null); setIsTimerActive(false); }} 
-                className="p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
-              >
-                <XIcon size={32} />
-              </button>
-            </div>
-
-            <div className="flex-1 flex flex-col items-center justify-center w-full max-w-md">
-              <h2 className="text-2xl font-black text-zinc-400 uppercase tracking-widest mb-12">Temps de repos</h2>
-              
-              <div className="relative flex items-center justify-center mb-16">
-                <svg className="absolute w-[320px] h-[320px] -rotate-90">
-                  <circle cx="160" cy="160" r="150" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="8" />
-                  <motion.circle 
-                    cx="160" cy="160" r="150" 
-                    fill="none" 
-                    stroke={restTimer === 0 ? "#ef4444" : "#10b981"} 
-                    strokeWidth="8"
-                    strokeLinecap="round"
-                    initial={{ strokeDasharray: "942", strokeDashoffset: "0" }}
-                    animate={{ strokeDashoffset: restTimer === 0 ? 0 : (1 - (restTimer % 60) / 60) * 942 }}
-                    transition={{ duration: 1, ease: "linear" }}
-                  />
-                </svg>
-                <div className="text-center z-10">
-                  <span className={`font-mono font-black text-8xl tracking-tighter ${restTimer === 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-                    {Math.floor(restTimer / 60).toString().padStart(2, '0')}:{(restTimer % 60).toString().padStart(2, '0')}
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 w-full">
-                <button 
-                  onClick={() => setRestTimer(prev => prev !== null ? prev + 30 : 30)} 
-                  className="py-6 bg-zinc-800 hover:bg-zinc-700 rounded-3xl text-white font-black text-xl uppercase tracking-wider transition-colors"
-                >
-                  +30 SEC
-                </button>
-                <button 
-                  onClick={() => setIsTimerActive(!isTimerActive)} 
-                  className={`py-6 rounded-3xl text-white font-black text-xl uppercase tracking-wider transition-colors ${isTimerActive ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
-                >
-                  {isTimerActive ? 'PAUSE' : 'REPRENDRE'}
-                </button>
-              </div>
-              
-              <button 
-                onClick={() => { setRestTimer(null); setIsTimerActive(false); }}
-                className="mt-8 py-6 w-full bg-white text-zinc-900 rounded-3xl font-black text-2xl uppercase tracking-wider hover:bg-zinc-200 transition-colors"
-              >
-                PASSER LE REPOS
-              </button>
-            </div>
-          </motion.div>
+      <div ref={body} className="va-workout-body">
+        {!storageOk && <p role="alert" className="va-workout-error">La copie locale ne fonctionne pas sur cet appareil. Gardez cet écran ouvert jusqu’à la confirmation d’enregistrement.</p>}
+        {!online && draft.status !== 'saved' && <p role="status" className="va-workout-notice">Hors connexion · vos saisies restent locales. La séance devra être confirmée en ligne.</p>}
+        {draft.status === 'saved' && savedLog ? (
+          <section className="va-workout-finish" aria-labelledby="workout-finished">
+            <span className="va-workout-success" aria-hidden="true">✓</span><h2 id="workout-finished">Séance terminée</h2>
+            <p>Votre séance est enregistrée dans votre historique.</p>
+            <dl className="va-workout-summary"><div><dt>Durée écoulée</dt><dd>{timeLabel(Math.round(savedLog.duration || 0))}</dd></div><div><dt>Exercices</dt><dd>{savedLog.exercises?.length || 0}</dd></div><div><dt>Séries réalisées</dt><dd>{savedLog.exercises?.reduce((total, ex) => total + ex.sets.length, 0) || 0}</dd></div></dl>
+            <p>{state.logs.filter(log => log.clubId === member.clubId && Number(log.memberId) === Number(member.id)).length} séance(s) dans votre carnet. Chaque série compte, y compris au poids du corps.</p>
+            <div className="va-workout-records">{savedLog.exercises?.map((ex, index) => {
+              const prior = latestExerciseLog(state.logs.filter(log => log.id !== savedLog.id), member, ex.exId)?.exercises?.find(item => item.exId === ex.exId);
+              const oldMax = prior ? Math.max(...prior.sets.map(set => Number(set.weight) || 0)) : null;
+              const newMax = Math.max(...ex.sets.map(set => Number(set.weight) || 0));
+              return <div key={`${ex.exId}-${index}`}><strong>{ex.name}</strong><p>{ex.sets.map(set => formatSet(set)).join(' · ')}</p>{oldMax !== null && newMax > oldMax && <p className="va-workout-positive">+{Number((newMax - oldMax).toFixed(2))} kg de charge maximale par rapport à la séance de référence.</p>}</div>;
+            })}</div>
+          </section>
+        ) : (
+          <>
+            <div className="va-workout-progress"><span>{confirmedCount} / {steps.length} séries validées</span><span>{timeLabel(Math.max(0, Math.floor((now - draft.startedAt) / 1000)))}</span><progress max={Math.max(1, steps.length)} value={confirmedCount} aria-label="Séries réalisées" /></div>
+            {changed && <div role="alert" className="va-workout-error"><strong>Votre programme a changé.</strong><p>Vos saisies sont conservées ci-dessous. Contactez votre coach avant de reprendre ; elles ne seront pas envoyées avec un autre programme.</p><button type="button" className="va-workout-secondary" onClick={() => { if (window.confirm('Abandonner uniquement ce brouillon local ? Les séances déjà enregistrées restent dans votre historique.')) { clearDraft(); onClose(); } }}>Abandonner ce brouillon</button></div>}
+            {draft.status === 'pending' && <p role="status" className="va-workout-notice">{saving ? 'Enregistrement en cours…' : 'Enregistrement à confirmer. Réessayez avec les mêmes données pour éviter un doublon.'}</p>}
+            {draft.restUntil && draft.status === 'active' && !changed && <section className="va-workout-rest" aria-label="Repos recommandé"><div><p>{restLeft > 0 ? 'Repos recommandé' : 'Repos terminé'}</p><strong role="timer" aria-label={`${restLeft} secondes de repos restantes`}>{timeLabel(restLeft)}</strong></div><p>Ensuite : {exercise?.name || `exercice ${current.exercise + 1}`} · série {current.set + 1}</p><button type="button" className="va-workout-secondary" onClick={() => commit({ ...draft, restUntil: null })}>{restLeft > 0 ? 'Passer le repos' : 'Reprendre la série'}</button></section>}
+            {allDone ? <section className="va-workout-ready"><h2>Toutes vos séries sont prêtes</h2><p>Terminez la séance pour enregistrer votre progression auprès de votre coach.</p></section> : entry && <section className="va-workout-exercise" aria-labelledby="exercise-heading">
+              <p className="va-workout-eyebrow">Exercice {current.exercise + 1} / {day.exercises.length}{entry.setGroup ? ` · ${entry.setType || 'Circuit'}` : ''}</p>
+              <h2 ref={heading} tabIndex={-1} id="exercise-heading">{exercise?.name || 'Exercice du programme'}</h2>
+              <p className="va-workout-target">Objectif du coach : {setCount(entry)} séries · {cardio ? entry.duration || 'durée à adapter' : `${entry.reps || 'selon consignes'} ${timed ? (/s|sec/i.test(entry.reps) ? '' : 'secondes') : 'répétitions'}`}{entry.rest ? ` · repos ${entry.rest}` : ''}{entry.tempo ? ` · tempo ${entry.tempo}` : ''}</p>
+              {entry.notes && <div className="va-workout-note"><strong>Consigne du coach</strong><p>{entry.notes}</p></div>}
+              {videoUrl && <a className="va-workout-link" href={videoUrl} target="_blank" rel="noopener noreferrer">Voir la vidéo de l’exercice ↗</a>}
+              <div className="va-workout-memory"><strong>{lastLog ? `Référence du ${new Date(lastLog.date).toLocaleDateString('fr-FR')}` : 'Votre première référence'}</strong><p>{lastSet ? `Série ${current.set + 1} : ${formatSet(lastSet)}` : 'Les valeurs réalisées aujourd’hui serviront de repère à la prochaine séance.'}</p>{lastExercise && lastExercise.sets.length > 1 && <details><summary>Toutes les séries de cette séance</summary><ol>{lastExercise.sets.map((set, index) => <li key={index}>Série {index + 1} · {formatSet(set)}</li>)}</ol></details>}</div>
+              <div className="va-workout-series"><h3>Aujourd’hui · Série {current.set + 1} / {setCount(entry)}</h3><div className="va-workout-dots" aria-label="Séries de cet exercice">{Array.from({ length: setCount(entry) }, (_, set) => <button key={set} type="button" disabled={saving || draft.status !== 'active'} aria-label={`Ouvrir la série ${set + 1}`} aria-current={set === current.set ? 'step' : undefined} onClick={() => { commit({ ...draft, cursor: steps.findIndex(step => step.exercise === current.exercise && step.set === set), restUntil: null }); setError(''); }}>{draft.confirmed.includes(`${current.exercise}:${set}`) ? '✓' : set + 1}</button>)}</div></div>
+              <fieldset disabled={saving || changed || draft.status !== 'active'} className="va-workout-inputs"><legend className="sr-only">Performance réalisée</legend>
+                {cardio ? <label>Temps ou distance<input aria-label="Temps ou distance réalisés" type="text" inputMode="text" maxLength={30} value={values.duration} onChange={event => changeValue('duration', event.target.value)} placeholder="Ex. 10 min ou 500 m" /></label> : <>
+                  <label>Charge ajoutée · kg<div className="va-workout-stepper"><button type="button" aria-label="Réduire la charge de 2,5 kg" onClick={() => increment('weight', -2.5)}>−</button><input aria-label="Charge ajoutée en kg" type="text" inputMode="decimal" maxLength={12} value={values.weight} placeholder="0" onChange={event => changeValue('weight', event.target.value)} /><button type="button" aria-label="Augmenter la charge de 2,5 kg" onClick={() => increment('weight', 2.5)}>+</button></div></label>
+                  <label>{timed ? 'Temps réalisé · secondes' : 'Répétitions réalisées'}<div className="va-workout-stepper"><button type="button" aria-label={timed ? 'Retirer une seconde' : 'Retirer une répétition'} onClick={() => increment('reps', -1)}>−</button><input aria-label={timed ? 'Secondes réalisées' : 'Répétitions réalisées'} type="text" inputMode="numeric" maxLength={5} value={values.reps} placeholder="—" onChange={event => changeValue('reps', event.target.value)} /><button type="button" aria-label={timed ? 'Ajouter une seconde' : 'Ajouter une répétition'} onClick={() => increment('reps', 1)}>+</button></div></label>
+                  <p className="va-workout-help">Sans charge ajoutée, indiquez 0 kg. Confirmez ce que vous avez réellement effectué.</p>
+                </>}
+              </fieldset>
+            </section>}
+            <details className="va-workout-overview"><summary>Voir ou corriger mes séries</summary>{steps.map((step, index) => <button key={stepKey(step)} type="button" disabled={draft.status !== 'active' || saving} onClick={() => { const key = stepKey(step); commit({ ...draft, cursor: index, confirmed: draft.confirmed.filter(item => item !== key), restUntil: null }); setError(''); }}><span>{draft.confirmed.includes(stepKey(step)) ? '✓' : '○'} {state.exercises.find(ex => ex.id === day.exercises[step.exercise].exId)?.name || 'Exercice'} · série {step.set + 1}</span><strong>{formatSet(draft.values[stepKey(step)] || emptySet())}</strong></button>)}</details>
+            <p className="va-workout-local">{storageOk ? 'Brouillon sur cet appareil · la séance sera synchronisée lorsque vous la terminerez.' : 'Copie locale indisponible.'}</p>
+          </>
         )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {activeVideo && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/90 z-[200] flex items-center justify-center p-4"
-            onClick={() => setActiveVideo(null)}
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative w-full max-w-4xl aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl"
-              onClick={e => e.stopPropagation()}
-            >
-              <button 
-                onClick={() => setActiveVideo(null)}
-                className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 z-10"
-              >
-                <XIcon size={24} />
-              </button>
-              {activeVideo.includes('youtube.com') || activeVideo.includes('youtu.be') ? (
-                <iframe 
-                  src={activeVideo.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')}
-                  className="w-full h-full"
-                  allowFullScreen
-                />
-              ) : activeVideo.includes('vimeo.com') ? (
-                <iframe 
-                  src={`https://player.vimeo.com/video/${activeVideo.split('/').pop()}`}
-                  className="w-full h-full"
-                  allowFullScreen
-                />
-              ) : (
-                <video src={activeVideo} controls className="w-full h-full" />
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>,
-    document.body
+      </div>
+      <footer className="va-workout-footer">
+        {error && <p role="alert" className="va-workout-error">{error}</p>}
+        {draft.status === 'saved' ? <Button fullWidth onClick={goToProgress}>Voir ma progression</Button> : draft.status === 'pending' || allDone ? <Button fullWidth disabled={saving || changed} onClick={finish}>{saving ? 'Enregistrement en cours…' : draft.status === 'pending' ? 'Réessayer l’enregistrement' : 'Terminer ma séance'}</Button> : <Button fullWidth disabled={saving || changed || restLeft > 0} onClick={confirmSet}>{restLeft > 0 ? `Repos · ${timeLabel(restLeft)}` : 'Valider la série'}</Button>}
+      </footer>
+    </dialog>, document.body,
   );
 };

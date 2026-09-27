@@ -255,6 +255,7 @@ export interface Preset {
 }
 
 export interface SessionLog {
+  completedAt?: string; // Server confirmation time; legacy logs may only have a calendar date.
   id: number;
   clubId: string;
   memberId: number;

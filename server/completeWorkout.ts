@@ -59,7 +59,7 @@ export async function completeWorkout(db: Firestore, uid: string, input: any) {
     const identity = { clubId: member!.clubId, memberId: member!.id, ...(member!.assignedCoachUid ? { assignedCoachUid: member!.assignedCoachUid } : {}) };
     const exerciseData = Object.fromEntries(exercises.flatMap((ex: any, exIndex: number) => ex.sets.flatMap((set: any, setIndex: number) => Object.entries(set).map(([key, value]) => [`${exIndex}-${setIndex}-${key}`, value]))));
     const totalVolume = exercises.reduce((total: number, ex: any) => total + ex.sets.reduce((sum: number, set: any) => sum + Math.max(0, Math.min(2000, parseFloat(set.weight) || 0)) * Math.max(0, Math.min(10000, parseFloat(set.reps) || 0)), 0), 0);
-    const log = { ...identity, id, date: today, week: program ? Math.floor(expectedIndex / program.nbDays) + 1 : 1,
+    const log = { ...identity, id, date: today, completedAt: new Date().toISOString(), week: program ? Math.floor(expectedIndex / program.nbDays) + 1 : 1,
       isCoaching: !isMember, dayName: String(day?.name || submitted.dayName || 'Séance').slice(0, 160), exercises, exerciseData, totalVolume,
       ...(Number.isFinite(submitted.rpe) ? { rpe: Math.min(10, Math.max(0, submitted.rpe)) } : {}),
       ...(Number.isFinite(submitted.score) ? { score: Math.min(100, Math.max(0, submitted.score)) } : {}),

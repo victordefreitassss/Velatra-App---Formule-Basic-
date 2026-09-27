@@ -9,6 +9,8 @@ import { apiFetch, db, doc, updateDoc, setDoc } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleGenAI } from '../services/aiService';
 import confetti from 'canvas-confetti';
+import { MemberWorkoutEntry } from './MemberWorkoutEntry';
+import { MemberTrainingProgress } from './MemberTrainingProgress';
 
 interface MemberDashboardProps {
   state: AppState;
@@ -334,6 +336,12 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
         </motion.button>
       </motion.div>
 
+      <MemberWorkoutEntry state={state} setState={setState} onRequestPlan={requestPlan} />
+      <MemberTrainingProgress state={state} setState={setState} compact />
+      <section aria-label="Mon coach et mon objectif" className="rounded-2xl border border-zinc-200 bg-white p-5 flex flex-wrap items-center justify-between gap-3">
+        <div><p className="text-sm font-semibold text-zinc-900">Mon objectif</p><p className="mt-1 text-sm text-zinc-700">{user.objectifs?.[0] || 'À définir avec votre coach'}</p></div>
+        <button type="button" className="min-h-11 rounded-xl border border-emerald-900/20 px-4 py-2 text-sm font-semibold text-emerald-900" onClick={() => setState(previous => ({ ...previous, page: 'messages' }))}>Écrire à mon coach</button>
+      </section>
       {nextBooking && (
         <motion.section variants={itemVariants} className="px-2">
           <button type="button" onClick={() => setState(prev => ({ ...prev, page: 'planning' }))} className="flex w-full items-center gap-4 rounded-2xl border border-emerald-900/10 bg-white p-4 text-left shadow-sm transition-colors hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 sm:p-5">
@@ -346,85 +354,6 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
           </button>
         </motion.section>
       )}
-
-      {/* Main Action: Today's Session */}
-      <motion.section variants={itemVariants} className="px-2">
-        {program ? (
-          <motion.button
-            type="button"
-            aria-label={`Ouvrir le programme ${program.name}`}
-            whileHover={{ scale: 1.005 }}
-            whileTap={{ scale: 0.995 }}
-            onClick={() => setState(prev => ({ ...prev, page: 'calendar' }))}
-            className="w-full text-left bg-zinc-50 rounded-2xl p-5 sm:p-7 relative overflow-hidden shadow-sm cursor-pointer transition-colors border border-zinc-200 group"
-          >
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/5 to-transparent" />
-
-            <div className="absolute -top-20 -right-20 w-48 h-48 bg-emerald-900/5 rounded-full" />
-
-            <div className="relative z-10 flex flex-col h-full justify-between gap-8">
-              <div className="flex justify-between items-start gap-3">
-                <div className="flex-1 pr-4">
-                  <Badge className="bg-zinc-100 text-zinc-900 border-zinc-300 backdrop-blur-md mb-4 font-bold tracking-widest text-[11px]">
-                    S{Math.floor((program.currentDayIndex || 0) / (program.nbDays || 1)) + 1} {program.durationWeeks ? `/ ${program.durationWeeks}` : ''} • J{((program.currentDayIndex || 0) % (program.nbDays || 1)) + 1}
-                  </Badge>
-                  <h2 className="text-2xl sm:text-3xl font-display font-bold text-zinc-900 leading-tight mb-2">
-                    {program.days[program.currentDayIndex % program.nbDays]?.name || 'Séance du jour'}
-                  </h2>
-                  <p className="text-zinc-700 text-sm font-medium">
-                    {program.name} · Objectif : {user.objectifs?.[0] || 'Général'}
-                  </p>
-                </div>
-                <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-900 flex items-center justify-center border border-emerald-200 group-hover:scale-[1.02] transition-transform duration-200">
-                  <TargetIcon size={24} />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between bg-white backdrop-blur-md rounded-2xl p-4 border border-zinc-200 group-hover:bg-zinc-100 transition-colors">
-                <span className="font-semibold text-zinc-900 text-sm">Démarrer l'entraînement</span>
-                <motion.div
-                  className="w-10 h-10 rounded-full bg-emerald-500 text-zinc-900 flex items-center justify-center shadow-lg"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                </motion.div>
-              </div>
-            </div>
-          </motion.button>
-        ) : (
-          <div className="space-y-3">
-            {lastArchive && (
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-4"
-              >
-                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 shrink-0">
-                  <TrophyIcon size={20} />
-                </div>
-                <div>
-                  <div className="text-[11px] font-black text-emerald-500 uppercase tracking-widest">Cycle Terminé</div>
-                  <div className="text-xs font-bold text-zinc-900">Bravo pour "{lastArchive.name}" !</div>
-                </div>
-              </motion.div>
-            )}
-          <motion.div
-              whileHover={!user.planRequested ? { scale: 1.005 } : {}}
-              whileTap={!user.planRequested ? { scale: 0.995 } : {}}
-              onClick={!user.planRequested ? requestPlan : undefined}
-              className={`rounded-3xl p-6 text-center border-2 border-dashed transition-all ${user.planRequested ? 'bg-zinc-50 border-zinc-200 cursor-default' : 'bg-emerald-500/5 border-emerald-500/30 cursor-pointer'}`}
-            >
-              <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3 ${user.planRequested ? 'bg-white text-zinc-500' : 'bg-emerald-500/20 text-emerald-500'}`}>
-                <CalendarIcon size={24} />
-              </div>
-              <h3 className="text-lg font-semibold text-zinc-900 mb-1">Prochain programme</h3>
-              <p className="text-sm text-zinc-700 mb-4">Demande un nouveau programme à ton coach quand tu es prêt.</p>
-              <Button variant={user.planRequested ? "glass" : "primary"} disabled={user.planRequested} className="w-full !py-4 !rounded-xl">
-                {user.planRequested ? "DEMANDE EN COURS..." : "DEMANDER MON PROGRAMME"}
-              </Button>
-            </motion.div>
-          </div>
-        )}
-      </motion.section>
 
       {/* Daily Ritual Habit Check-In Widget */}
       <motion.section variants={itemVariants} className="px-2">
@@ -635,6 +564,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
         </div>
       </motion.div>
 
+      <details className="rounded-2xl border border-zinc-200 bg-white p-4"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-zinc-800">Autres repères et outils</summary><div className="mt-4 space-y-6">
       {/* AI Coach Quick Access */}
       <motion.section variants={itemVariants} className="px-2">
         <motion.button
@@ -725,6 +655,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
         </div>
       </motion.section>
 
+      </div></details>
       {/* Coach Feedback */}
       {program && (
         <motion.section variants={itemVariants} className="px-2">

@@ -1185,7 +1185,7 @@ export default function App() {
       case 'calendar': return <CalendarPage state={state} setState={setState} />;
       case 'planning': return <PlanningPage state={state} setState={setState} showToast={showToast} />;
       case 'performances': return <StatsPage state={state} setState={setState} />;
-      case 'nutrition': return <MemberNutritionPage state={state} showToast={showToast} />;
+      case 'nutrition': return <MemberNutritionPage state={state} setState={setState} showToast={showToast} />;
       case 'ai_coach': return <AICoachPage state={state} setState={setState} showToast={showToast} />;
       case 'history': return <HistoryPage state={state} setState={setState} />;
       case 'about': return <AboutPage state={state} setState={setState} />;

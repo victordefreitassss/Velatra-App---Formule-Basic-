@@ -7,6 +7,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, Legend, BarChart, Bar
 } from 'recharts';
 import { motion } from 'framer-motion';
+import { MemberTrainingProgress } from '../components/MemberTrainingProgress';
 
 const containerVariants: import('framer-motion').Variants = {
   hidden: { opacity: 0 },
@@ -156,11 +157,13 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
     >
       <motion.div variants={itemVariants} className="flex justify-between items-center px-1">
         <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Mes performances</h1>
-          <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">Suivi biométrique & Records</p>
+          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Ma progression</h1>
+          <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">Vos séances, vos repères et votre évolution</p>
         </div>
       </motion.div>
 
+      <MemberTrainingProgress state={state} setState={setState} />
+      <details className="rounded-3xl border border-zinc-200 bg-white p-5"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-zinc-900">Mesures corporelles, graphiques et records</summary><div className="mt-5 space-y-8">
       {/* Weight Chart */}
       <motion.div variants={itemVariants}>
         <Card className="bg-white backdrop-blur-xl  !p-8 space-y-8 relative overflow-hidden shadow-xl">
@@ -463,6 +466,7 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
           ))
         )}
       </div>
+      </div></details>
     </motion.div>
   );
 };

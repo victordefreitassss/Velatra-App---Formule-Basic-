@@ -1,132 +1,24 @@
-
 import React from 'react';
-import { AppState } from '../types';
-import { Card, Button, Badge } from '../components/UI';
-import { PlayIcon } from '../components/Icons';
-import { VelatraMascot } from '../components/VelatraMascot';
-import { motion } from 'framer-motion';
+import type { AppState } from '../types';
+import { MemberWorkoutEntry } from '../components/MemberWorkoutEntry';
 
-export const CalendarPage: React.FC<{ state: AppState, setState: any }> = ({ state, setState }) => {
+export const CalendarPage: React.FC<{ state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }> = ({ state, setState }) => {
   const user = state.user!;
-  const program = state.programs.find(p => p.memberId === Number(user.id) && !p.isPlannedSession);
-
-  if (!program) {
-    return (
-      <div className="flex min-h-[52vh] items-center justify-center px-4 py-12">
-        <div className="max-w-sm text-center">
-          <VelatraMascot state="idle" size={118} interactive={false} autoWave className="mx-auto" />
-          <h2 className="mt-1 font-display text-xl font-semibold text-zinc-900">Aucun programme actif</h2>
-          <p className="mx-auto mt-2 max-w-[32ch] text-sm leading-6 text-zinc-600">
-            Votre coach n’a pas encore activé de programme pour vous. Vous le retrouverez ici dès qu’il sera prêt.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const startSession = (dayIdx: number) => {
-    // Calculate the actual absolute index based on the current week
-    const currentWeek = Math.floor(program.currentDayIndex / program.nbDays);
-    const absoluteDayIndex = (currentWeek * program.nbDays) + dayIdx;
-    
-    setState((s: AppState) => ({ 
-      ...s, 
-      workout: { ...program, currentDayIndex: absoluteDayIndex },
-      workoutMember: user
-    }));
-  };
-
-  const currentDayInWeek = program.currentDayIndex % program.nbDays;
-  const currentWeek = Math.floor(program.currentDayIndex / program.nbDays) + 1;
-  const totalWeeks = program.durationWeeks && program.durationWeeks > 0 ? program.durationWeeks : null;
-  const progressPercent = totalWeeks ? Math.min(100, Math.round((program.currentDayIndex / (program.nbDays * totalWeeks)) * 100)) : Math.round(currentDayInWeek / program.nbDays * 100);
-
-  const containerVariants: any = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const itemVariants: any = {
-    hidden: { y: 20, opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: { type: "spring", stiffness: 300, damping: 24 }
-    }
-  };
-
-  return (
-    <motion.div 
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-8 pb-20"
-    >
-      <motion.div variants={itemVariants} className="flex justify-between items-center px-1">
-        <div>
-          <h1 className="text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">Mon Programme</h1>
-          <p className="text-[10px] text-zinc-900 font-bold uppercase tracking-[3px] mt-2">{program.name}</p>
-        </div>
-      </motion.div>
-
-      <motion.div variants={itemVariants} className="bg-white backdrop-blur-xl p-6 rounded-3xl border border-zinc-200 shadow-sm">
-        <div className="flex justify-between items-end mb-4">
-          <div>
-            <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">{totalWeeks ? 'Progression globale' : 'Progression du cycle'}</div>
-            <div className="text-2xl font-black italic text-zinc-900">{progressPercent}%</div>
-          </div>
-          <div className="text-right">
-            <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1">Semaine</div>
-            <div className="text-sm font-black italic text-emerald-500">{currentWeek}{totalWeeks ? ` / ${totalWeeks}` : ' · Programme continu'}</div>
-          </div>
-        </div>
-        <div className="w-full bg-white/50 rounded-full h-3 overflow-hidden shadow-inner">
-          <motion.div 
-            initial={{ width: 0 }}
-            animate={{ width: `${progressPercent}%` }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            className="bg-emerald-500 h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]" 
-          />
-        </div>
-      </motion.div>
-
-      <motion.div variants={containerVariants} className="space-y-4">
-        {program.days.map((day, idx) => {
-          const isCompleted = idx < currentDayInWeek;
-          const isCurrent = idx === currentDayInWeek;
-          const isLocked = idx > currentDayInWeek;
-
-          return (
-            <motion.div variants={itemVariants} key={idx}>
-              <Card className={`flex items-center justify-between group !p-4 md:!p-6  transition-all shadow-sm ${isCompleted ? 'bg-white backdrop-blur-md opacity-60' : 'bg-zinc-50 backdrop-blur-xl hover:border-emerald-500/30 hover:shadow-md'}`}>
-                <div className="flex items-center gap-4 md:gap-6">
-                  <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl border flex items-center justify-center font-bold text-lg md:text-xl transition-all shadow-inner shrink-0 ${isCompleted ? 'bg-emerald-500 text-zinc-900 border-emerald-500' : isCurrent ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/50' : 'bg-zinc-50  text-zinc-900 group-hover:text-emerald-500 group-hover:border-emerald-500/50 group-hover:bg-emerald-500/10'}`}>
-                    {isCompleted ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg> : idx + 1}
-                  </div>
-                  <div>
-                    <div className="font-bold text-base md:text-lg text-zinc-900 mb-1 line-clamp-1">{day.name}</div>
-                    <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest flex items-center gap-2">
-                      {day.exercises.length} Exos
-                    </div>
-                  </div>
-                </div>
-                {isCompleted ? (
-                  <Badge variant="success" className="uppercase !text-[10px] shrink-0 ml-2 shadow-sm">Terminé</Badge>
-                ) : (
-                  <motion.div whileHover={!isLocked ? { scale: 1.05 } : {}} whileTap={!isLocked ? { scale: 0.95 } : {}}>
-                    <Button aria-label={`Démarrer ${day.name}`} variant={isCurrent ? "primary" : "secondary"} className={`!p-3 md:!p-4 !rounded-2xl shadow-lg shrink-0 ml-2 ${isCurrent ? 'shadow-emerald-500/20' : 'bg-white hover:bg-white'}`} onClick={() => startSession(idx)} disabled={isLocked}>
-                       <PlayIcon size={20} className={isCurrent ? "ml-1" : "ml-1 opacity-50"} />
-                    </Button>
-                  </motion.div>
-                )}
-              </Card>
-            </motion.div>
-          );
-        })}
-      </motion.div>
-    </motion.div>
-  );
+  const program = state.programs.find(p => p.clubId === user.clubId && Number(p.memberId) === Number(user.id) && !p.isPlannedSession);
+  const total = program?.durationWeeks ? program.nbDays * program.durationWeeks : null;
+  const progress = program && total ? Math.min(100, Math.round(program.currentDayIndex / total * 100)) : null;
+  return <div className="mx-auto max-w-4xl space-y-6 pb-24">
+    <header><h1 className="font-display text-3xl font-bold text-zinc-900">Mes séances</h1><p className="mt-2 text-sm text-zinc-700">Votre programme et votre séance en cours.</p></header>
+    <MemberWorkoutEntry state={state} setState={setState} showProgramLink={false} />
+    {program && <section className="rounded-3xl border border-zinc-200 bg-white p-5 sm:p-7 space-y-4" aria-label="Mon programme">
+      <h2 className="font-display text-xl font-bold text-zinc-900">{program.name}</h2>
+      <p className="text-sm text-zinc-700">{program.currentDayIndex} séance{program.currentDayIndex === 1 ? '' : 's'} terminée{program.currentDayIndex === 1 ? '' : 's'} dans ce programme{total ? ` sur ${total}` : ' · programme continu'}.</p>
+      {progress !== null && <progress className="w-full accent-emerald-900" value={progress} max={100} aria-label="Progression du programme" />}
+      <div className="space-y-3">{program.days.map((day, index) => <details key={index} className="rounded-2xl border border-zinc-200 px-4 py-1">
+        <summary className="min-h-14 cursor-pointer py-3 text-sm font-semibold leading-6 text-zinc-900">{day.name}<span className="block text-xs font-normal text-zinc-700">{day.exercises.length} exercice{day.exercises.length === 1 ? '' : 's'}{index === program.currentDayIndex % program.nbDays ? ' · prochaine séance' : ''}</span></summary>
+        <ul className="space-y-3 pb-4">{day.exercises.map((entry, exerciseIndex) => <li key={exerciseIndex} className="text-sm text-zinc-700"><strong className="block text-zinc-900">{state.exercises.find(exercise => exercise.id === entry.exId)?.name || 'Exercice'}</strong>{entry.sets} séries · {entry.reps || entry.duration || 'selon consignes'}{entry.notes && <p className="mt-1 leading-6">{entry.notes}</p>}</li>)}</ul>
+      </details>)}</div>
+    </section>}
+    <button type="button" className="min-h-11 text-sm font-semibold text-emerald-900 underline" onClick={() => setState(previous => ({ ...previous, page: 'history' }))}>Retrouver mes séances enregistrées</button>
+  </div>;
 };
