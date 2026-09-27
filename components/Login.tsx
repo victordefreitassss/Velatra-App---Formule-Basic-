@@ -46,6 +46,15 @@ const getLoginErrorMessage = (error: any) => {
 };
 
 export const Login: React.FC<{ initialMode?: 'login' | 'choose_account' | 'register' | 'club_register' }> = ({ initialMode = 'login' }) => {
+  React.useEffect(() => {
+    const preload = document.createElement('link');
+    preload.rel = 'preload';
+    preload.as = 'image';
+    preload.href = '/brand/companion/vela-idle.webp';
+    document.head.appendChild(preload);
+    return () => preload.remove();
+  }, []);
+
   const [mode, setMode] = useState<LoginMode>(initialMode);
   const [email, setEmail] = useState('');
   const [pwd, setPwd] = useState('');
@@ -155,7 +164,7 @@ export const Login: React.FC<{ initialMode?: 'login' | 'choose_account' | 'regis
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-12 -left-8 h-60 w-60 rounded-full border border-white/10" />
           <div className="relative z-[1]"><AppLogo inverse /></div>
           <div className="relative z-[1] flex flex-col items-center pb-4 text-center">
-            <VelatraMascot state={mascotState} size={190} interactive ariaLabel="Mascotte Velatra" autoWave={false} className="mb-2" />
+            <VelatraMascot state={mascotState} size={170} interactive ariaLabel="Mascotte Velatra" autoWave={false} className="mb-2" />
             <p className="max-w-[19rem] font-display text-2xl font-semibold leading-tight tracking-tight text-white lg:text-[1.8rem]">
               Votre espace de coaching, simplement.
             </p>

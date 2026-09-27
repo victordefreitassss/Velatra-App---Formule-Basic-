@@ -238,7 +238,7 @@ Aide à analyser uniquement le dossier sélectionné, proposer des idées d'entr
             transition={{ duration: 0.2 }}
             className="flex-1 flex flex-col overflow-hidden bg-white rounded-3xl border border-zinc-200/50 shadow-sm"
           >
-            {messages.length <= 1 && (
+            {messages.length <= 1 && !loading && (
               <div className="flex items-center gap-3 border-b border-zinc-200/60 bg-white/70 px-4 py-3 sm:px-5">
                 <VelatraMascot state={mascotState} size={74} interactive={false} autoWave={!loading} className="shrink-0" />
                 <div className="min-w-0">
