@@ -12,7 +12,9 @@
     "build": "NODE_OPTIONS=--max_old_space_size=4096 vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test --test-concurrency=1 tests/*.test.ts",
+    "test:emulators": "npx --yes firebase-tools@15.31.0 emulators:exec --project demo-velatra --config firebase.qa.json --only auth,firestore,storage \"npm test\"",
+    "dev:qa": "GCLOUD_PROJECT=demo-velatra FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 VITE_USE_FIREBASE_EMULATORS=true CLUB_INVITE_CODE=local-qa-invite tsx server.ts"
   },
   "dependencies": {
     "@google/genai": "^1.40.0",

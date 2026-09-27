@@ -2,9 +2,9 @@ import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { initializeTestEnvironment, RulesTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
 
-const projectId = 'demo-velatra-firestore-rules';
+const projectId = 'demo-velatra';
 let testEnv: RulesTestEnvironment;
 
 const profiles = {
@@ -51,6 +51,53 @@ after(async () => {
 });
 
 describe('Firestore coach/member isolation', () => {
+  it('lets a new identity observe its missing profile without reading anyone else', async () => {
+    const db = testEnv.authenticatedContext('new-signup').firestore();
+    const missing = await assertSucceeds(getDoc(doc(db, 'users', 'new-signup')));
+    assert.equal(missing.exists(), false);
+    await assertFails(getDoc(doc(db, 'users', 'member-a')));
+  });
+  it('blocks unauthenticated private reads and member writes to programs', async () => {
+    await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), 'programs', 'program-a')));
+    await assertFails(updateDoc(doc(testEnv.authenticatedContext('member-a').firestore(), 'programs', 'program-a'), { plan: 'changed' }));
+  });
+
+  it('prevents moving club documents to another club after creation', async () => {
+    const db = testEnv.authenticatedContext('coach-a').firestore();
+    await assertSucceeds(setDoc(doc(db, 'tasks', 'club-move'), { clubId: 'club-a', title: 'Task' }));
+    await assertFails(updateDoc(doc(db, 'tasks', 'club-move'), { clubId: 'club-b' }));
+    await assertSucceeds(setDoc(doc(db, 'presets', 'preset-move'), { clubId: 'club-a', name: 'Template' }));
+    await assertFails(updateDoc(doc(db, 'presets', 'preset-move'), { clubId: 'club-b' }));
+  });
+
+  it('rejects contradictory member ownership fields', async () => {
+    const db = testEnv.authenticatedContext('member-a').firestore();
+    await assertFails(setDoc(doc(db, 'logs', 'poisoned-log'), {
+      clubId: 'club-a', memberId: 202, userId: 101, assignedCoachUid: 'coach-a'
+    }));
+  });
+
+  it('blocks forged sender fields, direct member reservations and refund markers', async () => {
+    const memberDb = testEnv.authenticatedContext('member-a').firestore();
+    await assertFails(setDoc(doc(memberDb, 'logs', 'forged-sender'), { clubId: 'club-a', memberId: 202, from: 101, assignedCoachUid: 'coach-a' }));
+    await assertFails(setDoc(doc(memberDb, 'bookings', 'direct-booking'), { clubId: 'club-a', memberId: 101, assignedCoachUid: 'coach-a', status: 'confirmed' }));
+    await assertFails(updateDoc(doc(memberDb, 'users', 'member-a'), { credits: 999 }));
+    const coachDb = testEnv.authenticatedContext('coach-a').firestore();
+    await assertFails(setDoc(doc(coachDb, 'bookings', 'forged-credit'), { clubId: 'club-a', memberId: 101, assignedCoachUid: 'coach-a', creditDebited: true, memberUid: 'member-a' }));
+  });
+
+  it('allows member onboarding without granting payment status changes', async () => {
+    const db = testEnv.authenticatedContext('member-a').firestore();
+    await assertSucceeds(updateDoc(doc(db, 'users', 'member-a'), { age: 30, weight: 70, height: 175, gender: 'M', objectifs: ['Remise en forme'], injuries: '', blessures: '', phone: '', experienceLevel: 'Débutant', trainingDays: 3, sessionDuration: 60, equipment: 'Salle complète', onboardingCompleted: true }));
+    await assertFails(updateDoc(doc(db, 'users', 'member-a'), { paymentStatus: 'active' }));
+  });
+
+  it('allows owners to update their own plan while preserving club ownership', async () => {
+    const db = testEnv.authenticatedContext('owner').firestore();
+    await assertSucceeds(setDoc(doc(db, 'plans', 'valid-plan'), { clubId: 'club-a', name: 'Plan' }));
+    await assertSucceeds(updateDoc(doc(db, 'plans', 'valid-plan'), { name: 'Updated' }));
+    await assertFails(updateDoc(doc(db, 'plans', 'valid-plan'), { clubId: 'club-b' }));
+  });
   it('lets an adherent read their own profile and blocks another adherent profile', async () => {
     const db = testEnv.authenticatedContext('member-a').firestore();
     await assertSucceeds(getDoc(doc(db, 'users', 'member-a')));

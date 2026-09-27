@@ -10,7 +10,7 @@ import {
 import { doc, setDoc } from 'firebase/firestore';
 import { getBytes, ref, uploadBytes } from 'firebase/storage';
 
-const projectId = 'demo-velatra-rules';
+const projectId = 'demo-velatra';
 let testEnv: RulesTestEnvironment;
 
 const profiles = {
