@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppState, Plan } from '../types';
@@ -10,6 +10,14 @@ import { ExercisesPage } from './ExercisesPage';
 
 export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const [activeTab, setActiveTab] = useState<'info' | 'exercises'>('info');
+  const bookingSection = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (state.pendingUiAction !== 'booking-settings') return;
+    if (activeTab !== 'info') { setActiveTab('info'); return; }
+    bookingSection.current?.scrollIntoView({ block: 'start' });
+    bookingSection.current?.focus({ preventScroll: true });
+    setState((previous: AppState) => ({ ...previous, pendingUiAction: undefined }));
+  }, [state.pendingUiAction, activeTab, setState]);
   const [defaultDuration, setDefaultDuration] = useState(state.currentClub?.settings?.defaultProgramDuration || 7);
   const [stripeConnected, setStripeConnected] = useState(state.currentClub?.settings?.payment?.stripeConnected || false);
   const [stripeSecretKey, setStripeSecretKey] = useState('');
@@ -491,16 +499,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-zinc-600">
-                La création de comptes staff n'est pas encore activée pour votre club. Veuillez faire une demande à l'administrateur pour débloquer cette fonctionnalité.
+                L’ajout de comptes d’équipe n’est pas disponible dans cet espace bêta. Vous pouvez déjà gérer vos adhérents, leurs programmes et vos séances avec votre compte.
               </p>
-              <a 
-                href={`https://wa.me/33600000000?text=${encodeURIComponent(`Bonjour, je souhaiterais activer l'ajout de staff pour mon club ${state.currentClub?.name || ''} (ID: ${state.currentClub?.id || ''}).`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full px-4 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-colors text-sm uppercase tracking-wider"
-              >
-                Faire une demande sur WhatsApp
-              </a>
             </div>
           )}
         </div>
@@ -624,6 +624,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
+      <section ref={bookingSection} tabIndex={-1} aria-label="Paramètres du planning" className="scroll-mt-6 outline-none">
       <Card className="p-8 border-zinc-200 bg-zinc-50">
         <div className="flex items-center gap-4 mb-8">
           <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
@@ -884,6 +885,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
+      </section>
+
+      {import.meta.env.DEV && state.user?.role === 'superadmin' && (
       <Card className="p-8 border-zinc-200 bg-zinc-50 mb-6">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500">
@@ -945,6 +949,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           </div>
         </div>
       </Card>
+      )}
 
       <Card className="p-8 border-zinc-200 bg-zinc-50">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">

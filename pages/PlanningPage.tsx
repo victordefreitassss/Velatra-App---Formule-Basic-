@@ -6,6 +6,7 @@ import { CalendarIcon, PlusIcon, ClockIcon, UserIcon, CheckIcon, XIcon, TargetIc
 import { apiFetch, db, collection, addDoc, updateDoc, doc, deleteDoc, query, where, getDocs } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { trackProductEventOnce } from '../components/productEvents';
+import { attachBookingsToSlots, shiftPlanningWeek } from '../components/planningSlots';
 
 const containerVariants: import('framer-motion').Variants = {
   hidden: { opacity: 0 },
@@ -94,33 +95,12 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
       });
     }
 
-    // Add any bookings that are not in the generated slots
-    const dayBookings = getBookingsForDate(date);
-    dayBookings.forEach(b => {
-      const bStart = new Date(b.startTime);
-      const bEnd = new Date(b.endTime);
-      const exists = slots.some(s => s.start.getTime() === bStart.getTime() && s.coachId === b.coachId);
-      if (!exists) {
-        slots.push({ start: bStart, end: bEnd, coachId: b.coachId });
-      }
-    });
+    return attachBookingsToSlots(slots, getBookingsForDate(date), filterCoachId);
+  };
 
-    let finalSlots = slots.sort((a, b) => a.start.getTime() - b.start.getTime());
-    
-    if (filterCoachId !== 'all') {
-      finalSlots = finalSlots.filter(s => {
-        // If slot has a specific coach, check it
-        if (s.coachId) return s.coachId === filterCoachId;
-        // If slot is generic (no specific coach), we can either hide it or show it. 
-        // For generic slots, let's include them in all coach views so they can be booked.
-        // Or actually, let's keep it clean: if filter is applied, only show explicitly scheduled.
-        return true; // We'll let generic slots (no coach assigned) show up so they aren't lost, or return false to hide them. Let's return true if no coachId.
-      });
-      // Filter out bookings mismatching coach.
-      finalSlots = finalSlots.filter(s => s.coachId ? s.coachId === filterCoachId : true);
-    }
-
-    return finalSlots;
+  const changeWeek = (delta: number) => {
+    setCurrentWeekOffset(previous => previous + delta);
+    setSelectedDate(previous => shiftPlanningWeek(previous, delta));
   };
 
   const handleBookSlot = async () => {
@@ -239,14 +219,14 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
       </motion.div>
 
       <motion.div variants={itemVariants} className="flex items-center justify-between gap-2 bg-white p-3 sm:p-4 rounded-2xl border border-zinc-200">
-        <Button variant="secondary" aria-label="Semaine précédente" className="!h-10 !w-10 !shrink-0 !p-0 hover:bg-zinc-50" onClick={() => setCurrentWeekOffset(prev => prev - 1)}>&larr;</Button>
+        <Button variant="secondary" aria-label="Semaine précédente" className="!h-10 !w-10 !shrink-0 !p-0 hover:bg-zinc-50" onClick={() => changeWeek(-1)}>&larr;</Button>
         <div className="min-w-0 text-center">
           <div className="font-semibold text-zinc-900 text-sm sm:text-base">
             {weekDates[0].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} – {weekDates[6].toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
           </div>
           <button type="button" onClick={() => { setCurrentWeekOffset(0); setSelectedDate(new Date()); }} className="mt-0.5 text-sm font-medium text-emerald-800 hover:text-emerald-900">Aujourd’hui</button>
         </div>
-        <Button variant="secondary" aria-label="Semaine suivante" className="!h-10 !w-10 !shrink-0 !p-0 hover:bg-zinc-50" onClick={() => setCurrentWeekOffset(prev => prev + 1)}>&rarr;</Button>
+        <Button variant="secondary" aria-label="Semaine suivante" className="!h-10 !w-10 !shrink-0 !p-0 hover:bg-zinc-50" onClick={() => changeWeek(1)}>&rarr;</Button>
       </motion.div>
 
       {/* Mobile-first Date Strip */}
@@ -294,7 +274,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
         >
           {(() => {
             const slots = getAvailableSlots(selectedDate);
-            const dayBookings = getBookingsForDate(selectedDate);
+            const hasAvailability = bookingSettings.schedule.some(day => day.slots.length > 0);
 
             if (slots.length === 0) {
               return (
@@ -307,12 +287,14 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                     {isCoach && state.currentClub?.settings?.booking?.enabled === false
                       ? 'Activez le planning dans les paramètres pour proposer des créneaux à vos adhérents.'
                       : isCoach
-                        ? 'Configurez vos disponibilités pour permettre aux adhérents de réserver une séance.'
+                        ? hasAvailability
+                          ? 'Aucun créneau à cette date. Choisissez un autre jour ou ajustez vos disponibilités.'
+                          : 'Configurez vos disponibilités pour permettre aux adhérents de réserver une séance.'
                         : 'Aucun créneau n’est proposé pour cette date. Essayez un autre jour ou contactez votre coach.'}
                   </p>
                   {isCoach && (
-                    <button type="button" onClick={() => setState((previous: AppState) => ({ ...previous, page: 'settings' }))} className="mt-4 min-h-11 rounded-xl bg-emerald-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2">
-                      {state.currentClub?.settings?.booking?.enabled === false ? 'Ouvrir les paramètres' : 'Configurer mes disponibilités'}
+                    <button type="button" onClick={() => setState((previous: AppState) => ({ ...previous, page: 'settings', pendingUiAction: 'booking-settings' }))} className="mt-4 min-h-11 rounded-xl bg-emerald-800 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2">
+                      {state.currentClub?.settings?.booking?.enabled === false ? 'Activer mon planning' : hasAvailability ? 'Modifier mes disponibilités' : 'Configurer mes disponibilités'}
                     </button>
                   )}
                 </motion.div>
@@ -320,7 +302,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
             }
 
             return slots.map((slot, sIdx) => {
-              const bookingsForSlot = dayBookings.filter(b => new Date(b.startTime).getTime() === slot.start.getTime() && b.status !== 'cancelled' && b.status !== 'rejected');
+              const bookingsForSlot = slot.bookings;
               const isPast = slot.start.getTime() < new Date().getTime();
               const sessionType = bookingSettings.sessionTypes?.find(t => t.id === slot.sessionTypeId);
               const maxParticipants = sessionType?.maxParticipants || 1;
@@ -423,6 +405,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                   whileTap={{ scale: 0.99 }}
                   onClick={() => {
                     setSelectedSlot(slot);
+                    if (filterCoachId !== 'all') setSelectedCoachId(filterCoachId);
                     setIsBookingModalOpen(true);
                   }}
                   className="p-4 rounded-2xl border border-zinc-200 hover:border-emerald-500 hover:bg-zinc-50 transition-all text-zinc-900 bg-white flex flex-col justify-center items-center group min-h-[100px] shadow-sm hover:shadow-md relative"
