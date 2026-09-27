@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 
 export type VelatraMascotState = 'idle' | 'wave' | 'thinking' | 'success' | 'error';
@@ -13,8 +13,6 @@ interface VelatraMascotProps {
   onClick?: () => void;
 }
 
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
 export const VelatraMascot: React.FC<VelatraMascotProps> = ({
   state = 'idle',
   size = 220,
@@ -24,80 +22,108 @@ export const VelatraMascot: React.FC<VelatraMascotProps> = ({
   ariaLabel = 'Assistant Velatra',
   onClick,
 }) => {
-  const rootRef = useRef<HTMLButtonElement | HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
-  const [look, setLook] = useState({ x: 0, y: 0 });
+  const id = useId().replace(/:/g, '');
   const [temporaryState, setTemporaryState] = useState<VelatraMascotState | null>(null);
+  const [look, setLook] = useState({ x: 0, y: 0 });
+  const clickWaveTimer = useRef<number | null>(null);
   const effectiveState = temporaryState || state;
+  const clickable = interactive || Boolean(onClick);
+
+  const bgId = `vela-bg-${id}`;
+  const skinId = `vela-skin-${id}`;
+  const skinHighlightId = `vela-skin-hi-${id}`;
+  const hairId = `vela-hair-${id}`;
+  const hoodieId = `vela-hoodie-${id}`;
+  const eyeId = `vela-eye-${id}`;
+  const shadowId = `vela-shadow-${id}`;
+  const hairShadowId = `vela-hair-shadow-${id}`;
+
+  useEffect(() => {
+    if (state !== 'idle') setTemporaryState(null);
+  }, [state]);
 
   useEffect(() => {
     if (!autoWave || reduceMotion || state !== 'idle') return;
-    const start = window.setTimeout(() => setTemporaryState('wave'), 350);
-    const stop = window.setTimeout(() => setTemporaryState(null), 1750);
+    const start = window.setTimeout(() => setTemporaryState('wave'), 320);
+    const stop = window.setTimeout(() => setTemporaryState(null), 1650);
     return () => {
       window.clearTimeout(start);
       window.clearTimeout(stop);
     };
   }, [autoWave, reduceMotion, state]);
 
-  useEffect(() => {
-    if (!interactive || reduceMotion) return;
-    let frame = 0;
-    const onPointerMove = (event: PointerEvent) => {
-      if (frame) return;
-      frame = window.requestAnimationFrame(() => {
-        frame = 0;
-        const rect = rootRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height * 0.36;
-        const dx = clamp((event.clientX - centerX) / Math.max(window.innerWidth * 0.35, 1), -1, 1);
-        const dy = clamp((event.clientY - centerY) / Math.max(window.innerHeight * 0.35, 1), -1, 1);
-        setLook({ x: dx * 3.2, y: dy * 2.4 });
-      });
-    };
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, [interactive, reduceMotion]);
+  useEffect(() => () => {
+    if (clickWaveTimer.current) window.clearTimeout(clickWaveTimer.current);
+  }, []);
 
   const triggerWave = () => {
     if (!reduceMotion && effectiveState === 'idle') {
       setTemporaryState('wave');
-      window.setTimeout(() => setTemporaryState(null), 1100);
+      if (clickWaveTimer.current) window.clearTimeout(clickWaveTimer.current);
+      clickWaveTimer.current = window.setTimeout(() => {
+        setTemporaryState(null);
+        clickWaveTimer.current = null;
+      }, 1050);
     }
     onClick?.();
   };
 
-  const Wrapper: any = interactive || onClick ? motion.button : motion.div;
-  const thinking = effectiveState === 'thinking';
-  const success = effectiveState === 'success';
-  const error = effectiveState === 'error';
-  const waving = effectiveState === 'wave';
-  const eyeX = thinking ? 1.1 : look.x;
-  const eyeY = thinking ? -2.1 : look.y;
+  const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    if (!interactive || reduceMotion || effectiveState === 'thinking') return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / Math.max(rect.width, 1) - 0.5) * 3.4;
+    const y = ((event.clientY - rect.top) / Math.max(rect.height, 1) - 0.5) * 2.4;
+    setLook({ x, y });
+  };
+
+  const resetLook = () => setLook({ x: 0, y: 0 });
+  const Wrapper: any = clickable ? motion.button : motion.div;
 
   const bodyAnimation = reduceMotion
     ? undefined
-    : success
-      ? { y: [0, -4, 0], scale: [1, 1.015, 1] }
-      : error
-        ? { x: [0, -1.5, 1.5, 0] }
-        : { y: [0, -1.6, 0] };
+    : effectiveState === 'success'
+      ? { y: [0, -4, 0], scale: [1, 1.018, 1] }
+      : effectiveState === 'error'
+        ? { x: [0, -1.8, 1.8, -1, 0] }
+        : effectiveState === 'wave'
+          ? { rotate: [0, -1.2, 1.2, 0], y: [0, -1.6, 0] }
+          : { y: [0, -1.4, 0] };
+
+  const pupilX = effectiveState === 'thinking' ? 1.5 : look.x;
+  const pupilY = effectiveState === 'thinking' ? -1.4 : look.y;
+
+  const faceMouth = effectiveState === 'error'
+    ? 'M98 137c7-4 15-4 23 0'
+    : effectiveState === 'thinking'
+      ? 'M103 136c5 2 10 2 15 0'
+      : effectiveState === 'success'
+        ? 'M94 132c10 12 23 12 33 0'
+        : 'M96 135c8 6 19 6 28 0';
 
   return (
     <Wrapper
-      ref={rootRef}
-      type={interactive || onClick ? 'button' : undefined}
-      onClick={interactive || onClick ? triggerWave : undefined}
-      className={`relative inline-flex select-none items-center justify-center border-0 bg-transparent p-0 outline-none ${interactive || onClick ? 'cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-4 rounded-[32px]' : ''} ${className}`}
+      type={clickable ? 'button' : undefined}
+      onClick={clickable ? triggerWave : undefined}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={resetLook}
+      className={`relative inline-flex select-none items-center justify-center border-0 bg-transparent p-0 outline-none ${
+        clickable
+          ? 'cursor-pointer rounded-[32px] focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-4'
+          : ''
+      } ${className}`}
       style={{ width: size, height: size * 1.18 }}
-      aria-label={interactive || onClick ? ariaLabel : undefined}
-      role={interactive || onClick ? undefined : 'img'}
+      aria-label={ariaLabel}
+      role={clickable ? undefined : 'img'}
       whileTap={interactive && !reduceMotion ? { scale: 0.985 } : undefined}
     >
+      <motion.div
+        className="absolute inset-[8%_5%_2%] rounded-[38%] bg-[radial-gradient(circle_at_50%_25%,rgba(255,255,255,.8),rgba(221,232,220,.22)_60%,transparent_78%)]"
+        aria-hidden="true"
+        animate={reduceMotion ? undefined : { opacity: [0.72, 1, 0.72], scale: [0.99, 1.015, 0.99] }}
+        transition={{ duration: 4.6, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
       <motion.svg
         viewBox="0 0 220 260"
         width="100%"
@@ -105,124 +131,143 @@ export const VelatraMascot: React.FC<VelatraMascotProps> = ({
         aria-hidden="true"
         initial={false}
         animate={bodyAnimation}
-        transition={success ? { duration: 0.55, ease: 'easeOut' } : error ? { duration: 0.28 } : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+        transition={
+          effectiveState === 'success'
+            ? { duration: 0.58, ease: 'easeOut' }
+            : effectiveState === 'error'
+              ? { duration: 0.34, ease: 'easeOut' }
+              : { duration: 3.5, repeat: Infinity, ease: 'easeInOut' }
+        }
       >
         <defs>
-          <linearGradient id="velatraMascotHead" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={bgId} x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#fffef9" />
-            <stop offset="100%" stopColor="#f1f1e8" />
+            <stop offset="55%" stopColor="#f1f5ee" />
+            <stop offset="100%" stopColor="#dfe9df" />
           </linearGradient>
-          <linearGradient id="velatraMascotGreen" x1="0" y1="0" x2="0.85" y2="1">
-            <stop offset="0%" stopColor="#245e43" />
-            <stop offset="100%" stopColor="#0e3828" />
+          <linearGradient id={skinId} x1=".15" y1="0" x2=".85" y2="1">
+            <stop offset="0%" stopColor="#f3c6a5" />
+            <stop offset="50%" stopColor="#e2aa85" />
+            <stop offset="100%" stopColor="#bd7558" />
           </linearGradient>
-          <filter id="velatraMascotShadow" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="4" />
+          <linearGradient id={skinHighlightId} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#ffd9bb" stopOpacity=".82" />
+            <stop offset="100%" stopColor="#df9d79" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id={hairId} x1=".1" y1="0" x2=".8" y2="1">
+            <stop offset="0%" stopColor="#6b4026" />
+            <stop offset="36%" stopColor="#43291d" />
+            <stop offset="76%" stopColor="#251916" />
+            <stop offset="100%" stopColor="#161110" />
+          </linearGradient>
+          <linearGradient id={hoodieId} x1=".1" y1="0" x2=".9" y2="1">
+            <stop offset="0%" stopColor="#295a43" />
+            <stop offset="50%" stopColor="#173f2e" />
+            <stop offset="100%" stopColor="#0d2a1f" />
+          </linearGradient>
+          <radialGradient id={eyeId} cx=".35" cy=".28" r=".8">
+            <stop offset="0%" stopColor="#8aac6f" />
+            <stop offset="65%" stopColor="#506f45" />
+            <stop offset="100%" stopColor="#2b4230" />
+          </radialGradient>
+          <filter id={shadowId} x="-40%" y="-40%" width="180%" height="190%">
+            <feDropShadow dx="0" dy="8" stdDeviation="8" floodColor="#173f2e" floodOpacity=".14" />
           </filter>
-          <clipPath id="velatraMascotBadgeClip">
-            <rect x="99" y="151" width="22" height="22" rx="6" />
-          </clipPath>
+          <filter id={hairShadowId} x="-20%" y="-20%" width="140%" height="150%">
+            <feDropShadow dx="0" dy="3" stdDeviation="2.5" floodColor="#2a1c15" floodOpacity=".24" />
+          </filter>
         </defs>
 
-        <ellipse cx="110" cy="238" rx="51" ry="9" fill="#143c2b" opacity="0.12" filter="url(#velatraMascotShadow)" />
+        <rect x="14" y="8" width="192" height="240" rx="58" fill={`url(#${bgId})`} stroke="#fff" strokeWidth="2" />
+        <circle cx="44" cy="46" r="20" fill="#fff" opacity=".34" />
+        <circle cx="184" cy="194" r="27" fill="#c7dbc8" opacity=".18" />
 
-        <motion.g
-          initial={false}
-          animate={reduceMotion ? undefined : { rotate: waving ? [-5, -42, -12, -38, -6] : thinking ? -20 : -4 }}
-          transition={waving ? { duration: 0.95, ease: 'easeInOut' } : { duration: 0.35 }}
-          style={{ transformOrigin: '68px 137px' }}
-        >
-          <circle cx="68" cy="137" r="13" fill="#174a35" />
-          <rect x="51" y="136" width="21" height="52" rx="10.5" fill="url(#velatraMascotGreen)" />
-          <rect x="52.5" y="166" width="18" height="20" rx="9" fill="#f6f4ec" />
-          <circle cx="61.5" cy="188" r="11" fill="#174a35" />
-          {waving && (
-            <motion.g initial={{ opacity: 0 }} animate={{ opacity: [0, 1, 1, 0] }} transition={{ duration: 0.95 }}>
-              <path d="M39 150l-8-4M40 160l-9 1M44 139l-5-7" stroke="#174a35" strokeWidth="3" strokeLinecap="round" />
-            </motion.g>
+        <g>
+          <path d="M37 250c4-45 19-75 47-88 8-4 17-6 26-6 10 0 19 2 27 6 28 13 43 43 47 88z" fill={`url(#${hoodieId})`} filter={`url(#${shadowId})`} />
+          <path d="M74 178c10-15 22-23 36-23 15 0 28 8 37 23-11 14-23 21-37 21-14 0-26-7-36-21z" fill="#0d2c20" opacity=".95" />
+          <path d="M82 167c8 11 17 17 28 17 12 0 22-6 29-17l-9-15H91z" fill="#28563f" />
+          <path d="M88 164c6 8 13 12 22 12 9 0 16-4 22-12l-5-13H94z" fill={`url(#${skinId})`} />
+          <path d="M103 190l7 9 7-9" fill="none" stroke="#eef4eb" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M110 199v26" stroke="#e4eee4" strokeWidth="1.5" opacity=".55" />
+          <path d="M103 210l7 9 8-9" fill="none" stroke="#f6faf4" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+
+        <g>
+          <ellipse cx="68" cy="105" rx="10.5" ry="15.5" fill={`url(#${skinId})`} />
+          <ellipse cx="152" cy="105" rx="10.5" ry="15.5" fill={`url(#${skinId})`} />
+          <path d="M66 101c5-3 8 .5 7 5-1 4-3 6-6 7" fill="none" stroke="#ad6e55" strokeWidth="1.3" opacity=".7" />
+          <path d="M154 101c-5-3-8 .5-7 5 1 4 3 6 6 7" fill="none" stroke="#ad6e55" strokeWidth="1.3" opacity=".7" />
+
+          <path d="M73 79c4-25 21-40 37-42 19-2 36 8 43 25 5 11 5 22 4 36-1 35-18 62-47 62-29 0-46-27-47-62 0-7 2-14 10-19z" fill={`url(#${skinId})`} filter={`url(#${shadowId})`} />
+          <path d="M76 81c3-17 13-30 28-35-3 18-4 40-2 62 2 24 8 40 18 49-3 1-7 2-10 2-29 0-46-27-47-62 0-7 3-14 13-16z" fill={`url(#${skinHighlightId})`} opacity=".44" />
+          <path d="M145 78c6 14 7 33 1 50-5 14-13 24-25 29 14-2 24-10 30-22 8-17 10-38 6-55z" fill="#9c5e49" opacity=".1" />
+
+          <path d="M69 82c-1-16 3-30 12-41 10-12 24-18 40-17 21 1 38 13 45 31-6-4-13-6-20-5 1-9-2-18-8-24-2 11-9 19-19 24-1-11-5-20-13-26-1 12-6 22-16 30-4-8-9-14-16-17 3 15 1 29-5 45z" fill={`url(#${hairId})`} filter={`url(#${hairShadowId})`} />
+          <path d="M79 52c8-11 18-17 31-18-7 6-11 14-12 23-8-3-14-4-19-5z" fill="#8b5736" opacity=".55" />
+          <path d="M104 34c8-8 17-9 26-6-8 6-12 14-13 24-5-7-9-13-13-18z" fill="#7c4a30" opacity=".48" />
+          <path d="M129 34c9 2 17 8 23 16-8-1-14 0-20 4 1-7 0-14-3-20z" fill="#68402c" opacity=".58" />
+          <path d="M71 77c4-9 11-16 20-22-2 8-2 16 0 24-8-3-14-3-20-2z" fill="#2c1d18" opacity=".65" />
+
+          <path d={effectiveState === 'error' ? 'M81 94c7-1 14 1 21 6M118 100c7-5 14-7 21-6' : effectiveState === 'thinking' ? 'M81 92c7-5 15-5 22-1M118 90c7-2 14-1 21 3' : 'M81 92c7-5 15-6 23-2M117 90c8-3 16-2 23 3'} fill="none" stroke="#352219" strokeWidth="3.7" strokeLinecap="round" />
+
+          {effectiveState === 'success' ? (
+            <g>
+              <path d="M84 105c6 5 14 5 20 0" fill="none" stroke="#5c3a2d" strokeWidth="2.1" strokeLinecap="round" />
+              <path d="M117 105c6 5 14 5 20 0" fill="none" stroke="#5c3a2d" strokeWidth="2.1" strokeLinecap="round" />
+            </g>
+          ) : (
+            <g>
+              <path d="M84 103c6-5 14-5 20 0" fill="none" stroke="#6e4737" strokeWidth="1.2" opacity=".45" />
+              <path d="M117 103c6-5 14-5 20 0" fill="none" stroke="#6e4737" strokeWidth="1.2" opacity=".45" />
+              <ellipse cx="94" cy="105" rx="9.2" ry="6.6" fill="#fffdf9" />
+              <ellipse cx="127" cy="105" rx="9.2" ry="6.6" fill="#fffdf9" />
+              <motion.ellipse cx="95" cy="105" rx="4.5" ry="5.1" fill={`url(#${eyeId})`} animate={{ x: pupilX, y: pupilY }} transition={{ type: 'spring', stiffness: 180, damping: 22 }} />
+              <motion.ellipse cx="126" cy="105" rx="4.5" ry="5.1" fill={`url(#${eyeId})`} animate={{ x: pupilX, y: pupilY }} transition={{ type: 'spring', stiffness: 180, damping: 22 }} />
+              <motion.circle cx="95" cy="105" r="2.2" fill="#17261d" animate={{ x: pupilX, y: pupilY }} transition={{ type: 'spring', stiffness: 180, damping: 22 }} />
+              <motion.circle cx="126" cy="105" r="2.2" fill="#17261d" animate={{ x: pupilX, y: pupilY }} transition={{ type: 'spring', stiffness: 180, damping: 22 }} />
+              <motion.circle cx="96.4" cy="103.2" r="1.1" fill="#fff" animate={{ x: pupilX, y: pupilY }} transition={{ type: 'spring', stiffness: 180, damping: 22 }} />
+              <motion.circle cx="127.4" cy="103.2" r="1.1" fill="#fff" animate={{ x: pupilX, y: pupilY }} transition={{ type: 'spring', stiffness: 180, damping: 22 }} />
+            </g>
           )}
-        </motion.g>
 
-        <motion.g
-          initial={false}
-          animate={reduceMotion ? undefined : { rotate: thinking ? 27 : success ? -8 : 4 }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-          style={{ transformOrigin: '152px 137px' }}
-        >
-          <circle cx="152" cy="137" r="13" fill="#174a35" />
-          <rect x="148" y="136" width="21" height="52" rx="10.5" fill="url(#velatraMascotGreen)" />
-          <rect x="149.5" y="166" width="18" height="20" rx="9" fill="#f6f4ec" />
-          <circle cx="158.5" cy="188" r="11" fill="#174a35" />
-        </motion.g>
-
-        <g>
-          <rect x="65" y="124" width="90" height="89" rx="41" fill="url(#velatraMascotHead)" stroke="#dce3da" strokeWidth="1.5" />
-          <path d="M67 151c8-11 15-17 24-21v80c-12-5-21-17-24-32zM153 151c-8-11-15-17-24-21v80c12-5 21-17 24-32z" fill="#174a35" opacity="0.96" />
-          <rect x="95" y="112" width="30" height="22" rx="11" fill="#123d2c" />
-          <image href="/brand/velatra-mark.png" x="99" y="151" width="22" height="22" clipPath="url(#velatraMascotBadgeClip)" preserveAspectRatio="xMidYMid meet" />
+          <path d="M110 106c-.5 8-2.5 13-6 17 3.5 2.3 8.4 2.4 12.3.2" fill="none" stroke="#b46e54" strokeWidth="1.65" strokeLinecap="round" />
+          <path d={faceMouth} fill="none" stroke="#754037" strokeWidth={effectiveState === 'success' ? 3 : 2.7} strokeLinecap="round" />
+          {effectiveState !== 'error' && effectiveState !== 'thinking' && <path d="M100 137c6 2 13 2 20 0" fill="none" stroke="#f5cdbf" strokeWidth="1.8" strokeLinecap="round" opacity=".7" />}
+          <ellipse cx="82" cy="126" rx="8" ry="3.5" fill="#d96f68" opacity=".12" />
+          <ellipse cx="138" cy="126" rx="8" ry="3.5" fill="#d96f68" opacity=".1" />
         </g>
 
-        <g>
-          <rect x="76" y="199" width="26" height="38" rx="13" fill="#174a35" />
-          <rect x="118" y="199" width="26" height="38" rx="13" fill="#174a35" />
-          <path d="M74 229h31v9c0 6-5 10-11 10H82c-5 0-8-4-8-9zM116 229h31v10c0 5-4 9-9 9h-13c-5 0-9-4-9-9z" fill="#f8f7f3" stroke="#dce3da" />
-        </g>
-
-        <motion.g
-          initial={false}
-          animate={reduceMotion ? undefined : { rotate: thinking ? -3 : error ? 2 : 0, y: success ? -1 : 0 }}
-          transition={{ duration: 0.35 }}
-          style={{ transformOrigin: '110px 91px' }}
-        >
-          <rect x="45" y="34" width="130" height="108" rx="54" fill="url(#velatraMascotHead)" stroke="#dce3da" strokeWidth="1.5" />
-
-          <path d="M70 45c9-26 30-33 47-25-4 8-7 14-6 25 12-20 28-26 42-19-2 21-11 35-26 43-19-15-36-20-57-24z" fill="url(#velatraMascotGreen)" />
-          <path d="M118 24c6 7 8 17 7 28 9-16 17-22 28-25-5 18-13 29-27 38-2-17-4-28-8-41z" fill="#2c7552" opacity="0.72" />
-
-          <motion.path
-            d={error ? 'M72 75l18-5M130 70l18 5' : thinking ? 'M72 72c6-4 12-4 18 0M130 73c6-5 12-5 18-1' : 'M72 72c6-4 12-4 18 0M130 72c6-4 12-4 18 0'}
-            fill="none"
-            stroke="#123d2c"
-            strokeWidth="3.5"
-            strokeLinecap="round"
-          />
-
-          <motion.g
-            animate={reduceMotion ? undefined : { scaleY: [1, 1, 0.12, 1, 1] }}
-            transition={{ duration: 0.42, repeat: Infinity, repeatDelay: 3.6, ease: 'easeInOut' }}
-            style={{ transformOrigin: '110px 92px' }}
-          >
-            <motion.ellipse cx="84" cy="91" rx="8.5" ry="14" fill="#103d2c" animate={{ x: eyeX, y: eyeY }} transition={{ type: 'spring', stiffness: 180, damping: 22 }} />
-            <motion.ellipse cx="136" cy="91" rx="8.5" ry="14" fill="#103d2c" animate={{ x: eyeX, y: eyeY }} transition={{ type: 'spring', stiffness: 180, damping: 22 }} />
-            <motion.circle cx="87" cy="86" r="2.6" fill="#fff" animate={{ x: eyeX, y: eyeY }} transition={{ type: 'spring', stiffness: 180, damping: 22 }} />
-            <motion.circle cx="139" cy="86" r="2.6" fill="#fff" animate={{ x: eyeX, y: eyeY }} transition={{ type: 'spring', stiffness: 180, damping: 22 }} />
-          </motion.g>
-
-          <path
-            d={error ? 'M99 119c8-6 15-6 23 0' : success ? 'M96 113c9 12 20 12 29 0' : thinking ? 'M102 116c6 3 11 3 16 0' : 'M99 113c7 8 15 8 22 0'}
-            fill="none"
-            stroke="#143d2d"
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
-        </motion.g>
-
-        {thinking && (
-          <motion.g initial={{ opacity: 0, y: 3 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-            <path d="M174 56c0-8 6-13 14-13 8 0 14 5 14 12 0 9-10 10-10 18" fill="none" stroke="#174a35" strokeWidth="4" strokeLinecap="round" />
-            <circle cx="192" cy="82" r="2.7" fill="#174a35" />
+        {effectiveState === 'wave' && (
+          <motion.g initial={false} animate={reduceMotion ? undefined : { rotate: [-4, 9, -9, 7, -3] }} transition={{ duration: 1.05, ease: 'easeInOut' }} style={{ transformOrigin: '167px 194px' }}>
+            <path d="M154 198c10-3 17-14 20-29" fill="none" stroke="#153a2b" strokeWidth="14" strokeLinecap="round" />
+            <path d="M174 168c2-11 5-25 7-39" fill="none" stroke={`url(#${skinId})`} strokeWidth="13" strokeLinecap="round" />
+            <ellipse cx="181" cy="126" rx="10" ry="11" fill={`url(#${skinId})`} />
+            <path d="M176 122l-4-9M181 119l-1-10M186 120l3-9M190 124l7-6" fill="none" stroke="#c88667" strokeWidth="2.3" strokeLinecap="round" />
           </motion.g>
         )}
 
-        {success && (
-          <motion.g initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: [0, 1, 1, 0.35], scale: 1 }} transition={{ duration: 0.7 }} style={{ transformOrigin: '110px 76px' }}>
-            <path d="M36 83h-13M42 59l-9-9M184 83h13M178 59l9-9M110 17V5" stroke="#1f7a55" strokeWidth="3" strokeLinecap="round" />
+        {effectiveState === 'thinking' && (
+          <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.22 }}>
+            <path d="M151 196c8-7 12-17 13-30" fill="none" stroke="#153a2b" strokeWidth="14" strokeLinecap="round" />
+            <path d="M163 166c-4-8-9-13-16-17" fill="none" stroke={`url(#${skinId})`} strokeWidth="12" strokeLinecap="round" />
+            <circle cx="143" cy="146" r="8.5" fill={`url(#${skinId})`} />
           </motion.g>
         )}
 
-        {error && (
-          <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
-            <path d="M183 62l7-7M187 72l10-2" stroke="#8b4b34" strokeWidth="3" strokeLinecap="round" />
+        {effectiveState === 'success' && (
+          <motion.g initial={{ opacity: 0, scale: .88 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 330, damping: 20 }} style={{ transformOrigin: '174px 177px' }}>
+            <path d="M151 198c9-2 17-9 23-20" fill="none" stroke="#153a2b" strokeWidth="14" strokeLinecap="round" />
+            <path d="M174 178c2-8 1-17-2-26" fill="none" stroke={`url(#${skinId})`} strokeWidth="12" strokeLinecap="round" />
+            <circle cx="172" cy="148" r="9" fill={`url(#${skinId})`} />
+            <circle cx="190" cy="51" r="14" fill="#1f6a49" />
+            <path d="M184 51l4 4 8-9" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+          </motion.g>
+        )}
+
+        {effectiveState === 'error' && (
+          <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: .2 }}>
+            <circle cx="190" cy="51" r="14" fill="#9a5d38" />
+            <path d="M190 43v10M190 58v1" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
           </motion.g>
         )}
       </motion.svg>
