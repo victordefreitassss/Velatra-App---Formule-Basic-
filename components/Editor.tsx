@@ -24,13 +24,15 @@ const SearchableExerciseSelect: React.FC<{
   exercises: Exercise[];
   value: number;
   onChange: (id: number) => void;
-}> = ({ exercises, value, onChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  inline?: boolean;
+}> = ({ exercises, value, onChange, inline = false }) => {
+  const [isOpen, setIsOpen] = useState(inline);
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (inline) return;
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setIsOpen(false);
@@ -38,7 +40,7 @@ const SearchableExerciseSelect: React.FC<{
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [inline]);
 
   const selectedEx = exercises.find(e => e.id === value);
 
@@ -51,7 +53,7 @@ const SearchableExerciseSelect: React.FC<{
 
   return (
     <div className="relative w-full" ref={containerRef}>
-      <button
+      {!inline && <button
         type="button"
         aria-expanded={isOpen}
         aria-label={selectedEx ? `Choisir un exercice. Actuel : ${selectedEx.name}` : 'Choisir un exercice'}
@@ -68,10 +70,10 @@ const SearchableExerciseSelect: React.FC<{
           )}
         </div>
         <ChevronDownIcon size={16} className={`text-zinc-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
+      </button>}
       
       {isOpen && (
-        <div className="absolute z-50 top-full left-0 right-0 mt-2 bg-white border border-zinc-150 rounded-[28px] shadow-2xl max-h-[420px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        <div className={`${inline ? "relative max-h-[60dvh]" : "absolute z-50 top-full left-0 right-0 mt-2 max-h-[420px] shadow-2xl"} bg-white border border-zinc-200 rounded-2xl overflow-hidden flex flex-col`}>
           <div className="p-3 sticky top-0 bg-white border-b border-zinc-100/80 z-10 space-y-2">
             <div className="relative">
               <SearchIcon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
@@ -241,6 +243,15 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   };
   const [selectedDayIdx, setSelectedDayIdx] = useState(0);
   const [selectedExerciseIdx, setSelectedExerciseIdx] = useState(0);
+  const [addingExerciseDay, setAddingExerciseDay] = useState<number | null>(null);
+  const exerciseDialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (addingExerciseDay === null) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const dialog = exerciseDialogRef.current;
+    dialog?.showModal();
+    return () => { dialog?.close(); previous?.focus(); };
+  }, [addingExerciseDay]);
   const [showPresets, setShowPresets] = useState(false);
   const [openActionIdx, setOpenActionIdx] = useState<number | null>(null);
   const isSingleSession = formData.isPlannedSession;
@@ -292,13 +303,13 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
     setSelectedExerciseIdx(0);
   };
 
-  const handleAddExercise = (dayIdx: number) => {
+  const handleAddExercise = (dayIdx: number, exerciseId: number) => {
     if (!exercises.length || !formData.days[dayIdx]) return;
     const currentDayExercises = formData.days[dayIdx].exercises;
     const lastEx = currentDayExercises.length > 0 ? currentDayExercises[currentDayExercises.length - 1] : null;
 
     const newEx: ExerciseEntry = {
-      exId: exercises[0].id,
+      exId: exerciseId,
       sets: lastEx ? lastEx.sets : 3,
       reps: lastEx ? lastEx.reps : "10-12",
       rest: lastEx ? lastEx.rest : "90",
@@ -309,8 +320,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
       setType: "normal",
       setName: null
     };
-    const newDays = [...formData.days];
-    newDays[dayIdx].exercises.push(newEx);
+    const newDays = formData.days.map((day, index) => index === dayIdx ? { ...day, exercises: [...day.exercises, newEx] } : day);
     setFormData({ ...formData, days: newDays });
     setSelectedExerciseIdx(newDays[dayIdx].exercises.length - 1);
   };
@@ -778,7 +788,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
               </ol>
             )}
 
-            <button type="button" onClick={() => handleAddExercise(selectedDayIdx)} disabled={!exercises.length} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 px-4 text-sm font-semibold text-emerald-900 hover:border-emerald-800 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"><Plus size={17} /> Ajouter un exercice</button>
+            <button type="button" onClick={() => setAddingExerciseDay(selectedDayIdx)} disabled={!exercises.length} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-300 px-4 text-sm font-semibold text-emerald-900 hover:border-emerald-800 hover:bg-emerald-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"><Plus size={17} /> Ajouter un exercice</button>
           </main>
 
           <aside className="va-editor-details min-w-0 border-t border-zinc-200 bg-zinc-50/60 p-4 sm:p-5" aria-label="Détails de l’exercice sélectionné">
@@ -810,6 +820,14 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
           </aside>
         </div>
       </section>
+      {addingExerciseDay !== null && <dialog ref={exerciseDialogRef} aria-labelledby="choose-exercise-title" onCancel={event => { event.preventDefault(); setAddingExerciseDay(null); }} className="m-auto w-[calc(100%_-_2rem)] max-w-xl rounded-2xl border border-zinc-200 bg-white p-4 text-zinc-900 shadow-xl backdrop:bg-black/35 sm:p-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 id="choose-exercise-title" className="font-display text-xl font-semibold">Ajouter un exercice</h2>
+          <button type="button" aria-label="Fermer le choix d’exercice" onClick={() => setAddingExerciseDay(null)} className="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200"><X size={20}/></button>
+        </div>
+        <p className="mb-3 text-sm text-zinc-600">Choisissez le mouvement. Vous réglerez ensuite ses séries et ses consignes.</p>
+        <SearchableExerciseSelect inline exercises={exercises} value={-1} onChange={id => { handleAddExercise(addingExerciseDay, id); setAddingExerciseDay(null); }} />
+      </dialog>}
     </div>
   );
 };

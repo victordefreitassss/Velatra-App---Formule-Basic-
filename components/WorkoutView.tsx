@@ -171,7 +171,10 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
           }
         }, 100);
       } else {
-        showToast("Remplissez tous les champs !", "error");
+        const baseEx = state.exercises.find(exercise => exercise.id === currentDay.exercises[exIndex].exId);
+        showToast(baseEx?.cat === 'Cardio'
+          ? 'Renseignez la durée de chaque série avant de valider.'
+          : 'Renseignez la charge et les répétitions de chaque série. Sans charge ajoutée, indiquez 0 kg.', 'error');
       }
     }
   };
@@ -469,6 +472,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                             )}
                           </div>
                         </div>
+                        {baseEx?.cat !== 'Cardio' && <p className="mb-4 text-sm leading-6 text-zinc-700">Indiquez la charge ajoutée en kg et les répétitions réalisées. Pour un exercice sans charge ajoutée, saisissez 0 kg.</p>}
                         <div className="grid grid-cols-1 gap-4 md:gap-6 mb-8 md:mb-10">
                           {Array.from({ length: (typeof exEntry.sets === 'number' ? exEntry.sets : parseInt(exEntry.sets) || 1) }).map((_, sIdx) => (
                             <div key={sIdx} className="flex items-center gap-3 md:gap-6 group animate-in slide-in-from-left">
@@ -492,7 +496,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                                            onClick={() => handleInputChange(exIndex, sIdx, 'weight', String(Math.max(0, (parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") - 1))))}
                                            className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-white rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
                                          >-</button>
-                                         <Input type="number" inputMode="decimal" placeholder={(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "LEST" : "KG"} className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
+                                         <Input aria-label={`Charge en kg · série ${sIdx + 1} · ${baseEx?.name}`} type="number" min="0" inputMode="decimal" placeholder={(baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise')) ? "LEST" : "KG"} className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-weight`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'weight', e.target.value)} />
                                          <button 
                                            onClick={() => handleInputChange(exIndex, sIdx, 'weight', String((parseFloat(sessionData[`${exIndex}-${sIdx}-weight`] || "0") + 1)))}
                                            className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-50 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
@@ -504,7 +508,7 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, onClo
                                            onClick={() => handleInputChange(exIndex, sIdx, 'reps', String(Math.max(0, (parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") - 1))))}
                                            className="absolute left-1 md:left-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-50 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
                                          >-</button>
-                                         <Input type="text" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || String(exEntry.reps).toLowerCase().includes('s')) ? "SEC" : "REPS")} className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
+                                         <Input aria-label={`Répétitions ou secondes · série ${sIdx + 1} · ${baseEx?.name}`} type="text" inputMode="numeric" placeholder={getTargetRepsForSet(exEntry.reps, sIdx) || ((baseEx?.name.toLowerCase().includes('gainage') || baseEx?.name.toLowerCase().includes('planche') || baseEx?.name.toLowerCase().includes('chaise') || String(exEntry.reps).toLowerCase().includes('s')) ? "SEC" : "REPS")} className="!bg-zinc-50 !border-zinc-200 !text-zinc-900 !py-3 md:!py-4 text-center text-lg md:text-xl font-black italic  px-8 md:px-12" value={sessionData[`${exIndex}-${sIdx}-reps`] || ""} onChange={e => handleInputChange(exIndex, sIdx, 'reps', e.target.value)} />
                                          <button 
                                            onClick={() => handleInputChange(exIndex, sIdx, 'reps', String((parseInt(sessionData[`${exIndex}-${sIdx}-reps`] || getTargetRepsForSet(exEntry.reps, sIdx) || "0") + 1)))}
                                            className="absolute right-1 md:right-2 w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-zinc-50 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 z-10"
