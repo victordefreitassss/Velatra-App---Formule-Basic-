@@ -205,6 +205,27 @@ export default function App() {
   const [firebaseConnectionIssue, setFirebaseConnectionIssue] = useState<'permission' | 'temporary' | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
 
+  useEffect(() => {
+    if (!state.user) return;
+    const preload = window.setTimeout(() => {
+      if (state.user?.role === 'member') {
+        void Promise.allSettled([
+          import('./pages/CalendarPage'),
+          import('./pages/StatsPage'),
+          import('./pages/MemberNutritionPage'),
+        ]);
+      } else if (state.user?.role === 'coach' || state.user?.role === 'owner') {
+        void Promise.allSettled([
+          import('./pages/MembersPage'),
+          import('./pages/CoachingPage'),
+          import('./pages/ProspectFlowPage'),
+          import('./pages/PlanningPage'),
+        ]);
+      }
+    }, 450);
+    return () => window.clearTimeout(preload);
+  }, [state.user?.firebaseUid, state.user?.role]);
+
   const navigate = useNavigate();
   const location = useLocation();
 

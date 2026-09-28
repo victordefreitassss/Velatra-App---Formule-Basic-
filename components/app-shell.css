@@ -454,3 +454,44 @@
 @media (prefers-reduced-motion: reduce) {
   .va-rail-item, .va-context-tabs button, .va-create-trigger { transition-duration: 1ms !important; }
 }
+
+
+/* Mobile platform ergonomics: iOS safe areas and no automatic input zoom. */
+@media (max-width: 1023px) {
+  .velatra-app-shell :is(input, select, textarea) {
+    font-size: 16px !important;
+  }
+
+  .velatra-app-shell .va-topbar.va-context-bar {
+    padding-top: calc(9px + env(safe-area-inset-top));
+  }
+
+  .velatra-app-shell .va-context-tabs button {
+    font-size: 12px;
+  }
+}
+
+
+.va-content-loading {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--app-text-muted);
+  font-size: 14px;
+}
+.va-content-loading-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--app-green);
+  animation: va-content-pulse .9s ease-in-out infinite alternate;
+}
+@keyframes va-content-pulse {
+  from { opacity: .35; transform: scale(.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .va-content-loading-dot { animation: none; }
+}

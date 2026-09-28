@@ -543,16 +543,23 @@ export const Layout: React.FC<LayoutProps> = ({
           </div>
         )}
 
-        <AnimatePresence mode="wait">
+        <AnimatePresence initial={false} mode="sync">
           <motion.div 
             key={activePage}
-            initial={effectiveRole === 'member' ? { opacity: 0 } : { opacity: 0, y: 12, filter: 'blur(4px)' }}
-            animate={effectiveRole === 'member' ? { opacity: 1 } : { opacity: 1, y: 0, filter: 'blur(0px)' }}
-            exit={effectiveRole === 'member' ? { opacity: 0 } : { opacity: 0, y: -12, filter: 'blur(4px)' }}
-            transition={{ duration: effectiveRole === 'member' ? .12 : .25, ease: "easeOut" }}
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={reduceMotion ? undefined : { opacity: 0 }}
+            transition={{ duration: reduceMotion ? .01 : .12, ease: "easeOut" }}
             className="va-content max-w-none w-full"
           >
-            {children}
+            <React.Suspense fallback={
+              <div className="va-content-loading" role="status" aria-live="polite">
+                <span className="va-content-loading-dot" aria-hidden="true" />
+                <span>Chargement…</span>
+              </div>
+            }>
+              {children}
+            </React.Suspense>
           </motion.div>
         </AnimatePresence>
 
