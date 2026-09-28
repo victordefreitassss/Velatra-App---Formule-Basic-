@@ -230,7 +230,21 @@ try{
   await page.waitForSelector('.va-coaching-session');
   const coaching=await page.evaluate(()=>({top:parseFloat(getComputedStyle(document.querySelector('.va-coaching-session-header')).paddingTop),bottom:parseFloat(getComputedStyle(document.querySelector('.va-coaching-session-footer')).paddingBottom),fonts:[...document.querySelectorAll('.va-coaching-session input,.va-coaching-session textarea')].filter(el=>el.checkVisibility()&&!['checkbox','radio','range'].includes(el.type)).map(el=>parseFloat(getComputedStyle(el).fontSize))}));
   record('coach session portal respects text fonts and safe areas',coaching.top===60&&coaching.bottom>=34&&coaching.fonts.every(n=>n>=16),coaching);
+  // A geometrically visible button can still be covered by the fixed navigation.
+  // Wait for entry animations, then check the actual pointer target, not just display.
+  await wait(400);
+  const finishHit = await page.$eval('.va-coaching-session-footer button', button => {
+    const r = button.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { reachable: !!hit && button.contains(hit), blockedByNavigation: !!hit?.closest('.va-mobile-nav'), top: r.top, bottom: r.bottom };
+  });
+  record('coach session finish action is not covered by global navigation',finishHit.reachable,finishHit);
   await page.screenshot({path:path.join(output,'coaching-session-390.png')});delayModules=false;
+  if (finishHit.reachable) {
+    await page.click('.va-coaching-session-footer button');
+    await wait(400);
+    record('coach session summary opens from the real action',await page.evaluate(()=>[...document.querySelectorAll('.va-coaching-session h2')].some(el=>el.textContent.includes('Bilan de Séance'))),null);
+  } else record('coach session summary opens from the real action',false,{reason:'finish action occluded'});
   await open('member',390,500);
   await page.evaluate(({program,member,ex})=>window.__qaSetState(s=>({...s,programs:[program],exercises:[ex],workout:program,workoutMember:member})),{program,member,ex});await page.waitForSelector('.va-workout[open]');
   const small=await page.evaluate(()=>({top:parseFloat(getComputedStyle(document.querySelector('.va-workout-header')).paddingTop),bottom:parseFloat(getComputedStyle(document.querySelector('.va-workout-footer')).paddingBottom),fonts:[...document.querySelectorAll('.va-workout-inputs input')].map(el=>parseFloat(getComputedStyle(el).fontSize))}));
