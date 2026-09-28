@@ -454,3 +454,19 @@
 @media (prefers-reduced-motion: reduce) {
   .va-rail-item, .va-context-tabs button, .va-create-trigger { transition-duration: 1ms !important; }
 }
+
+
+/* Mobile platform ergonomics: iOS safe areas and no automatic input zoom. */
+@media (max-width: 1023px) {
+  .velatra-app-shell :is(input, select, textarea) {
+    font-size: 16px !important;
+  }
+
+  .velatra-app-shell .va-topbar.va-context-bar {
+    padding-top: calc(9px + env(safe-area-inset-top));
+  }
+
+  .velatra-app-shell .va-context-tabs button {
+    font-size: 12px;
+  }
+}
