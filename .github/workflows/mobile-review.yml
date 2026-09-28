@@ -1,0 +1,48 @@
+name: Mobile review evidence
+
+on:
+  push:
+    branches: [fix/mobile-foundations-review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: package.json
+          cache: npm
+      - name: Locked tooling
+        run: npm ci
+      - name: Source snapshot for reproducible review (no runtime credentials)
+        run: |
+          mkdir -p mobile-review-evidence
+          git archive --format=tar.gz -o mobile-review-evidence/review-source.tar.gz HEAD App.tsx RootApp.tsx index.html index.tsx components pages tests scripts public package.json package-lock.json tsconfig.json vite.config.ts types.ts constants.ts firebase.ts utils.ts MarketingSite.tsx
+          git rev-parse HEAD > mobile-review-evidence/source-sha.txt
+      - name: Browser regressions when fixture is present
+        run: |
+          if [ -f scripts/qa/mobile-foundations-browser.mjs ]; then
+            node scripts/qa/mobile-foundations-browser.mjs
+          else
+            echo 'Source acquisition only; no browser validation claimed.'
+          fi
+      - name: Review evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mobile-review-evidence
+          path: mobile-review-evidence/
+          retention-days: 3
+          if-no-files-found: error
