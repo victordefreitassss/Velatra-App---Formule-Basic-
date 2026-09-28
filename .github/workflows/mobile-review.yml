@@ -1,21 +1,21 @@
-name: Mobile review evidence
+name: Mobile browser regression
 
 on:
-  push:
-    branches: [fix/mobile-foundations-review]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: mobile-review-${{ github.ref }}
+  group: mobile-browser-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  mobile-review:
+  mobile-browser:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -24,25 +24,18 @@ jobs:
         with:
           node-version-file: package.json
           cache: npm
-      - name: Locked tooling
+      - name: Locked browser tooling
         run: npm ci
-      - name: Source snapshot for reproducible review (no runtime credentials)
-        run: |
-          mkdir -p mobile-review-evidence
-          git archive --format=tar.gz -o mobile-review-evidence/review-source.tar.gz HEAD App.tsx RootApp.tsx index.html index.tsx components pages tests scripts public package.json package-lock.json tsconfig.json vite.config.ts types.ts constants.ts firebase.ts utils.ts MarketingSite.tsx
-          git rev-parse HEAD > mobile-review-evidence/source-sha.txt
-      - name: Browser regressions when fixture is present
-        run: |
-          if [ -f scripts/qa/mobile-foundations-browser.mjs ]; then
-            node scripts/qa/mobile-foundations-browser.mjs
-          else
-            echo 'Source acquisition only; no browser validation claimed.'
-          fi
-      - name: Review evidence
+      - name: Isolated component browser tests (not physical iPhone tests)
+        run: node scripts/qa/mobile-foundations-browser.mjs
+      - name: Browser evidence (synthetic fixtures only)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: mobile-review-evidence
-          path: mobile-review-evidence/
-          retention-days: 3
-          if-no-files-found: error
+          name: mobile-browser-evidence
+          path: |
+            mobile-review-evidence/results.json
+            mobile-review-evidence/*.png
+            mobile-review-evidence/bundle-map.json
+          retention-days: 7
+          if-no-files-found: warn
