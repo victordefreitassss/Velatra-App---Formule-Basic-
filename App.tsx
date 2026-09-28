@@ -75,6 +75,7 @@ const onSnapshot = (ref: any, callback: any) => {
 
 // Layout & UI
 import { Layout } from './components/Layout';
+import { SessionLoading } from './components/AppPageContent';
 import { Login } from './components/Login';
 import { Toast } from './components/Toast';
 import { Onboarding } from './components/Onboarding';
@@ -204,27 +205,7 @@ export default function App() {
   const [gcpBillingError, setGcpBillingError] = useState<string | null>(null);
   const [firebaseConnectionIssue, setFirebaseConnectionIssue] = useState<'permission' | 'temporary' | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
-
-  useEffect(() => {
-    if (!state.user) return;
-    const preload = window.setTimeout(() => {
-      if (state.user?.role === 'member') {
-        void Promise.allSettled([
-          import('./pages/CalendarPage'),
-          import('./pages/StatsPage'),
-          import('./pages/MemberNutritionPage'),
-        ]);
-      } else if (state.user?.role === 'coach' || state.user?.role === 'owner') {
-        void Promise.allSettled([
-          import('./pages/MembersPage'),
-          import('./pages/CoachingPage'),
-          import('./pages/ProspectFlowPage'),
-          import('./pages/PlanningPage'),
-        ]);
-      }
-    }, 450);
-    return () => window.clearTimeout(preload);
-  }, [state.user?.firebaseUid, state.user?.role]);
+  const [profileResolved, setProfileResolved] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -401,6 +382,7 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (unsubUserDoc) { unsubUserDoc(); unsubUserDoc = undefined; }
       setAuthResolved(true);
+      setProfileResolved(!firebaseUser);
       // Never carry locally cached health, program, or club data across sessions.
       if (typeof window !== 'undefined') {
         ['user', 'currentClub', 'programs', 'logs', 'performances', 'nutritionPlans', 'nutritionLogs']
@@ -412,6 +394,7 @@ export default function App() {
         
         // Listen to the user document so it updates automatically when created during registration
         unsubUserDoc = onSnapshot(userDocRef, async (userDoc) => {
+          setProfileResolved(true);
           if (userDoc.exists()) {
             const userData = userDoc.data() as User;
             
@@ -1305,8 +1288,9 @@ export default function App() {
     return null;
   };
 
-  if (loading) return (
+  if (loading || !authResolved || (auth.currentUser && !profileResolved)) return (
     <div className="min-h-screen bg-white flex flex-col justify-between">
+      {renderFirebaseConnectionIssue()}
       {renderBillingBanner()}
       <div className="flex-1 flex flex-col items-center justify-center p-4">
         <div className="animate-spin text-emerald-500 mb-4">
@@ -1459,13 +1443,15 @@ export default function App() {
                   setState(s => ({ ...s, page: p === 'superadmin' ? 'admin' : 'home' }));
                 }}
                 isWorkspaceMode={Boolean(state.viewingProg || state.editingProg || state.editingPreset)}
+                isSessionOpen={Boolean(state.workout)}
               >
                 {renderActivePageContent(state.user)}
               </Layout>
               
               {state.toast && <Toast message={state.toast.message} type={state.toast.type} />}
               {state.workout && state.workoutMember && (
-                (effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'superadmin') ? (
+                <React.Suspense fallback={<SessionLoading onCancel={() => setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }))} />}>
+                {(effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'superadmin') ? (
                   <CoachingSessionView 
                     program={state.workout} 
                     member={state.workoutMember} 
@@ -1492,7 +1478,8 @@ export default function App() {
                       showToast("Séance enregistrée !");
                     }}
                   />
-                )
+                )}
+                </React.Suspense>
               )}
             </ErrorBoundary>
           )

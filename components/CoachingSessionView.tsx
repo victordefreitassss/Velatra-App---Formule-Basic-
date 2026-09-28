@@ -304,10 +304,10 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
   const AVAILABLE_TAGS = ["Technique parfaite", "Fatigue", "Douleur", "Léger", "Lourd", "Échec"];
 
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-white text-zinc-900 flex flex-col overflow-hidden">
+    <div className="va-coaching-session fixed inset-0 z-50 bg-white text-zinc-900 flex flex-col overflow-hidden">
       {saveSessionError && <p role="alert" className="fixed top-4 left-4 right-4 z-[250] rounded-xl border border-red-200 bg-red-50 p-4 text-red-900">{saveSessionError}</p>}
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b  bg-zinc-50/50 backdrop-blur-md z-10">
+      <div className="va-coaching-session-header flex items-center justify-between p-4 border-b  bg-zinc-50/50 backdrop-blur-md z-10">
         <div className="flex items-center gap-3">
           <button onClick={onClose} disabled={isSavingSession} className="p-2 text-zinc-500 hover:text-zinc-900 transition-colors">
             <XIcon size={24} />
@@ -541,7 +541,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
       </div>
 
       {/* Bottom Bar - Global Session Info & Finish */}
-      <div className="absolute bottom-0 left-0 right-0 bg-zinc-50 border-t  p-4 z-20">
+      <div className="va-coaching-session-footer absolute bottom-0 left-0 right-0 bg-zinc-50 border-t  p-4 z-20">
         <div className="max-w-md mx-auto space-y-4">
           <div className="flex items-center gap-4">
             <div className="flex-1">
