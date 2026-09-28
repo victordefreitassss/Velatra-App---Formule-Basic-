@@ -100,7 +100,7 @@ const destinationPaths=['pages/CalendarPage.tsx','pages/StatsPage.tsx','pages/Me
 const destinations=new Map(Object.entries(result.metafile.outputs).filter(([,v])=>destinationPaths.includes(v.entryPoint)).map(([k,v])=>[path.basename(k),v.entryPoint]));
 const overlayChunks=Object.entries(result.metafile.outputs).filter(([,v])=>['components/WorkoutView.tsx','components/CoachingSessionView.tsx','components/Editor.tsx'].includes(v.entryPoint)).map(([k,v])=>({file:path.basename(k),entry:v.entryPoint}));
 await writeFile(path.join(output,'bundle-map.json'),JSON.stringify({destinations:[...destinations],overlayChunks},null,2));
-// Use the app's actual Tailwind runtime; local copy for a network-isolated renderer.
+// The app still uses the Tailwind CDN runtime. Acquire once, serve locally; browser networking is blocked.
 const tailwindResponse = await fetch('https://cdn.tailwindcss.com');
 if(!tailwindResponse.ok) throw new Error('Cannot acquire current production Tailwind runtime for faithful CSS checks');
 const tailwind = await tailwindResponse.text();
@@ -133,7 +133,7 @@ let page;
 async function open(role='owner',width=390,height=844,{saveData=false,url='/dashboard',top=44,bottom=34}={}){
   if(page)await page.close();
   page=await browser.newPage();
-  await page.setViewport({width,height,deviceScaleFactor:1,isMobile:true,hasTouch:true});
+  await page.setViewport({width,height,deviceScaleFactor:1,isMobile:width<1024,hasTouch:width<1024});
   const cdp=await page.createCDPSession();
   await cdp.send('Emulation.setSafeAreaInsetsOverride',{insets:{top,bottom,left:0,right:0}});
   await page.evaluateOnNewDocument((saveData)=>{
@@ -168,21 +168,16 @@ try{
   const portal=await page.$$eval('.qa-portal input,.qa-portal textarea',els=>els.map(el=>parseFloat(getComputedStyle(el).fontSize)));
   record('portal fields retain mobile 16px minimum',portal.every(n=>n>=16),portal);
   await page.evaluate(()=>window.__qaPortal(false));
-  // Track both pages in the DOM during an actual navigation.
   await page.evaluate(()=>{window.__qaMaxPages=0;window.__qaTracking=true;function sample(){if(!window.__qaTracking)return;window.__qaMaxPages=Math.max(window.__qaMaxPages,document.querySelectorAll('.va-content').length);requestAnimationFrame(sample);}sample();window.__qaSetState(s=>({...s,page:'users'}));});
-  await wait(450);
-  await page.evaluate(()=>{window.__qaTracking=false;});
+  await wait(450);await page.evaluate(()=>{window.__qaTracking=false;});
   record('navigation never mounts two content pages',await page.evaluate(()=>window.__qaMaxPages===1),await page.evaluate(()=>window.__qaMaxPages));
-  delayModules=true;
-  await loadEditor();
-  await wait(120);
-  const editorNav=await page.$eval('.va-topbar',el=>getComputedStyle(el).display!=='none');
+  delayModules=true;await loadEditor();await wait(120);
+  const editorNav=await page.$eval('.va-topbar',el=>el.checkVisibility());
   record('editor loading preserves navigation',editorNav,await page.evaluate(()=>({nav:getComputedStyle(document.querySelector('.va-topbar')).display,pending:!!document.querySelector('.va-content-loading')})));
   await page.waitForSelector('.va-editor-header');
-  const editorFields=await page.$$eval('.va-editor-page input,.va-editor-page select,.va-editor-page textarea',els=>els.filter(el=>el.getClientRects().length&&el.type!=='checkbox').map(el=>({font:parseFloat(getComputedStyle(el).fontSize),label:el.getAttribute('aria-label')||el.type})));
+  const editorFields=await page.$$eval('.va-editor-page input,.va-editor-page select,.va-editor-page textarea',els=>els.filter(el=>el.getClientRects().length&&!['checkbox','radio','range'].includes(el.type)).map(el=>({font:parseFloat(getComputedStyle(el).fontSize),label:el.getAttribute('aria-label')||el.type})));
   record('editor visible fields are 16px minimum',editorFields.every(f=>f.font>=16),editorFields);
-  await page.screenshot({path:path.join(output,'editor-390.png')});
-  delayModules=false;
+  await page.screenshot({path:path.join(output,'editor-390.png')});delayModules=false;
   await open('member');
   const memberTop=await page.$eval('.va-topbar',el=>parseFloat(getComputedStyle(el).paddingTop));
   record('member header has one safe inset',memberTop>=50&&memberTop<60,memberTop);
@@ -195,17 +190,13 @@ try{
   await page.waitForSelector('.va-workout[open]');
   const workoutTop=await page.$eval('.va-workout-header',el=>parseFloat(getComputedStyle(el).paddingTop));
   record('workout header accounts for safe inset',workoutTop>=58,workoutTop);
-  await page.screenshot({path:path.join(output,'workout-390.png')});
-  delayModules=false;
-  const since=await open('owner',390,844,{saveData:true});
-  await wait(2200);
+  await page.screenshot({path:path.join(output,'workout-390.png')});delayModules=false;
+  const since=await open('owner',390,844,{saveData:true});await wait(2200);
   const loaded=requestLog.filter(r=>r.at>=since&&destinations.has(r.file)).map(r=>destinations.get(r.file));
   record('save-data connection avoids speculative page downloads',loaded.length===0,loaded);
-
   await page.evaluate(()=>window.__qaSignOut());await wait(600);
   record('logout settles on login without loop',await page.evaluate(()=>location.pathname==='/login'),await page.evaluate(()=>window.__qaRoutes));
 
-  // Cold role-specific warmups: two destinations maximum, none immediately after initial paint.
   for(const role of ['owner','member']) {
     const begun=await open(role);
     const first=await page.evaluate(()=>performance.getEntriesByType('paint').find(e=>e.name==='first-contentful-paint')?.startTime||0);
@@ -215,48 +206,51 @@ try{
     record(role+' bounds cold speculative destinations',downloads.length<=2&&downloads.every(d=>allowed.includes(destinations.get(d.file))),downloads.map(d=>({entry:destinations.get(d.file),ms:d.at-begun})));
     record(role+' warmup avoids immediate startup',downloads.every(d=>d.at-begun>=1500+first),{firstPaint:first,downloads:downloads.map(d=>d.at-begun)});
   }
-  // Actual DOM/CSS at different viewports, not physical-device certification.
+  // Component ergonomics under both shells; member editor is forced as a fixture, not a permission test.
   for(const [width,height] of [[375,812],[430,932],[820,1180],[1280,800],[1440,900]]) {
     const mobile=width<1024, top=mobile?44:0, bottom=mobile?34:0;
     for(const role of ['owner','member']) {
       await open(role,width,height,{saveData:true,top,bottom});
-      const geometry=await page.evaluate(()=>({
-        padding:parseFloat(getComputedStyle(document.querySelector('.va-topbar')).paddingTop),
-        contentCount:document.querySelectorAll('.va-content').length,
-        viewport:innerWidth,scroll:document.documentElement.scrollWidth,
-        nav:!!document.querySelector(innerWidth<1024?'.va-mobile-nav':'.va-rail')?.checkVisibility(),
-      }));
+      const geometry=await page.evaluate(()=>({padding:parseFloat(getComputedStyle(document.querySelector('.va-topbar')).paddingTop),contentCount:document.querySelectorAll('.va-content').length,viewport:innerWidth,scroll:document.documentElement.scrollWidth,nav:!!document.querySelector(innerWidth<1024?'.va-mobile-nav':'.va-rail')?.checkVisibility()}));
       record(`${role} shell ${width}x${height}`,geometry.contentCount===1&&geometry.nav&&(!mobile||geometry.padding===(role==='member'?50:53)),geometry);
       await loadEditor();await page.waitForSelector('.va-editor-header');
-      const editor=await page.evaluate(()=>({padding:parseFloat(getComputedStyle(document.querySelector('.va-editor-header')).paddingTop),fonts:[...document.querySelectorAll('.va-editor-page input,.va-editor-page select,.va-editor-page textarea')].filter(el=>el.checkVisibility()&&el.type!=='checkbox').map(el=>parseFloat(getComputedStyle(el).fontSize))}));
+      const editor=await page.evaluate(()=>({padding:parseFloat(getComputedStyle(document.querySelector('.va-editor-header')).paddingTop),fonts:[...document.querySelectorAll('.va-editor-page input,.va-editor-page select,.va-editor-page textarea')].filter(el=>el.checkVisibility()&&!['checkbox','radio','range'].includes(el.type)).map(el=>parseFloat(getComputedStyle(el).fontSize))}));
       record(`${role} editor ${width}x${height}`,(!mobile||(editor.padding>=52&&editor.padding<60))&&(!mobile||editor.fonts.every(n=>n>=16)),editor);
       if(width===375||width===1440)await page.screenshot({path:path.join(output,`${role}-editor-${width}.png`)});
     }
   }
   await open('owner');
-  // Page transitions must preserve focus on navigation rather than stealing it.
-  const trigger=await page.$('.va-mobile-nav button:nth-child(2)');
-  await trigger.focus();await trigger.click();await wait(500);
+  const trigger=await page.$('.va-mobile-nav button:nth-child(2)');await trigger.focus();await trigger.click();await wait(500);
   record('navigation retains deliberate keyboard focus',await page.evaluate(()=>document.activeElement?.closest('.va-mobile-nav')!==null),await page.evaluate(()=>document.activeElement?.getAttribute('aria-label')));
   await page.emulateMediaFeatures([{name:'prefers-reduced-motion',value:'reduce'}]);
   record('reduced motion removes page animation',await page.$eval('.va-page-body',el=>getComputedStyle(el).animationName)==='none',await page.$eval('.va-page-body',el=>getComputedStyle(el).animationName));
   await open('owner');delayModules=true;
-  await page.evaluate(({program,member,ex})=>window.__qaSetState(s=>({...s,programs:[program],exercises:[ex],workout:program,workoutMember:member})),{program,member,ex});
-  await wait(120);
+  await page.evaluate(({program,member,ex})=>window.__qaSetState(s=>({...s,programs:[program],exercises:[ex],workout:program,workoutMember:member})),{program,member,ex});await wait(120);
   record('coach session pending keeps visible navigation',await page.$eval('.va-mobile-nav',el=>el.checkVisibility()),null);
   await page.waitForSelector('.va-coaching-session');
-  const coaching=await page.evaluate(()=>({top:parseFloat(getComputedStyle(document.querySelector('.va-coaching-session-header')).paddingTop),bottom:parseFloat(getComputedStyle(document.querySelector('.va-coaching-session-footer')).paddingBottom),fonts:[...document.querySelectorAll('.va-coaching-session input,.va-coaching-session textarea')].filter(el=>el.checkVisibility()).map(el=>parseFloat(getComputedStyle(el).fontSize))}));
-  record('coach session portal respects fonts and safe areas',coaching.top===60&&coaching.bottom>=34&&coaching.fonts.every(n=>n>=16),coaching);
+  const coaching=await page.evaluate(()=>({top:parseFloat(getComputedStyle(document.querySelector('.va-coaching-session-header')).paddingTop),bottom:parseFloat(getComputedStyle(document.querySelector('.va-coaching-session-footer')).paddingBottom),fonts:[...document.querySelectorAll('.va-coaching-session input,.va-coaching-session textarea')].filter(el=>el.checkVisibility()&&!['checkbox','radio','range'].includes(el.type)).map(el=>parseFloat(getComputedStyle(el).fontSize))}));
+  record('coach session portal respects text fonts and safe areas',coaching.top===60&&coaching.bottom>=34&&coaching.fonts.every(n=>n>=16),coaching);
   await page.screenshot({path:path.join(output,'coaching-session-390.png')});delayModules=false;
   await open('member',390,500);
-  await page.evaluate(({program,member,ex})=>window.__qaSetState(s=>({...s,programs:[program],exercises:[ex],workout:program,workoutMember:member})),{program,member,ex});
-  await page.waitForSelector('.va-workout[open]');
+  await page.evaluate(({program,member,ex})=>window.__qaSetState(s=>({...s,programs:[program],exercises:[ex],workout:program,workoutMember:member})),{program,member,ex});await page.waitForSelector('.va-workout[open]');
   const small=await page.evaluate(()=>({top:parseFloat(getComputedStyle(document.querySelector('.va-workout-header')).paddingTop),bottom:parseFloat(getComputedStyle(document.querySelector('.va-workout-footer')).paddingBottom),fonts:[...document.querySelectorAll('.va-workout-inputs input')].map(el=>parseFloat(getComputedStyle(el).fontSize))}));
   record('short viewport retains fullscreen insets and large workout inputs',small.top===52&&small.bottom>=34&&small.fonts.every(n=>n>=22),small);
   await page.screenshot({path:path.join(output,'workout-short-390.png')});
+
+  // Exit a pending session before its dynamic import resolves: no delayed reopening.
+  await open('member');delayModules=true;
+  await page.evaluate(({program,member,ex})=>window.__qaSetState(s=>({...s,programs:[program],exercises:[ex],workout:program,workoutMember:member})),{program,member,ex});
+  await page.waitForSelector('.va-session-loading button');await page.click('.va-session-loading button');await wait(1200);
+  record('cancelled lazy workout never reopens after download',await page.evaluate(()=>!document.querySelector('.va-workout[open]')&&!document.querySelector('.va-session-loading')&&document.querySelector('.va-mobile-nav').checkVisibility()),null);delayModules=false;
+  await page.evaluate(()=>{history.pushState({},'', '/');dispatchEvent(new PopStateEvent('popstate'));});await wait(500);
+  record('return to marketing removes app-only CSS context',await page.evaluate(()=>location.pathname==='/'&&!document.documentElement.hasAttribute('data-va-app')),null);
   await open('anonymous',390,844,{url:'/'});
   record('public homepage remains public and has no app CSS context',await page.evaluate(()=>location.pathname==='/'&&!document.documentElement.hasAttribute('data-va-app')),null);
   record('manual zoom remains enabled',!/(?:user-scalable\s*=\s*no|maximum-scale\s*=\s*1(?:\D|$))/.test(originalHtml.match(/<meta name="viewport"[^>]+>/)[0]),originalHtml.match(/<meta name="viewport"[^>]+>/)[0]);
 }catch(error){record('browser suite completed',false,{error:error.stack});}
-finally{await browser.close();await new Promise(r=>server.close(r));await writeFile(path.join(output,'results.json'),JSON.stringify({base:'PR7',renderer:'Puppeteer Chromium; synthetic 44px/34px insets; isolated Firebase fixture, NOT device validation',checks},null,2));}
+finally{
+  await browser.close();await new Promise(r=>server.close(r));
+  await writeFile(path.join(output,'results.json'),JSON.stringify({renderer:'Puppeteer Chromium; synthetic 44px/34px insets; isolated Firebase fixture, NOT device or production validation',checks},null,2));
+  await rm(work,{recursive:true,force:true});
+}
 if(checks.some(c=>!c.ok)) process.exitCode=1;
