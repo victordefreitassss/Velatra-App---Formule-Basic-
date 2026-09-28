@@ -1,0 +1,45 @@
+name: Apply reviewed patch on feature branch
+on:
+  push:
+    branches: [fix/mobile-foundations-review]
+    paths: [.github/workflows/apply-mobile-review.yml]
+permissions:
+  contents: read
+jobs:
+  apply:
+    if: github.ref == 'refs/heads/fix/mobile-foundations-review'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: package.json
+          cache: npm
+      - name: Validate exact reviewed patch and unchanged base
+        run: |
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = 41e58dd20f741b95fb5297bf4aa4559ccfca7977
+          echo '3b570b972a2c905f07461a446e2f2f0f86b210db79e1568b7568333c78b1d988  scripts/qa/mobile-review.patch' | sha256sum -c -
+          git apply --check scripts/qa/mobile-review.patch
+          git apply scripts/qa/mobile-review.patch
+          git diff --check
+      - name: Validate changed product before committing
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+      - name: Commit only reviewed files to feature branch, never main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$(git branch --show-current)" = fix/mobile-foundations-review
+          git add App.tsx RootApp.tsx components/Layout.tsx components/app-shell.css components/CoachingSessionView.tsx scripts/qa/mobile-foundations-browser.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: apply reproduced mobile boundary and viewport corrections'
+          gh auth setup-git
+          git push origin HEAD:refs/heads/fix/mobile-foundations-review
