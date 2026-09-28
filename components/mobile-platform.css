@@ -1,0 +1,48 @@
+/* App-only context is attached to html so body portals receive the same rules.
+   Marketing pages and desktop sizes keep their own presentation. */
+@media (max-width: 1023px) {
+  html[data-va-app="true"] :is(input,select,textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+    font-size: 16px !important;
+  }
+  /* Preserve intentionally large performance fields instead of shrinking them. */
+  html[data-va-app="true"] .va-workout-inputs input { font-size: 22px !important; }
+  html[data-va-app="true"] :is(input,textarea,select).text-lg { font-size: 18px !important; }
+  html[data-va-app="true"] :is(input,textarea,select).text-xl { font-size: 20px !important; }
+  html[data-va-app="true"] :is(input,textarea,select).text-2xl { font-size: 24px !important; }
+
+  html[data-va-app="true"] .velatra-app-shell .va-topbar.va-context-bar {
+    padding-top: calc(9px + env(safe-area-inset-top, 0px));
+  }
+  html[data-va-app="true"] .va-member-shell .va-topbar.va-context-bar {
+    padding-top: calc(6px + env(safe-area-inset-top, 0px));
+  }
+  /* Each fullscreen surface owns its inset; no extra inset on its parent. */
+  html[data-va-app="true"] .va-editor-header { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  html[data-va-app="true"] .va-workout-header { padding-top: calc(14px + env(safe-area-inset-top, 0px)); }
+  html[data-va-app="true"] .va-coaching-session-header { padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+  html[data-va-app="true"] .va-coaching-session-footer { padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)); }
+  html[data-va-app="true"] .va-profile-menu { top: calc(102px + env(safe-area-inset-top, 0px)); }
+  html[data-va-app="true"] .va-member-shell .va-profile-menu { top: calc(54px + env(safe-area-inset-top, 0px)); }
+  html[data-va-app="true"] .va-invite-overlay { padding-top: max(18px, env(safe-area-inset-top, 0px)); padding-bottom: max(18px, env(safe-area-inset-bottom, 0px)); }
+  html[data-va-app="true"] .va-invite-dialog { max-height: calc(100dvh - max(18px, env(safe-area-inset-top, 0px)) - max(18px, env(safe-area-inset-bottom, 0px))); overflow-y: auto; }
+}
+@media (max-width: 1023px) and (max-height: 600px) {
+  html[data-va-app="true"] .va-workout-header { padding-top: calc(8px + env(safe-area-inset-top, 0px)); }
+  html[data-va-app="true"] .va-workout-footer { padding-bottom: max(8px, env(safe-area-inset-bottom, 0px)); }
+}
+.va-page-body { min-width: 0; animation: va-page-reveal 120ms ease-out; }
+html[data-va-app="true"] .page-transition { animation: va-page-reveal 120ms ease-out; }
+@keyframes va-page-reveal { from { opacity: .75; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .va-page-body, html[data-va-app="true"] .page-transition { animation: none; }
+}
+.va-session-loading {
+  position: fixed; z-index: 80; left: 16px; right: 16px;
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  max-width: 640px; margin-inline: auto; padding: 12px 16px; border-radius: 16px;
+  background: #fff; color: #173a2a; border: 1px solid #cbd7c8;
+  box-shadow: 0 8px 24px rgba(20,40,25,.12);
+}
+.va-session-loading button { min-height: 44px; min-width: 64px; color: #17452f; text-decoration: underline; background: transparent; border: 0; }
+@media (min-width: 1024px) { .va-session-loading { bottom: 24px; } }
