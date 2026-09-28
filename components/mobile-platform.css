@@ -54,3 +54,7 @@ html[data-va-app="true"] .page-transition { animation: va-page-reveal 120ms ease
 }
 .va-session-loading button { min-height: 44px; min-width: 64px; color: #17452f; text-decoration: underline; background: transparent; border: 0; }
 @media (min-width: 1024px) { .va-session-loading { bottom: 24px; } }
+
+/* The loaded full-screen portal must cover the shell's fixed navigation (z=60).
+   While its chunk is pending, SessionLoading deliberately leaves that shell usable. */
+html[data-va-app="true"] .va-coaching-session { z-index: 100; }
