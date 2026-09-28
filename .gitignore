@@ -36,3 +36,6 @@ dist-ssr
 
 # Temporary compiled API fixtures, including interrupted test runs
 /.runtime-test-*/
+
+# Generated component browser screenshots and measurements (CI artifacts)
+/mobile-review-evidence/

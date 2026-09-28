@@ -18,6 +18,7 @@ import { trackProductEventOnce } from './productEvents';
 import './app-shell.css';
 import './visual-polish.css';
 import './member-mobile.css';
+import { AppPageContent } from './AppPageContent';
 
 interface LayoutProps {
   user: User;
@@ -35,6 +36,7 @@ interface LayoutProps {
   adminPerspective?: 'superadmin' | 'coach' | 'member';
   onChangePerspective?: (p: 'superadmin' | 'coach' | 'member') => void;
   isWorkspaceMode?: boolean;
+  isSessionOpen?: boolean;
 }
 
 const AppLogo = () => (
@@ -70,7 +72,7 @@ export const Layout: React.FC<LayoutProps> = ({
   user, club, activePage, onPageChange, onLogout, children, 
   unreadMessagesCount = 0, unreadNotificationsCount = 0, 
   logs = [], payments = [], users = [],
-  adminPerspective = 'superadmin', onChangePerspective, isWorkspaceMode = false, onCreateAction
+  adminPerspective = 'superadmin', onChangePerspective, isWorkspaceMode = false, isSessionOpen = false, onCreateAction
 }) => {
   const planningEnabled = club?.settings?.booking?.enabled ?? true;
 
@@ -288,7 +290,7 @@ export const Layout: React.FC<LayoutProps> = ({
   }, []);
 
   React.useEffect(() => {
-    window.scrollTo({ top: 0, behavior: effectiveRole === 'member' ? 'instant' : 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
   }, [activePage]);
 
   const filteredCommandItems = React.useMemo(() => {
@@ -543,25 +545,14 @@ export const Layout: React.FC<LayoutProps> = ({
           </div>
         )}
 
-        <AnimatePresence initial={false} mode="sync">
-          <motion.div 
-            key={activePage}
-            initial={reduceMotion ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={reduceMotion ? undefined : { opacity: 0 }}
-            transition={{ duration: reduceMotion ? .01 : .12, ease: "easeOut" }}
-            className="va-content max-w-none w-full"
-          >
-            <React.Suspense fallback={
-              <div className="va-content-loading" role="status" aria-live="polite">
-                <span className="va-content-loading-dot" aria-hidden="true" />
-                <span>Chargement…</span>
-              </div>
-            }>
-              {children}
-            </React.Suspense>
-          </motion.div>
-        </AnimatePresence>
+        <AppPageContent
+          page={activePage}
+          role={effectiveRole}
+          identity={`${user.firebaseUid || user.id}:${club?.id || ''}:${effectiveRole}`}
+          warmup={!isWorkspaceMode && !isSessionOpen}
+        >
+          {children}
+        </AppPageContent>
 
         {showTimer && (
           <div className="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-[100] animate-in slide-in-from-bottom-10 duration-500">
