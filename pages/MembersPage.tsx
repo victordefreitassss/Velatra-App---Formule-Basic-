@@ -23,6 +23,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getMemberActivationStatus, hasAssignedProgram } from '../components/coachOnboardingHelpers';
 import { requestClubInviteDialog, trackProductEventOnce } from '../components/productEvents';
 import { canShowClient360AccountActions, getClient360AdminSections, getClient360CoachingContact, getClient360Facts, getClient360QuickActions, getClient360Sections, type Client360AdminSectionId, type Client360SectionId } from '../components/client360';
+import { createClient360LocationState, createPlanningLocationState, getClient360MemberId, resolveClient360Member } from '../components/dashboardNavigation';
 
 const ClientConversation = React.lazy(() => import('./MessagesPage').then(module => ({ default: module.MessagesPage })));
 const ClientNutritionView = React.lazy(() => import('../components/MemberNutritionView').then(module => ({ default: module.MemberNutritionView })));
@@ -91,13 +92,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     closingHistoryRef.current = false;
     clientHistoryEntryRef.current = true;
     setSelectedProfile(member);
-    navigate(`${location.pathname}${location.search}`, { state: { ...((location.state && typeof location.state === 'object') ? location.state : {}), velatraPage: 'users', client360MemberId: Number(member.id) } });
+    navigate(`${location.pathname}${location.search}`, { state: createClient360LocationState(Number(member.id)) });
   };
 
   useEffect(() => {
     const locationChanged = lastLocationKeyRef.current !== location.key;
     lastLocationKeyRef.current = location.key;
-    const memberId = (location.state as { client360MemberId?: number } | null)?.client360MemberId;
+    const memberId = getClient360MemberId(location.state);
     if (!memberId) {
       if (locationChanged && (clientHistoryEntryRef.current || closingHistoryRef.current)) {
         clientHistoryEntryRef.current = false;
@@ -109,7 +110,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       return;
     }
     if (closingHistoryRef.current) return;
-    const member = state.users.find(user => Number(user.id) === memberId && user.role === 'member');
+    const member = resolveClient360Member(state.users, state.user?.clubId, location.state);
     if (member) {
       clientHistoryEntryRef.current = true;
       setSelectedProfile(previous => Number(previous?.id) === memberId ? previous : member);
@@ -131,8 +132,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     if (!selectedProfile) return;
     clientHistoryEntryRef.current = false;
     setSelectedProfile(null);
-    setState((previous: AppState) => ({ ...previous, page: 'calendar', selectedMember: selectedProfile }));
-    navigate(`${location.pathname}${location.search}`, { state: { velatraPage: 'calendar' } });
+    setState((previous: AppState) => ({ ...previous, page: 'calendar', selectedMember: null }));
+    navigate(`${location.pathname}${location.search}`, { state: createPlanningLocationState(Number(selectedProfile.id)) });
   };
   const openMemberEditor = (member: User) => {
     setEditInfoData({
