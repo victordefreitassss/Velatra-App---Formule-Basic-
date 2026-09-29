@@ -98,6 +98,7 @@
 .va-member-dialog { font-family: Inter, sans-serif; }
 .va-member-dialog h2 { font-family: Outfit, sans-serif; font-weight: 600; }
 .va-member-dialog::backdrop { background: rgb(17 34 25 / .38); backdrop-filter: blur(3px); }
+.va-member-dialog input, .va-member-dialog select { font-size: 16px; }
 
 .va-content .va-editor-header h1 { font-size: 22px; line-height: 1.25; white-space: nowrap; text-wrap: nowrap; font-weight: 600; }
 .va-editor-header > div:first-child { flex: 1; }

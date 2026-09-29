@@ -225,13 +225,13 @@ export const apiFetch = async (input: RequestInfo | URL, init: RequestInit = {})
 };
 
 const memberCreationRequests = new Map<string, string>();
-export const createMemberAccount = async (profile: Record<string, unknown>, password: string) => {
+export const createMemberAccount = async (profile: Record<string, unknown>, password?: string, coachUid?: string | null) => {
   const key = `${auth.currentUser?.uid}:${String(profile.email).trim().toLowerCase()}`;
   const requestId = memberCreationRequests.get(key) || crypto.randomUUID();
   memberCreationRequests.set(key, requestId);
   const response = await apiFetch('/api/create-member', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ profile, password, requestId })
+    body: JSON.stringify({ profile, ...(password ? { password } : {}), requestId, ...(coachUid ? { coachUid } : {}) })
   });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Impossible de créer l’adhérent.');

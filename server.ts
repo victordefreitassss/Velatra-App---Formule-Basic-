@@ -11,6 +11,7 @@ import { FieldValue, getFirestore, type Firestore } from "firebase-admin/firesto
 import nodemailer from "nodemailer";
 import Stripe from "stripe";
 import { createManagedMember, MemberCreationError } from "./server/createMember.ts";
+import { resolveMemberCoachingContact } from "./server/memberCoachingContact.ts";
 import { randomInt } from "node:crypto";
 import { validateMemberRegistration } from "./server/memberRegistration.ts";
 import { validatePublicProspect } from "./server/prospectValidation.ts";
@@ -474,29 +475,8 @@ app.get('/api/member/assigned-coach', async (req: any, res: any) => {
   if (req.profile?.role !== 'member' || !req.profile?.clubId) {
     return res.status(403).json({ error: "Cette action est réservée aux adhérents." });
   }
-  const coachUid = typeof req.profile.assignedCoachUid === 'string' ? req.profile.assignedCoachUid : '';
-  if (!coachUid) return res.json({ coach: null });
-
   try {
-    const coachSnapshot = await admin.firestore().collection('users').doc(coachUid).get();
-    const coach = coachSnapshot.data();
-    if (!coachSnapshot.exists || coach?.role !== 'coach' || coach?.clubId !== req.profile.clubId) {
-      return res.status(404).json({ error: "Le coach affecté à votre compte est introuvable." });
-    }
-    const coachId = Number(coach.id);
-    if (!Number.isSafeInteger(coachId) || coachId <= 0) {
-      return res.status(409).json({ error: "Le profil du coach n'est pas prêt pour la messagerie." });
-    }
-    return res.json({
-      coach: {
-        id: coachId,
-        clubId: req.profile.clubId,
-        firebaseUid: coachUid,
-        role: 'coach',
-        name: String(coach.name || 'Coach'),
-        avatar: String(coach.avatar || '')
-      }
-    });
+    return res.json({ coach: await resolveMemberCoachingContact(admin.firestore(), req.profile) });
   } catch (error: any) {
     console.error('Assigned member coach lookup failed:', { code: error?.code || 'unknown' });
     return res.status(500).json({ error: "Impossible de charger les coordonnées de votre coach." });
@@ -732,10 +712,11 @@ app.post('/api/assign-member-coach', async (req: any, res: any) => {
       const snapshots = await Promise.all(refs.map(ref => transaction.get(ref)));
       const dataByPath = new Map(refs.map((ref, index) => [ref.path, snapshots[index].data()]));
       const latestMember = dataByPath.get(memberRef.path);
-      if (!latestMember || latestMember.role !== 'member' || latestMember.clubId !== req.profile.clubId || latestMember.assignedCoachUid !== oldCoachUid) {
+      const latestCoachUid = typeof latestMember?.assignedCoachUid === 'string' ? latestMember.assignedCoachUid : null;
+      if (!latestMember || latestMember.role !== 'member' || latestMember.clubId !== req.profile.clubId || latestCoachUid !== oldCoachUid) {
         throw new Error('MEMBER_ASSIGNMENT_CHANGED');
       }
-      if (oldCoachRef) {
+      if (oldCoachRef && oldCoachRef.path !== nextCoachRef?.path) {
         const oldCoach = dataByPath.get(oldCoachRef.path);
         if (oldCoach?.role === 'coach' && oldCoach.clubId === req.profile.clubId) {
           const ids = Array.isArray(oldCoach.assignedMemberIds) ? oldCoach.assignedMemberIds.map(Number) : [];

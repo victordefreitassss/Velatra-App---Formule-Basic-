@@ -1,5 +1,6 @@
-import { canManageClub, getProductCapabilities } from '../productCapabilities';
+import { canManageClub, getProductCapabilities, resolveAccountType } from '../productCapabilities';
 import { AddMemberDialog } from '../components/AddMemberDialog';
+import { createMemberAndSendAccess, getMemberCreationCoachOptions } from '../components/memberAccess';
 import { localDateKey, createNumericId } from '../components/dataHelpers';
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -21,7 +22,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { getMemberActivationStatus, hasAssignedProgram } from '../components/coachOnboardingHelpers';
 import { requestClubInviteDialog, trackProductEventOnce } from '../components/productEvents';
-import { canShowClient360AccountActions, getClient360AdminSections, getClient360Facts, getClient360QuickActions, getClient360Sections, type Client360AdminSectionId, type Client360SectionId } from '../components/client360';
+import { canShowClient360AccountActions, getClient360AdminSections, getClient360CoachingContact, getClient360Facts, getClient360QuickActions, getClient360Sections, type Client360AdminSectionId, type Client360SectionId } from '../components/client360';
 
 const ClientConversation = React.lazy(() => import('./MessagesPage').then(module => ({ default: module.MessagesPage })));
 const ClientNutritionView = React.lazy(() => import('../components/MemberNutritionView').then(module => ({ default: module.MemberNutritionView })));
@@ -32,11 +33,6 @@ const itemVariants: any = {
 };
 
 import { ErrorBoundary } from '../components/ErrorBoundary';
-
-const createTemporaryPassword = () => {
-  const randomBytes = crypto.getRandomValues(new Uint8Array(32));
-  return `${Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('')}aA1!`;
-};
 
 export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const location = useLocation();
@@ -201,8 +197,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [showNutritionLog, setShowNutritionLog] = useState(false);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [newAccessMemberId, setNewAccessMemberId] = useState<number | null>(null);
-  const [newMemberData, setNewMemberData] = useState<Partial<User> & { password?: string }>({
-    name: '', email: '', password: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: ''
+  const [newAccessEmailStatus, setNewAccessEmailStatus] = useState<'sent' | 'failed' | null>(null);
+  const [isSendingAccessEmail, setIsSendingAccessEmail] = useState(false);
+  const [newMemberData, setNewMemberData] = useState<Partial<User> & { coachUid?: string }>({
+    name: '', email: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: ''
   });
   const [isAddingPayment, setIsAddingPayment] = useState(false);
   const [newPayment, setNewPayment] = useState<Partial<Payment>>({ amount: 0, method: 'cash', status: 'paid', date: localDateKey() });
@@ -275,7 +273,6 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       if (!client || !client.email) continue;
       
       try {
-        const dummyPwd = createTemporaryPassword();
         const newUser: User = {
           id: 0, // The authenticated server endpoint allocates the actual member ID.
           clubId: state.user?.clubId || '1',
@@ -303,7 +300,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         };
 
         // Create doc in users
-        await createMemberAccount(newUser as unknown as Record<string, unknown>, dummyPwd);
+        await createMemberAccount(newUser as unknown as Record<string, unknown>);
         
         // Immediately send reset email via primary auth so they can set their password
         successCount++;
@@ -321,7 +318,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
     if (successCount > 0) trackProductEventOnce('first_member_created', state.user?.firebaseUid || state.user?.id, { source: 'csv_import' });
     
-    showToast(`${successCount} comptes créés, ${errorCount} non créés.${emailFailureCount ? ` ${emailFailureCount} invitations à renvoyer depuis la fiche adhérent.` : ''}`, successCount > 0 ? "success" : "error");
+    showToast(`${successCount} comptes créés, ${successCount - emailFailureCount} emails d’accès envoyés, ${emailFailureCount} emails non envoyés, ${errorCount} non créés.`, successCount > 0 ? "success" : "error");
   };
 
   const members = state.users.filter(u => {
@@ -548,17 +545,27 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleResetMemberPassword = async () => {
+    if (isSendingAccessEmail) return;
     if (!selectedProfile?.email) {
       showToast("L'adresse email du membre est introuvable.", "error");
       return;
     }
+    setIsSendingAccessEmail(true);
     try {
       await sendPasswordResetEmail(auth, selectedProfile.email);
-      showToast("Email de réinitialisation envoyé avec succès à " + selectedProfile.email, "success");
+      if (newAccessMemberId === Number(selectedProfile.id)) setNewAccessEmailStatus('sent');
+      showToast("Email d’accès envoyé à " + selectedProfile.email, "success");
     } catch (err: any) {
-      console.error("Error sending reset email:", err);
-      showToast("Erreur lors de l'envoi de l'email.", "error");
-    }
+      if (newAccessMemberId === Number(selectedProfile.id)) setNewAccessEmailStatus('failed');
+      showToast("Compte conservé, email d’accès non envoyé. Réessayez.", "error");
+    } finally { setIsSendingAccessEmail(false); }
+  };
+
+  const handleCopyLoginLink = async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/login`);
+      showToast('Lien de connexion copié.', 'success');
+    } catch { showToast('Impossible de copier le lien automatiquement.', 'error'); }
   };
 
   const handleTogglePauseMember = async () => {
@@ -1525,8 +1532,6 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         if (!name || !email || !email.includes('@')) continue;
 
         try {
-          // Create each imported account with a unique, undisclosed temporary password.
-          const temporaryPassword = createTemporaryPassword();
           const newUser: User = {
             id: 0,
             clubId: state.user?.clubId || '',
@@ -1551,7 +1556,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             notes: ''
           };
 
-          await createMemberAccount(newUser as unknown as Record<string, unknown>, temporaryPassword);
+          await createMemberAccount(newUser as unknown as Record<string, unknown>);
           successCount++;
           try {
             await sendPasswordResetEmail(auth, email);
@@ -1564,10 +1569,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         }
       }
 
-      const passwordSetupNotice = passwordSetupEmailErrorCount > 0
-        ? `, ${passwordSetupEmailErrorCount} e-mail(s) de création de mot de passe non envoyé(s)`
-        : "";
-      showToast(`Import terminé : ${successCount} ajoutés, ${errorCount} erreurs${passwordSetupNotice}`, successCount > 0 ? "success" : "error");
+      showToast(`Import terminé : ${successCount} créés, ${successCount - passwordSetupEmailErrorCount} emails d’accès envoyés, ${passwordSetupEmailErrorCount} emails non envoyés, ${errorCount} erreurs.`, successCount > 0 ? "success" : "error");
       // Reset file input
       e.target.value = '';
     };
@@ -1577,8 +1579,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [isCreatingMember, setIsCreatingMember] = useState(false);
   const handleCreateMember = async () => {
     if (isCreatingMember) return;
-    if (!newMemberData.name || !newMemberData.email || !newMemberData.password || !state.user?.clubId) {
-      showToast("Veuillez renseigner le nom, l'email et le mot de passe", "error");
+    if (!newMemberData.name?.trim() || !newMemberData.email?.trim() || !state.user?.clubId) {
+      showToast("Veuillez renseigner le nom et l'email", "error");
       return;
     }
     
@@ -1624,14 +1626,24 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         firebaseUid: ''
       };
 
-      const created = await createMemberAccount(newUser as unknown as Record<string, unknown>, newMemberData.password);
+      const studioCoachUid = state.user.role === 'owner' && resolveAccountType(state.currentClub) === 'studio'
+        ? newMemberData.coachUid || null : null;
+      const { created, emailStatus } = await createMemberAndSendAccess(
+        () => createMemberAccount(newUser as unknown as Record<string, unknown>, undefined, studioCoachUid),
+        email => sendPasswordResetEmail(auth, email),
+      );
       trackProductEventOnce('first_member_created', state.user.firebaseUid || state.user.id, { source: 'member_form' });
-      showToast(`Membre créé avec succès !`);
+      showToast(emailStatus === 'sent' ? 'Adhérent créé. Email d’accès envoyé.' : 'Adhérent créé, email d’accès non envoyé.', emailStatus === 'sent' ? 'success' : 'error');
       setIsAddingMember(false);
-      setNewMemberData({ name: '', email: '', password: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: '' });
+      setNewMemberData({ name: '', email: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: '' });
+      setState((previous: AppState) => ({
+        ...previous,
+        users: previous.users.some(user => user.firebaseUid === created.uid) ? previous.users : [...previous.users, created.member],
+      }));
       // Select the new member automatically
       setSelectedProfile(created.member);
       setNewAccessMemberId(Number(created.member.id));
+      setNewAccessEmailStatus(emailStatus);
     } catch (err: any) {
       console.error("Error creating member", err);
       throw new Error(err.message || "Erreur lors de la création");
@@ -2002,7 +2014,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         ) : members.map(u => {
           const stats = getMemberStats(u.id);
           const hasFeedback = Boolean(stats.program?.memberRemarks);
-          const coach = state.users.find(person => person.firebaseUid === u.assignedCoachUid || String(person.id) === u.assignedCoachUid);
+          const coach = getClient360CoachingContact(u, state.currentClub, [...state.users, ...(state.user ? [state.user] : [])]);
           const programName = stats.program?.name;
           const memberLogs = (state.logs || []).filter(log => Number(log.memberId) === Number(u.id));
           const lastActivityAt = memberLogs.reduce<string | undefined>((latest, log) => !latest || new Date(log.date).getTime() > new Date(latest).getTime() ? log.date : latest, u.lastWorkoutDate);
@@ -2061,7 +2073,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         const memberId = Number(selectedProfile.id);
         const clientFacts = getClient360Facts(selectedProfile, state);
         const { nextBooking, lastActivity } = clientFacts;
-        const assignedCoach = (state.users || []).find(user => user.role === 'coach' && (user.firebaseUid === selectedProfile.assignedCoachUid || String(user.id) === selectedProfile.assignedCoachUid));
+        const assignedCoach = getClient360CoachingContact(selectedProfile, state.currentClub, [...state.users, ...(state.user ? [state.user] : [])]);
         const hasDuration = stats.program && stats.program.durationWeeks;
         const totalSessions = hasDuration ? (stats.program?.nbDays || 1) * (stats.program?.durationWeeks || 1) : 0;
         const progCompletion = hasDuration && totalSessions > 0 ? Math.min(100, Math.round(((stats.program?.currentDayIndex || 0) / totalSessions) * 100)) : 0;
@@ -2206,7 +2218,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   <ErrorBoundary key={`${memberTab}-${adminSection}`}>
                     <div className="sticky top-0 z-30 -mx-4 -mt-4 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 pr-16 backdrop-blur-sm sm:-mx-6 sm:-mt-6 sm:px-6 sm:pr-16 md:-mx-10 md:-mt-10 md:px-10 md:pr-32 lg:-mx-12 lg:-mt-12 lg:px-12 lg:pr-32">
                     <div className="min-w-0">
-                      <p className="truncate text-xs font-medium text-zinc-700">{assignedCoach ? `Coach · ${assignedCoach.name}` : 'Coach non attribué'}{stats.program?.name ? ` · ${stats.program.name}` : ' · Aucun programme'}</p>
+                      <p className="truncate text-xs font-medium text-zinc-700">{assignedCoach ? `Coach · ${assignedCoach.name}` : resolveAccountType(state.currentClub) === 'studio' ? 'Coach à attribuer' : 'Référent indisponible'}{stats.program?.name ? ` · ${stats.program.name}` : ' · Aucun programme'}</p>
                       <div className="flex min-w-0 items-center gap-2">
                         <h2 className="truncate text-base font-semibold text-zinc-900 sm:text-lg">{clientSections.find(section => section.id === memberTab)?.label || 'Dossier client'}</h2>
                         {selectedProfile.status === 'paused' && <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">En pause</span>}
@@ -2228,11 +2240,16 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   
                   
                   {newAccessMemberId === Number(selectedProfile.id) && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-                    <p className="font-semibold">{selectedProfile.name} a maintenant son accès Velatra.</p>
-                    <p className="mt-2 leading-6">Transmettez-lui le lien de connexion, son email et le mot de passe provisoire choisi. Aucun email d’invitation n’a été envoyé. Vous pouvez maintenant préparer son programme.</p>
-                    <p className="mt-2 break-all">{window.location.origin}/login</p>
-                    <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(`${window.location.origin}/login`); showToast('Lien de connexion copié.', 'success'); } catch { showToast('Impossible de copier le lien automatiquement.', 'error'); } }} className="mt-2 mr-3 min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800">Copier le lien</button>
-                    <button type="button" onClick={() => setNewAccessMemberId(null)} className="mt-2 min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800">J’ai noté les informations</button>
+                    <p className="font-semibold">✓ Adhérent créé · {selectedProfile.name}</p>
+                    <p className="mt-1 break-all">{selectedProfile.email}</p>
+                    <p className="mt-1">Coach référent : {assignedCoach?.name || (resolveAccountType(state.currentClub) === 'studio' ? 'À attribuer' : 'Indisponible')}</p>
+                    <p className="mt-2 leading-6">{newAccessEmailStatus === 'sent' ? 'Email d’accès envoyé : l’adhérent peut définir son mot de passe.' : 'Compte créé, email d’accès non envoyé. Le compte reste disponible ; renvoyez l’email ci-dessous.'}</p>
+                    <p className="mt-2 break-all">Lien de connexion : {window.location.origin}/login</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button type="button" onClick={handleCopyLoginLink} className="min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800">Copier le lien de connexion</button>
+                      <button type="button" onClick={handleResetMemberPassword} disabled={isSendingAccessEmail || !selectedProfile.email} aria-busy={isSendingAccessEmail} className="min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800 disabled:opacity-50">{isSendingAccessEmail ? 'Envoi…' : 'Renvoyer l’accès'}</button>
+                      <button type="button" onClick={() => { setMemberTab('administrative'); setAdminSection('profile'); setNewAccessMemberId(null); }} className="min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800">Voir l’accès dans le dossier</button>
+                    </div>
                   </div>}
                   {/* Assistants IA */}
                   {memberTab === 'overview' && (
@@ -2269,7 +2286,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         </div>
                         <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
                           <p className="text-xs font-medium text-zinc-700">Coach référent</p>
-                          <p className="mt-1 text-sm font-semibold text-zinc-900">{assignedCoach?.name || 'Non attribué'}</p>
+                          <p className="mt-1 text-sm font-semibold text-zinc-900">{assignedCoach?.name || (resolveAccountType(state.currentClub) === 'studio' ? 'Coach à attribuer' : 'Référent indisponible')}</p>
                         </div>
                         <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
                           <p className="text-xs font-medium text-zinc-700">Objectif principal</p>
@@ -3216,6 +3233,16 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   {memberTab === 'administrative' && adminSection === 'profile' && (
 <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
   <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Profil Adhérent</h3>
+  <div className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
+    <h4 className="text-base font-semibold text-zinc-900">Accès Velatra</h4>
+    <p className="mt-2 break-all text-sm text-zinc-700">Email : {selectedProfile.email || 'Non renseigné'}</p>
+    <p className="mt-1 text-sm text-zinc-700">Référent : {assignedCoach?.name || (resolveAccountType(state.currentClub) === 'studio' ? 'Coach à attribuer' : 'Indisponible')}</p>
+    <p className="mt-1 text-sm text-zinc-700">Lien de connexion : {window.location.origin}/login</p>
+    <div className="mt-3 flex flex-wrap gap-2">
+      <button type="button" onClick={handleCopyLoginLink} className="min-h-11 rounded-lg border border-zinc-300 px-3 text-sm font-semibold text-zinc-900 focus-visible:ring-2 focus-visible:ring-emerald-800">Copier le lien de connexion</button>
+      <button type="button" onClick={handleResetMemberPassword} disabled={!selectedProfile.email || isSendingAccessEmail} aria-busy={isSendingAccessEmail} className="min-h-11 rounded-lg border border-emerald-700 px-3 text-sm font-semibold text-emerald-900 focus-visible:ring-2 focus-visible:ring-emerald-800 disabled:opacity-50">{isSendingAccessEmail ? 'Envoi…' : 'Renvoyer l’email d’accès'}</button>
+    </div>
+  </div>
   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
     {/* Profile & Notes */}
     <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
@@ -4353,7 +4380,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       document.body
       )}
 
-      {isAddingMember && <AddMemberDialog data={newMemberData} setData={setNewMemberData} busy={isCreatingMember} onSave={handleCreateMember} onClose={() => setIsAddingMember(false)} />}
+      {isAddingMember && <AddMemberDialog data={newMemberData} setData={setNewMemberData}
+        coachOptions={getMemberCreationCoachOptions(state.currentClub, state.user, state.users)}
+        busy={isCreatingMember} onSave={handleCreateMember} onClose={() => setIsAddingMember(false)} />}
 
       {createPortal(
       <AnimatePresence>

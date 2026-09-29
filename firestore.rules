@@ -94,6 +94,38 @@ service cloud.firestore {
           (data.to == profile().id && hasAssignedMember(data.from)));
     }
 
+    function clubDocumentPath(clubId) {
+      return /databases/$(database)/documents/clubs/$(clubId);
+    }
+
+    function userDocumentPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function isConversationWith(data, contact) {
+      return ((data.from == profile().id && data.to == contact.id) ||
+        (data.to == profile().id && data.from == contact.id));
+    }
+
+    function memberOwnsConversation(data) {
+      return profileExists() && profile().role == 'member' && isSameClub(data.clubId) &&
+        !('memberId' in data) && !('userId' in data) && !('adherentId' in data) &&
+        data.from is int && data.to is int && (
+        ('assignedCoachUid' in profile() && 'assignedCoachUid' in data &&
+          data.assignedCoachUid == profile().assignedCoachUid &&
+          exists(userDocumentPath(profile().assignedCoachUid)) &&
+          get(userDocumentPath(profile().assignedCoachUid)).data.role == 'coach' &&
+          get(userDocumentPath(profile().assignedCoachUid)).data.clubId == data.clubId &&
+          isConversationWith(data, get(userDocumentPath(profile().assignedCoachUid)).data)) ||
+        (!('assignedCoachUid' in data) && exists(clubDocumentPath(data.clubId)) &&
+          get(clubDocumentPath(data.clubId)).data.accountType == 'solo' &&
+          exists(userDocumentPath(get(clubDocumentPath(data.clubId)).data.ownerId)) &&
+          get(userDocumentPath(get(clubDocumentPath(data.clubId)).data.ownerId)).data.role == 'owner' &&
+          get(userDocumentPath(get(clubDocumentPath(data.clubId)).data.ownerId)).data.clubId == data.clubId &&
+          isConversationWith(data, get(userDocumentPath(get(clubDocumentPath(data.clubId)).data.ownerId)).data))
+      );
+    }
+
     function consistentMemberIdentity(data) {
       return (!('memberId' in data) || !('userId' in data) || data.memberId == data.userId) &&
         (!('memberId' in data) || !('adherentId' in data) || data.memberId == data.adherentId) &&
@@ -309,13 +341,13 @@ service cloud.firestore {
       allow create: if isCoach()
         ? coachOwnsConversation(request.resource.data)
         : canManageMemberRecord(request.resource.data) ||
-          (canCreateOwnRecord(request.resource.data) && request.resource.data.from == profile().id);
+          (memberOwnsConversation(request.resource.data) && request.resource.data.from == profile().id);
       allow update: if isCoach()
         ? (coachOwnsConversation(resource.data) && coachOwnsConversation(request.resource.data) &&
             request.resource.data.from == resource.data.from && request.resource.data.to == resource.data.to &&
             request.resource.data.clubId == resource.data.clubId)
         : (canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
-          (canCreateOwnRecord(resource.data) && canCreateOwnRecord(request.resource.data) &&
+          (memberOwnsConversation(resource.data) && memberOwnsConversation(request.resource.data) &&
             request.resource.data.from == resource.data.from && request.resource.data.to == resource.data.to &&
             request.resource.data.clubId == resource.data.clubId);
       allow delete: if isCoach() ? coachOwnsConversation(resource.data) : canManageMemberRecord(resource.data);

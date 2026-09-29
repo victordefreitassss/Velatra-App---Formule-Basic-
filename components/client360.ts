@@ -1,5 +1,5 @@
 import type { AppState, Booking, Club, Program, Role, Subscription, User } from '../types';
-import { canManageClub, getProductCapabilities, type Capability } from '../productCapabilities';
+import { canManageClub, getProductCapabilities, resolveAccountType, type Capability } from '../productCapabilities';
 
 export type Client360SectionId = 'overview' | 'coaching' | 'progress' | 'followup' | 'nutrition' | 'calendar' | 'administrative' | 'communication';
 export type Client360AdminSectionId = 'profile' | 'billing' | 'documents';
@@ -40,6 +40,16 @@ export function getClient360AdminSections(club: Club | null, actor: { role?: Rol
 
 export function canShowClient360AccountActions(club: Club | null, actor: { role?: Role; clubId?: string; trustedSuperAdmin?: boolean }): boolean {
   return canManageClub(actor, club?.id);
+}
+
+export function getClient360CoachingContact(member: User, club: Club | null, users: User[]): User | null {
+  if (!club || member.clubId !== club.id) return null;
+  if (resolveAccountType(club) === 'solo') {
+    const owner = users.find(user => user.role === 'owner' && user.clubId === club.id && user.firebaseUid === club.ownerId);
+    if (owner) return owner;
+  }
+  return users.find(user => user.role === 'coach' && user.clubId === club.id &&
+    user.firebaseUid === member.assignedCoachUid) || null;
 }
 
 export function getClient360QuickActions(visibleSections: Client360Section[]): Array<'message' | 'program' | 'plan' | 'note'> {
