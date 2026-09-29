@@ -7,7 +7,7 @@ import { apiFetch, db, doc, setDoc, addDoc, collection, updateDoc } from '../fir
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMemberConversationViewport } from '../components/useMemberConversationViewport';
 
-export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast: any, embedded?: boolean }> = ({ state, setState, showToast, embedded }) => {
+export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast: any, embedded?: boolean, initialMemberId?: number }> = ({ state, setState, showToast, embedded, initialMemberId }) => {
   const [text, setText] = useState("");
   const [fileData, setFileData] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -19,7 +19,11 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
   const [memberCoachError, setMemberCoachError] = useState<string | null>(null);
 
   // A member can only message the coach explicitly assigned to their account.
-  const [selectedDest, setSelectedDest] = useState<number | null>(user.role === 'member' ? (state.users.find(u => u.role === 'coach' || u.role === 'owner')?.id || null) : null);
+  const [selectedDest, setSelectedDest] = useState<number | null>(user.role === 'member' ? (state.users.find(u => u.role === 'coach' || u.role === 'owner')?.id || null) : initialMemberId || null);
+
+  useEffect(() => {
+    if (user.role !== 'member' && initialMemberId) setSelectedDest(initialMemberId);
+  }, [initialMemberId, user.role]);
 
   useEffect(() => {
     if (user.role !== 'member') return;
@@ -50,14 +54,15 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
   }, [user.role, user.firebaseUid]);
 
   const contacts = (user.role === 'coach' || user.role === 'owner') 
-    ? state.users.filter(u => u.role === 'member' && u.name.toLowerCase().includes(searchContact.toLowerCase())) 
+    ? state.users.filter(u => u.role === 'member' && (!embedded || !initialMemberId || Number(u.id) === initialMemberId) && u.name.toLowerCase().includes(searchContact.toLowerCase()))
     : memberCoach ? [memberCoach] : [];
+  const selectedContactAvailable = !embedded || !initialMemberId || contacts.some(contact => Number(contact.id) === Number(selectedDest));
 
   const conversationRef = useMemberConversationViewport(user.role === 'member' && !embedded && !memberCoachLoading && !!memberCoach);
-  const thread = state.messages.filter(m => 
+  const thread = selectedContactAvailable ? state.messages.filter(m =>
     (m.from === user.id && m.to === selectedDest) || 
     (m.from === selectedDest && m.to === user.id)
-  ).sort((a,b)=>a.date.localeCompare(b.date));
+  ).sort((a,b)=>a.date.localeCompare(b.date)) : [];
 
   useEffect(() => {
     const container=scrollRef.current?.parentElement;
@@ -88,7 +93,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
   }
 
   const sendMessage = async () => {
-    if ((!text && !fileData) || !selectedDest) return;
+    if ((!text && !fileData) || !selectedDest || !selectedContactAvailable) return;
     const messageId = Date.now().toString();
     const assignedCoachUid = user.role === 'member'
       ? memberCoach?.firebaseUid
@@ -166,6 +171,10 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
       transition: { type: "spring", stiffness: 300, damping: 24 }
     }
   };
+
+  if (embedded && initialMemberId && !selectedContactAvailable) {
+    return <div role="status" className="rounded-xl border border-zinc-200 bg-zinc-50 p-5 text-sm text-zinc-700">Conversation indisponible pour cet adhérent.</div>;
+  }
 
   if ((user.role === 'coach' || user.role === 'owner') && !selectedDest) {
     return (

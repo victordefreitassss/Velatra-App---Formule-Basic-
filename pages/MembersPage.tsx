@@ -2,7 +2,8 @@ import { canManageClub, getProductCapabilities } from '../productCapabilities';
 import { AddMemberDialog } from '../components/AddMemberDialog';
 import { localDateKey, createNumericId } from '../components/dataHelpers';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { AppState, User, UserDocument, Performance, BodyData, Program, Gender, Goal, Subscription, Plan, NutritionPlan, Payment, Invoice, SessionLog, DriveFile } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
@@ -18,9 +19,12 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MemberNutritionView } from '../components/MemberNutritionView';
 import { getMemberActivationStatus, hasAssignedProgram } from '../components/coachOnboardingHelpers';
 import { requestClubInviteDialog, trackProductEventOnce } from '../components/productEvents';
+import { canShowClient360AccountActions, getClient360AdminSections, getClient360Facts, getClient360QuickActions, getClient360Sections, type Client360AdminSectionId, type Client360SectionId } from '../components/client360';
+
+const ClientConversation = React.lazy(() => import('./MessagesPage').then(module => ({ default: module.MessagesPage })));
+const ClientNutritionView = React.lazy(() => import('../components/MemberNutritionView').then(module => ({ default: module.MemberNutritionView })));
 
 const itemVariants: any = {
   hidden: { opacity: 0, y: 10 },
@@ -35,10 +39,19 @@ const createTemporaryPassword = () => {
 };
 
 export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const clientHistoryEntryRef = useRef(false);
+  const closingHistoryRef = useRef(false);
+  const lastLocationKeyRef = useRef(location.key);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState(state.memberFilter || "Tous");
   const [selectedProfile, setSelectedProfile] = useState<User | null>(state.selectedMember || null);
-  const [memberTab, setMemberTab] = useState<string>('overview');
+  const [memberTab, setMemberTab] = useState<Client360SectionId>('overview');
+  const [adminSection, setAdminSection] = useState<Client360AdminSectionId>('profile');
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const notesRef = useRef<HTMLTextAreaElement | null>(null);
   const [selectedLog, setSelectedLog] = useState<SessionLog | null>(null);
   const [selectedEvolutionPhoto, setSelectedEvolutionPhoto] = useState<string | null>(null);
 
@@ -47,7 +60,6 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [isSavingCoachingNotes, setIsSavingCoachingNotes] = useState(false);
   const [bookingStatusFilter, setBookingStatusFilter] = useState<string>('all');
   const [bookingTypeFilter, setBookingTypeFilter] = useState<string>('all');
-  const [measurementsSubTab, setMeasurementsSubTab] = useState<'scans' | 'biometrics'>('scans');
   const [selectedDateForPhoto, setSelectedDateForPhoto] = useState<string>('');
   const [showProgramOptions, setShowProgramOptions] = useState<boolean>(false);
 
@@ -74,15 +86,86 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     if (selectedProfile) {
       setMemberTab('overview');
       setCoachAssignment(selectedProfile.assignedCoachUid || '');
+      requestAnimationFrame(() => closeButtonRef.current?.focus());
     }
   }, [selectedProfile?.id]);
 
+  const openProfile = (member: User, trigger: HTMLElement) => {
+    returnFocusRef.current = trigger;
+    closingHistoryRef.current = false;
+    clientHistoryEntryRef.current = true;
+    setSelectedProfile(member);
+    navigate(`${location.pathname}${location.search}`, { state: { ...((location.state && typeof location.state === 'object') ? location.state : {}), velatraPage: 'users', client360MemberId: Number(member.id) } });
+  };
+
+  useEffect(() => {
+    const locationChanged = lastLocationKeyRef.current !== location.key;
+    lastLocationKeyRef.current = location.key;
+    const memberId = (location.state as { client360MemberId?: number } | null)?.client360MemberId;
+    if (!memberId) {
+      if (locationChanged && (clientHistoryEntryRef.current || closingHistoryRef.current)) {
+        clientHistoryEntryRef.current = false;
+        closingHistoryRef.current = false;
+        setSelectedProfile(null);
+        setState((previous: AppState) => previous.selectedMember ? { ...previous, selectedMember: null } : previous);
+        requestAnimationFrame(() => returnFocusRef.current?.focus());
+      }
+      return;
+    }
+    if (closingHistoryRef.current) return;
+    const member = state.users.find(user => Number(user.id) === memberId && user.role === 'member');
+    if (member) {
+      clientHistoryEntryRef.current = true;
+      setSelectedProfile(previous => Number(previous?.id) === memberId ? previous : member);
+    }
+  }, [location.key, state.users]);
+
   const closeProfile = () => {
+    const hadHistoryEntry = clientHistoryEntryRef.current;
+    clientHistoryEntryRef.current = false;
+    closingHistoryRef.current = hadHistoryEntry;
     setSelectedProfile(null);
     if (state.selectedMember) {
       setState((prev: AppState) => ({ ...prev, selectedMember: null }));
     }
+    requestAnimationFrame(() => returnFocusRef.current?.focus());
+    if (hadHistoryEntry) navigate(-1);
   };
+  const openPlanningForMember = () => {
+    if (!selectedProfile) return;
+    clientHistoryEntryRef.current = false;
+    setSelectedProfile(null);
+    setState((previous: AppState) => ({ ...previous, page: 'calendar', selectedMember: selectedProfile }));
+    navigate(`${location.pathname}${location.search}`, { state: { velatraPage: 'calendar' } });
+  };
+  const openMemberEditor = (member: User) => {
+    setEditInfoData({
+      name: member.name, age: member.age, birthDate: member.birthDate || '', gender: member.gender,
+      weight: member.weight, height: member.height, objectifs: member.objectifs, notes: member.notes, avatar: member.avatar,
+    });
+    setIsEditingInfo(true);
+  };
+
+  useEffect(() => {
+    if (!selectedProfile) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !document.querySelector('[role="dialog"][aria-modal="true"]:not(.va-member-dossier)')) closeProfile();
+    };
+    document.addEventListener('keydown', onEscape);
+    return () => document.removeEventListener('keydown', onEscape);
+  }, [selectedProfile, state.selectedMember]);
+  useEffect(() => {
+    if (!selectedProfile || memberTab !== 'followup') return;
+    const keepNoteVisible = () => {
+      if (document.activeElement === notesRef.current) notesRef.current?.scrollIntoView({ block: 'center' });
+    };
+    window.addEventListener('resize', keepNoteVisible);
+    window.visualViewport?.addEventListener('resize', keepNoteVisible);
+    return () => {
+      window.removeEventListener('resize', keepNoteVisible);
+      window.visualViewport?.removeEventListener('resize', keepNoteVisible);
+    };
+  }, [selectedProfile?.id, memberTab]);
   const [newScan, setNewScan] = useState({ weight: "", fat: "", muscle: "" });
   const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [editInfoData, setEditInfoData] = useState<Partial<User>>({});
@@ -139,10 +222,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   useEffect(() => {
     if (selectedProfile) {
       setVisibleCoachingLogs(5);
-      setCoachingNotes(selectedProfile.notes || "");
+      setCoachingNotes("");
       setCoachingNoteDate(localDateKey());
       setSelectedDateForPhoto("");
-      setMeasurementsSubTab('scans');
+      setAdminSection('profile');
     }
   }, [selectedProfile?.id]);
 
@@ -335,6 +418,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const assignmentActor = { role: state.user?.role, clubId: state.user?.clubId, trustedSuperAdmin: auth.currentUser?.emailVerified === true && auth.currentUser?.email === 'victor.defreitas.pro@gmail.com' };
+  const clientSections = getClient360Sections(state.currentClub, assignmentActor);
+  const adminSections = getClient360AdminSections(state.currentClub, assignmentActor);
+  const quickActions = getClient360QuickActions(clientSections);
   const canAssignCoach = canManageClub(assignmentActor, state.currentClub?.id) &&
     getProductCapabilities(state.currentClub, assignmentActor).coachAssignments.usable;
   const handleAssignCoach = async () => {
@@ -1854,7 +1940,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 return (
                   <button 
                     key={sub.id}
-                    onClick={() => setSelectedProfile(member)}
+                    onClick={event => openProfile(member, event.currentTarget)}
                     className={`text-[10px] px-3 py-1.5 rounded-full font-black uppercase tracking-widest transition-colors ${isExpired ? 'bg-red-500/10 text-red-600 hover:bg-red-500/20' : 'bg-orange-500/10 text-orange-600 hover:bg-orange-500/20'}`}
                   >
                     {member.name} ({isExpired ? 'Terminé' : 'Bientôt'})
@@ -1933,7 +2019,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               key={u.id}
               type="button"
               variants={itemVariants}
-              onClick={() => setSelectedProfile(u)}
+              onClick={event => openProfile(u, event.currentTarget)}
               className="va-members-row group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-zinc-100 px-4 py-4 text-left transition-colors last:border-b-0 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-700 lg:grid-cols-[minmax(220px,1.5fr)_minmax(130px,1fr)_minmax(150px,1fr)_minmax(140px,1fr)_auto] lg:gap-4 lg:px-5"
             >
               <span className="flex min-w-0 items-center gap-3">
@@ -1973,12 +2059,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         {selectedProfile && (() => {
         const stats = getMemberStats(selectedProfile.id);
         const memberId = Number(selectedProfile.id);
-        const nextBooking = [...(state.bookings || [])]
-          .filter(booking => Number(booking.memberId) === memberId && booking.status === 'confirmed' && new Date(booking.startTime).getTime() >= Date.now())
-          .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0];
-        const lastActivity = [...(state.logs || [])]
-          .filter(log => Number(log.memberId) === memberId)
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        const clientFacts = getClient360Facts(selectedProfile, state);
+        const { nextBooking, lastActivity } = clientFacts;
         const assignedCoach = (state.users || []).find(user => user.role === 'coach' && (user.firebaseUid === selectedProfile.assignedCoachUid || String(user.id) === selectedProfile.assignedCoachUid));
         const hasDuration = stats.program && stats.program.durationWeeks;
         const totalSessions = hasDuration ? (stats.program?.nbDays || 1) * (stats.program?.durationWeeks || 1) : 0;
@@ -2023,10 +2105,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="va-member-dossier w-full max-w-[1360px] bg-white min-h-screen md:min-h-0 md:rounded-3xl border border-zinc-200 shadow-2xl relative overflow-hidden my-0 md:my-4" role="dialog" aria-modal="true" aria-label={`Dossier de ${selectedProfile.name}`}
+                className="va-member-dossier w-full max-w-[1600px] bg-white min-h-screen md:min-h-0 md:rounded-3xl border border-zinc-200 shadow-2xl relative overflow-hidden my-0 md:my-4" role="dialog" aria-modal="true" aria-label={`Dossier de ${selectedProfile.name}`}
               >
-                <ErrorBoundary>
-                <button onClick={closeProfile} aria-label="Fermer le dossier adhérent" className="va-dossier-close fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-zinc-100 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border border-zinc-200 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
+                <button ref={closeButtonRef} onClick={closeProfile} aria-label="Fermer le dossier adhérent" className="va-dossier-close fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-zinc-100 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border border-zinc-200 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
 
                 {selectedProfile.planRequested && (
                   <div className="bg-orange-500 text-zinc-900 p-4 flex items-center justify-between z-[500] relative">
@@ -2069,22 +2150,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       )}
                     </div>
                     <button 
-                      onClick={() => {
-                        setEditInfoData({
-                          name: selectedProfile.name,
-                          age: selectedProfile.age,
-                          birthDate: selectedProfile.birthDate || '',
-                          gender: selectedProfile.gender,
-                          weight: selectedProfile.weight,
-                          height: selectedProfile.height,
-                          objectifs: selectedProfile.objectifs,
-                          notes: selectedProfile.notes,
-                          avatar: selectedProfile.avatar
-                        });
-                        setIsEditingInfo(true);
-                      }}
-                      className="absolute top-0 left-8 md:left-auto md:right-1/4 p-1.5 md:p-2 bg-white rounded-full text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-all border border-zinc-200 shadow-sm"
+                      onClick={() => openMemberEditor(selectedProfile)}
+                      className="hidden md:block absolute top-0 right-1/4 p-2 bg-white rounded-full text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 transition-all border border-zinc-200 shadow-sm"
                       title="Modifier les infos"
+                      aria-label="Modifier le profil de l’adhérent"
                     >
                       <Edit2Icon size={16} />
                     </button>
@@ -2092,6 +2161,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       {selectedProfile.name}
                       {selectedProfile.status === 'paused' && <Badge variant="dark" className="!bg-zinc-800 !text-white !border-zinc-800 !px-2 !py-0.5 !text-[10px] not-italic">EN PAUSE</Badge>}
                     </h2>
+                    <p className="md:hidden min-w-0 truncate text-xs text-zinc-700">{selectedProfile.objectifs?.[0] || stats.program?.name || 'Objectif à définir'}</p>
                     {(() => {
                       const lastAutonomousSession = state.logs
                         ?.filter(log => log.memberId === Number(selectedProfile.id) && !log.isCoaching)
@@ -2107,23 +2177,18 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       <p className="text-sm leading-5 text-zinc-600">{selectedProfile.objectifs?.join(', ') || 'Objectif à définir'}</p>
                     </div>
                   </div>
-                  <nav className="flex flex-row md:flex-col gap-1.5 mt-1 md:mt-4 overflow-x-auto md:overflow-visible pb-1 md:pb-0 hide-scrollbar scrollbar-none">
-                    {[
-                      { id: 'overview', label: "Vue d'ensemble", icon: <LayersIcon size={16} /> },
-                      { id: 'profile', label: "Profil", icon: <UserIcon size={16} /> },
-                      { id: 'measurements', label: "Mensurations", icon: <ActivityIcon size={16} /> },
-                      { id: 'training', label: "Entraînement", icon: <DumbbellIcon size={16} /> },
-                      { id: 'bookings', label: "Agenda", icon: <CalendarIcon size={16} /> },
-                      { id: 'billing', label: "Facturation", icon: <DollarSignIcon size={16} /> },
-                      { id: 'documents', label: "Documents", icon: <FolderIcon size={16} /> }
-                    ].map(tab => (
+                  <label className="md:hidden text-xs font-semibold text-zinc-700" htmlFor="client-360-section">Espace du client</label>
+                  <select id="client-360-section" className="md:hidden min-h-12 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-900" value={memberTab} onChange={event => setMemberTab(event.target.value as Client360SectionId)}>
+                    {clientSections.map(tab => <option key={tab.id} value={tab.id}>{tab.label}</option>)}
+                  </select>
+                  <nav aria-label="Sections du dossier client" className="hidden md:flex md:flex-col gap-1.5 mt-1 md:mt-4">
+                    {clientSections.map(tab => (
                       <button 
                         key={tab.id}
-                        onClick={() => setMemberTab(tab.id as any)}
+                        onClick={() => setMemberTab(tab.id)}
                         aria-current={memberTab === tab.id ? 'page' : undefined}
-                        className={`flex min-h-11 items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-medium tracking-normal transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 ${memberTab === tab.id ? 'bg-emerald-800 text-white' : 'text-zinc-700 hover:text-zinc-900 hover:bg-zinc-200/70'}`}
+                        className={`flex min-h-11 items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 ${memberTab === tab.id ? 'bg-emerald-800 text-white' : 'text-zinc-700 hover:text-zinc-900 hover:bg-zinc-200/70'}`}
                       >
-                        {tab.icon}
                         {tab.label}
                       </button>
                     ))}
@@ -2138,17 +2203,27 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
                 {/* MAIN GRAPHS & AI */}
                 <div className="va-dossier-content flex-1 min-w-0 bg-white p-4 sm:p-6 md:p-10 lg:p-12 overflow-y-auto space-y-8 custom-scrollbar md:h-[calc(100vh)]">
+                  <ErrorBoundary key={`${memberTab}-${adminSection}`}>
                     <div className="sticky top-0 z-30 -mx-4 -mt-4 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 pr-16 backdrop-blur-sm sm:-mx-6 sm:-mt-6 sm:px-6 sm:pr-16 md:-mx-10 md:-mt-10 md:px-10 md:pr-32 lg:-mx-12 lg:-mt-12 lg:px-12 lg:pr-32">
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-zinc-700">{assignedCoach ? `Coach · ${assignedCoach.name}` : 'Coach non attribué'}{stats.program?.name ? ` · ${stats.program.name}` : ' · Aucun programme'}</p>
                       <div className="flex min-w-0 items-center gap-2">
-                        <h2 className="truncate text-base font-semibold text-zinc-900 sm:text-lg">Suivi et programme</h2>
+                        <h2 className="truncate text-base font-semibold text-zinc-900 sm:text-lg">{clientSections.find(section => section.id === memberTab)?.label || 'Dossier client'}</h2>
                         {selectedProfile.status === 'paused' && <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">En pause</span>}
                       </div>
                     </div>
-                    <Button variant="primary" onClick={() => handleEditProgram(selectedProfile)} className="!shrink-0 !rounded-xl !px-3 !py-2 !text-xs sm:!px-4 sm:!py-2.5 sm:!text-sm">
-                      <DumbbellIcon size={15} className="mr-1.5" /> Programme
-                    </Button>
+                  </div>
+                  <div className="va-client-360-actions grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" aria-label="Actions pour cet adhérent">
+                    {quickActions.includes('message') && <button type="button" onClick={() => setMemberTab('communication')} className="va-client-360-action"><MessageCircleIcon size={16} /> Message</button>}
+                    {quickActions.includes('program') && <button type="button" onClick={() => handleEditProgram(selectedProfile)} className="va-client-360-action"><DumbbellIcon size={16} /> Programme</button>}
+                    {quickActions.includes('plan') && <button type="button" onClick={openPlanningForMember} className="va-client-360-action va-client-360-secondary"><CalendarIcon size={16} /> Planifier</button>}
+                    {quickActions.includes('note') && <button type="button" onClick={() => { setMemberTab('followup'); requestAnimationFrame(() => notesRef.current?.focus()); }} className="va-client-360-action va-client-360-secondary"><FileTextIcon size={16} /> Ajouter une note</button>}
+                    <details className="va-client-360-more"><summary aria-label="Actions supplémentaires">Plus ···</summary><div>
+                      {quickActions.includes('plan') && <button type="button" className="va-client-360-xs-action" onClick={openPlanningForMember}>Planifier une séance</button>}
+                      {quickActions.includes('note') && <button type="button" className="va-client-360-xs-action" onClick={() => { setMemberTab('followup'); requestAnimationFrame(() => notesRef.current?.focus()); }}>Ajouter une note</button>}
+                      <button type="button" onClick={() => { setMemberTab('administrative'); setAdminSection('profile'); }}>Profil et administration</button>
+                      <button type="button" onClick={() => openMemberEditor(selectedProfile)}>Modifier le profil</button>
+                    </div></details>
                   </div>
                   
                   
@@ -2156,6 +2231,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     <p className="font-semibold">{selectedProfile.name} a maintenant son accès Velatra.</p>
                     <p className="mt-2 leading-6">Transmettez-lui le lien de connexion, son email et le mot de passe provisoire choisi. Aucun email d’invitation n’a été envoyé. Vous pouvez maintenant préparer son programme.</p>
                     <p className="mt-2 break-all">{window.location.origin}/login</p>
+                    <button type="button" onClick={async () => { try { await navigator.clipboard.writeText(`${window.location.origin}/login`); showToast('Lien de connexion copié.', 'success'); } catch { showToast('Impossible de copier le lien automatiquement.', 'error'); } }} className="mt-2 mr-3 min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800">Copier le lien</button>
                     <button type="button" onClick={() => setNewAccessMemberId(null)} className="mt-2 min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800">J’ai noté les informations</button>
                   </div>}
                   {/* Assistants IA */}
@@ -2199,149 +2275,19 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           <p className="text-xs font-medium text-zinc-700">Objectif principal</p>
                           <p className="mt-1 text-sm font-semibold text-zinc-900">{selectedProfile.objectifs?.[0] || 'À définir'}</p>
                         </div>
+                        <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
+                          <p className="text-xs font-medium text-zinc-700">Dernière mesure</p>
+                          <p className="mt-1 text-sm font-semibold text-zinc-900">{clientFacts.lastBodyRecord ? `${clientFacts.lastBodyRecord.weight} kg` : 'Aucune mesure enregistrée'}</p>
+                          {clientFacts.lastBodyRecord && <p className="mt-1 text-xs text-zinc-700">{new Date(clientFacts.lastBodyRecord.date).toLocaleDateString('fr-FR')}</p>}
+                        </div>
                       </div>
-                      {selectedProfile.notes?.trim() && <p className="mt-3 line-clamp-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-3 text-sm text-zinc-800"><span className="font-semibold">Note coach · </span>{selectedProfile.notes}</p>}
+                      {(clientFacts.lastNote?.content || selectedProfile.notes?.trim()) && <p className="mt-3 line-clamp-2 rounded-xl border border-zinc-200 bg-white px-3.5 py-3 text-sm text-zinc-800"><span className="font-semibold">Dernière note · </span>{clientFacts.lastNote?.content || selectedProfile.notes}</p>}
                     </div>
 
-                    <details className="va-member-assistance"><summary className="va-assistance-heading flex items-center gap-3">
-                       <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900"><BotIcon size={21} /></div>
-                       <span className="font-semibold">Programmation, nutrition et outils IA</span>
-                    </summary>
-                    
-                    <div className="va-assistance-grid grid grid-cols-1 gap-4 md:grid-cols-2">
-                      {/* Feature 1: Auto Program */}
-                      <div className="flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-                        <div>
-                          <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
-                            <LayersIcon size={17} className="text-emerald-800" /> Programme sportif
-                          </h4>
-                          <p className="mb-5 text-sm leading-relaxed text-zinc-700">Préparez un programme à partir des objectifs et du niveau de l’adhérent, puis vérifiez-le avant de l’attribuer.</p>
-                        </div>
-                        <div className="w-full space-y-2">
-                          <Button 
-                            variant="secondary" 
-                            fullWidth 
-                            onClick={openAIGeneratorModal} 
-                            disabled={isGeneratingProgram} 
-                            className={`!min-h-11 !py-2.5 !text-sm !rounded-lg !border-emerald-200 !bg-emerald-50 !text-emerald-950 hover:!bg-emerald-100 transition-colors ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            <SparklesIcon size={14} className="mr-2 inline" />
-                            {isGeneratingProgram ? 'Génération en cours…' : 'Préparer avec l’IA'}
-                          </Button>
-                          <Button 
-                            variant="secondary" 
-                            fullWidth 
-                            onClick={() => setShowAssignProgramTemplateModal(true)} 
-                            className="!min-h-11 !py-2.5 !text-sm !rounded-lg !border-zinc-300 !bg-zinc-50 !text-zinc-800 hover:!bg-zinc-100 transition-colors"
-                          >
-                            <PlusIcon size={14} className="mr-2 inline" />
-                            Attribuer un modèle
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Feature 2: Nutrition Plan */}
-                      <div className={`flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${isGeneratingNutrition ? 'opacity-60 pointer-events-none' : ''}`}>
-                        <div>
-                          <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
-                            <CheckIcon size={17} className="text-emerald-800" /> Plan alimentaire
-                          </h4>
-                          <p className="mb-5 text-sm leading-relaxed text-zinc-700">Consultez le plan et le suivi existants, ajustez les objectifs ou préparez une nouvelle proposition.</p>
-                        </div>
-                        <div className="space-y-2">
-                          {state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)) && (
-                            <Button variant="primary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={() => setNutritionPlan(state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)))}>
-                              Voir le plan actuel
-                            </Button>
-                          )}
-                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={() => setShowNutritionLog(true)}>
-                            Voir le suivi journalier
-                          </Button>
-                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={openNutritionTargetsModal} disabled={isGeneratingNutrition}>
-                            {isGeneratingNutrition ? "Création en cours…" : (state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)) ? "Régénérer le plan" : "Générer le plan")}
-                          </Button>
-                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg !bg-zinc-50 !text-zinc-800 hover:!bg-zinc-100 transition-colors" onClick={() => setShowAssignNutritionTemplateModal(true)}>
-                            <PlusIcon size={14} className="mr-2 inline" /> Attribuer un modèle
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Feature 3: Auto Report */}
-                      <div className={`rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${isGeneratingReport ? 'opacity-60 pointer-events-none' : ''}`}>
-                        <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
-                          <BarChartIcon size={17} className="text-emerald-800" /> Rapport de progression
-                        </h4>
-                        <p className="mb-5 text-sm leading-relaxed text-zinc-700">Préparez un bilan à partir du poids, des mensurations et des performances de l’adhérent.</p>
-                        
-                        {generatedReport ? (
-                          <div className="space-y-4 relative z-10">
-                            <div className="bg-white border border-zinc-200 rounded-xl p-4 max-h-40 overflow-y-auto text-xs text-zinc-600 whitespace-pre-wrap">
-                              {generatedReport}
-                            </div>
-                            <div className="flex flex-col gap-2">
-                              <Button 
-                                variant="primary" 
-                                fullWidth 
-                                className="!min-h-11 !py-2.5 !text-sm !rounded-lg !bg-[#25D366] hover:!bg-[#128C7E] border-none !text-zinc-950 flex items-center justify-center gap-2"
-                                onClick={() => {
-                                  const phone = selectedProfile.phone?.replace(/\D/g, '');
-                                  const url = phone 
-                                    ? `https://wa.me/${phone}?text=${encodeURIComponent(generatedReport)}`
-                                    : `https://wa.me/?text=${encodeURIComponent(generatedReport)}`;
-                                  window.open(url, '_blank');
-                                }}
-                              >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                                </svg>
-                                Envoyer sur WhatsApp
-                              </Button>
-                              <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={handleGenerateReport} disabled={isGeneratingReport}>
-                                Régénérer le bilan
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={handleGenerateReport} disabled={isGeneratingReport}>
-                            {isGeneratingReport ? "Génération…" : "Générer le bilan"}
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Feature 4: Stagnation Detection */}
-                      <div className={`rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${isDetectingStagnation ? 'opacity-60 pointer-events-none' : ''}`}>
-                        <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
-                          <TargetIcon size={17} className="text-emerald-800" /> Repérage d’un plateau
-                        </h4>
-                        <p className="mb-4 text-sm leading-relaxed text-zinc-700">Analysez les dernières séances afin d’identifier un éventuel ralentissement sur les exercices principaux.</p>
-                        
-                        {stagnationResult ? (
-                          <div className={`border rounded-xl p-3 flex flex-col gap-2 ${stagnationResult.hasStagnation ? 'bg-red-500/10 border-red-500/20' : 'bg-green-500/10 border-green-500/20'}`}>
-                            <span className={`text-sm font-semibold ${stagnationResult.hasStagnation ? 'text-red-800' : 'text-emerald-900'}`}>
-                              {stagnationResult.hasStagnation ? 'Stagnation détectée' : 'Progression OK'}
-                            </span>
-                            <p className="text-sm leading-relaxed text-zinc-700">{stagnationResult.advice}</p>
-                          </div>
-                        ) : (
-                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={handleDetectStagnation} disabled={isDetectingStagnation}>
-                            {isDetectingStagnation ? "Analyse en cours…" : "Lancer l’analyse"}
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Feature 5: Morphological Analysis */}
-                      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm opacity-75">
-                        <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
-                          <InfoIcon size={17} className="text-zinc-600" /> Analyse morphologique
-                        </h4>
-                        <p className="mb-5 text-sm leading-relaxed text-zinc-700">Cette fonction n’est pas encore activée pour votre club.</p>
-                        <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={() => showToast("Fonctionnalité IA en cours d'activation pour votre club", "info")}>
-                          En savoir plus
-                        </Button>
-                      </div>
-                    </div>
-
-                    </details>
+                  </section>
+                  )}
+                  {memberTab === 'followup' && (
+                  <section className="va-client-360-followup space-y-6">
                     {/* NOTES DE SUIVI SECTION */}
                     <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 mt-6 shadow-sm space-y-4">
                       <div className="flex items-center justify-between border-b border-zinc-200/60 pb-3">
@@ -2359,12 +2305,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         Utilisez cet espace pour noter les forces, faiblesses, ressentis, et adaptations pour {selectedProfile.name}.
                       </p>
                       <textarea
+                        ref={notesRef}
+                        onFocus={event => { const field = event.currentTarget; requestAnimationFrame(() => field.scrollIntoView({ block: 'center' })); }}
                         value={coachingNotes}
                         onChange={(e) => setCoachingNotes(e.target.value)}
                         placeholder="Saisissez une note de suivi…"
                         className="w-full h-24 bg-white border border-zinc-300 rounded-xl p-4 text-sm text-zinc-900 placeholder:text-zinc-500 outline-none focus:border-emerald-800 focus:ring-2 focus:ring-emerald-800/20 transition-colors resize-y shadow-sm"
                       />
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
+                      <div className="va-client-360-note-footer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-medium text-zinc-700">Date de la note</span>
                           <input 
@@ -2378,7 +2326,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           variant="success" 
                           onClick={handleSaveCoachingNotes} 
                           disabled={isSavingCoachingNotes}
-                          className="!min-h-11 !py-2.5 !px-6 !text-sm w-full sm:w-auto"
+                          className="va-client-360-save-note !min-h-11 !py-2.5 !px-6 !text-sm w-full sm:w-auto"
                         >
                           {isSavingCoachingNotes ? "Enregistrement…" : "Ajouter la note"}
                         </Button>
@@ -2438,8 +2386,56 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </section>
                   )}
 
+                  {memberTab === 'nutrition' && (
+                  <section className="space-y-6">
+                    <h3 className="text-xl font-semibold text-zinc-900">Nutrition et journal quotidien</h3>
+                    <div className="va-client-360-nutrition-tools grid gap-4">
+                      {/* Feature 2: Nutrition Plan */}
+                      <div className={`flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${isGeneratingNutrition ? 'opacity-60 pointer-events-none' : ''}`}>
+                        <div>
+                          <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
+                            <CheckIcon size={17} className="text-emerald-800" /> Plan alimentaire
+                          </h4>
+                          <p className="mb-5 text-sm leading-relaxed text-zinc-700">Consultez le plan et le suivi existants, ajustez les objectifs ou préparez une nouvelle proposition.</p>
+                        </div>
+                        <div className="space-y-2">
+                          {state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)) && (
+                            <Button variant="primary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={() => setNutritionPlan(state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)))}>
+                              Voir le plan actuel
+                            </Button>
+                          )}
+                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={() => setShowNutritionLog(true)}>
+                            Voir le suivi journalier
+                          </Button>
+                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={openNutritionTargetsModal} disabled={isGeneratingNutrition}>
+                            {isGeneratingNutrition ? "Création en cours…" : (state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)) ? "Régénérer le plan" : "Générer le plan")}
+                          </Button>
+                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg !bg-zinc-50 !text-zinc-800 hover:!bg-zinc-100 transition-colors" onClick={() => setShowAssignNutritionTemplateModal(true)}>
+                            <PlusIcon size={14} className="mr-2 inline" /> Attribuer un modèle
+                          </Button>
+                        </div>
+                      </div>
+
+                    </div>
+    <div className="space-y-6 bg-zinc-50 border border-zinc-200 rounded-[32px] p-6 sm:p-8 animate-in fade-in duration-300">
+      <div>
+        <h4 className="text-sm font-black text-zinc-950 uppercase tracking-widest mb-1 flex items-center gap-2">
+          <FileTextIcon size={18} className="text-emerald-500" /> Journaux Biométriques & Alimentation
+        </h4>
+        <p className="text-[11px] text-zinc-500 leading-normal">
+          Consultez et complétez les relevés nutritionnels quotidiens, l'apport en eau, le sommeil et le poids du membre pour optimiser son suivi de près.
+        </p>
+      </div>
+      <div className="bg-white border border-zinc-200 rounded-2xl p-2 sm:p-6 shadow-inner">
+        <React.Suspense fallback={<p role="status" className="p-5 text-sm text-zinc-700">Ouverture du journal nutritionnel…</p>}>
+          <ClientNutritionView state={state} showToast={showToast} memberId={Number(selectedProfile.id)} readOnly={false} />
+        </React.Suspense>
+      </div>
+    </div>
+                  </section>
+                  )}
                   {/* AGENDA & RÉSERVATIONS TAB */}
-                  {memberTab === 'bookings' && (
+                  {memberTab === 'calendar' && (
                   <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CalendarIcon size={24} /></div>
@@ -2448,6 +2444,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                          <p className="text-xs text-zinc-500 mt-0.5">Consultez, filtrez et gérez les réservations et le forfait d'abonnement actif pour {selectedProfile.name}.</p>
                        </div>
                     </div>
+                    <button type="button" onClick={openPlanningForMember} className="va-client-360-action"><CalendarIcon size={16} /> Planifier une séance pour {selectedProfile.name}</button>
 
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
                       {/* SIDEBAR FILTERS AND STATS */}
@@ -2696,7 +2693,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   )}
 
                   {/* DOCUMENTS (OFFICIELS & DRIVE) */}
-                  {memberTab === 'documents' && (
+                  {memberTab === 'administrative' && (
+                    <nav className="va-client-360-admin-nav" aria-label="Rubriques administratives">
+                      {adminSections.map(section => <button type="button" key={section.id} onClick={() => setAdminSection(section.id)} aria-current={adminSection === section.id ? 'page' : undefined}>{section.label}</button>)}
+                    </nav>
+                  )}
+                  {memberTab === 'administrative' && adminSection === 'documents' && (
                   <section className="space-y-8">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500"><FolderIcon size={24} /></div>
@@ -2845,7 +2847,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   )}
 
                   {/* FINANCES & FACTURATION */}
-                  {memberTab === 'billing' && (
+                  {memberTab === 'administrative' && adminSection === 'billing' && (
 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
     <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
@@ -3211,7 +3213,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   )}
 
                   {/* COACHING HISTORY */}
-                  {memberTab === 'profile' && (
+                  {memberTab === 'administrative' && adminSection === 'profile' && (
 <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
   <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Profil Adhérent</h3>
   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3314,30 +3316,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   </div>
 </section>
 )}
-{memberTab === 'measurements' && (
+{memberTab === 'progress' && (
 <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-4">
     <div>
       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Suivi & Mensurations</h3>
       <p className="text-xs text-zinc-500 mt-1">Gérez le scan corporel, l'évolution en photos et l'historique biométrique.</p>
     </div>
-    <div className="flex gap-2 bg-zinc-100 p-1 rounded-xl">
-      <button
-        onClick={() => setMeasurementsSubTab('scans')}
-        className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${measurementsSubTab === 'scans' ? 'bg-emerald-500 text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}
-      >
-        Scans & Évolution
-      </button>
-      <button
-        onClick={() => setMeasurementsSubTab('biometrics')}
-        className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-lg transition-all ${measurementsSubTab === 'biometrics' ? 'bg-emerald-500 text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}
-      >
-        Journaux Biométriques
-      </button>
-    </div>
   </div>
-
-  {measurementsSubTab === 'scans' ? (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
       <div className="space-y-6 bg-zinc-50 p-8 rounded-[32px] border border-zinc-200">
         <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500 mb-2">Nouveau Scan</h3>
@@ -3457,24 +3443,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         })()}
       </div>
     </div>
-  ) : (
-    <div className="space-y-6 bg-zinc-50 border border-zinc-200 rounded-[32px] p-6 sm:p-8 animate-in fade-in duration-300">
-      <div>
-        <h4 className="text-sm font-black text-zinc-950 uppercase tracking-widest mb-1 flex items-center gap-2">
-          <FileTextIcon size={18} className="text-emerald-500" /> Journaux Biométriques & Alimentation
-        </h4>
-        <p className="text-[11px] text-zinc-500 leading-normal">
-          Consultez et complétez les relevés nutritionnels quotidiens, l'apport en eau, le sommeil et le poids du membre pour optimiser son suivi de près.
-        </p>
-      </div>
-      <div className="bg-white border border-zinc-200 rounded-2xl p-2 sm:p-6 shadow-inner">
-        <MemberNutritionView state={state} showToast={showToast} memberId={Number(selectedProfile.id)} readOnly={false} />
-      </div>
-    </div>
-  )}
+
 </section>
 )}
-{memberTab === 'training' && (
+{memberTab === 'coaching' && (
                   <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
                                         <div className="space-y-4">
@@ -3742,14 +3714,121 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </section>
                   )}
 
-                  {memberTab === 'profile' && (
+                  {memberTab === 'coaching' && (
+                  <section className="space-y-8">
+                    <details className="va-member-assistance"><summary className="va-assistance-heading flex items-center gap-3">
+                       <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900"><BotIcon size={21} /></div>
+                       <span className="font-semibold">Programmation, nutrition et outils IA</span>
+                    </summary>
+
+                    <div className="va-assistance-grid grid grid-cols-1 gap-4 md:grid-cols-2">
+                      {/* Feature 1: Auto Program */}
+                      <div className="flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+                        <div>
+                          <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
+                            <LayersIcon size={17} className="text-emerald-800" /> Programme sportif
+                          </h4>
+                          <p className="mb-5 text-sm leading-relaxed text-zinc-700">Préparez un programme à partir des objectifs et du niveau de l’adhérent, puis vérifiez-le avant de l’attribuer.</p>
+                        </div>
+                        <div className="w-full space-y-2">
+                          <Button
+                            variant="secondary"
+                            fullWidth
+                            onClick={openAIGeneratorModal}
+                            disabled={isGeneratingProgram}
+                            className={`!min-h-11 !py-2.5 !text-sm !rounded-lg !border-emerald-200 !bg-emerald-50 !text-emerald-950 hover:!bg-emerald-100 transition-colors ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          >
+                            <SparklesIcon size={14} className="mr-2 inline" />
+                            {isGeneratingProgram ? 'Génération en cours…' : 'Préparer avec l’IA'}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            fullWidth
+                            onClick={() => setShowAssignProgramTemplateModal(true)}
+                            className="!min-h-11 !py-2.5 !text-sm !rounded-lg !border-zinc-300 !bg-zinc-50 !text-zinc-800 hover:!bg-zinc-100 transition-colors"
+                          >
+                            <PlusIcon size={14} className="mr-2 inline" />
+                            Attribuer un modèle
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Feature 3: Auto Report */}
+                      <div className={`rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${isGeneratingReport ? 'opacity-60 pointer-events-none' : ''}`}>
+                        <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
+                          <BarChartIcon size={17} className="text-emerald-800" /> Rapport de progression
+                        </h4>
+                        <p className="mb-5 text-sm leading-relaxed text-zinc-700">Préparez un bilan à partir du poids, des mensurations et des performances de l’adhérent.</p>
+
+                        {generatedReport ? (
+                          <div className="space-y-4 relative z-10">
+                            <div className="bg-white border border-zinc-200 rounded-xl p-4 max-h-40 overflow-y-auto text-xs text-zinc-600 whitespace-pre-wrap">
+                              {generatedReport}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Button
+                                variant="primary"
+                                fullWidth
+                                className="!min-h-11 !py-2.5 !text-sm !rounded-lg !bg-[#25D366] hover:!bg-[#128C7E] border-none !text-zinc-950 flex items-center justify-center gap-2"
+                                onClick={() => {
+                                  const phone = selectedProfile.phone?.replace(/\D/g, '');
+                                  const url = phone
+                                    ? `https://wa.me/${phone}?text=${encodeURIComponent(generatedReport)}`
+                                    : `https://wa.me/?text=${encodeURIComponent(generatedReport)}`;
+                                  window.open(url, '_blank');
+                                }}
+                              >
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                </svg>
+                                Envoyer sur WhatsApp
+                              </Button>
+                              <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={handleGenerateReport} disabled={isGeneratingReport}>
+                                Régénérer le bilan
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={handleGenerateReport} disabled={isGeneratingReport}>
+                            {isGeneratingReport ? "Génération…" : "Générer le bilan"}
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Feature 4: Stagnation Detection */}
+                      <div className={`rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${isDetectingStagnation ? 'opacity-60 pointer-events-none' : ''}`}>
+                        <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
+                          <TargetIcon size={17} className="text-emerald-800" /> Repérage d’un plateau
+                        </h4>
+                        <p className="mb-4 text-sm leading-relaxed text-zinc-700">Analysez les dernières séances afin d’identifier un éventuel ralentissement sur les exercices principaux.</p>
+
+                        {stagnationResult ? (
+                          <div className={`border rounded-xl p-3 flex flex-col gap-2 ${stagnationResult.hasStagnation ? 'bg-red-500/10 border-red-500/20' : 'bg-green-500/10 border-green-500/20'}`}>
+                            <span className={`text-sm font-semibold ${stagnationResult.hasStagnation ? 'text-red-800' : 'text-emerald-900'}`}>
+                              {stagnationResult.hasStagnation ? 'Stagnation détectée' : 'Progression OK'}
+                            </span>
+                            <p className="text-sm leading-relaxed text-zinc-700">{stagnationResult.advice}</p>
+                          </div>
+                        ) : (
+                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={handleDetectStagnation} disabled={isDetectingStagnation}>
+                            {isDetectingStagnation ? "Analyse en cours…" : "Lancer l’analyse"}
+                          </Button>
+                        )}
+                      </div>
+
+                    </div>
+
+                    </details>
+                  </section>
+                  )}
+                  {memberTab === 'progress' && (
                   <section className="space-y-8">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                       <div className="flex items-center gap-4">
                          <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500"><BarChartIcon size={24} /></div>
                          <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Évolution Corporelle</h3>
                       </div>
-                      
+
                       <div className="flex gap-4">
                         <div className="flex items-center gap-2">
                           <div className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -3765,7 +3844,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="bg-zinc-50 border border-zinc-200 rounded-[40px] p-6 h-80 relative overflow-hidden shadow-sm">
                       {weightHistory.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
@@ -3854,7 +3933,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </section>
                   )}
 
-                  {memberTab === 'training' && (
+                  {memberTab === 'progress' && (
                   <section className="space-y-8">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><DumbbellIcon size={24} /></div>
@@ -3882,7 +3961,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </section>
                   )}
 
-                  {memberTab === 'profile' && (
+                  {memberTab === 'progress' && (
                   <section className="space-y-8 pb-12">
                     <div className="flex items-center gap-4">
                        <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CheckIcon size={24} /></div>
@@ -3919,9 +3998,16 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     </div>
                   </section>
                   )}
+                  {memberTab === 'communication' && (
+                    <section className="va-client-360-conversation" aria-label={`Conversation avec ${selectedProfile.name}`}>
+                      <ErrorBoundary><React.Suspense fallback={<p role="status" className="p-5 text-sm text-zinc-700">Ouverture de la conversation…</p>}>
+                        <ClientConversation state={state} setState={setState} showToast={showToast} embedded initialMemberId={Number(selectedProfile.id)} />
+                      </React.Suspense></ErrorBoundary>
+                    </section>
+                  )}
+                  </ErrorBoundary>
                 </div>
               </div>
-              </ErrorBoundary>
 
             </motion.div>
           </motion.div>
@@ -3929,6 +4015,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       })()}
       </AnimatePresence>,
       document.body
+      )}
+
+      {selectedProfile && memberTab === 'followup' && coachingNotes.trim() && createPortal(
+        <div className="va-client-360-floating-save">
+          <button type="button" onClick={handleSaveCoachingNotes} disabled={isSavingCoachingNotes || !coachingNotes.trim()} className="min-h-11 w-full rounded-xl bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-950">
+            {isSavingCoachingNotes ? 'Enregistrement…' : 'Enregistrer la note'}
+          </button>
+        </div>, document.body
       )}
 
       {createPortal(
@@ -4115,7 +4209,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 ENREGISTRER <CheckIcon size={18} className="ml-2" />
               </Button>
             </div>
-            <div className="pt-2 shrink-0 flex flex-col gap-2">
+            {canShowClient360AccountActions(state.currentClub, assignmentActor) && <div className="pt-2 shrink-0 flex flex-col gap-2">
               <Button 
                 variant="secondary" 
                 fullWidth 
@@ -4135,7 +4229,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               <Button variant="secondary" fullWidth onClick={handleDeleteMember} className="!bg-red-500/10 !text-red-500 hover:!bg-red-500/20">
                 SUPPRIMER LE MEMBRE
               </Button>
-            </div>
+            </div>}
           </Card>
           </motion.div>
         </motion.div>
@@ -4441,7 +4535,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </button>
             </div>
             
-            <MemberNutritionView state={state} showToast={showToast} memberId={Number(selectedProfile.id)} readOnly={true} />
+            <React.Suspense fallback={<p role="status" className="p-5 text-sm text-zinc-700">Ouverture du journal nutritionnel…</p>}>
+              <ClientNutritionView state={state} showToast={showToast} memberId={Number(selectedProfile.id)} readOnly={true} />
+            </React.Suspense>
           </motion.div>
         </div>,
         document.body

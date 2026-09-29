@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { AppState, Booking, User, Program } from '../types';
 import { Card, Button, Badge } from '../components/UI';
@@ -25,12 +26,14 @@ const itemVariants: import('framer-motion').Variants = {
 };
 
 export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [currentWeekOffset, setCurrentWeekOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date, end: Date, sessionTypeId?: string, coachId?: string } | null>(null);
   const [selectedCoachId, setSelectedCoachId] = useState<string>('');
-  const [bookingMemberId, setBookingMemberId] = useState('');
+  const [bookingMemberId, setBookingMemberId] = useState(state.selectedMember ? String(state.selectedMember.id) : '');
   const [isBooking, setIsBooking] = useState(false);
   const [filterCoachId, setFilterCoachId] = useState<string>('all');
 
@@ -221,6 +224,11 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
           )}
         </div>
       </motion.div>
+
+      {isCoach && state.selectedMember && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+        <span>Réservation pour <strong>{state.selectedMember.name}</strong> · choisissez un créneau disponible.</span>
+        <button type="button" onClick={() => { setState((previous: AppState) => ({ ...previous, page: 'users' })); navigate(`${location.pathname}${location.search}`, { state: { velatraPage: 'users', client360MemberId: Number(state.selectedMember!.id) } }); }} className="min-h-11 rounded-lg px-3 font-semibold underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800">Retour au dossier</button>
+      </div>}
 
       <motion.div variants={itemVariants} className="flex items-center justify-between gap-2 bg-white p-3 sm:p-4 rounded-2xl border border-zinc-200">
         <Button variant="secondary" aria-label="Semaine précédente" className="!h-10 !w-10 !shrink-0 !p-0 hover:bg-zinc-50" onClick={() => changeWeek(-1)}>&larr;</Button>
