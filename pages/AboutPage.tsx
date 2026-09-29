@@ -1,29 +1,30 @@
+import { canManageClub } from '../productCapabilities';
 
 import React, { useState, useEffect } from 'react';
 import { AppState, ClubInfo, CoachInfo } from '../types';
 import { Card, Button, Input, Badge } from '../components/UI';
 import { TargetIcon, HomeIcon, DumbbellIcon, MessageCircleIcon, Edit2Icon, SaveIcon, XIcon, PlusIcon, Trash2Icon } from '../components/Icons';
 
-import { db, doc, updateDoc } from '../firebase';
+import { auth, db, doc, updateDoc } from '../firebase';
 import { isClubProfileComplete } from '../components/coachOnboardingHelpers';
 import { trackProductEventOnce } from '../components/productEvents';
 
 export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state, setState }) => {
   const { aboutInfo, coaches, user } = state;
-  const isCoach = user?.role === 'coach' || user?.role === 'owner';
-  const [isEditing, setIsEditing] = useState(state.pendingUiAction === 'edit-space');
+  const canEditClub = canManageClub({ role: user?.role, clubId: user?.clubId, trustedSuperAdmin: auth.currentUser?.emailVerified === true && auth.currentUser?.email === 'victor.defreitas.pro@gmail.com' }, state.currentClub?.id);
+  const [isEditing, setIsEditing] = useState(canEditClub && state.pendingUiAction === 'edit-space');
   const [saveStatus, setSaveStatus] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   useEffect(() => {
     if (state.pendingUiAction !== 'edit-space' || !setState) return;
-    setIsEditing(true);
+    setIsEditing(canEditClub);
     setState((previous: AppState) => ({ ...previous, pendingUiAction: undefined }));
-  }, [state.pendingUiAction, setState]);
+  }, [state.pendingUiAction, setState, canEditClub]);
   const [tempInfo, setTempInfo] = useState<ClubInfo>(aboutInfo);
   const [tempCoaches, setTempCoaches] = useState<CoachInfo[]>(coaches);
 
   const handleSave = async () => {
-    if (!state.user?.clubId || isSaving) return;
+    if (!canEditClub || !state.user?.clubId || isSaving) return;
     setIsSaving(true);
     setSaveStatus('');
     
@@ -90,7 +91,7 @@ export const AboutPage: React.FC<{ state: AppState, setState?: any }> = ({ state
           <p className="text-emerald-500 text-xs font-medium uppercase text-zinc-500 tracking-wider">Les coordonnées partagées avec vos adhérents</p>
         </div>
         
-        {isCoach && !isEditing && (
+        {canEditClub && !isEditing && (
           <Button variant="glass" onClick={() => setIsEditing(true)} className="!rounded-full !py-2 !px-4 self-center sm:self-auto">
             <Edit2Icon size={16} className="mr-2" /> MODIFIER LES INFOS
           </Button>

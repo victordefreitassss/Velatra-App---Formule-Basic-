@@ -1,3 +1,4 @@
+import type { AccountType } from '../types';
 import React, { useState } from 'react';
 import { ArrowLeft, Check, Info, UserRound, Users } from 'lucide-react';
 import { Button, Input } from './UI';
@@ -26,7 +27,7 @@ const BrandMark = () => (
 export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [accountType, setAccountType] = useState<'coach' | 'club'>('coach');
+  const [accountType, setAccountType] = useState<AccountType>('solo');
   const [showBetaInfo, setShowBetaInfo] = useState(false);
   const [clubName, setClubName] = useState('');
   const [email, setEmail] = useState('');
@@ -78,7 +79,7 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
     }
   };
 
-  const isCoach = accountType === 'coach';
+  const isCoach = accountType === 'solo';
   const spaceName = isCoach ? 'Espace coach' : 'Espace club';
 
   if (createdClubId) {
@@ -185,10 +186,10 @@ export const ClubRegistration: React.FC<ClubRegistrationProps> = ({ onSuccess, o
             </div>
 
             <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl border border-[#dfe5dd] bg-[#f6f8f4] p-1.5" role="group" aria-label="Type d’espace à créer">
-              <button type="button" aria-pressed={isCoach} onClick={() => { setAccountType('coach'); setError(''); }} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#286b4b]/20 ${isCoach ? 'bg-[#173f2e] text-white shadow-sm' : 'text-[#34473b] hover:bg-white'}`}>
+              <button type="button" aria-pressed={isCoach} onClick={() => { setAccountType('solo'); setError(''); }} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#286b4b]/20 ${isCoach ? 'bg-[#173f2e] text-white shadow-sm' : 'text-[#34473b] hover:bg-white'}`}>
                 <UserRound aria-hidden="true" className="h-4 w-4" /> Coach
               </button>
-              <button type="button" aria-pressed={!isCoach} onClick={() => { setAccountType('club'); setError(''); }} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#286b4b]/20 ${!isCoach ? 'bg-[#173f2e] text-white shadow-sm' : 'text-[#34473b] hover:bg-white'}`}>
+              <button type="button" aria-pressed={!isCoach} onClick={() => { setAccountType('studio'); setError(''); }} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#286b4b]/20 ${!isCoach ? 'bg-[#173f2e] text-white shadow-sm' : 'text-[#34473b] hover:bg-white'}`}>
                 <Users aria-hidden="true" className="h-4 w-4" /> Club / Association
               </button>
             </div>

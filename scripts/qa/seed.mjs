@@ -13,6 +13,6 @@ for (const [uid, id, role, clubId] of [['qa-owner', 1, 'owner', '123456'], ['qa-
 }
 for (const [id, ownerId] of [['123456', 'qa-owner'], ['654321', 'qa-other-owner']]) {
   const ref = db.doc(`clubs/${id}`);
-  if (!(await ref.get()).exists) await ref.set({ id, ownerId, name: 'Velatra QA', email: `${ownerId}@example.test`, phone: '0100000000', isActive: true, settings: { booking: { enabled: true } } });
+  if (!(await ref.get()).exists) await ref.set({ id, ownerId, accountType: id === '123456' ? 'studio' : 'solo', name: 'Velatra QA', email: `${ownerId}@example.test`, phone: '0100000000', isActive: true, settings: { booking: { enabled: true } } });
 }
 console.log('Local fixtures ready: qa-owner@example.test / qa-coach@example.test');

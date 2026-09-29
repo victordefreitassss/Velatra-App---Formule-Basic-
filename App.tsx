@@ -1,3 +1,4 @@
+import { readClubDocument } from './productCapabilities';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -414,7 +415,7 @@ export default function App() {
             if (userData.clubId) {
               const clubDoc = await getDoc(doc(db, "clubs", userData.clubId));
               if (clubDoc.exists()) {
-                const clubData = clubDoc.data() as Club;
+                const clubData = readClubDocument(userData.clubId, clubDoc.data());
                 setState(prev => ({ ...prev, currentClub: clubData }));
               }
             }
@@ -520,7 +521,7 @@ export default function App() {
 
     const unsubClub = onSnapshot(doc(db, "clubs", clubId), (docSnap) => {
       if (docSnap.exists()) {
-        const clubData = docSnap.data() as Club;
+        const clubData = readClubDocument(clubId, docSnap.data());
         setState(prev => ({
           ...prev,
           currentClub: clubData,

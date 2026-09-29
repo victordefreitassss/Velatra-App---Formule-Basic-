@@ -2,12 +2,13 @@ import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { initializeTestEnvironment, RulesTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteField, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
 
 const projectId = 'demo-velatra';
 let testEnv: RulesTestEnvironment;
 
 const profiles = {
+  'legacy-owner': { id: 999, role: 'owner', clubId: 'legacy-club', firebaseUid: 'legacy-owner' },
   owner: { id: 1, clubId: 'club-a', role: 'owner', firebaseUid: 'owner' },
   coachA: { id: 2, clubId: 'club-a', role: 'coach', firebaseUid: 'coach-a', assignedMemberIds: [101] },
   coachB: { id: 3, clubId: 'club-a', role: 'coach', firebaseUid: 'coach-b', assignedMemberIds: [202] },
@@ -28,6 +29,8 @@ before(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
+    await setDoc(doc(db, 'clubs', 'club-a'), { id: 'club-a', ownerId: 'owner', accountType: 'studio', name: 'Fixture Studio' });
+    await setDoc(doc(db, 'clubs', 'legacy-club'), { id: 'legacy-club', ownerId: 'legacy-owner', name: 'Legacy' });
     for (const [uid, profile] of Object.entries(profiles)) await setDoc(doc(db, 'users', uid.replace('coachA', 'coach-a').replace('coachB', 'coach-b').replace('memberA', 'member-a').replace('memberB', 'member-b').replace('otherClubMember', 'other-member')), profile);
     await setDoc(doc(db, 'programs', 'program-a'), { clubId: 'club-a', memberId: 101, assignedCoachUid: 'coach-a', plan: 'A' });
     await setDoc(doc(db, 'programs', 'program-b'), { clubId: 'club-a', memberId: 202, assignedCoachUid: 'coach-b', plan: 'B' });
@@ -51,6 +54,32 @@ after(async () => {
 });
 
 describe('Firestore coach/member isolation', () => {
+  it('protects canonical accountType against changes, removal and legacy backfills by clients', async () => {
+    for (const [uid, claims] of [
+      ['owner', {}], ['coach-a', {}], ['member-a', {}],
+      ['superadmin', { email: 'victor.defreitas.pro@gmail.com', email_verified: true }],
+    ] as const) {
+      const db = testEnv.authenticatedContext(uid, claims).firestore();
+      for (const value of ['solo', 'invalid', null, deleteField()]) {
+        await assertFails(updateDoc(doc(db, 'clubs', 'club-a'), { accountType: value }));
+      }
+    }
+    const legacyDb = testEnv.authenticatedContext('legacy-owner').firestore();
+    await assertFails(updateDoc(doc(legacyDb, 'clubs', 'legacy-club'), { accountType: 'studio' }));
+    await assertSucceeds(updateDoc(doc(legacyDb, 'clubs', 'legacy-club'), { name: 'Still editable' }));
+    assert.equal((await getDoc(doc(legacyDb, 'clubs', 'legacy-club'))).data()!.accountType, undefined);
+  });
+
+  it('keeps owner settings writable and coach settings read-only without widening member access', async () => {
+    const owner = testEnv.authenticatedContext('owner').firestore();
+    await assertSucceeds(updateDoc(doc(owner, 'clubs', 'club-a'), { 'settings.booking.enabled': true, name: 'Updated' }));
+    for (const uid of ['coach-a', 'member-a']) {
+      const db = testEnv.authenticatedContext(uid).firestore();
+      await assertSucceeds(getDoc(doc(db, 'clubs', 'club-a')));
+      await assertFails(updateDoc(doc(db, 'clubs', 'club-a'), { 'settings.booking.enabled': false }));
+      await assertFails(updateDoc(doc(db, 'users', uid), { role: 'owner', accountType: 'studio' }));
+    }
+  });
   it('lets a new identity observe its missing profile without reading anyone else', async () => {
     const db = testEnv.authenticatedContext('new-signup').firestore();
     const missing = await assertSucceeds(getDoc(doc(db, 'users', 'new-signup')));

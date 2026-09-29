@@ -1,0 +1,91 @@
+import { before, after, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import type { Server } from 'node:http';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
+
+let server: Server;
+let url: string;
+const previousEnv = { NODE_ENV: process.env.NODE_ENV, VERCEL: process.env.VERCEL, CLUB_INVITE_CODE: process.env.CLUB_INVITE_CODE };
+before(async () => {
+  process.env.NODE_ENV = 'production'; process.env.VERCEL = '1'; process.env.CLUB_INVITE_CODE = 'local-product-test';
+  const { default: app } = await import('../server.ts');
+  server = app.listen(0, '127.0.0.1');
+  await new Promise<void>(resolve => server.once('listening', resolve));
+  url = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+});
+after(async () => {
+  await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+  for (const [key, value] of Object.entries(previousEnv)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; }
+});
+
+async function identity(email = `foundation-${randomUUID()}@example.test`, emailVerified = false) {
+  const user = await getAuth().createUser({ email, password: 'Local-product-test-only!', emailVerified });
+  const response = await fetch(`http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=local-emulator`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password: 'Local-product-test-only!', returnSecureToken: true }),
+  });
+  assert.equal(response.status, 200);
+  return { uid: user.uid, token: (await response.json()).idToken as string };
+}
+function post(path: string, token: string, body: unknown, method = 'POST') {
+  return fetch(url + path, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+}
+const signup = (accountType: unknown) => ({ clubName: 'Fixture Product', ownerName: 'Fixture Owner', inviteCode: 'local-product-test', accountType });
+
+for (const accountType of ['solo', 'studio'] as const) {
+  it(`registers and logs in a new ${accountType} owner, persisting only the club type`, async () => {
+    const user = await identity();
+    const response = await post('/api/register-club', user.token, { ...signup(accountType), role: 'superadmin', canAddStaff: true, capabilities: { inventory: true }, ownerId: 'attacker' });
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    const club = (await getFirestore().doc(`clubs/${result.clubId}`).get()).data()!;
+    const profile = (await getFirestore().doc(`users/${user.uid}`).get()).data()!;
+    assert.equal(club.accountType, accountType); assert.equal(club.ownerId, user.uid);
+    assert.equal(profile.role, 'owner'); assert.equal(profile.clubId, result.clubId);
+    assert.equal('accountType' in profile, false); assert.equal('capabilities' in club, false); assert.equal('canAddStaff' in club, false);
+    const duplicate = await post('/api/register-club', user.token, signup(accountType === 'solo' ? 'studio' : 'solo'));
+    assert.equal(duplicate.status, 409);
+    assert.equal((await getFirestore().doc(`clubs/${result.clubId}`).get()).data()!.accountType, accountType);
+    // The same real emulator login session resolves the server profile after registration.
+    assert.equal((await post('/api/stripe/status', user.token, undefined, 'GET')).status, 200);
+  });
+}
+
+it('rejects invalid types/invitations without creating a profile', async () => {
+  const user = await identity();
+  for (const type of [null, 'legacy', 'premium', {}, ['solo']]) {
+    assert.equal((await post('/api/register-club', user.token, signup(type))).status, 400);
+  }
+  assert.equal((await post('/api/register-club', user.token, { ...signup('studio'), inviteCode: 'wrong' })).status, 403);
+  assert.equal((await getFirestore().doc(`users/${user.uid}`).get()).exists, false);
+  assert.equal((await fetch(url + '/api/register-club', { method: 'POST' })).status, 401);
+});
+
+for (const role of ['coach', 'member', 'superadmin'] as const) {
+  it(`rejects forged owner/type/capabilities from ${role} at protected HTTP endpoints`, async () => {
+    const user = await identity();
+    const clubId = `foundation-${randomUUID()}`;
+    await getFirestore().doc(`clubs/${clubId}`).set({ id: clubId, ownerId: 'owner', accountType: 'studio', canAddStaff: true });
+    await getFirestore().doc(`users/${user.uid}`).set({ id: 891, role, clubId, firebaseUid: user.uid });
+    const forged = { role: 'owner', accountType: 'studio', requestorUid: 'owner', canAddStaff: true, capabilities: { teamManagement: true }, clubId };
+    for (const [path, body, method] of [
+      ['/api/create-staff', { ...forged, name: 'Denied', email: `denied-${randomUUID()}@example.test`, password: 'Local-denied-test!' }, 'POST'],
+      ['/api/assign-member-coach', { ...forged, memberUid: 'arbitrary', coachUid: user.uid }, 'POST'],
+      ['/api/stripe/connect', { ...forged, secretKey: 'not-a-real-secret' }, 'POST'],
+      ['/api/stripe/connect', forged, 'DELETE'],
+    ] as const) assert.equal((await post(path, user.token, body, method)).status, 403, path);
+  });
+}
+
+it('keeps historical staff API access for legacy owners and prevents cross-club creation', async () => {
+  const user = await identity();
+  const clubId = `legacy-${randomUUID()}`;
+  await getFirestore().doc(`clubs/${clubId}`).set({ id: clubId, ownerId: user.uid, canAddStaff: false, plan: 'basic' });
+  await getFirestore().doc(`users/${user.uid}`).set({ id: 892, role: 'owner', clubId, firebaseUid: user.uid });
+  const body = { clubId, name: 'Legacy staff', email: `staff-${randomUUID()}@example.test`, password: 'Local-staff-test!' };
+  assert.equal((await post('/api/create-staff', user.token, { ...body, clubId: 'other' })).status, 403);
+  assert.equal((await post('/api/create-staff', user.token, body)).status, 200);
+  assert.equal((await getFirestore().doc(`clubs/${clubId}`).get()).data()!.accountType, undefined);
+});
