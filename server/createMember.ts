@@ -1,7 +1,8 @@
-import { randomInt } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
 import { validateMemberRegistration } from './memberRegistration.ts';
+import { resolveAccountType } from '../productCapabilities.ts';
 
 export class MemberCreationError extends Error {
   status: number;
@@ -14,9 +15,32 @@ export async function createManagedMember(auth: Auth, db: Firestore, requesterUi
   if (!requester || !['owner', 'coach'].includes(requester.role) || !requester.clubId) {
     throw new MemberCreationError(403, 'Seuls les coachs et propriétaires peuvent ajouter un adhérent.');
   }
+  const clubRef = db.collection('clubs').doc(requester.clubId);
+  const club = (await clubRef.get()).data();
+  if (!club) throw new MemberCreationError(404, 'Votre club est introuvable.');
+  const accountType = resolveAccountType(club);
+  if (requester.role === 'owner' && accountType !== 'legacy' && club.ownerId !== requesterUid) {
+    throw new MemberCreationError(403, 'Le propriétaire du club ne correspond pas à ce compte.');
+  }
+  const requestedCoachUid = body?.coachUid;
+  if (requestedCoachUid != null && requestedCoachUid !== '' &&
+    (requester.role !== 'owner' || accountType !== 'studio' || typeof requestedCoachUid !== 'string' ||
+      requestedCoachUid.length > 128 || requestedCoachUid.includes('/'))) {
+    throw new MemberCreationError(400, 'Le coach référent demandé est invalide.');
+  }
+  const coachUid = requester.role === 'coach' ? requesterUid : accountType === 'studio' && requestedCoachUid ? requestedCoachUid : null;
+  const coachRef = coachUid ? db.collection('users').doc(coachUid) : null;
+  if (coachRef && coachRef.path !== requesterRef.path) {
+    const coach = (await coachRef.get()).data();
+    if (coach?.role !== 'coach' || coach.clubId !== requester.clubId) {
+      throw new MemberCreationError(400, 'Choisissez un coach de votre club ou attribuez-le plus tard.');
+    }
+  }
   const source = body?.profile;
   const email = typeof source?.email === 'string' ? source.email.trim().toLowerCase() : '';
-  const password = body?.password;
+  // Old clients may still send a provisional password during a rolling deployment.
+  // New clients leave it out; the generated secret is never returned or stored in Firestore.
+  const password = body?.password == null ? `${randomBytes(36).toString('base64url')}aA1!` : body.password;
   const requestId = body?.requestId;
   const input = validateMemberRegistration({
     age: 30, gender: 'M', weight: 70, height: 175, objectifs: [], notes: '',
@@ -26,7 +50,7 @@ export async function createManagedMember(auth: Auth, db: Firestore, requesterUi
   if (!input || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
     typeof password !== 'string' || password.length < 8 || password.length > 128 ||
     typeof requestId !== 'string' || !/^[a-zA-Z0-9-]{16,80}$/.test(requestId)) {
-    throw new MemberCreationError(400, 'Vérifiez le profil, l’adresse e-mail et le mot de passe (8 caractères minimum).');
+    throw new MemberCreationError(400, 'Vérifiez le profil, l’adresse e-mail et les informations d’accès.');
   }
 
   let account;
@@ -47,8 +71,17 @@ export async function createManagedMember(auth: Auth, db: Firestore, requesterUi
   try {
     await db.runTransaction(async transaction => {
       const latestRequester = (await transaction.get(requesterRef)).data();
+      const latestClub = (await transaction.get(clubRef)).data();
       if (latestRequester?.role !== requester.role || latestRequester?.clubId !== requester.clubId) {
         throw new MemberCreationError(403, 'Vos droits ont changé. Rechargez votre espace.');
+      }
+      if (!latestClub || resolveAccountType(latestClub) !== accountType ||
+        (requester.role === 'owner' && accountType !== 'legacy' && latestClub.ownerId !== requesterUid)) {
+        throw new MemberCreationError(409, 'La configuration du club a changé. Réessayez.');
+      }
+      const latestCoach = coachRef?.path === requesterRef.path ? latestRequester : coachRef ? (await transaction.get(coachRef)).data() : null;
+      if (coachRef && (latestCoach?.role !== 'coach' || latestCoach.clubId !== requester.clubId)) {
+        throw new MemberCreationError(409, 'Le coach référent a changé. Réessayez.');
       }
       let id = 0;
       for (let attempt = 0; attempt < 8; attempt++) {
@@ -63,11 +96,11 @@ export async function createManagedMember(auth: Auth, db: Firestore, requesterUi
         address: typeof source.address === 'string' ? source.address.slice(0, 300) : '',
         birthDate: typeof source.birthDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(source.birthDate) ? source.birthDate : '',
         createdByUid: requesterUid, creationRequestId: requestId,
-        ...(requester.role === 'coach' ? { assignedCoachUid: requesterUid } : {})
+        ...(coachUid ? { assignedCoachUid: coachUid } : {})
       };
       transaction.create(memberRef, member);
-      if (requester.role === 'coach') transaction.update(requesterRef, {
-        assignedMemberIds: [...new Set([...(latestRequester!.assignedMemberIds || []), id])], assignmentIndexVersion: 1
+      if (coachRef && latestCoach) transaction.update(coachRef, {
+        assignedMemberIds: [...new Set([...(Array.isArray(latestCoach.assignedMemberIds) ? latestCoach.assignedMemberIds.map(Number) : []), id])], assignmentIndexVersion: 1
       });
     });
   } catch (error) {

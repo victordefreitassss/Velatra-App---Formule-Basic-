@@ -15,7 +15,10 @@ const profiles = {
   memberA: { id: 101, clubId: 'club-a', role: 'member', firebaseUid: 'member-a', assignedCoachUid: 'coach-a' },
   memberB: { id: 202, clubId: 'club-a', role: 'member', firebaseUid: 'member-b', assignedCoachUid: 'coach-b' },
   superadmin: { id: 900, clubId: 'club-root', role: 'superadmin', firebaseUid: 'superadmin' },
-  otherClubMember: { id: 303, clubId: 'club-b', role: 'member', firebaseUid: 'other-member' }
+  otherClubMember: { id: 303, clubId: 'club-b', role: 'member', firebaseUid: 'other-member' },
+  soloOwner: { id: 401, clubId: 'solo-club', role: 'owner', firebaseUid: 'solo-owner' },
+  soloMember: { id: 402, clubId: 'solo-club', role: 'member', firebaseUid: 'solo-member' },
+  unassignedStudioMember: { id: 404, clubId: 'club-a', role: 'member', firebaseUid: 'unassigned-studio-member' }
 };
 const memberRecordCollections = [
   'programs', 'archivedPrograms', 'performances', 'logs', 'bodyData', 'nutritionPlans',
@@ -30,8 +33,9 @@ before(async () => {
   await testEnv.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
     await setDoc(doc(db, 'clubs', 'club-a'), { id: 'club-a', ownerId: 'owner', accountType: 'studio', name: 'Fixture Studio' });
+    await setDoc(doc(db, 'clubs', 'solo-club'), { id: 'solo-club', ownerId: 'solo-owner', accountType: 'solo', name: 'Fixture Solo' });
     await setDoc(doc(db, 'clubs', 'legacy-club'), { id: 'legacy-club', ownerId: 'legacy-owner', name: 'Legacy' });
-    for (const [uid, profile] of Object.entries(profiles)) await setDoc(doc(db, 'users', uid.replace('coachA', 'coach-a').replace('coachB', 'coach-b').replace('memberA', 'member-a').replace('memberB', 'member-b').replace('otherClubMember', 'other-member')), profile);
+    for (const [uid, profile] of Object.entries(profiles)) await setDoc(doc(db, 'users', uid.replace('coachA', 'coach-a').replace('coachB', 'coach-b').replace('memberA', 'member-a').replace('memberB', 'member-b').replace('otherClubMember', 'other-member').replace('soloOwner', 'solo-owner').replace('soloMember', 'solo-member').replace('unassignedStudioMember', 'unassigned-studio-member')), profile);
     await setDoc(doc(db, 'programs', 'program-a'), { clubId: 'club-a', memberId: 101, assignedCoachUid: 'coach-a', plan: 'A' });
     await setDoc(doc(db, 'programs', 'program-b'), { clubId: 'club-a', memberId: 202, assignedCoachUid: 'coach-b', plan: 'B' });
     await setDoc(doc(db, 'programs', 'program-other-club'), { clubId: 'club-b', memberId: 303, assignedCoachUid: 'coach-a', plan: 'outside' });
@@ -167,7 +171,7 @@ describe('Firestore coach/member isolation', () => {
   it('lets the owner manage the club roster and records', async () => {
     const db = testEnv.authenticatedContext('owner').firestore();
     const roster = await assertSucceeds(getDocs(query(collection(db, 'users'), where('clubId', '==', 'club-a'))));
-    assert.equal(roster.size, 5);
+    assert.equal(roster.size, 6);
     await assertSucceeds(getDoc(doc(db, 'programs', 'program-b')));
   });
 
@@ -217,6 +221,29 @@ describe('Firestore coach/member isolation', () => {
     }));
     await assertFails(setDoc(doc(db, 'messages', 'member-message-b'), {
       clubId: 'club-a', assignedCoachUid: 'coach-b', from: 101, to: 3, text: 'Interdit', date: '2026-09-25', read: false
+    }));
+  });
+
+  it('allows a Solo member to message the canonical owner without a fake coach assignment', async () => {
+    const db = testEnv.authenticatedContext('solo-member').firestore();
+    await assertSucceeds(setDoc(doc(db, 'messages', 'solo-member-to-owner'), {
+      clubId: 'solo-club', from: 402, to: 401, text: 'Bonjour', date: '2026-09-30', read: false
+    }));
+    await assertFails(setDoc(doc(db, 'messages', 'solo-member-to-stranger'), {
+      clubId: 'solo-club', from: 402, to: 999, text: 'Interdit', date: '2026-09-30', read: false
+    }));
+    await assertFails(setDoc(doc(db, 'messages', 'solo-member-leak'), {
+      clubId: 'solo-club', memberId: 101, from: 402, to: 401, text: 'Interdit', date: '2026-09-30', read: false
+    }));
+  });
+
+  it('blocks an unassigned Studio member from forging a coach conversation', async () => {
+    const db = testEnv.authenticatedContext('unassigned-studio-member').firestore();
+    await assertFails(setDoc(doc(db, 'messages', 'unassigned-to-coach'), {
+      clubId: 'club-a', from: 404, to: 2, text: 'Interdit', date: '2026-09-30', read: false
+    }));
+    await assertFails(setDoc(doc(db, 'messages', 'unassigned-to-owner'), {
+      clubId: 'club-a', from: 404, to: 1, text: 'Interdit', date: '2026-09-30', read: false
     }));
   });
 

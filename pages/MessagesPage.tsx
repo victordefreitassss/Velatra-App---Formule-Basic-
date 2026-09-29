@@ -18,8 +18,8 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
   const [memberCoachLoading, setMemberCoachLoading] = useState(user.role === 'member');
   const [memberCoachError, setMemberCoachError] = useState<string | null>(null);
 
-  // A member can only message the coach explicitly assigned to their account.
-  const [selectedDest, setSelectedDest] = useState<number | null>(user.role === 'member' ? (state.users.find(u => u.role === 'coach' || u.role === 'owner')?.id || null) : initialMemberId || null);
+  // A member contact is resolved by the server from Studio assignment or Solo ownership.
+  const [selectedDest, setSelectedDest] = useState<number | null>(user.role === 'member' ? null : initialMemberId || null);
 
   useEffect(() => {
     if (user.role !== 'member' && initialMemberId) setSelectedDest(initialMemberId);
@@ -54,7 +54,9 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
   }, [user.role, user.firebaseUid]);
 
   const contacts = (user.role === 'coach' || user.role === 'owner') 
-    ? state.users.filter(u => u.role === 'member' && (!embedded || !initialMemberId || Number(u.id) === initialMemberId) && u.name.toLowerCase().includes(searchContact.toLowerCase()))
+    ? state.users.filter(u => u.role === 'member' && u.clubId === user.clubId &&
+      (user.role === 'owner' || u.assignedCoachUid === user.firebaseUid) &&
+      (!embedded || !initialMemberId || Number(u.id) === initialMemberId) && u.name.toLowerCase().includes(searchContact.toLowerCase()))
     : memberCoach ? [memberCoach] : [];
   const selectedContactAvailable = !embedded || !initialMemberId || contacts.some(contact => Number(contact.id) === Number(selectedDest));
 
@@ -96,7 +98,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
     if ((!text && !fileData) || !selectedDest || !selectedContactAvailable) return;
     const messageId = Date.now().toString();
     const assignedCoachUid = user.role === 'member'
-      ? memberCoach?.firebaseUid
+      ? (memberCoach?.role === 'coach' ? memberCoach.firebaseUid : undefined)
       : user.role === 'coach'
         ? user.firebaseUid
         : state.users.find(contact => contact.id === selectedDest)?.assignedCoachUid;
