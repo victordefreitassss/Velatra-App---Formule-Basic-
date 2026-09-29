@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import type { User, Page, Club } from '../types';
+import type { User, Page, Club, Role } from '../types';
 import { 
   HomeIcon, UsersIcon, LayersIcon, BarChartIcon, 
   DumbbellIcon, InfoIcon, LogOutIcon, GiftIcon, TargetIcon, CalendarIcon, HistoryIcon, DatabaseIcon, ShoppingCartIcon, TimerIcon, XIcon, MegaphoneIcon, BotIcon, DollarSignIcon, ClipboardIcon, AppleIcon, LockIcon, SettingsIcon, MenuIcon, ShieldIcon, MessageCircleIcon, FolderIcon, PlayCircleIcon, UserIcon, ActivityIcon, BellIcon, ImageIcon
@@ -11,8 +11,9 @@ import { db, auth } from '../firebase';
 import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { Megaphone, AlertTriangle, X, Search, Plus, Copy, ChevronDown, UserRound } from 'lucide-react';
 import {
-  AppHub, getAllContextItems, getAppHubForPage, getContextItemsForHub,
+  AppHub, getAllContextItems, getAppHubForPage, getContextItemsForHub, getCreateActions,
   getHubLabel, getMobileMoreGroups, getMobileTabForPage, getPrimaryHubsForRole,
+  type NavigationContext, type CreateActionId,
 } from './appShellHelpers';
 import { trackProductEventOnce } from './productEvents';
 import './app-shell.css';
@@ -50,6 +51,7 @@ const hubIcon: Record<string, React.FC<any>> = {
   home: HomeIcon,
   clients: UsersIcon,
   coaching: DumbbellIcon,
+  planning: CalendarIcon,
   business: DollarSignIcon,
   plus: MenuIcon,
   sessions: DumbbellIcon,
@@ -78,15 +80,21 @@ export const Layout: React.FC<LayoutProps> = ({
 
   const isSuperAdmin = user.role === 'superadmin';
   const effectiveRole = isSuperAdmin ? adminPerspective : user.role;
-
-  const activeHub = getAppHubForPage(activePage, effectiveRole);
-  const primaryHubs = React.useMemo(() => getPrimaryHubsForRole(effectiveRole), [effectiveRole]);
-  const contextItems = getContextItemsForHub(activeHub, effectiveRole, planningEnabled);
-  const commandItems = getAllContextItems(effectiveRole, planningEnabled).map(item => ({ ...item, icon: pageIcon[item.id] || InfoIcon }));
-  const mobileMoreGroups = React.useMemo(() => getMobileMoreGroups(effectiveRole, planningEnabled).map(group => ({
+  const navContext: NavigationContext = {
+    role: effectiveRole as Role,
+    club: club || (user.clubId ? { id: user.clubId } as Club : null),
+    trustedSuperAdmin: isSuperAdmin && auth.currentUser?.emailVerified === true,
+    planningEnabled,
+  };
+  const activeHub = getAppHubForPage(activePage, navContext);
+  const primaryHubs = getPrimaryHubsForRole(navContext);
+  const contextItems = getContextItemsForHub(activeHub, navContext);
+  const commandItems = getAllContextItems(navContext).map(item => ({ ...item, icon: pageIcon[item.id] || InfoIcon }));
+  const createActions = getCreateActions(navContext);
+  const mobileMoreGroups = getMobileMoreGroups(navContext).map(group => ({
     ...group,
     items: group.items.map(item => ({ ...item, icon: pageIcon[item.id] || InfoIcon })),
-  })), [effectiveRole, planningEnabled]);
+  }));
 
   const mobileTabs = React.useMemo(() => {
     if (effectiveRole === 'superadmin') return [
@@ -98,7 +106,7 @@ export const Layout: React.FC<LayoutProps> = ({
       label: hub.label,
       icon: hubIcon[hub.id] || MenuIcon,
     }));
-  }, [effectiveRole, primaryHubs]);
+  }, [effectiveRole, primaryHubs.map(hub => hub.page).join('|')]);
 
   const roleLabel = effectiveRole === 'superadmin' ? 'Console de gestion' : (effectiveRole === 'coach' || effectiveRole === 'owner' ? 'Espace coach' : 'Espace adhérent');
 
@@ -121,7 +129,7 @@ export const Layout: React.FC<LayoutProps> = ({
   const [mobileSlideDirection, setMobileSlideDirection] = React.useState(1);
   const [isVirtualKeyboardOpen, setIsVirtualKeyboardOpen] = React.useState(false);
   const reduceMotion = useReducedMotion();
-  const activeMobileTabId = showPlusSheet ? 'plus' : getMobileTabForPage(activePage, effectiveRole);
+  const activeMobileTabId = showPlusSheet && effectiveRole === 'member' ? 'plus' : getMobileTabForPage(activePage, navContext);
 
   React.useEffect(() => {
     const updateKeyboardState = () => {
@@ -297,7 +305,7 @@ export const Layout: React.FC<LayoutProps> = ({
     if (!commandSearch) return commandItems;
     const query = commandSearch.toLowerCase().trim();
     return commandItems.filter(item =>
-      item.label.toLowerCase().includes(query) || getHubLabel(item.hub, effectiveRole).toLowerCase().includes(query)
+      item.label.toLowerCase().includes(query) || getHubLabel(item.hub, navContext).toLowerCase().includes(query)
     );
   }, [commandSearch, commandItems, effectiveRole]);
 
@@ -331,6 +339,13 @@ export const Layout: React.FC<LayoutProps> = ({
     setShowCreateMenu(false);
     setShowProfileMenu(false);
     setShowPlusSheet(false);
+  };
+  const runCreateAction = (action: CreateActionId) => {
+    if (!createActions.some(item => item.id === action)) return;
+    if (action === 'invite-member') { openInviteDialog(); return; }
+    setShowCreateMenu(false);
+    if (onCreateAction) onCreateAction(action);
+    else goToPage(action === 'add-member' ? 'users' : action === 'add-preset' ? 'presets' : 'crm_pipeline');
   };
 
   const openInviteDialog = () => {
@@ -405,11 +420,11 @@ export const Layout: React.FC<LayoutProps> = ({
         <header className="va-topbar va-context-bar" aria-label="Contexte de navigation">
           <div className="va-context-main">
             <div className="va-context-heading">
-              <strong>{getHubLabel(activeHub, effectiveRole)}</strong>
+              <strong>{getHubLabel(activeHub, navContext)}</strong>
               <span>{roleLabel}</span>
             </div>
             {contextItems.length > 0 && (
-              <nav className="va-context-tabs" aria-label={`Pages de ${getHubLabel(activeHub, effectiveRole)}`}>
+              <nav className="va-context-tabs" aria-label={`Pages de ${getHubLabel(activeHub, navContext)}`}>
                 {contextItems.map(item => (
                   <button key={item.id} type="button" aria-current={activePage === item.id ? 'page' : undefined} onClick={() => goToPage(item.id)}>
                     <span>{item.label}</span>
@@ -418,6 +433,12 @@ export const Layout: React.FC<LayoutProps> = ({
                 ))}
               </nav>
             )}
+            {contextItems.length > 1 && (
+              <select className="va-context-select" aria-label="Choisir une sous-page" value={contextItems.some(item => item.id === activePage) ? activePage : ''} onChange={event => goToPage(event.target.value)}>
+                {!contextItems.some(item => item.id === activePage) && <option value="" disabled>Choisir une sous-page</option>}
+                {contextItems.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select>
+            )}
           </div>
           <div className="va-topbar-tools">
             <button type="button" className="va-icon-button va-topbar-search" onClick={() => setShowCommandPalette(true)} aria-label="Rechercher une page (Commande K)" aria-keyshortcuts="Meta+K Control+K">
@@ -425,7 +446,8 @@ export const Layout: React.FC<LayoutProps> = ({
               <span>Rechercher…</span>
               <kbd><span className="va-shortcut-mac">⌘</span><span className="va-shortcut-other">Ctrl</span> K</kbd>
             </button>
-            {isCoach && (
+            {isCoach && <button type="button" className="va-icon-button va-coach-sections-trigger" aria-label="Rubriques et paramètres" aria-haspopup="dialog" aria-expanded={showPlusSheet} aria-controls="velatra-mobile-more" onClick={() => setShowPlusSheet(open => !open)}><MenuIcon size={19} aria-hidden="true" /></button>}
+            {createActions.length > 0 && (
               <div className="va-create-anchor" ref={createMenuRef}>
                 <button ref={createTriggerRef} type="button" className="va-create-trigger" aria-haspopup="menu" aria-expanded={showCreateMenu} aria-controls="va-create-menu" onClick={() => setShowCreateMenu(open => !open)}>
                   <Plus size={17} aria-hidden="true" /><span>Créer</span><ChevronDown size={14} aria-hidden="true" />
@@ -433,13 +455,10 @@ export const Layout: React.FC<LayoutProps> = ({
                 {showCreateMenu && (
                   <div id="va-create-menu" className="va-create-menu" role="menu" aria-label="Créer ou ouvrir un outil">
                     <span className="va-menu-caption">ACCÈS RAPIDE</span>
-                    <button type="button" role="menuitem" onClick={() => { setShowCreateMenu(false); onCreateAction ? onCreateAction('add-member') : goToPage('users'); }}><UsersIcon size={17} /><span><strong>Ajouter un adhérent</strong><small>Ouvrir le formulaire adhérent</small></span></button>
-                    <button type="button" role="menuitem" onClick={() => { setShowCreateMenu(false); onCreateAction ? onCreateAction('add-preset') : goToPage('presets'); }}><LayersIcon size={17} /><span><strong>Créer un modèle de programme</strong><small>Ouvrir l’éditeur de programme</small></span></button>
-                    <button type="button" role="menuitem" onClick={() => { setShowCreateMenu(false); onCreateAction ? onCreateAction('add-prospect') : goToPage('crm_pipeline'); }}><TargetIcon size={17} /><span><strong>Ajouter un prospect</strong><small>Ouvrir le formulaire prospect</small></span></button>
-                    <button type="button" role="menuitem" onClick={() => goToPage('calendar')}><CalendarIcon size={17} /><span><strong>Ouvrir le planning</strong><small>Consulter les créneaux et réservations</small></span></button>
-                    <button type="button" role="menuitem" disabled={!club?.id} onClick={openInviteDialog}><UserRound size={17} /><span><strong>Inviter un adhérent</strong><small>{club?.id ? 'Copier le code de votre espace' : 'Espace indisponible'}</small></span></button>
-                    <div className="va-menu-divider" />
-                    <button type="button" role="menuitem" onClick={() => { setShowTimer(open => !open); setShowCreateMenu(false); }}><TimerIcon size={17} /><span><strong>Chronomètre</strong><small>{showTimer ? 'Masquer le chronomètre' : 'Ouvrir l’outil'}</small></span></button>
+                    {createActions.map(action => {
+                      const Icon = action.id === 'add-member' ? UsersIcon : action.id === 'add-preset' ? LayersIcon : action.id === 'add-prospect' ? TargetIcon : UserRound;
+                      return <button key={action.id} type="button" role="menuitem" onClick={() => runCreateAction(action.id)}><Icon size={17} aria-hidden="true" /><span><strong>{action.label}</strong><small>{action.description}</small></span></button>;
+                    })}
                   </div>
                 )}
               </div>
@@ -533,8 +552,9 @@ export const Layout: React.FC<LayoutProps> = ({
 
                     <button
                       onClick={() => handleDismissAnnouncement(ann.id)}
-                      className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-800 hover:bg-black/5 p-1 rounded-xl transition-all"
+                      className="absolute top-2 right-2 min-w-11 min-h-11 flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-black/5 rounded-xl transition-all"
                       title="Masquer l'annonce"
+                      aria-label="Masquer l’annonce"
                     >
                       <X size={15} />
                     </button>
@@ -559,7 +579,8 @@ export const Layout: React.FC<LayoutProps> = ({
             <div className="relative">
               <button 
                 onClick={() => setShowTimer(false)}
-                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-zinc-900 rounded-full flex items-center justify-center z-10 shadow-lg hover:scale-110 transition-transform"
+                className="absolute -top-3 -right-3 w-11 h-11 bg-red-500 text-zinc-900 rounded-full flex items-center justify-center z-10 shadow-lg hover:scale-110 transition-transform"
+                aria-label="Fermer le chronomètre"
               >
                 <XIcon size={12} />
               </button>
@@ -580,7 +601,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 key={item.id}
                 type="button"
                 aria-label={isMore ? (showPlusSheet ? 'Fermer Plus' : 'Ouvrir Plus') : item.label}
-                aria-current={isSelected && !isMore ? 'page' : undefined}
+                aria-current={isSelected && (!isMore || activeHub === 'plus') ? 'page' : undefined}
                 aria-expanded={isMore ? showPlusSheet : undefined}
                 aria-controls={isMore ? 'velatra-mobile-more' : undefined}
                 className={`va-mobile-tab ${isSelected ? 'va-mobile-tab--active' : ''}`}
@@ -618,7 +639,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 id="velatra-mobile-more"
                 role="dialog"
                 aria-modal="true"
-                aria-label="Plus — navigation secondaire"
+                aria-label={isCoach ? 'Rubriques et paramètres' : 'Plus — navigation secondaire'}
                 className="va-mobile-sheet"
                 initial={reduceMotion ? { opacity: 0 } : { y: 70, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -644,7 +665,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 )}
 
                 {(effectiveRole === 'member' ? [...mobileMoreGroups].sort((a, b) => Number(b.label === 'Plus') - Number(a.label === 'Plus')) : mobileMoreGroups).map(group => {
-                  const items = effectiveRole === 'member' ? [...group.items].sort((a, b) => Number(b.id === 'messages') - Number(a.id === 'messages')) : group.items;
+                  const items = group.items;
                   if (!items.length) return null;
                   return (
                     <div className="va-mobile-sheet-group" key={group.label}>
@@ -778,7 +799,7 @@ export const Layout: React.FC<LayoutProps> = ({
                           <span className={`text-[11px] font-medium px-2 py-1 rounded-full ${
                             commandActiveIndex === filteredCommandItems.indexOf(item) ? 'bg-white/70 text-emerald-950' : 'bg-zinc-100 text-zinc-600'
                           }`}>
-                            {getHubLabel(item.hub, effectiveRole)}
+                            {getHubLabel(item.hub, navContext)}
                           </span>
                         )}
                       </button>

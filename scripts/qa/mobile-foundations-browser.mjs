@@ -211,8 +211,9 @@ try{
     const mobile=width<1024, top=mobile?44:0, bottom=mobile?34:0;
     for(const role of ['owner','member']) {
       await open(role,width,height,{saveData:true,top,bottom});
-      const geometry=await page.evaluate(()=>({padding:parseFloat(getComputedStyle(document.querySelector('.va-topbar')).paddingTop),contentCount:document.querySelectorAll('.va-content').length,viewport:innerWidth,scroll:document.documentElement.scrollWidth,nav:!!document.querySelector(innerWidth<1024?'.va-mobile-nav':'.va-rail')?.checkVisibility()}));
-      record(`${role} shell ${width}x${height}`,geometry.contentCount===1&&geometry.nav&&(!mobile||geometry.padding===(role==='member'?50:53)),geometry);
+      const geometry=await page.evaluate(()=>({padding:parseFloat(getComputedStyle(document.querySelector('.va-topbar')).paddingTop),contentCount:document.querySelectorAll('.va-content').length,viewport:innerWidth,scroll:document.documentElement.scrollWidth,bottomNav:!!document.querySelector('.va-mobile-nav')?.checkVisibility(),railNav:!!document.querySelector('.va-rail')?.checkVisibility()}));
+      const expectedNavigation=width<768?geometry.bottomNav&&!geometry.railNav:geometry.railNav&&!geometry.bottomNav;
+      record(`${role} shell ${width}x${height}`,geometry.contentCount===1&&expectedNavigation&&geometry.scroll<=geometry.viewport&&(!mobile||geometry.padding===(role==='member'?50:53)),geometry);
       await loadEditor();await page.waitForSelector('.va-editor-header');
       const editor=await page.evaluate(()=>({padding:parseFloat(getComputedStyle(document.querySelector('.va-editor-header')).paddingTop),fonts:[...document.querySelectorAll('.va-editor-page input,.va-editor-page select,.va-editor-page textarea')].filter(el=>el.checkVisibility()&&!['checkbox','radio','range'].includes(el.type)).map(el=>parseFloat(getComputedStyle(el).fontSize))}));
       record(`${role} editor ${width}x${height}`,(!mobile||(editor.padding>=52&&editor.padding<60))&&(!mobile||editor.fonts.every(n=>n>=16)),editor);

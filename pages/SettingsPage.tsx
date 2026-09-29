@@ -1,4 +1,4 @@
-import { canManageClub, canShowStaffCreation } from '../productCapabilities';
+import { canManageClub, canShowStaffCreation, getProductCapabilities } from '../productCapabilities';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,7 +12,8 @@ import { ExercisesPage } from './ExercisesPage';
 export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const actor = { role: state.user?.role, clubId: state.user?.clubId, trustedSuperAdmin: auth.currentUser?.emailVerified === true && auth.currentUser?.email === 'victor.defreitas.pro@gmail.com' };
   const canEditClub = canManageClub(actor, state.currentClub?.id);
-  const canAddStaff = canShowStaffCreation(state.currentClub, actor);
+  const teamAvailable = getProductCapabilities(state.currentClub, actor).teamManagement.available !== false;
+  const canAddStaff = teamAvailable && canShowStaffCreation(state.currentClub, actor);
   const [activeTab, setActiveTab] = useState<'info' | 'exercises'>('info');
   const bookingSection = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -457,7 +458,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
-      <Card className="p-8 border-zinc-200 bg-white">
+      {canEditClub && teamAvailable && <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
             <TargetIcon size={24} />
@@ -515,7 +516,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             </div>
           )}
         </div>
-      </Card>
+      </Card>}
 
       <fieldset disabled={!canEditClub} aria-label="Réglages administratifs du club" className="m-0 min-w-0 space-y-8 border-0 p-0">
       <Card className="p-8 border-zinc-200 bg-white">

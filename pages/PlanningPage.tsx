@@ -7,6 +7,7 @@ import { apiFetch, db, collection, addDoc, updateDoc, doc, deleteDoc, query, whe
 import { motion, AnimatePresence } from 'framer-motion';
 import { trackProductEventOnce } from '../components/productEvents';
 import { attachBookingsToSlots, shiftPlanningWeek } from '../components/planningSlots';
+import { getProductCapabilities } from '../productCapabilities';
 
 const containerVariants: import('framer-motion').Variants = {
   hidden: { opacity: 0 },
@@ -34,6 +35,9 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   const [filterCoachId, setFilterCoachId] = useState<string>('all');
 
   const isCoach = state.user?.role === 'coach' || state.user?.role === 'owner' || state.user?.role === 'superadmin';
+  const sharedPlanningAvailable = getProductCapabilities(state.currentClub, {
+    role: state.user?.role, clubId: state.user?.clubId,
+  }).sharedPlanning.usable;
 
   // Get available coaches
   const clubCoaches = useMemo(() => {
@@ -191,7 +195,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
           <p className="text-sm text-zinc-600 mt-1.5">Consultez les séances et les réservations.</p>
         </div>
         <div className="flex items-center gap-3">
-          {clubCoaches.length > 1 && (
+          {sharedPlanningAvailable && clubCoaches.length > 1 && (
             <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm px-3 py-2 flex items-center gap-2">
               <UserIcon size={16} className="text-zinc-500" />
               <select aria-label="Filtrer par coach"
@@ -473,7 +477,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
                   </div>
                 </div>
 
-                {!selectedSlot.coachId && clubCoaches.length > 1 && (
+                {!selectedSlot.coachId && sharedPlanningAvailable && clubCoaches.length > 1 && (
                   <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-200 shadow-sm">
                     <div className="text-xs font-medium text-zinc-700 mb-2">Choisir le coach</div>
                     <select

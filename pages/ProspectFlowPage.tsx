@@ -302,13 +302,13 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     <div className="p-4 md:p-6 lg:p-8 space-y-6 lg:space-y-8 page-transition xl:min-h-screen w-full flex flex-col">
       {/* HEADER & DASHBOARD */}
       <div className="space-y-6 shrink-0 max-w-[1600px] w-full mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
             <h1 className="text-3xl font-display font-bold text-zinc-900">Pipeline Commercial</h1>
             <p className="text-zinc-500 mt-1">Gérez votre pipeline et convertissez vos leads plus facilement.</p>
           </div>
           <div className="flex flex-wrap md:flex-nowrap items-center gap-3 w-full md:w-auto">
-            <div className="relative w-full md:w-64 md:flex-1">
+            <div className="relative w-full lg:w-64 lg:flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
               <input
                 type="text"
