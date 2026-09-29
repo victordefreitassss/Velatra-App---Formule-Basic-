@@ -1,10 +1,13 @@
 
 export type Role = "superadmin" | "owner" | "coach" | "member";
+export type AccountType = 'solo' | 'studio';
 export type Gender = "F" | "M";
 export type Goal = "Perte de poids" | "Prise de masse" | "Sport santé bien-être" | "Prépa physique" | "Remise en forme" | "Performance sportive" | "Renforcement musculaire" | "Souplesse et mobilité" | "Autre";
 
 export interface Club {
   id: string;
+  /** Canonical product type. Absent on legacy clubs; never inferred from plan/notes. */
+  accountType?: AccountType;
   name: string;
   ownerId: string;
   email: string;
@@ -17,6 +20,7 @@ export interface Club {
   logo?: string;
   primaryColor?: string;
   createdAt: string;
+  /** Historical commercial plan, independent of accountType. */
   plan?: 'basic' | 'classic' | 'premium';
   isActive?: boolean;
   canAddStaff?: boolean;

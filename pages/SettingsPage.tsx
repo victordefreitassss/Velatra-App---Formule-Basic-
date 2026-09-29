@@ -1,14 +1,18 @@
+import { canManageClub, canShowStaffCreation } from '../productCapabilities';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppState, Plan } from '../types';
 import { Card, Button, Input } from '../components/UI';
 import { SettingsIcon, SaveIcon, PlusIcon, Edit2Icon, Trash2Icon, CheckIcon, XIcon, TargetIcon } from '../components/Icons';
-import { apiFetch, db, doc, updateDoc, setDoc, deleteDoc, getStorageClient } from '../firebase';
+import { apiFetch, auth, db, doc, updateDoc, setDoc, deleteDoc, getStorageClient } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ExercisesPage } from './ExercisesPage';
 
 export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
+  const actor = { role: state.user?.role, clubId: state.user?.clubId, trustedSuperAdmin: auth.currentUser?.emailVerified === true && auth.currentUser?.email === 'victor.defreitas.pro@gmail.com' };
+  const canEditClub = canManageClub(actor, state.currentClub?.id);
+  const canAddStaff = canShowStaffCreation(state.currentClub, actor);
   const [activeTab, setActiveTab] = useState<'info' | 'exercises'>('info');
   const bookingSection = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -79,7 +83,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   const [editingPlan, setEditingPlan] = useState<Partial<Plan> | null>(null);
 
   const handleSave = async () => {
-    if (!state.user?.clubId) return;
+    if (!canEditClub || !state.user?.clubId) return;
     setIsSaving(true);
     
     try {
@@ -129,6 +133,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   };
 
   const handleConnectStripe = async () => {
+    if (!canEditClub) return;
     const key = stripeSecretKey.trim();
     if (!key) {
       showToast("Saisissez votre clé Stripe pour continuer.", "error");
@@ -162,6 +167,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
 
   const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canAddStaff) return;
     if (!newStaffEmail || !newStaffName || !newStaffPassword || !state.user?.clubId) {
        showToast("Veuillez remplir tous les champs", "error");
        return;
@@ -197,10 +203,12 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   };
 
   const handleDisconnectStripe = async () => {
+    if (!canEditClub) return;
     setIsDisconnectModalOpen(true);
   };
 
   const confirmDisconnect = async () => {
+    if (!canEditClub) return;
     const newMethods = acceptedMethods.filter(m => !['card', 'sepa'].includes(m));
     if (state.user?.clubId) {
       try {
@@ -250,7 +258,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
       };
 
       // Create product/price in Stripe if not already done and if Stripe is connected
-      if (stripeConnected && !planData.stripePriceId) {
+      if (canEditClub && stripeConnected && !planData.stripePriceId) {
         showToast("Création de la formule sur Stripe...", "info");
         try {
           const res = await apiFetch('/api/stripe/create-plan', {
@@ -369,6 +377,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         <ExercisesPage state={state} setState={setState} showToast={showToast} />
       ) : (
         <>
+          {!canEditClub && <p role="status" className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-700">Les réglages du club, du planning et de Stripe sont consultables ici. Leur modification est réservée au propriétaire.</p>}
           <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
@@ -388,10 +397,12 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               <label className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                 <span className="text-white text-xs font-medium uppercase tracking-wider">Logo</span>
                 <input 
-                  type="file" 
+                  type="file"
+                  disabled={!canEditClub}
                   accept="image/*" 
                   className="hidden" 
                   onChange={async (e) => {
+                    if (!canEditClub) return;
                     const file = e.target.files?.[0];
                     if (file && state.currentClub) {
                       try {
@@ -418,7 +429,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             </div>
             <div>
               <h3 className="text-lg font-black text-zinc-900">{state.currentClub?.name}</h3>
-              <p className="text-xs text-zinc-500">Cliquez sur l'image pour modifier le logo du club.</p>
+              <p className="text-xs text-zinc-500">{canEditClub ? "Cliquez sur l'image pour modifier le logo du club." : 'Logo du club — modification réservée au propriétaire.'}</p>
             </div>
           </div>
 
@@ -455,9 +466,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
 
         <div className="space-y-6 max-w-md">
-          {state.currentClub?.canAddStaff || state.user?.role === 'superadmin' ? (
+          {canAddStaff ? (
             <>
-              <p className="text-xs text-zinc-500 mb-4">Ajoutez un coach/membre du staff à votre club. Il ou elle se connectera en tant que coach pour gérer les mêmes adhérents que vous.</p>
+              <p className="text-xs text-zinc-500 mb-4">Ajoutez un coach/membre du staff à votre club. Il ou elle se connectera en tant que coach pour gérer uniquement les adhérents qui lui sont affectés.</p>
               <form onSubmit={handleAddStaff} className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900/70 tracking-widest ml-1">Nom du Coach</label>
@@ -499,13 +510,14 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-zinc-600">
-                L’ajout de comptes d’équipe n’est pas disponible dans cet espace bêta. Vous pouvez déjà gérer vos adhérents, leurs programmes et vos séances avec votre compte.
+                {canEditClub ? 'L’ajout de comptes d’équipe n’est pas activé dans cet espace bêta.' : 'La création de comptes coach est réservée au propriétaire du club.'}
               </p>
             </div>
           )}
         </div>
       </Card>
 
+      <fieldset disabled={!canEditClub} aria-label="Réglages administratifs du club" className="m-0 min-w-0 space-y-8 border-0 p-0">
       <Card className="p-8 border-zinc-200 bg-white">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
@@ -892,6 +904,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
 
       </section>
 
+      </fieldset>
+
       {import.meta.env.DEV && state.user?.role === 'superadmin' && (
       <Card className="p-8 border-zinc-200 bg-zinc-50 mb-6">
         <div className="flex items-center gap-4 mb-6">
@@ -974,6 +988,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           )}
         </div>
 
+        {!canEditClub && stripeConnected && <p className="mb-4 text-sm text-zinc-700">Les modifications de formules restent locales à Velatra. La synchronisation Stripe est réservée au propriétaire.</p>}
         {isEditingPlan ? (
           <div className="space-y-4 bg-zinc-50 p-6 rounded-3xl border border-zinc-200">
             <div className="flex justify-between items-center mb-4">
@@ -1160,12 +1175,13 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                         {plan.description}
                       </p>
                     )}
-                    {plan.stripePriceId ? (
+                    {canEditClub && (plan.stripePriceId ? (
                       <div className="mt-4 pt-4 border-t border-zinc-200">
                         <Button 
                           variant="secondary" 
                           className="w-full !py-2 !text-[10px]"
                           onClick={async () => {
+                            if (!canEditClub) return;
                             try {
                               showToast("Génération du lien...", "info");
                               const res = await apiFetch('/api/stripe/payment-link', {
@@ -1204,7 +1220,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                           CRÉER SUR STRIPE
                         </Button>
                       </div>
-                    )}
+                    ))}
                   </div>
                 ))}
               </div>

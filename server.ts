@@ -1,3 +1,5 @@
+import { registerClub, ClubRegistrationError } from './server/clubRegistration.ts';
+import { canManageClub } from './productCapabilities.ts';
 import { completeWorkout } from './server/completeWorkout.ts';
 import { recordPaidInvoice } from './server/stripePayments.ts';
 import { reserveBooking, cancelBooking } from './server/bookings.ts';
@@ -284,76 +286,10 @@ async function syncMemberRecordCoachUid(db: Firestore, clubId: string, memberIds
 // A new club owner has a Firebase session before their server-side profile exists.
 app.post("/api/register-club", verifyFirebaseSession, async (req: any, res: any) => {
   try {
-    const { clubName, ownerName, accountType, inviteCode } = req.body || {};
-    if (!clubName?.trim() || !ownerName?.trim() || !['coach', 'club'].includes(accountType)) {
-      return res.status(400).json({ error: "Les informations du club sont incomplètes." });
-    }
-    const configuredInviteCode = process.env.CLUB_INVITE_CODE;
-    if (!configuredInviteCode) {
-      return res.status(503).json({ error: "L'inscription est temporairement indisponible. Le code d'invitation doit être configuré côté serveur." });
-    }
-    if (String(inviteCode || '').trim() !== configuredInviteCode.trim()) {
-      return res.status(403).json({ error: "Code d'invitation invalide." });
-    }
-
-    const db = admin.firestore();
-    const uid = req.auth.uid;
-    const userRef = db.collection('users').doc(uid);
-    const existingProfile = await userRef.get();
-    if (existingProfile.exists) {
-      return res.status(409).json({ error: "Un profil existe déjà pour ce compte." });
-    }
-
-    let clubId = '';
-    let clubRef;
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      clubId = String(Math.floor(100000 + Math.random() * 900000));
-      clubRef = db.collection('clubs').doc(clubId);
-      const existingClub = await clubRef.get();
-      if (!existingClub.exists) break;
-      clubRef = undefined;
-    }
-    if (!clubRef) return res.status(503).json({ error: "Impossible de réserver un code de club, réessayez." });
-
-    const email = req.auth.email || '';
-    const now = new Date().toISOString();
-    await db.runTransaction(async (transaction) => {
-      transaction.create(clubRef!, {
-        id: clubId,
-        name: clubName.trim(),
-        ownerId: uid,
-        email,
-        phone: "",
-        address: "",
-        description: accountType === 'coach' ? `Espace de coaching de ${clubName.trim()}` : `Bienvenue chez ${clubName.trim()}`,
-        horaires: "",
-        createdAt: now
-      });
-      transaction.create(userRef, {
-        id: Date.now(),
-        clubId,
-        code: "",
-        pwd: "",
-        name: ownerName.trim(),
-        email,
-        role: "owner",
-        avatar: ownerName.trim().substring(0, 2).toUpperCase(),
-        gender: "M",
-        age: 30,
-        weight: 80,
-        height: 180,
-        objectifs: ["Performance sportive"],
-        notes: accountType === 'coach' ? "Coach Indépendant" : "Propriétaire du club",
-        createdAt: now,
-        xp: 0,
-        streak: 0,
-        pointsFidelite: 0,
-        firebaseUid: uid
-      });
-    });
-
-    return res.json({ success: true, clubId });
+    const result = await registerClub(admin.firestore(), req.auth, req.body, process.env.CLUB_INVITE_CODE);
+    return res.json(result);
   } catch (error: any) {
+    if (error instanceof ClubRegistrationError) return res.status(error.status).json({ error: error.message });
     console.error("Error registering club:", error);
     return res.status(500).json({ error: "La création du club a échoué. Réessayez." });
   }
@@ -767,7 +703,7 @@ app.get('/api/coach/assigned-members', async (req: any, res: any) => {
 
 app.post('/api/assign-member-coach', async (req: any, res: any) => {
   const trustedSuperAdmin = req.profile?.role === 'superadmin' && req.auth?.email_verified === true && req.auth?.email === 'victor.defreitas.pro@gmail.com';
-  if ((req.profile?.role !== 'owner' && !trustedSuperAdmin) || !req.profile?.clubId) {
+  if (!canManageClub({ ...req.profile, trustedSuperAdmin }, req.profile?.clubId)) {
     return res.status(403).json({ error: "Seul le propriétaire du club peut affecter un adhérent." });
   }
   const memberUid = typeof req.body?.memberUid === 'string' ? req.body.memberUid : '';
@@ -826,7 +762,7 @@ app.post('/api/assign-member-coach', async (req: any, res: any) => {
 });
 
 const isTrustedSuperAdmin = (req: any) => req.auth?.email_verified === true && req.auth?.email === 'victor.defreitas.pro@gmail.com';
-const isClubManager = (req: any) => req.profile?.role === 'owner' || (req.profile?.role === 'superadmin' && isTrustedSuperAdmin(req));
+const isClubManager = (req: any) => canManageClub({ ...req.profile, trustedSuperAdmin: isTrustedSuperAdmin(req) }, req.profile?.clubId);
 
 const getStripeClientForRequest = async (req: any, allowMember = false) => {
   const profile = req.profile;
@@ -944,7 +880,7 @@ app.post("/api/create-staff", async (req, res) => {
     // Authorize the verified Firebase identity, never a UID supplied by the caller.
     const requestorData = req.profile;
     const trustedSuperAdmin = isTrustedSuperAdmin(req);
-    if (requestorData?.role !== 'owner' && !(requestorData?.role === 'superadmin' && trustedSuperAdmin)) {
+    if (!canManageClub({ ...requestorData, trustedSuperAdmin }, clubId)) {
       return res.status(403).json({ error: "Seul le propriétaire du club peut ajouter un coach." });
     }
     if (!trustedSuperAdmin && requestorData?.clubId !== clubId) {

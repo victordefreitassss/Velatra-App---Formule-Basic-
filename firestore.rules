@@ -196,7 +196,9 @@ service cloud.firestore {
       allow get: if noLegacyStripeSecret(resource.data) && (isSameClub(clubId) || staffInClub(clubId));
       allow list: if isSuperAdmin() || isSuperAdminEmail();
       allow create: if false;
-      allow update: if staffInClub(clubId) && (isSuperAdmin() || isSuperAdminEmail() ||
+      // Product type is server-owned, including on legacy documents.
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['accountType']) &&
+        staffInClub(clubId) && (isSuperAdmin() || isSuperAdminEmail() ||
         (profile().role == 'owner' && request.resource.data.ownerId == resource.data.ownerId && noLegacyStripeSecret(request.resource.data)));
       allow delete: if isSuperAdmin() || isSuperAdminEmail();
     }

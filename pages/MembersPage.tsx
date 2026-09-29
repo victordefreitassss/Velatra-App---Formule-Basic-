@@ -1,3 +1,4 @@
+import { canManageClub } from '../productCapabilities';
 import { AddMemberDialog } from '../components/AddMemberDialog';
 import { localDateKey, createNumericId } from '../components/dataHelpers';
 
@@ -333,7 +334,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
+  const canAssignCoach = canManageClub({ role: state.user?.role, clubId: state.user?.clubId, trustedSuperAdmin: auth.currentUser?.emailVerified === true && auth.currentUser?.email === 'victor.defreitas.pro@gmail.com' }, state.currentClub?.id);
   const handleAssignCoach = async () => {
+    if (!canAssignCoach) return;
     if (!selectedProfile?.firebaseUid) return;
     setIsSavingCoachAssignment(true);
     try {
@@ -4047,7 +4050,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 </div>
               </div>
 
-              {(state.user?.role === 'owner' || state.user?.role === 'superadmin') && (
+              {canAssignCoach && (
                 <div className="space-y-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                   <label className="text-xs font-black uppercase text-zinc-500 tracking-widest">Coach responsable</label>
                   <div className="flex gap-2">
