@@ -1,4 +1,4 @@
-import { canManageClub } from '../productCapabilities';
+import { canManageClub, getProductCapabilities } from '../productCapabilities';
 import { AddMemberDialog } from '../components/AddMemberDialog';
 import { localDateKey, createNumericId } from '../components/dataHelpers';
 
@@ -334,7 +334,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
-  const canAssignCoach = canManageClub({ role: state.user?.role, clubId: state.user?.clubId, trustedSuperAdmin: auth.currentUser?.emailVerified === true && auth.currentUser?.email === 'victor.defreitas.pro@gmail.com' }, state.currentClub?.id);
+  const assignmentActor = { role: state.user?.role, clubId: state.user?.clubId, trustedSuperAdmin: auth.currentUser?.emailVerified === true && auth.currentUser?.email === 'victor.defreitas.pro@gmail.com' };
+  const canAssignCoach = canManageClub(assignmentActor, state.currentClub?.id) &&
+    getProductCapabilities(state.currentClub, assignmentActor).coachAssignments.usable;
   const handleAssignCoach = async () => {
     if (!canAssignCoach) return;
     if (!selectedProfile?.firebaseUid) return;

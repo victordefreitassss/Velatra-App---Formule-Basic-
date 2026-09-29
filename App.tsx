@@ -6,7 +6,7 @@ import {
   SupplementProduct, SupplementOrder, FixedCost, CommissionPayment, Prospect, Newsletter, Club, Exercise,
   Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect, Expense, Invoice, Booking, DriveFile, DriveFolder, Product, ProgressPhoto, NutritionPreset
 } from './types';
-import type { Notification } from './types';
+import type { Notification, Page } from './types';
 import { 
   INIT_EXERCISES, CLUB_INFO, COACHES, CATEGORY_MEDIA, getExerciseMedia 
 } from './constants';
@@ -210,6 +210,29 @@ export default function App() {
 
   const navigate = useNavigate();
   const location = useLocation();
+  const lastDashboardLocation = useRef<string | null>(null);
+
+  // Keep shell navigation in /dashboard while allowing browser Back/Forward to
+  // restore the previous page. Existing page identifiers and internal links stay intact.
+  useEffect(() => {
+    if (location.pathname !== '/dashboard' || !state.user) return;
+    if (lastDashboardLocation.current === null) {
+      lastDashboardLocation.current = location.key;
+      return;
+    }
+    if (lastDashboardLocation.current === location.key) return;
+    lastDashboardLocation.current = location.key;
+    const historyPage = (location.state as { velatraPage?: Page } | null)?.velatraPage || 'home';
+    setState(previous => previous.page === historyPage ? previous : { ...previous, page: historyPage });
+  }, [location.key, location.pathname, state.user?.firebaseUid]);
+
+  const navigateDashboardPage = (page: Page) => {
+    if (page === state.page) return;
+    setState(previous => ({ ...previous, page }));
+    navigate(`/dashboard${location.search}`, {
+      state: { ...((location.state && typeof location.state === 'object') ? location.state : {}), velatraPage: page },
+    });
+  };
 
   useEffect(() => {
     if (state.user) {
@@ -1430,8 +1453,12 @@ export default function App() {
                 user={state.user} 
                 club={state.currentClub} 
                 activePage={state.page} 
-                onPageChange={(p) => setState(s => ({ ...s, page: p }))} 
-                onCreateAction={(action) => setState(s => ({ ...s, selectedMember: null, page: action === 'add-member' ? 'users' : action === 'add-preset' ? 'presets' : 'crm_pipeline', pendingUiAction: action }))}
+                onPageChange={navigateDashboardPage}
+                onCreateAction={(action) => {
+                  const page: Page = action === 'add-member' ? 'users' : action === 'add-preset' ? 'presets' : 'crm_pipeline';
+                  navigateDashboardPage(page);
+                  setState(s => ({ ...s, selectedMember: null, pendingUiAction: action }));
+                }}
                 onLogout={handleLogout} 
                 unreadMessagesCount={unreadMessagesCount} 
                 unreadNotificationsCount={unreadNotificationsCount}

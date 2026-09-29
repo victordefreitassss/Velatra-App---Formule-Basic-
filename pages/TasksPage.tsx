@@ -74,27 +74,22 @@ export const TasksPage: React.FC<Props> = ({ state, showToast }) => {
           <p className="text-zinc-500 mt-1 font-medium">Gérez vos appels de suivi pour les prospects en attente</p>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <div className="bg-white p-1 rounded-2xl border border-zinc-100 flex items-center shadow-sm">
             <button 
               onClick={() => setFilter('En cours')}
-              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${filter === 'En cours' ? 'bg-white shadow-sm border border-zinc-100 text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
+              className={`px-3 sm:px-6 py-2 rounded-xl text-sm font-bold transition-all ${filter === 'En cours' ? 'bg-white shadow-sm border border-zinc-100 text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
             >
               En cours
             </button>
             <button 
               onClick={() => setFilter('Archivées')}
-              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all ${filter === 'Archivées' ? 'bg-white shadow-sm border border-zinc-100 text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
+              className={`px-3 sm:px-6 py-2 rounded-xl text-sm font-bold transition-all ${filter === 'Archivées' ? 'bg-white shadow-sm border border-zinc-100 text-zinc-900' : 'text-zinc-500 hover:text-zinc-900'}`}
             >
               Archivées
             </button>
           </div>
           
-          {/* Re-using the prompt UI's orange button */}
-          <button className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-2xl font-bold transition-colors flex items-center gap-2 shadow-lg shadow-orange-500/20">
-            <span className="text-lg leading-none">+</span>
-            <span>À rappeler avant</span>
-          </button>
         </div>
       </div>
 
@@ -188,4 +183,3 @@ export const TasksPage: React.FC<Props> = ({ state, showToast }) => {
     </div>
   );
 };
-

@@ -1,185 +1,168 @@
-import type { Booking } from '../types';
+import type { Booking, Club, Role } from '../types';
+import { getProductCapabilities, type Capability } from '../productCapabilities';
 
-export type AppHub = 'home' | 'clients' | 'coaching' | 'business' | 'plus' | 'sessions' | 'progression' | 'nutrition' | 'admin';
-
+export type AppHub = 'home' | 'clients' | 'coaching' | 'planning' | 'business' | 'sessions' | 'progression' | 'nutrition' | 'plus' | 'admin';
+export interface NavigationContext {
+  role: Role;
+  club: Club | null;
+  trustedSuperAdmin?: boolean;
+  planningEnabled?: boolean;
+}
 export interface ContextNavItem {
   id: string;
   label: string;
   hub: AppHub;
+  capability?: Capability;
 }
-
 export interface PrimaryHubItem {
   id: AppHub;
   label: string;
   page: string;
 }
-
 export interface MobileHubGroup {
   label: string;
   hub: AppHub;
   items: ContextNavItem[];
 }
+export type CreateActionId = 'add-member' | 'add-preset' | 'add-prospect' | 'invite-member';
+export interface CreateAction {
+  id: CreateActionId;
+  label: string;
+  description: string;
+  capability: Capability;
+}
 
-const coachContext: Record<Exclude<AppHub, 'home' | 'sessions' | 'progression' | 'nutrition' | 'admin'>, ContextNavItem[]> = {
-  clients: [
-    { id: 'users', label: 'Membres', hub: 'clients' },
-    { id: 'chat', label: 'Messages', hub: 'clients' },
-    { id: 'calendar', label: 'Planning', hub: 'clients' },
-  ],
-  coaching: [
-    { id: 'coaching', label: 'Vue d’ensemble', hub: 'coaching' },
-    { id: 'presets', label: 'Programmes', hub: 'coaching' },
-    { id: 'nutrition', label: 'Nutrition', hub: 'coaching' },
-    { id: 'drive', label: 'Documents', hub: 'coaching' },
-    { id: 'exercises', label: 'Bibliothèque d’exercices', hub: 'coaching' },
-    { id: 'history', label: 'Historique', hub: 'coaching' },
-  ],
-  business: [
-    { id: 'crm_pipeline', label: 'Prospects', hub: 'business' },
-    { id: 'crm_finances', label: 'Finances', hub: 'business' },
-    { id: 'marketing', label: 'Campagnes', hub: 'business' },
-    { id: 'crm_tasks', label: 'Tâches', hub: 'business' },
-  ],
-  plus: [
-    { id: 'about', label: 'Fiche du club', hub: 'plus' },
-    { id: 'guide', label: 'Guides', hub: 'plus' },
-    { id: 'settings', label: 'Paramètres', hub: 'plus' },
-  ],
-};
-
-const memberContext: Record<'sessions' | 'progression' | 'nutrition' | 'plus', ContextNavItem[]> = {
-  sessions: [
-    { id: 'calendar', label: 'Mes séances', hub: 'sessions' },
-    { id: 'planning', label: 'Réserver un cours', hub: 'sessions' },
-  ],
-  progression: [
-    { id: 'performances', label: 'Performances', hub: 'progression' },
-    { id: 'evolution', label: 'Évolution', hub: 'progression' },
-  ],
-  nutrition: [
-    { id: 'nutrition', label: 'Nutrition', hub: 'nutrition' },
-    { id: 'supplements', label: 'Boutique', hub: 'nutrition' },
-  ],
-  plus: [
-    { id: 'ai_coach', label: 'Velatra AI', hub: 'plus' },
-    { id: 'drive', label: 'Documents', hub: 'plus' },
-    { id: 'profile', label: 'Mes objectifs', hub: 'plus' },
-    { id: 'about', label: 'Infos du club', hub: 'plus' },
-    { id: 'messages', label: 'Messages', hub: 'plus' },
-    { id: 'history', label: 'Historique', hub: 'plus' },
-  ],
-};
-
-export const getAppHubForPage = (page: string, role: string): AppHub => {
-  if (role === 'superadmin') return 'admin';
+// state.page stays stable when a destination moves to another space.
+const coachItems: ContextNavItem[] = [
+  { id: 'users', label: 'Adhérents', hub: 'clients', capability: 'clients' },
+  { id: 'chat', label: 'Messages', hub: 'clients', capability: 'messages' },
+  { id: 'coaching', label: 'Séance coach', hub: 'coaching', capability: 'coaching' },
+  { id: 'presets', label: 'Programmes', hub: 'coaching', capability: 'programs' },
+  { id: 'nutrition', label: 'Nutrition', hub: 'coaching', capability: 'nutrition' },
+  { id: 'drive', label: 'Documents', hub: 'coaching', capability: 'documents' },
+  { id: 'exercises', label: 'Bibliothèque d’exercices', hub: 'coaching', capability: 'exercises' },
+  { id: 'history', label: 'Historique', hub: 'coaching', capability: 'progress' },
+  { id: 'calendar', label: 'Calendrier et réservations', hub: 'planning', capability: 'planning' },
+  { id: 'crm_pipeline', label: 'Prospects', hub: 'business', capability: 'crm' },
+  { id: 'crm_tasks', label: 'Tâches et relances', hub: 'business', capability: 'crm' },
+  { id: 'crm_finances', label: 'Finances', hub: 'business', capability: 'finances' },
+  { id: 'about', label: 'Fiche du club', hub: 'plus' },
+  { id: 'settings', label: 'Paramètres', hub: 'plus' },
+  { id: 'guide', label: 'Guides', hub: 'plus' },
+];
+const memberItems: ContextNavItem[] = [
+  { id: 'calendar', label: 'Mes séances', hub: 'sessions', capability: 'programs' },
+  { id: 'planning', label: 'Réserver un cours', hub: 'sessions', capability: 'planning' },
+  { id: 'history', label: 'Historique des séances', hub: 'sessions', capability: 'progress' },
+  { id: 'performances', label: 'Performances', hub: 'progression', capability: 'progress' },
+  { id: 'evolution', label: 'Évolution et photos', hub: 'progression', capability: 'progress' },
+  { id: 'nutrition', label: 'Mon alimentation', hub: 'nutrition', capability: 'nutrition' },
+  { id: 'profile', label: 'Mon profil et objectifs', hub: 'plus' },
+  { id: 'messages', label: 'Messages', hub: 'plus', capability: 'messages' },
+  { id: 'drive', label: 'Documents', hub: 'plus', capability: 'documents' },
+  { id: 'about', label: 'Infos du club', hub: 'plus' },
+  { id: 'ai_coach', label: 'Velatra AI', hub: 'plus', capability: 'aiAssistance' },
+  { id: 'supplements', label: 'Boutique', hub: 'plus', capability: 'nutrition' },
+];
+const coachHubs: { id: AppHub; label: string; page: string }[] = [
+  { id: 'home', label: 'Accueil', page: 'home' },
+  { id: 'clients', label: 'Clients', page: 'users' },
+  { id: 'coaching', label: 'Coaching', page: 'coaching' },
+  { id: 'planning', label: 'Planning', page: 'calendar' },
+  { id: 'business', label: 'Business', page: 'crm_pipeline' },
+];
+const memberHubs: { id: AppHub; label: string; page: string }[] = [
+  { id: 'home', label: 'Accueil', page: 'home' },
+  { id: 'sessions', label: 'Séances', page: 'calendar' },
+  { id: 'progression', label: 'Progression', page: 'performances' },
+  { id: 'nutrition', label: 'Nutrition', page: 'nutrition' },
+  { id: 'plus', label: 'Plus', page: 'profile' },
+];
+const createActions: CreateAction[] = [
+  { id: 'add-member', label: 'Ajouter un adhérent', description: 'Ouvrir le formulaire adhérent', capability: 'clients' },
+  { id: 'add-preset', label: 'Créer un modèle de programme', description: 'Ouvrir l’éditeur de programme', capability: 'programs' },
+  { id: 'add-prospect', label: 'Ajouter un prospect', description: 'Ouvrir le formulaire prospect', capability: 'crm' },
+  { id: 'invite-member', label: 'Inviter un adhérent', description: 'Copier le code de votre espace', capability: 'clients' },
+];
+const isStaff = (role: Role) => role === 'owner' || role === 'coach';
+function canNavigate(capability: Capability | undefined, context: NavigationContext): boolean {
+  if (!capability) return true;
+  const club = context.club;
+  if (!club) return false;
+  const state = getProductCapabilities(club, {
+    role: context.role, clubId: club.id, trustedSuperAdmin: context.trustedSuperAdmin,
+  })[capability];
+  // Legacy commercial inclusion is unknown: preserve its existing routes.
+  return state.implemented && state.enabled && state.roleAllowed;
+}
+export function getAllContextItems(context: NavigationContext): ContextNavItem[] {
+  if (context.role === 'superadmin') return [{ id: 'admin', label: 'Tableau de bord', hub: 'admin' }];
+  const items = isStaff(context.role) ? coachItems : memberItems;
+  const home: ContextNavItem = { id: 'home', label: 'Accueil', hub: 'home' };
+  return [home, ...items.filter(item =>
+    (context.planningEnabled !== false || item.id !== 'planning') && canNavigate(item.capability, context),
+  )];
+}
+export function getContextItemsForHub(hub: AppHub, context: NavigationContext): ContextNavItem[] {
+  if (hub === 'home' || hub === 'admin') return [];
+  return getAllContextItems(context).filter(item => item.hub === hub);
+}
+export function getAppHubForPage(page: string, context: NavigationContext): AppHub {
+  if (context.role === 'superadmin') return 'admin';
   if (page === 'home') return 'home';
-  const isCoach = role === 'coach' || role === 'owner';
-  const pages = Object.values(isCoach ? coachContext : memberContext).flat();
-  return pages.find(item => item.id === page)?.hub || 'plus';
-};
-
-export const getContextItemsForHub = (hub: AppHub, role: string, planningEnabled = true): ContextNavItem[] => {
-  if (role === 'superadmin') return [];
-  const isCoach = role === 'coach' || role === 'owner';
-  if (isCoach && hub in coachContext) {
-    return coachContext[hub as keyof typeof coachContext].filter(item => planningEnabled || item.id !== 'calendar');
-  }
-  if (!isCoach && hub in memberContext) {
-    return memberContext[hub as keyof typeof memberContext].filter(item => planningEnabled || item.id !== 'planning');
-  }
-  return [];
-};
-
-export const getAllContextItems = (role: string, planningEnabled = true): ContextNavItem[] => {
-  if (role === 'superadmin') return [{ id: 'admin', label: 'Tableau de bord', hub: 'admin' }];
-  const hubs: AppHub[] = role === 'coach' || role === 'owner'
-    ? ['home', 'clients', 'coaching', 'business', 'plus']
-    : ['home', 'sessions', 'progression', 'nutrition', 'plus'];
-  const home: ContextNavItem = { id: 'home', label: role === 'coach' || role === 'owner' ? 'Accueil' : 'Mon espace', hub: 'home' };
-  return [home, ...hubs.flatMap(hub => getContextItemsForHub(hub, role, planningEnabled))];
-};
-
-export const getHubDefaultPage = (hub: AppHub, role: string): string => {
-  if (role === 'superadmin') return 'admin';
-  return getContextItemsForHub(hub, role)[0]?.id || 'home';
-};
-
-export const getPrimaryHubsForRole = (role: string): PrimaryHubItem[] => {
-  if (role === 'superadmin') return [{ id: 'admin', label: 'Admin', page: 'admin' }];
-  if (role === 'coach' || role === 'owner') return [
-    { id: 'home', label: 'Accueil', page: 'home' },
-    { id: 'clients', label: 'Clients', page: getHubDefaultPage('clients', role) },
-    { id: 'coaching', label: 'Coaching', page: getHubDefaultPage('coaching', role) },
-    { id: 'business', label: 'Business', page: getHubDefaultPage('business', role) },
-    { id: 'plus', label: 'Plus', page: getHubDefaultPage('plus', role) },
-  ];
-  return [
-    { id: 'home', label: 'Accueil', page: 'home' },
-    { id: 'sessions', label: 'Séances', page: getHubDefaultPage('sessions', role) },
-    { id: 'progression', label: 'Progression', page: getHubDefaultPage('progression', role) },
-    { id: 'nutrition', label: 'Nutrition', page: getHubDefaultPage('nutrition', role) },
-    { id: 'plus', label: 'Plus', page: getHubDefaultPage('plus', role) },
-  ];
-};
-
-export const getMobileMoreGroups = (role: string, planningEnabled = true): MobileHubGroup[] => {
-  if (role === 'superadmin') return [{
-    label: 'Administration', hub: 'admin',
-    items: [{ id: 'admin', label: 'Tableau de bord', hub: 'admin' }],
-  }];
-  const isCoach = role === 'coach' || role === 'owner';
-  const hubs: { label: string; hub: AppHub }[] = isCoach ? [
-    { label: 'Clients', hub: 'clients' },
-    { label: 'Coaching', hub: 'coaching' },
-    { label: 'Business', hub: 'business' },
-    { label: 'Plus', hub: 'plus' },
-  ] : [
-    { label: 'Séances', hub: 'sessions' },
-    { label: 'Progression', hub: 'progression' },
-    { label: 'Nutrition', hub: 'nutrition' },
-    { label: 'Plus', hub: 'plus' },
-  ];
-  return hubs.map(group => ({
-    ...group,
-    items: getContextItemsForHub(group.hub, role, planningEnabled)
-      .filter(item => group.hub === 'plus' || item.id !== getHubDefaultPage(group.hub, role)),
+  const all = isStaff(context.role) ? coachItems : memberItems;
+  if (page === 'marketing' && isStaff(context.role)) return 'business';
+  return all.find(item => item.id === page)?.hub || 'plus';
+}
+export function getHubDefaultPage(hub: AppHub, context: NavigationContext): string {
+  if (context.role === 'superadmin') return 'admin';
+  return getContextItemsForHub(hub, context)[0]?.id || 'home';
+}
+export function getPrimaryHubsForRole(context: NavigationContext): PrimaryHubItem[] {
+  if (context.role === 'superadmin') return [{ id: 'admin', label: 'Admin', page: 'admin' }];
+  return (isStaff(context.role) ? coachHubs : memberHubs).map(hub => ({
+    id: hub.id, label: hub.label,
+    page: hub.id === 'home' || hub.id === 'plus' ? hub.page : getHubDefaultPage(hub.id, context),
   }));
-};
-
-export const getHubLabel = (hub: AppHub, role: string): string => {
+}
+export function getMobileMoreGroups(context: NavigationContext): MobileHubGroup[] {
+  if (context.role === 'superadmin') return [{ label: 'Administration', hub: 'admin', items: getAllContextItems(context) }];
+  const hubs: { id: AppHub; label: string }[] = isStaff(context.role)
+    ? [...coachHubs.slice(1), { id: 'plus', label: 'Compte et aide' }]
+    : [{ id: 'plus', label: 'Plus' }];
+  return hubs.map(hub => ({
+    label: hub.label, hub: hub.id,
+    items: getContextItemsForHub(hub.id, context).filter(item =>
+      hub.id === 'plus' || item.id !== getHubDefaultPage(hub.id, context),
+    ),
+  })).filter(group => group.items.length > 0);
+}
+export function getCreateActions(context: NavigationContext): CreateAction[] {
+  if (!isStaff(context.role)) return [];
+  return createActions.filter(action => canNavigate(action.capability, context) &&
+    (action.id !== 'invite-member' || !!context.club?.id));
+}
+export function getHubLabel(hub: AppHub, context: NavigationContext): string {
   if (hub === 'admin') return 'Administration';
-  if (hub === 'home') return role === 'coach' || role === 'owner' ? 'Accueil' : 'Mon espace';
-  if (hub === 'clients') return 'Clients';
-  if (hub === 'coaching') return 'Coaching';
-  if (hub === 'business') return 'Business';
-  if (hub === 'sessions') return 'Séances';
-  if (hub === 'progression') return 'Progression';
-  if (hub === 'nutrition') return 'Nutrition';
-  return 'Plus';
-};
-
-export const getContextPageLabel = (page: string, role: string): string =>
-  getAllContextItems(role).find(item => item.id === page)?.label || ({
-    home: role === 'coach' || role === 'owner' ? 'Accueil' : 'Mon espace',
-    admin: 'Tableau de bord', crm_tasks: 'Tâches', exercises: 'Exercices',
-    trophy: 'Trophées', profile: 'Mes objectifs', notifications: 'Notifications',
-  } as Record<string, string>)[page] || page;
-
-export const getMobileTabForPage = (page: string, role: string) => {
-  if (role === 'superadmin') return page === 'admin' ? 'admin' : 'plus';
-  const hub = getAppHubForPage(page, role);
+  if (hub === 'plus') return 'Plus';
+  return (isStaff(context.role) ? coachHubs : memberHubs).find(item => item.id === hub)?.label || 'Accueil';
+}
+export function getContextPageLabel(page: string, context: NavigationContext): string {
+  return getAllContextItems(context).find(item => item.id === page)?.label || page;
+}
+export function getMobileTabForPage(page: string, context: NavigationContext): string {
+  if (context.role === 'superadmin') return page === 'admin' ? 'admin' : 'plus';
+  const hub = getAppHubForPage(page, context);
   if (hub === 'home') return 'home';
   if (hub === 'plus' || hub === 'admin') return 'plus';
-  return getHubDefaultPage(hub, role);
-};
-
+  return getHubDefaultPage(hub, context);
+}
 export const countTodayUpcomingSessions = (bookings: Pick<Booking, 'startTime' | 'status'>[], now = new Date()) => {
   const startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
   const startOfTomorrow = new Date(startOfToday);
   startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
   const nowTimestamp = now.getTime();
-
   return bookings.filter(booking => {
     const sessionTime = new Date(booking.startTime).getTime();
     return booking.status === 'confirmed' && sessionTime >= nowTimestamp && sessionTime < startOfTomorrow.getTime();

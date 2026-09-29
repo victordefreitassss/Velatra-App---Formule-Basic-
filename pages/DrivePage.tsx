@@ -265,24 +265,25 @@ export const DrivePage: React.FC<{ state: AppState; setState?: React.Dispatch<Re
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
-      <div className="flex items-center justify-between mb-8">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="min-w-0">
           <div className="flex items-center gap-3">
             {currentFolderId && (
               <button 
                 onClick={() => setCurrentFolderId(currentFolder?.parentId || null)}
-                className="p-2 text-zinc-900 hover:bg-zinc-100 rounded-full transition-colors"
+                className="min-w-11 min-h-11 inline-flex items-center justify-center text-zinc-900 hover:bg-zinc-100 rounded-full transition-colors"
+                aria-label="Retour au dossier précédent"
               >
                 <ArrowLeftIcon size={20} />
               </button>
             )}
-            <h1 className="text-3xl font-black tracking-tight text-zinc-900">
+            <h1 className="min-w-0 break-words text-3xl font-black tracking-tight text-zinc-900">
               {currentFolder ? currentFolder.name : 'Drive Intégré'}
             </h1>
           </div>
           <p className="text-zinc-500 mt-1">Stockez et partagez vos documents (PDF, guides, etc).</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           {isCoach && (
             <>
               <Button variant="secondary" className="!rounded-full shadow-sm" onClick={() => setIsCreateFolderModalOpen(true)}>

@@ -93,6 +93,7 @@
 
 .va-content { padding: 22px 28px 32px; }
 .va-mobile-nav, .va-mobile-sheet, .va-mobile-backdrop { display: none; }
+.va-context-select, .va-coach-sections-trigger { display: none; }
 
 .va-card { border-radius: var(--app-radius-md) !important; background: var(--app-surface) !important; border-color: var(--app-border) !important; box-shadow: none !important; }
 .va-stat { border-radius: var(--app-radius-md) !important; background: var(--app-surface) !important; border-color: var(--app-border) !important; }
@@ -437,8 +438,29 @@
   .va-invite-dialog { padding: 24px 18px; }
   .va-invite-code { align-items: stretch; flex-direction: column; }
 }
+/* Phone: a compact drill-down replaces a row of miniature desktop tabs. */
+@media (max-width: 767px) {
+  .va-context-tabs { display: none !important; }
+  .va-context-select {
+    display: block; width: min(100%, 260px); min-height: 44px; padding: 0 32px 0 12px;
+    border: 1px solid var(--app-border-strong); border-radius: 12px;
+    background: #fff; color: var(--app-text); font: 600 13px Inter,sans-serif;
+  }
+  .va-context-select:focus-visible { outline: 3px solid rgba(40,116,81,.42); outline-offset: 2px; }
+  .va-coach-sections-trigger { display: inline-flex; }
+  .va-mobile-nav { right: max(8px, env(safe-area-inset-right)); left: max(8px, env(safe-area-inset-left)); }
+  .va-mobile-tab { min-height: 54px; font-size: 10px; letter-spacing: -.02em; }
+}
+/* Tablet: the rail keeps the five spaces visible and leaves the screen for work. */
 @media (min-width: 768px) and (max-width: 1023px) {
-  .va-mobile-nav { right: max(24px,calc((100vw - 680px)/2)); left: max(24px,calc((100vw - 680px)/2)); }
+  .va-rail { display: flex !important; width: 76px; left: 8px; top: 8px; bottom: 8px; padding-inline: 5px; }
+  .va-rail-brand span { font-size: 8px; }
+  .va-rail-item { min-height: 58px; font-size: 9px; }
+  .va-main { margin-left: 92px; padding-bottom: 0; }
+  .va-mobile-nav { display: none !important; }
+  .va-context-bar { margin-left: 0; }
+  .va-content { padding-inline: 18px; }
+  .va-workspace-mode .va-rail { display: none !important; }
 }
 @media (min-width: 1024px) and (max-width: 1180px) {
   .va-context-bar { gap: 8px; padding-right: 9px; padding-left: 13px; }
