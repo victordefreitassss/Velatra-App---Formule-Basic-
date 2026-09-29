@@ -62,7 +62,6 @@ const memberItems: ContextNavItem[] = [
   { id: 'drive', label: 'Documents', hub: 'plus', capability: 'documents' },
   { id: 'about', label: 'Infos du club', hub: 'plus' },
   { id: 'ai_coach', label: 'Velatra AI', hub: 'plus', capability: 'aiAssistance' },
-  { id: 'supplements', label: 'Boutique', hub: 'plus', capability: 'nutrition' },
 ];
 const coachHubs: { id: AppHub; label: string; page: string }[] = [
   { id: 'home', label: 'Accueil', page: 'home' },

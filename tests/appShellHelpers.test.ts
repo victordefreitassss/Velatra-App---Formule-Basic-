@@ -50,10 +50,18 @@ test('Member has five member spaces and no coach navigation or creation menu', (
     assert.ok(!ids(ctx).includes('settings'));
     assert.deepEqual(getContextItemsForHub('sessions', ctx).map(item => item.id), ['calendar', 'planning', 'history']);
     assert.deepEqual(getContextItemsForHub('plus', ctx).map(item => item.id),
-      ['profile', 'messages', 'drive', 'about', 'ai_coach', 'supplements']);
+      ['profile', 'messages', 'drive', 'about', 'ai_coach']);
     assert.deepEqual(getMobileMoreGroups(ctx).map(group => group.hub), ['plus']);
     assert.equal(getAppHubForPage('history', ctx), 'sessions');
   }
+});
+
+test('Unimplemented member shop stays out of navigation despite available nutrition capability', () => {
+  const ctx = context('member', 'studio');
+
+  assert.ok(ids(ctx).includes('nutrition'));
+  assert.ok(!ids(ctx).includes('supplements'));
+  assert.equal(getAppHubForPage('supplements', ctx), 'plus');
 });
 
 test('Legacy clubs retain available historical secondary pages without inferring Solo', () => {
