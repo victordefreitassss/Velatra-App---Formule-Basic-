@@ -198,6 +198,7 @@ const INITIAL_STATE: AppState = {
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { trackProductEventOnce } from './components/productEvents';
 import { sameUserDataScope } from './components/dataHelpers';
+import { createDashboardLocationState } from './components/dashboardNavigation';
 
 export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
@@ -228,9 +229,9 @@ export default function App() {
 
   const navigateDashboardPage = (page: Page) => {
     if (page === state.page) return;
-    setState(previous => ({ ...previous, page }));
+    setState(previous => ({ ...previous, page, selectedMember: null }));
     navigate(`/dashboard${location.search}`, {
-      state: { ...((location.state && typeof location.state === 'object') ? location.state : {}), velatraPage: page },
+      state: createDashboardLocationState(page),
     });
   };
 

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { trackProductEventOnce } from '../components/productEvents';
 import { attachBookingsToSlots, shiftPlanningWeek } from '../components/planningSlots';
 import { getProductCapabilities } from '../productCapabilities';
+import { createClient360LocationState, resolvePlanningMember } from '../components/dashboardNavigation';
 
 const containerVariants: import('framer-motion').Variants = {
   hidden: { opacity: 0 },
@@ -33,11 +34,16 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<{ start: Date, end: Date, sessionTypeId?: string, coachId?: string } | null>(null);
   const [selectedCoachId, setSelectedCoachId] = useState<string>('');
-  const [bookingMemberId, setBookingMemberId] = useState(state.selectedMember ? String(state.selectedMember.id) : '');
+  const [bookingMemberId, setBookingMemberId] = useState('');
   const [isBooking, setIsBooking] = useState(false);
   const [filterCoachId, setFilterCoachId] = useState<string>('all');
 
   const isCoach = state.user?.role === 'coach' || state.user?.role === 'owner' || state.user?.role === 'superadmin';
+  const contextualMember = isCoach ? resolvePlanningMember(state.users, state.user, location.state) : null;
+
+  useEffect(() => {
+    setBookingMemberId(contextualMember ? String(contextualMember.id) : '');
+  }, [location.key, contextualMember?.id]);
   const sharedPlanningAvailable = getProductCapabilities(state.currentClub, {
     role: state.user?.role, clubId: state.user?.clubId,
   }).sharedPlanning.usable;
@@ -225,9 +231,9 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </motion.div>
 
-      {isCoach && state.selectedMember && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
-        <span>Réservation pour <strong>{state.selectedMember.name}</strong> · choisissez un créneau disponible.</span>
-        <button type="button" onClick={() => { setState((previous: AppState) => ({ ...previous, page: 'users' })); navigate(`${location.pathname}${location.search}`, { state: { velatraPage: 'users', client360MemberId: Number(state.selectedMember!.id) } }); }} className="min-h-11 rounded-lg px-3 font-semibold underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800">Retour au dossier</button>
+      {isCoach && contextualMember && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+        <span>Réservation pour <strong>{contextualMember.name}</strong> · choisissez un créneau disponible.</span>
+        <button type="button" onClick={() => { setState((previous: AppState) => ({ ...previous, page: 'users', selectedMember: null })); navigate(`${location.pathname}${location.search}`, { state: createClient360LocationState(Number(contextualMember.id)) }); }} className="min-h-11 rounded-lg px-3 font-semibold underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800">Retour au dossier</button>
       </div>}
 
       <motion.div variants={itemVariants} className="flex items-center justify-between gap-2 bg-white p-3 sm:p-4 rounded-2xl border border-zinc-200">
