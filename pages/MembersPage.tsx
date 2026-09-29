@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getMemberActivationStatus, hasAssignedProgram } from '../components/coachOnboardingHelpers';
 import { requestClubInviteDialog, trackProductEventOnce } from '../components/productEvents';
 import { canShowClient360AccountActions, getClient360AdminSections, getClient360Facts, getClient360QuickActions, getClient360Sections, type Client360AdminSectionId, type Client360SectionId } from '../components/client360';
+import { createPlanningLocationState, getClient360MemberId } from '../components/dashboardNavigation';
 
 const ClientConversation = React.lazy(() => import('./MessagesPage').then(module => ({ default: module.MessagesPage })));
 const ClientNutritionView = React.lazy(() => import('../components/MemberNutritionView').then(module => ({ default: module.MemberNutritionView })));
@@ -101,7 +102,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   useEffect(() => {
     const locationChanged = lastLocationKeyRef.current !== location.key;
     lastLocationKeyRef.current = location.key;
-    const memberId = (location.state as { client360MemberId?: number } | null)?.client360MemberId;
+    const memberId = getClient360MemberId(location.state);
     if (!memberId) {
       if (locationChanged && (clientHistoryEntryRef.current || closingHistoryRef.current)) {
         clientHistoryEntryRef.current = false;
@@ -135,8 +136,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     if (!selectedProfile) return;
     clientHistoryEntryRef.current = false;
     setSelectedProfile(null);
-    setState((previous: AppState) => ({ ...previous, page: 'calendar', selectedMember: selectedProfile }));
-    navigate(`${location.pathname}${location.search}`, { state: { velatraPage: 'calendar' } });
+    setState((previous: AppState) => ({ ...previous, page: 'calendar', selectedMember: null }));
+    navigate(`${location.pathname}${location.search}`, { state: createPlanningLocationState(Number(selectedProfile.id)) });
   };
   const openMemberEditor = (member: User) => {
     setEditInfoData({
