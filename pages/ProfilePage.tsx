@@ -1,3 +1,4 @@
+import { paymentStatusLabels, subscriptionStatusLabels } from '../components/billingMetrics';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, User, SessionLog } from '../types';
@@ -105,7 +106,7 @@ export const ProfilePage: React.FC<{
   };
 
   const handleManageSubscription = async () => {
-    if (!state.currentClub?.settings?.payment?.stripeConnected || !user.stripeCustomerId) {
+    if (!user.stripeCustomerId) {
       showToast("Impossible de gérer l'abonnement pour le moment.", "error");
       return;
     }
@@ -466,16 +467,17 @@ export const ProfilePage: React.FC<{
                 </div>
                 <h3 className="text-lg font-black text-zinc-900 uppercase tracking-tight">Abonnement</h3>
               </div>
-              {state.currentClub?.settings?.payment?.stripeConnected && user.stripeCustomerId && (
+              {user.stripeCustomerId && (
                 <Button variant="secondary" onClick={handleManageSubscription} className="text-sm">
                   Gérer mon abonnement <ExternalLinkIcon size={14} className="ml-2" />
                 </Button>
               )}
             </div>
 
+            <section className="mb-4 rounded-xl border border-zinc-200 bg-white p-4"><h4 className="font-semibold text-zinc-900">Mes paiements récents</h4><div className="mt-3 space-y-3">{state.payments.filter(p=>p.memberId===Number(user.id)).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(p=><div key={p.id} className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 text-sm text-zinc-800"><span>{new Date(p.date).toLocaleDateString('fr-FR')} · {paymentStatusLabels[p.status]}</span><strong>{p.amount.toFixed(2)} €</strong>{p.hostedInvoiceUrl&&<a className="text-emerald-900 underline" href={p.hostedInvoiceUrl} target="_blank" rel="noopener noreferrer">Facture Stripe</a>}</div>)}{!state.payments.some(p=>p.memberId===Number(user.id))&&<p className="text-sm text-zinc-700">Aucun paiement enregistré.</p>}</div></section>
             <div className="space-y-4">
               {(() => {
-                const subscription = state.subscriptions.find(s => s.memberId === Number(user.id) && s.status === 'active');
+                const subscription = state.subscriptions.find(s => s.memberId === Number(user.id) && ['active','pending','past_due','unpaid'].includes(s.status));
                 if (subscription) {
                   return (
                     <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 flex flex-col gap-4 shadow-sm">
@@ -486,7 +488,7 @@ export const ProfilePage: React.FC<{
                             {subscription.price}€ / {subscription.billingCycle === 'monthly' ? 'mois' : subscription.billingCycle === 'yearly' ? 'an' : 'fois'}
                           </p>
                         </div>
-                        <Badge variant="success" className="uppercase tracking-widest text-[10px]">Actif</Badge>
+                        <Badge variant="success" className="uppercase tracking-widest text-[10px]">{subscriptionStatusLabels[subscription.status]}</Badge>
                       </div>
                       {subscription.contractUrl && (
                         <div className="pt-4 border-t border-zinc-200">
@@ -501,7 +503,7 @@ export const ProfilePage: React.FC<{
                 return (
                   <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 flex items-center justify-between shadow-sm">
                     <div>
-                      <p className="text-sm font-medium text-zinc-900">Aucun abonnement actif</p>
+                      <p className="text-sm font-medium text-zinc-900">Aucun abonnement en cours</p>
                       <p className="text-xs text-zinc-500 mt-1">Vous n'avez pas d'abonnement en cours.</p>
                     </div>
                   </div>

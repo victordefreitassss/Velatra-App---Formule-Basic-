@@ -967,7 +967,7 @@ export default function App() {
       setState(prev => ({ ...prev, expenses }));
     });
 
-    const unsubInvoices = skipForMembers('invoices') ? () => {} : onSnapshot(query(collection(db, "invoices"), where("clubId", "==", clubId)), (snap) => {
+    const unsubInvoices = skipForMembers('invoices') ? () => {} : subscribeMemberRecords("invoices", "memberId", (snap) => {
       const invoices: Invoice[] = [];
       snap.forEach(d => {
         const data = d.data();

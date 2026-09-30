@@ -93,6 +93,7 @@ export interface User {
   phone?: string;
   address?: string;
   stripeCustomerId?: string;
+  stripeCustomerClubId?: string;
   credits?: number;
   sessionCredits?: Record<string, number>;
   onboardingCompleted?: boolean;
@@ -423,6 +424,11 @@ export interface Plan {
   commitmentMonths?: number;
   isTTC?: boolean;
   paymentMethods?: string[];
+  currency?: string;
+  vatRate?: number | null;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
   stripeProductId?: string;
   stripePriceId?: string;
   credits?: number; // Number of credits given per billing cycle
@@ -443,7 +449,15 @@ export interface Subscription {
   endDate?: string;
   commitmentEndDate?: string;
   contractUrl?: string;
-  status: 'active' | 'cancelled' | 'past_due' | 'unpaid';
+  status: 'active' | 'cancelled' | 'past_due' | 'unpaid' | 'pending';
+  currency?: string;
+  vatRate?: number | null;
+  isTTC?: boolean;
+  collectionMode?: 'manual' | 'stripe';
+  stripePriceId?: string;
+  memberUid?: string;
+  creditsGrantedAt?: string;
+  creditGrant?: { credits: number; sessionCredits: Record<string, number> };
   stripeSubscriptionId?: string;
 }
 
@@ -453,7 +467,16 @@ export interface Payment {
   memberId: number;
   amount: number;
   date: string;
-  status: 'paid' | 'pending' | 'failed';
+  status: 'paid' | 'pending' | 'failed' | 'refunded' | 'partially_refunded';
+  currency?: string;
+  subscriptionId?: string;
+  stripePaymentIntentId?: string;
+  stripeInvoiceId?: string;
+  hostedInvoiceUrl?: string;
+  invoicePdf?: string;
+  refundedAmount?: number;
+  refundStatus?: string;
+  description?: string;
   method: 'card' | 'sepa' | 'cash' | 'transfer';
   category?: 'subscription' | 'coaching' | 'boutique' | 'other';
   vatRate?: number; // e.g. 20 or 5.5
@@ -480,6 +503,12 @@ export interface Invoice {
   date: string;
   status: 'paid' | 'pending' | 'cancelled';
   number: string;
+  documentType?: 'receipt';
+  currency?: string;
+  vatRate?: number | null;
+  clubName?: string;
+  memberName?: string;
+  memberEmail?: string;
 }
 
 export interface Newsletter {

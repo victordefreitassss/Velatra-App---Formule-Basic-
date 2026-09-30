@@ -147,11 +147,33 @@ describe('Firestore coach/member isolation', () => {
     await assertFails(updateDoc(doc(db, 'users', 'member-a'), { paymentStatus: 'active' }));
   });
 
-  it('allows owners to update their own plan while preserving club ownership', async () => {
-    const db = testEnv.authenticatedContext('owner').firestore();
-    await assertSucceeds(setDoc(doc(db, 'plans', 'valid-plan'), { clubId: 'club-a', name: 'Plan' }));
-    await assertSucceeds(updateDoc(doc(db, 'plans', 'valid-plan'), { name: 'Updated' }));
-    await assertFails(updateDoc(doc(db, 'plans', 'valid-plan'), { clubId: 'club-b' }));
+  it('reserves billing documents, Stripe identifiers and credit grants to the server for every role', async () => {
+    await testEnv.withSecurityRulesDisabled(async context => {
+      const db = context.firestore();
+      for (const name of ['plans', 'payments', 'subscriptions', 'invoices']) {
+        await setDoc(doc(db, name, 'billing-server-owned'), { id: 'billing-server-owned', clubId: 'club-a', memberId: 101, assignedCoachUid: 'coach-a', status: 'pending', amount: 42 });
+      }
+      await setDoc(doc(db, 'stripeSecrets', 'club-a'), { secretKey: 'mock-private' });
+      await setDoc(doc(db, 'billingOperations', 'private-operation'), { clubId: 'club-a', result: {} });
+    });
+    for (const [uid, claims] of [['owner', {}], ['coach-a', {}], ['member-a', {}], ['other-member', {}], ['superadmin', {email:'victor.defreitas.pro@gmail.com',email_verified:true}]] as const) {
+      const db = testEnv.authenticatedContext(uid, claims).firestore();
+      for (const name of ['plans', 'payments', 'subscriptions', 'invoices']) {
+        await assertFails(setDoc(doc(db, name, `forged-${uid}`), { clubId: 'club-a', memberId: 101, assignedCoachUid: 'coach-a', status: 'paid' }));
+        await assertFails(updateDoc(doc(db, name, 'billing-server-owned'), { status: 'paid', stripePriceId: 'price_forged', stripeCustomerId: 'cus_forged' }));
+        await assertFails(deleteDoc(doc(db, name, 'billing-server-owned')));
+        if (!['other-member','superadmin'].includes(uid)) await assertSucceeds(getDoc(doc(db, name, 'billing-server-owned')));
+        else await assertFails(getDoc(doc(db, name, 'billing-server-owned')));
+      }
+      for (const fields of [{ credits: 999 }, {sessionCredits: {default: 999}}, {stripeCustomerId: 'cus_forged'}, {stripeCustomerClubId: 'other'}, {paymentStatus: 'active'}]) {
+        await assertFails(updateDoc(doc(db, 'users', 'member-a'), fields));
+      }
+      await assertFails(getDoc(doc(db, 'stripeSecrets', 'club-a')));
+      await assertFails(getDoc(doc(db, 'billingOperations', 'private-operation')));
+    }
+    await assertFails(getDoc(doc(testEnv.authenticatedContext('member-b').firestore(), 'invoices', 'billing-server-owned')));
+    await assertFails(getDoc(doc(testEnv.authenticatedContext('coach-b').firestore(), 'invoices', 'billing-server-owned')));
+    await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), 'payments', 'billing-server-owned')));
   });
   it('lets an adherent read their own profile and blocks another adherent profile', async () => {
     const db = testEnv.authenticatedContext('member-a').firestore();
@@ -183,7 +205,7 @@ describe('Firestore coach/member isolation', () => {
     for (const collectionName of memberRecordCollections) {
       const assignedRecords = query(collection(db, collectionName), where('clubId', '==', 'club-a'), where('assignedCoachUid', '==', 'coach-a'));
       const result = await assertSucceeds(getDocs(assignedRecords));
-      const expectedIds = collectionName === 'programs' ? ['program-a', 'programs-a'] : [`${collectionName}-a`];
+      const expectedIds = collectionName === 'programs' ? ['program-a', 'programs-a'] : ['payments','subscriptions'].includes(collectionName) ? ['billing-server-owned', `${collectionName}-a`] : [`${collectionName}-a`];
       assert.deepEqual(result.docs.map(snapshot => snapshot.id).sort(), expectedIds, `${collectionName} must return assigned-member data only`);
       await assertFails(getDoc(doc(db, collectionName, `${collectionName}-b`)));
       await assertFails(getDocs(query(collection(db, collectionName), where('clubId', '==', 'club-a'))));

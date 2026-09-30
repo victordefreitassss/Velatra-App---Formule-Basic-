@@ -58,9 +58,10 @@ export async function convertProspect(auth: Auth, db: Firestore, requesterUid: s
         try {
           const account = await auth.getUserByEmail(email);
           const existing = (await db.collection('users').doc(account.uid).get()).data();
-          const claim = (await claimRef.get()).data();
-          canRelease = existing ? existing.creationRequestId !== requestId :
-            new Date(account.metadata.creationTime).getTime() < new Date(claim?.createdAt || 0).getTime();
+          // An Auth account without its profile may belong to the concurrent
+          // request still committing Firestore. Creation timestamps are not
+          // proof of ownership: retain the claim until a safe retry resolves it.
+          canRelease = !!existing && existing.creationRequestId !== requestId;
         } catch (lookupError: any) { canRelease = lookupError?.code === 'auth/user-not-found'; }
       }
       if (canRelease) await db.runTransaction(async tx => {

@@ -183,7 +183,7 @@ service cloud.firestore {
       // All profiles, including public member sign-ups, are created by the
       // server so clients cannot choose their own legacy numeric member ID.
       allow create: if false;
-      allow update: if (
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['stripeCustomerId', 'stripeCustomerClubId', 'credits', 'sessionCredits', 'paymentStatus']) && ((
         isSelf(userId) &&
         request.resource.data.role == resource.data.role &&
         request.resource.data.clubId == resource.data.clubId &&
@@ -218,7 +218,7 @@ service cloud.firestore {
           'experienceLevel', 'trainingDays', 'sessionDuration', 'equipment', 'injuries',
           'blessures', 'birthDate', 'phone', 'address', 'measurements', 'status',
           'onboardingCompleted', 'planRequested', 'updatedAt'
-        ]));
+        ])));
       allow delete: if resource != null && isClubManager(resource.data.clubId);
     }
 
@@ -329,15 +329,11 @@ service cloud.firestore {
     }
     match /subscriptions/{documentId} {
       allow read: if canReadMemberRecord(resource.data);
-      allow create: if canManageMemberRecord(request.resource.data);
-      allow update: if canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data);
-      allow delete: if canManageMemberRecord(resource.data);
+      allow write: if false; // Financial authority and grants belong to server orchestration.
     }
     match /payments/{documentId} {
       allow read: if canReadMemberRecord(resource.data);
-      allow create: if canManageMemberRecord(request.resource.data);
-      allow update: if canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data);
-      allow delete: if canManageMemberRecord(resource.data);
+      allow write: if false; // Financial authority and grants belong to server orchestration.
     }
     match /supplementOrders/{documentId} {
       allow read: if canReadMemberRecord(resource.data);
@@ -407,9 +403,7 @@ service cloud.firestore {
     }
     match /plans/{documentId} {
       allow read: if signedIn() && isSameClub(resource.data.clubId);
-      allow create: if canWriteClubRecord(request.resource.data);
-      allow update: if resource != null && clubUnchanged() && canWriteClubRecord(resource.data);
-      allow delete: if resource != null && canWriteClubRecord(resource.data);
+      allow write: if false;
     }
     match /feed/{documentId} {
       allow read: if signedIn() && isSameClub(resource.data.clubId);
@@ -434,9 +428,8 @@ service cloud.firestore {
       allow create: if staffInClub(request.resource.data.clubId);
     }
     match /invoices/{documentId} {
-      allow read, delete: if resource != null && staffInClub(resource.data.clubId);
-      allow update: if resource != null && clubUnchanged() && staffInClub(resource.data.clubId);
-      allow create: if staffInClub(request.resource.data.clubId);
+      allow read: if canReadMemberRecord(resource.data);
+      allow write: if false;
     }
     match /fixedCosts/{documentId} {
       allow read, delete: if resource != null && staffInClub(resource.data.clubId);

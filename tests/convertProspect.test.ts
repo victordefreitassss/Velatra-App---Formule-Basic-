@@ -89,3 +89,12 @@ it('recovers when Auth and member exist but the prospect link was not committed'
   assert.equal((await db.doc(`prospects/${item.id}`).get()).data()?.convertedMemberUid, original.uid);
   assert.equal((await db.doc(`crmConversionClaims/${item.id}`).get()).exists, false);
 });
+
+// Regression: Auth metadata can be older/less precise than the Firestore claim.
+it('keeps the conversion claim while another request may be committing an Auth-only account', async()=> {
+  const item=await prospect('crm-solo');
+  const mockedAuth={createUser:async()=>{throw {code:'auth/email-already-exists'};},getUserByEmail:async()=>({uid:'uncommitted-fixture',metadata:{creationTime:'2000-01-01T00:00:00Z'}})} as any;
+  await assert.rejects(convertProspect(mockedAuth,db,'crm-solo-owner',item.id,{email:item.email}),{status:409});
+  assert.equal((await db.doc(`crmConversionClaims/${item.id}`).get()).exists,true);
+  assert.equal((await db.doc(`prospects/${item.id}`).get()).data()?.status,'lead');
+});
