@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Prospect, ProspectNote, User } from '../types';
-import { createMemberAccount, db, doc, updateDoc, setDoc, deleteDoc, auth, sendPasswordResetEmail } from '../firebase';
+import { createMemberAccount, db, doc, updateDoc, setDoc, deleteDoc, auth, sendPasswordResetEmail, apiFetch } from '../firebase';
+import { parisLocalInstant } from '../components/planningSlots';
 import { Plus, Search, Trash2, Mail, Phone, Clock, CheckCircle, XCircle, UserPlus, Users, X, Calendar, AlertCircle, MessageSquare } from 'lucide-react';
 import { format, isToday, isPast, isSameDay, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -249,30 +250,17 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     e.preventDefault();
     if (!schedulingTrialProspect?.firebaseUid || !state.user?.clubId) return;
     try {
-      const startTime = new Date(`${trialForm.date}T${trialForm.startTime}:00`).toISOString();
-      const endTime = new Date(`${trialForm.date}T${trialForm.endTime}:00`).toISOString();
-      const bookingId = Date.now().toString();
-      
-      const booking = {
-          id: bookingId,
-          clubId: state.user.clubId,
-          coachId: state.user.firebaseUid,
-          prospectId: schedulingTrialProspect.id,
-          startTime,
-          endTime,
-          status: 'confirmed',
-          type: 'trial'
-      };
-      
-      await setDoc(doc(db, "bookings", bookingId), booking);
-      await updateDoc(doc(db, "prospects", schedulingTrialProspect.firebaseUid), { 
-          status: 'trial'
-      });
+      const start = parisLocalInstant(trialForm.date, trialForm.startTime);
+      const end = parisLocalInstant(trialForm.date, trialForm.endTime);
+      if (!start || !end) throw new Error('Horaire invalide en heure de Paris.');
+      const response = await apiFetch('/api/bookings/trial', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prospectUid: schedulingTrialProspect.firebaseUid, startTime: start.toISOString(), endTime: end.toISOString() }) });
+      if (!response.ok) throw new Error((await response.json()).error || 'Impossible de planifier cette séance.');
       setSchedulingTrialProspect(null);
       showToast("Séance d'essai planifiée sur le planning !", "success");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      showToast("Erreur lors de la réservation de la séance d'essai", "error");
+      showToast(err?.message || "Erreur lors de la réservation de la séance d'essai", "error");
     }
   };
 

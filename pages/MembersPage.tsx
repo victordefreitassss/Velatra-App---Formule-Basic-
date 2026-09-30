@@ -2630,14 +2630,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           return (
                             <div className="space-y-3">
                               {sortedBookings.map(booking => {
-                                const coachName = state.users?.find(u => String(u.id) === booking.coachId)?.name || 'Coach Indéfini';
+                                const coachName = state.users?.find(u => String(u.id) === booking.coachId || u.firebaseUid === booking.coachId)?.name || 'Coach du club';
                                 const start = new Date(booking.startTime);
                                 const end = new Date(booking.endTime);
                                 
                                 // Format nicer French dates
-                                const dayName = start.toLocaleDateString('fr-FR', { weekday: 'short' });
-                                const dayNum = start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-                                const timeStr = `${start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+                                const dayName = start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short' });
+                                const dayNum = start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', day: 'numeric', month: 'short' });
+                                const timeStr = `${start.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })}`;
 
                                 return (
                                   <div 
@@ -2654,7 +2654,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                       <div className="space-y-1">
                                         <div className="flex items-center gap-1.5 flex-wrap">
                                           <span className="text-xs font-black text-zinc-950 uppercase">
-                                            {booking.type === 'coaching' ? 'Coaching Privé' : 'Séance d\'Essai'}
+                                            {booking.type === 'coaching' ? state.currentClub?.settings?.booking?.sessionTypes?.find(type => type.id === booking.sessionTypeId)?.name || 'Coaching' : 'Séance d\'Essai'}
                                           </span>
                                            <Badge 
                                             variant={

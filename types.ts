@@ -619,6 +619,10 @@ export interface Booking {
   status: 'confirmed' | 'cancelled' | 'completed' | 'rejected' | 'pending';
   type: 'coaching' | 'trial';
   sessionTypeId?: string;
+  /** Server-owned identity and accounting fields; never edited directly by clients. */
+  memberUid?: string;
+  assignedCoachUid?: string;
+  creditDebited?: boolean;
 }
 
 export interface DriveFile {

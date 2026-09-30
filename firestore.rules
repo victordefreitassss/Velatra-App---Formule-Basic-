@@ -359,10 +359,8 @@ service cloud.firestore {
     }
     match /bookings/{documentId} {
       allow read: if canReadMemberRecord(resource.data);
-      // Reservations and refunds must be atomic with server-owned credit updates.
-      allow create: if !('creditDebited' in request.resource.data) && !('memberUid' in request.resource.data) && canManageMemberRecord(request.resource.data);
-      allow update: if canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data) &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'creditDebited', 'memberUid', 'memberId', 'sessionTypeId', 'clubId']);
+      // All reservation mutations (including CRM trials) use authenticated server transactions.
+      allow create, update: if false;
       allow delete: if false;
     }
     match /notifications/{documentId} {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { attachBookingsToSlots, shiftPlanningWeek } from '../components/planningSlots.ts';
+import { addParisDays, attachBookingsToSlots, generatePlanningSlots, parisDateKey, parisLocalInstant, parisWeekKeys, shiftPlanningWeek } from '../components/planningSlots.ts';
 import type { Booking } from '../types';
 
 const start = new Date('2026-09-28T07:00:00Z');
@@ -52,4 +52,21 @@ test('week navigation moves the selected calendar day across month/year boundari
   assert.equal(next.getDay(), selected.getDay());
   assert.equal(shiftPlanningWeek(next, -1).getTime(), selected.getTime());
   assert.equal(selected.getDate(), 28);
+});
+
+test('Paris week and slot dates stay stable for a viewer in another timezone', () => {
+  assert.equal(parisDateKey(new Date('2026-09-27T22:30:00Z')), '2026-09-28');
+  assert.deepEqual(parisWeekKeys('2026-12-31'), ['2026-12-28', '2026-12-29', '2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02', '2027-01-03']);
+  assert.equal(addParisDays('2026-12-31', 1), '2027-01-01');
+  const slots = generatePlanningSlots('2026-09-28', [{ day: 1, slots: [{ start: '09:00', end: '11:00' }] }], [], 60);
+  assert.deepEqual(slots.map(slot => slot.start.toISOString()), ['2026-09-28T07:00:00.000Z', '2026-09-28T08:00:00.000Z']);
+});
+
+test('rejects missing spring hour and does not stretch a booking across DST', () => {
+  assert.equal(parisLocalInstant('2026-03-29', '02:30'), null);
+  const spring = generatePlanningSlots('2026-03-29', [{ day: 0, slots: [{ start: '01:00', end: '04:00' }] }], [], 60);
+  assert.deepEqual(spring.map(slot => slot.start.toISOString()), ['2026-03-29T01:00:00.000Z']);
+  assert.equal(parisLocalInstant('2026-10-25', '02:30')?.toISOString(), '2026-10-25T00:30:00.000Z');
+  const autumn = generatePlanningSlots('2026-10-25', [{ day: 0, slots: [{ start: '01:00', end: '04:00' }] }], [], 60);
+  assert.ok(autumn.every(slot => slot.end.getTime() - slot.start.getTime() === 3600000));
 });
