@@ -70,7 +70,7 @@ async function memberView(db: Firestore, uid: string, memberUid: string) {
     db.collection('coachCheckInAssignments').where('memberUid', '==', memberUid).limit(50).get(),
     db.collection('coachHabits').where('memberUid', '==', memberUid).limit(50).get(),
     isMember ? Promise.resolve(null) : db.collection('coachCheckInResponses').where('memberUid', '==', memberUid).limit(50).get(),
-    isMember ? Promise.resolve(null) : db.collection('coachHabitEntries').where('memberUid', '==', memberUid).limit(100).get(),
+    db.collection('coachHabitEntries').where('memberUid', '==', memberUid).limit(100).get(),
     db.collection('logs').where('memberId', '==', access.member.id).limit(30).get(),
   ]);
   const responses = (responseSnap ? rows(responseSnap) : []).filter((item: any) => item.clubId === access.clubId)
