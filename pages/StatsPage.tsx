@@ -8,6 +8,7 @@ import {
 } from 'recharts';
 import { motion } from 'framer-motion';
 import { MemberTrainingProgress } from '../components/MemberTrainingProgress';
+import { MemberJourneyOverview } from '../components/MemberJourneyOverview';
 import { displayNumber, isBodyweightExercise, performanceReference } from '../components/workoutSession';
 
 const containerVariants: import('framer-motion').Variants = {
@@ -138,7 +139,9 @@ export const StatsPage: React.FC<{ state: AppState, setState: any }> = ({ state,
         </div>
       </motion.div>
 
+      <MemberJourneyOverview />
       <MemberTrainingProgress state={state} setState={setState} />
+      <section className="va-member-coach-row" aria-label="Évolution corporelle et photos"><div><h2>Évolution et photos</h2><p>Consultez vos repères et les photos partagées avec votre coach.</p></div><button className="va-member-text-link" type="button" onClick={() => setState((previous: AppState) => ({ ...previous, page: 'evolution' }))}>Voir mon évolution →</button></section>
       <details className="va-member-disclosure"><summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-zinc-900">Analyses avancées et mensurations</summary><div className="mt-5 space-y-8">
       {/* Weight Chart */}
       <motion.div variants={itemVariants}>

@@ -618,7 +618,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 {isSelected && <motion.span key={`pill-${item.id}`} layoutId="va-mobile-active-pill" className="va-mobile-active-pill" style={{ transformOrigin: mobileSlideDirection > 0 ? 'left center' : 'right center' }} initial={reduceMotion ? false : { scaleX: .86, opacity: .92 }} animate={reduceMotion ? { scaleX: 1, opacity: 1 } : { scaleX: [1, 1.12, .97, 1], opacity: 1 }} transition={reduceMotion ? { duration: .01 } : { scaleX: { duration: .42, times: [0, .35, .72, 1], ease: [.2, .8, .2, 1] }, layout: { type: 'spring', stiffness: 420, damping: 34, mass: .7 } }} />}
                 <Icon size={19} strokeWidth={isSelected ? 2.3 : 1.9} />
                 <span>{item.label}</span>
-                {!isMore && item.id === 'users' && unreadMessagesCount > 0 && <span className="va-mobile-unread-dot" aria-label={`${unreadMessagesCount} messages non lus`} />}
+                {((!isMore && item.id === 'users') || (isMore && effectiveRole === 'member')) && unreadMessagesCount > 0 && <span className="va-mobile-unread-dot" aria-label={`${unreadMessagesCount} messages non lus`} />}
               </motion.button>
             );
           })}

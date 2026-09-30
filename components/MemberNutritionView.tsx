@@ -235,7 +235,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
         {!readOnly ? (
           <div>
             <h1 className="text-3xl font-display font-bold tracking-tight text-zinc-900 leading-none">{isMemberView ? 'Ma nutrition' : 'Journal'}</h1>
-            <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[3px] mt-2">{isMemberView ? 'Un repas à la fois.' : 'Suivi Nutritionnel'}</p>
+            <p className={isMemberView ? 'mt-2 text-sm font-medium text-zinc-700' : 'text-[10px] text-zinc-500 font-bold uppercase tracking-[3px] mt-2'}>{isMemberView ? 'Un repas à la fois.' : 'Suivi Nutritionnel'}</p>
           </div>
         ) : (
           <div></div>
@@ -247,7 +247,7 @@ Réponds UNIQUEMENT avec le nom du plat et les ingrédients principaux en une ph
         </div>
       </div>
 
-      {isMemberView ? <section aria-label="Repères nutritionnels"><div className="va-nutrition-energy"><div><p>Énergie renseignée</p><strong>{totalCalories} <span className="text-sm font-normal">/ {targetCalories} kcal</span></strong></div></div><Button fullWidth className="!min-h-14" onClick={()=>setAddingMealType('breakfast')}>Noter un repas</Button><details className="va-member-disclosure mt-4"><summary>Mes repères du jour</summary><div className="va-nutrition-summary">{[['Protéines',totalProtein,targetProtein],['Glucides',totalCarbs,targetCarbs],['Lipides',totalFat,targetFat]].map(([label,total,target])=><div key={label}><p>{label}</p><div className="text-2xl">{total} g</div><p>Repère : {target} g</p></div>)}</div></details></section> : <>
+      {isMemberView ? <section aria-label="Repères nutritionnels"><div className="va-nutrition-energy"><div><p>Énergie renseignée</p><strong>{totalCalories} <span className="text-sm font-normal">/ {targetCalories} kcal</span></strong></div></div><Button fullWidth className="!min-h-14" onClick={()=>setAddingMealType('breakfast')}>Noter un repas</Button><div className="va-nutrition-summary" aria-label="Repères du jour">{[['Protéines',totalProtein,targetProtein],['Glucides',totalCarbs,targetCarbs],['Lipides',totalFat,targetFat]].map(([label,total,target])=><div key={label}><p>{label}</p><div className="text-2xl">{total} g</div><p>Repère : {target} g</p></div>)}</div></section> : <>
       {/* Summary Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card className="p-4 bg-zinc-50 text-zinc-900 border-none">

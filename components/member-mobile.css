@@ -156,3 +156,43 @@
  .va-member-profile .va-profile-sticky { position:fixed; left:16px; right:16px; bottom:calc(88px + env(safe-area-inset-bottom)); z-index:40; border-top:1px solid #d5ddd2; }
  .va-member-shell .va-profile-identity { align-items:center; }
 }
+.va-member-dashboard { max-width:1120px; }
+.va-member-dashboard .va-member-followup { min-width:0; }
+.va-member-dashboard .va-member-followup:empty { display:none; }
+.va-member-dashboard .va-member-coach-row h2 { margin:0 0 4px; font-size:16px; }
+.va-member-dashboard .va-member-coach-row p { color:#46594c; font-size:14px; line-height:1.5; }
+.va-member-dashboard .va-member-progress { margin-top:4px; }
+.va-member-shell .va-member-next--empty { background:#fff; border:1px solid #d5ddd2; }
+.va-member-shell .va-member-next--empty :is(h2,p) { color:#193e2c!important; }
+.va-member-shell .va-member-next--empty>p:first-child { color:#536158!important; }
+.va-member-shell .va-member-next--empty>button:not(.va-start-button) { color:#193e2c!important; border-color:#a7bda3!important; }
+.va-member-dashboard .va-daily-checkin { margin-top:12px; }
+.va-member-journey { border:1px solid #d5ddd2; background:#fff; border-radius:20px; padding:20px; }
+.va-member-journey .va-member-section-heading>span,.va-member-muted { color:#536158; font-size:14px; line-height:1.55; }
+.va-member-journey-current { color:#244a32; margin-top:14px; line-height:1.5; }
+.va-member-journey-steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:10px; margin-block:16px; }
+.va-member-journey-steps li { display:flex; gap:10px; min-width:0; padding:12px; background:#f4f7ef; border-radius:14px; color:#234c37; }
+.va-member-journey-steps li>span:first-child { flex:none; font-size:17px; }
+.va-member-journey-steps strong,.va-member-journey-steps small { display:block; overflow-wrap:anywhere; }
+.va-member-journey-steps strong { font-size:14px; color:#183d29; }
+.va-member-journey-steps small { margin-top:3px; font-size:12px; color:#536158; }
+.va-member-nutrition .va-nutrition-summary { margin-top:16px; }
+@media(max-width:430px) {
+ .va-member-shell .va-content { padding-inline:12px; }
+ .va-member-page { gap:20px; }
+ .va-member-next { padding:18px; }
+ .va-member-journey-steps { grid-template-columns:1fr; }
+ .va-member-metrics { gap:8px; }
+ .va-member-metrics dd { font-size:23px; }
+ .va-member-metrics dt { font-size:12px; }
+ .va-member-nutrition .va-nutrition-summary { gap:6px; }
+ .va-member-nutrition .va-nutrition-summary>div { min-width:0; }
+}
+@media(min-width:768px) and (max-width:1023px) {
+ .va-member-dashboard { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:20px; }
+ .va-member-dashboard>.va-today-heading,.va-member-dashboard>.va-member-progress,.va-member-dashboard>.va-member-disclosure { grid-column:1/-1; }
+}
+@media(min-width:1024px) {
+ .va-member-dashboard { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(300px,.65fr); align-items:start; gap:24px; }
+ .va-member-dashboard>.va-today-heading,.va-member-dashboard>.va-member-progress,.va-member-dashboard>.va-member-disclosure { grid-column:1/-1; }
+}
