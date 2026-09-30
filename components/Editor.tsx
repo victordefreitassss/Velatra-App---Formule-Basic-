@@ -14,6 +14,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import './program-editor.css';
 import { appendPresetExercises, copyExerciseToDay, createGroupWithExercises, duplicateExercise, groupSize, GroupType, normalizeExerciseGroups, setExerciseGroupType, togglePreviousExerciseLink } from './programBuilderModel';
+import { ExerciseDraft, EXERCISE_MUSCLES, filterExercises, getSelectableExercises } from './exerciseLibraryModel';
 
 // Quick Presets helper configuration
 const REPS_PRESETS = ["8", "10", "12", "15", "8-12", "10-12", "12-15", "MAX", "10/8/6/15"];
@@ -32,6 +33,7 @@ const SearchableExerciseSelect: React.FC<{
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedEquipment, setSelectedEquipment] = useState('');
+  const [selectedMuscle, setSelectedMuscle] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,11 +49,13 @@ const SearchableExerciseSelect: React.FC<{
 
   const selectedEx = exercises.find(e => e.id === value);
 
-  const filteredExercises = exercises.filter(e => {
-    const matchesSearch = e.name.toLowerCase().includes(search.toLowerCase()) || 
-      e.cat.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = selectedCategory ? e.cat === selectedCategory : true;
-    return matchesSearch && matchesCategory && (!selectedEquipment || e.equip === selectedEquipment);
+  const selectableExercises = getSelectableExercises(exercises, value);
+  const filteredExercises = filterExercises(selectableExercises, {
+    search,
+    category: selectedCategory || '',
+    equipment: selectedEquipment,
+    muscle: selectedMuscle,
+    sort: 'name',
   });
   const categories = [...new Set([...EXERCISE_CATEGORIES, ...exercises.map(e => e.cat)])];
   const equipments = [...new Set(exercises.map(e => e.equip).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
@@ -128,6 +132,7 @@ const SearchableExerciseSelect: React.FC<{
               ))}
             </div>
             <select aria-label="Filtrer par équipement" value={selectedEquipment} onChange={event => setSelectedEquipment(event.target.value)} className="h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900"><option value="">Tous les équipements</option>{equipments.map(equipment => <option key={equipment} value={equipment}>{equipment}</option>)}</select>
+            <select aria-label="Filtrer par muscle" value={selectedMuscle} onChange={event => setSelectedMuscle(event.target.value)} className="h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm text-zinc-900"><option value="">Tous les muscles</option>{EXERCISE_MUSCLES.map(muscle => <option key={muscle} value={muscle}>{muscle}</option>)}</select>
           </div>
 
           <div className="p-2 overflow-y-auto max-h-[260px] custom-scrollbar">
@@ -194,7 +199,7 @@ interface ProgramEditorProps {
   allPresets?: Preset[]; 
   member?: any;
   readOnly?: boolean;
-  onCreateExercise?: (exercise: Exercise) => Promise<void>;
+  onCreateExercise?: (draft: ExerciseDraft) => Promise<Exercise>;
 }
 
 export const ProgramEditor: React.FC<ProgramEditorProps> = ({ 
@@ -358,12 +363,10 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   const handleCreateExercise = async () => {
     const name = newExercise.name.trim();
     if (!name || !newExercise.equip.trim()) { setCreateError('Indiquez le nom et l’équipement.'); return; }
-    if (newExercise.videoUrl.trim() && !/^https?:\/\/\S+$/i.test(newExercise.videoUrl.trim())) { setCreateError('Le lien vidéo doit commencer par https:// ou http://.'); return; }
     if (!onCreateExercise || addingExerciseDay === null || isCreating) return;
-    const exercise: Exercise = { id: createNumericId(), clubId, name, cat: newExercise.cat, equip: newExercise.equip.trim(), photo: null, videoUrl: newExercise.videoUrl.trim(), perfId: name.toLowerCase().replace(/\s+/g, '_') };
     setIsCreating(true); setCreateError('');
     try {
-      await onCreateExercise(exercise);
+      const exercise = await onCreateExercise({ name, cat: newExercise.cat, equip: newExercise.equip.trim(), videoUrl: newExercise.videoUrl.trim() });
       handleAddExercise(addingExerciseDay, exercise.id);
       setAddingExerciseDay(null);
       setCreatingExercise(false);

@@ -1,627 +1,82 @@
-
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { ArchiveRestore, Check, Copy, Dumbbell, Edit3, Filter, ImagePlus, Plus, Search, Video, X } from 'lucide-react';
 import { AppState, Exercise } from '../types';
-import { Card, Button, Input, Badge } from '../components/UI';
-import { PlusIcon, SearchIcon, DumbbellIcon, Trash2Icon, Edit2Icon, XIcon, CheckIcon, SaveIcon, CameraIcon, VideoIcon } from '../components/Icons';
-import { EXERCISE_CATEGORIES, CATEGORY_MEDIA } from '../constants';
-import { motion, AnimatePresence } from 'framer-motion';
+import { EXERCISE_CATEGORIES } from '../constants';
+import { auth, db, doc, getStorageClient, setDoc } from '../firebase';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { buildClubExercise, canManageExercise, countActiveFilters, duplicateExerciseForClub, EXERCISE_DIFFICULTIES, EXERCISE_MUSCLES, EXERCISE_TYPES, ExerciseDifficulty, ExerciseDraft, ExerciseFilters, ExerciseOrigin, ExerciseType, filterExercises, getExerciseType, isExerciseArchived, isExerciseReferenced, updateClubExercise } from '../components/exerciseLibraryModel';
+import { createNumericId } from '../components/dataHelpers';
 
-import { auth, db, doc, updateDoc, setDoc, deleteDoc, getStorageClient } from '../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+const DEFAULT_DRAFT: ExerciseDraft = { name: '', cat: EXERCISE_CATEGORIES[0], equip: 'Poids du corps', photo: null, videoUrl: '', description: '', instructions: '', primaryMuscles: [], secondaryMuscles: [], tags: [], exerciseType: 'strength' };
+const TYPE_LABELS: Record<ExerciseType, string> = { strength: 'Renforcement', cardio: 'Cardio', timed: 'Chronométré', distance: 'Distance', mobility: 'Mobilité', other: 'Autre' };
+const DIFFICULTY_LABELS: Record<ExerciseDifficulty, string> = { beginner: 'Débutant', intermediate: 'Intermédiaire', advanced: 'Avancé' };
+const toDraft = (exercise?: Exercise | null): ExerciseDraft => exercise ? { name: exercise.name, cat: exercise.cat, equip: exercise.equip, photo: exercise.photo, videoUrl: exercise.videoUrl || '', description: exercise.description || '', instructions: exercise.instructions || '', primaryMuscles: exercise.primaryMuscles || [], secondaryMuscles: exercise.secondaryMuscles || [], difficulty: exercise.difficulty, tags: exercise.tags || [], exerciseType: exercise.exerciseType || getExerciseType(exercise) } : { ...DEFAULT_DRAFT, primaryMuscles: [], secondaryMuscles: [], tags: [] };
 
-const containerVariants: import('framer-motion').Variants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.05
-    }
-  }
+const Dialog: React.FC<{ open: boolean; onClose: () => void; label: string; children: React.ReactNode; className?: string }> = ({ open, onClose, label, children, className = '' }) => {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => { const dialog = dialogRef.current; if (!dialog) return; if (open && !dialog.open) dialog.showModal(); if (!open && dialog.open) dialog.close(); }, [open]);
+  if (!open) return null;
+  return createPortal(<dialog ref={dialogRef} aria-label={label} onCancel={event => { event.preventDefault(); onClose(); }} className={`m-auto max-h-[92dvh] w-[calc(100%_-_1.5rem)] overflow-hidden rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-2xl backdrop:bg-zinc-950/45 ${className}`}>{children}</dialog>, document.body);
 };
 
-const itemVariants: import('framer-motion').Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+const FieldLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => <label className="mb-1.5 block text-xs font-semibold text-zinc-700">{children}</label>;
+const MuscleButton: React.FC<{ muscle: string; selected: boolean; disabled?: boolean; onClick: () => void }> = ({ muscle, selected, disabled, onClick }) => <button type="button" disabled={disabled} onClick={onClick} className={`min-h-9 rounded-lg border px-2.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-45 ${selected ? 'border-emerald-700 bg-emerald-50 text-emerald-950' : 'border-zinc-200 bg-white text-zinc-700 hover:border-emerald-600'}`}>{muscle}</button>;
+
+const ExerciseForm: React.FC<{ draft: ExerciseDraft; setDraft: React.Dispatch<React.SetStateAction<ExerciseDraft>>; clubId: string; userUid: string; showToast: (message: string, type?: string) => void; uploading: 'photo' | 'video' | null; setUploading: React.Dispatch<React.SetStateAction<'photo' | 'video' | null>> }> = ({ draft, setDraft, clubId, userUid, showToast, uploading, setUploading }) => {
+  const update = (patch: Partial<ExerciseDraft>) => setDraft(current => ({ ...current, ...patch }));
+  const upload = async (file: File, kind: 'photo' | 'video') => {
+    const max = kind === 'photo' ? 5 * 1024 * 1024 : 50 * 1024 * 1024;
+    if (file.size > max) return showToast(`${kind === 'photo' ? 'L’image' : 'La vidéo'} est trop volumineuse.`, 'error');
+    if (kind === 'photo' && !/^image\/(jpeg|png|webp|gif)$/i.test(file.type)) return showToast('Choisissez une image JPEG, PNG, WebP ou GIF.', 'error');
+    if (kind === 'video' && !/^video\//i.test(file.type)) return showToast('Choisissez un fichier vidéo.', 'error');
+    if (!clubId || !userUid) return showToast('Session ou club introuvable.', 'error');
+    setUploading(kind);
+    try {
+      const storage = await getStorageClient();
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+      const path = kind === 'photo' ? `clubs/${clubId}/exercise-${Date.now()}-${safeName}` : `videos/${clubId}/${userUid}/${Date.now()}-${safeName}`;
+      const mediaRef = ref(storage, path);
+      await uploadBytes(mediaRef, file, { contentType: file.type });
+      update(kind === 'photo' ? { photo: await getDownloadURL(mediaRef) } : { videoUrl: await getDownloadURL(mediaRef) });
+      showToast(`${kind === 'photo' ? 'Image' : 'Vidéo'} importée.`, 'success');
+    } catch (error) { console.error('Exercise media upload failed', error); showToast('Import impossible. Réessayez.', 'error'); }
+    finally { setUploading(null); }
+  };
+  const toggleMuscle = (key: 'primaryMuscles' | 'secondaryMuscles', muscle: string) => {
+    const values = draft[key] || []; const otherKey = key === 'primaryMuscles' ? 'secondaryMuscles' : 'primaryMuscles';
+    update({ [key]: values.includes(muscle) ? values.filter(item => item !== muscle) : [...values, muscle], [otherKey]: (draft[otherKey] || []).filter(item => item !== muscle) });
+  };
+  return <div className="space-y-5">
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div><FieldLabel>Nom *</FieldLabel><input autoFocus value={draft.name} onChange={event => update({ name: event.target.value })} maxLength={100} className="h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900" /></div>
+      <div><FieldLabel>Catégorie *</FieldLabel><select value={draft.cat} onChange={event => update({ cat: event.target.value })} className="h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900">{EXERCISE_CATEGORIES.map(category => <option key={category}>{category}</option>)}</select></div>
+      <div><FieldLabel>Équipement *</FieldLabel><input value={draft.equip} onChange={event => update({ equip: event.target.value })} maxLength={80} placeholder="Ex. Barre, machine, élastique" className="h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900" /></div>
+      <div><FieldLabel>Type</FieldLabel><select value={draft.exerciseType || ''} onChange={event => update({ exerciseType: event.target.value as ExerciseType })} className="h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900">{EXERCISE_TYPES.map(type => <option value={type} key={type}>{TYPE_LABELS[type]}</option>)}</select></div>
+      <div><FieldLabel>Difficulté</FieldLabel><select value={draft.difficulty || ''} onChange={event => update({ difficulty: (event.target.value || undefined) as ExerciseDifficulty | undefined })} className="h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900"><option value="">Non précisée</option>{EXERCISE_DIFFICULTIES.map(level => <option value={level} key={level}>{DIFFICULTY_LABELS[level]}</option>)}</select></div>
+      <div><FieldLabel>Tags</FieldLabel><input value={(draft.tags || []).join(', ')} onChange={event => update({ tags: event.target.value.split(',').map(tag => tag.trim()).filter(Boolean) })} maxLength={380} placeholder="Ex. débutant, haltères" className="h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900" /></div>
+    </div>
+    <div><FieldLabel>Description</FieldLabel><textarea value={draft.description || ''} onChange={event => update({ description: event.target.value })} maxLength={600} rows={3} className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900" placeholder="But et contexte de l’exercice." /></div>
+    <div><FieldLabel>Consignes</FieldLabel><textarea value={draft.instructions || ''} onChange={event => update({ instructions: event.target.value })} maxLength={3000} rows={5} className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900" placeholder="Position, exécution, sécurité et adaptations." /></div>
+    <details className="rounded-xl border border-zinc-200 bg-zinc-50 p-3" open><summary className="cursor-pointer text-sm font-semibold text-zinc-900">Muscles ciblés</summary><div className="mt-3 grid gap-4"><div><p className="mb-2 text-xs font-medium text-zinc-700">Principaux (4 maximum)</p><div className="flex flex-wrap gap-2">{EXERCISE_MUSCLES.map(muscle => <MuscleButton key={muscle} muscle={muscle} selected={(draft.primaryMuscles || []).includes(muscle)} disabled={!(draft.primaryMuscles || []).includes(muscle) && (draft.primaryMuscles || []).length >= 4} onClick={() => toggleMuscle('primaryMuscles', muscle)} />)}</div></div><div><p className="mb-2 text-xs font-medium text-zinc-700">Secondaires (6 maximum)</p><div className="flex flex-wrap gap-2">{EXERCISE_MUSCLES.map(muscle => <MuscleButton key={muscle} muscle={muscle} selected={(draft.secondaryMuscles || []).includes(muscle)} disabled={(draft.primaryMuscles || []).includes(muscle) || (!(draft.secondaryMuscles || []).includes(muscle) && (draft.secondaryMuscles || []).length >= 6)} onClick={() => toggleMuscle('secondaryMuscles', muscle)} />)}</div></div></div></details>
+    <details className="rounded-xl border border-zinc-200 bg-zinc-50 p-3"><summary className="cursor-pointer text-sm font-semibold text-zinc-900">Médias</summary><div className="mt-3 grid gap-4 sm:grid-cols-2"><div><FieldLabel>URL de la photo</FieldLabel><input type="url" value={draft.photo || ''} onChange={event => update({ photo: event.target.value })} placeholder="https://..." className="h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm" /><label className="mt-2 flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800"><ImagePlus size={16} />{uploading === 'photo' ? 'Import…' : 'Importer une image'}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="sr-only" disabled={Boolean(uploading)} onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file, 'photo'); event.currentTarget.value = ''; }} /></label></div><div><FieldLabel>URL de la vidéo</FieldLabel><input type="url" value={draft.videoUrl || ''} onChange={event => update({ videoUrl: event.target.value })} placeholder="https://..." className="h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm" /><label className="mt-2 flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800"><Video size={16} />{uploading === 'video' ? 'Import…' : 'Importer une vidéo'}<input type="file" accept="video/*" className="sr-only" disabled={Boolean(uploading)} onChange={event => { const file = event.target.files?.[0]; if (file) void upload(file, 'video'); event.currentTarget.value = ''; }} /></label></div></div><p className="mt-3 text-xs text-zinc-600">Les nouveaux fichiers sont stockés dans Firebase Storage. Les fichiers existants ne sont pas supprimés lors d’un remplacement.</p></details>
+  </div>;
 };
 
-export const ExercisesPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("Tous");
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
-  const [editingEx, setEditingEx] = useState<Exercise | null>(null);
-  
-  const [newEx, setNewEx] = useState<Partial<Exercise>>({
-    name: "",
-    cat: EXERCISE_CATEGORIES[0],
-    equip: "Poids libre",
-    photo: "",
-    videoUrl: ""
-  });
-
-  const filtered = state.exercises.filter(ex => 
-    (filter === "Tous" || ex.cat === filter) &&
-    (ex.name || '').toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleSaveNewEx = async () => {
-    if (!newEx.name) {
-      showToast("Nom requis", "error");
-      return;
-    }
-
-    const ex: Exercise = {
-      id: Date.now(),
-      clubId: state.user?.clubId || "global",
-      name: newEx.name,
-      cat: newEx.cat || "Autre",
-      equip: newEx.equip || "Aucun",
-      photo: newEx.photo || null,
-      videoUrl: newEx.videoUrl || "",
-      perfId: (newEx.name || '').toLowerCase().replace(/\s+/g, '_')
-    };
-
-    try {
-      await setDoc(doc(db, "exercises", ex.id.toString()), ex);
-      showToast("Exercice ajouté.");
-      setShowAddModal(false);
-      setNewEx({ name: "", cat: EXERCISE_CATEGORIES[0], equip: "Poids libre", photo: "" });
-    } catch (err) {
-      console.error("Error saving exercise:", err);
-      showToast("Erreur lors de l'enregistrement", "error");
-    }
-  };
-
-  const handleUpdateEx = async (updatedEx: Exercise) => {
-    try {
-      await setDoc(doc(db, "exercises", updatedEx.id.toString()), updatedEx);
-      showToast("Exercice mis à jour.");
-      setEditingEx(null);
-    } catch (err) {
-      showToast("Erreur de mise à jour", "error");
-    }
-  };
-
-  const [confirmDeleteExId, setConfirmDeleteExId] = useState<number | null>(null);
-
-  const confirmDelete = async () => {
-    if (!confirmDeleteExId) return;
-    try {
-      await deleteDoc(doc(db, "exercises", confirmDeleteExId.toString()));
-      showToast("Exercice supprimé");
-    } catch (err) {
-      showToast("Erreur lors de la suppression", "error");
-    } finally {
-      setConfirmDeleteExId(null);
-    }
-  };
-
-  return (
-    <motion.div 
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="space-y-8 pb-20"
-    >
-      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-1">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900 leading-none">BIBLIOTHÈQUE</h1>
-          <p className="text-xs font-medium uppercase text-emerald-600 tracking-wider mt-2">{state.exercises.length} Exercices dispos</p>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button onClick={() => setShowAddModal(true)} variant="primary" className="!py-2.5 sm:!py-3 !px-4 sm:!px-6 !rounded-2xl shadow-xl shadow-emerald-500/20 font-black text-xs italic whitespace-nowrap w-full sm:w-auto">
-            <PlusIcon size={18} className="mr-2 inline" /> AJOUTER
-          </Button>
-        </div>
-      </motion.div>
-
-      <motion.div variants={itemVariants} className="space-y-4">
-        <div className="relative">
-          <SearchIcon size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-900" />
-          <Input 
-            placeholder="Rechercher un mouvement..." 
-            className="pl-14 \!bg-white backdrop-blur-xl \!border-zinc-200 !rounded-2xl font-bold shadow-sm" 
-            value={search} 
-            onChange={e => setSearch(e.target.value)} 
-          />
-        </div>
-        
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
-          <button 
-            onClick={() => setFilter("Tous")} 
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-colors shadow-sm ${filter === "Tous" ? 'bg-emerald-500 text-zinc-900 shadow-emerald-500/20' : 'bg-white backdrop-blur-xl text-zinc-500 border border-zinc-200 hover:text-zinc-900 hover:bg-white'}`}
-          >
-            Tous
-          </button>
-          
-          <div className="relative">
-            <select 
-              className={`appearance-none px-4 py-2 pr-8 rounded-xl text-xs font-bold whitespace-nowrap transition-colors cursor-pointer outline-none shadow-sm ${filter !== "Tous" ? 'bg-emerald-500 text-zinc-900 shadow-emerald-500/20' : 'bg-white backdrop-blur-xl text-zinc-500 border border-zinc-200 hover:text-zinc-900 hover:bg-white'}`}
-              value={filter}
-              onChange={e => setFilter(e.target.value)}
-            >
-              <option value="Tous">Catégorie</option>
-              {EXERCISE_CATEGORIES.map(c => (
-                <option key={c} value={c} className="bg-white text-zinc-900">{c}</option>
-              ))}
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.div 
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-      >
-        {filtered.map(ex => {
-          const isSquatBarre = (ex.name || '').toLowerCase().includes("squat barre");
-          const needsPhoto = !ex.photo;
-
-          return (
-            <motion.div key={ex.id} variants={itemVariants} whileHover={{ y: -4 }} whileTap={{ scale: 0.98 }}>
-              <Card className={`!p-0 overflow-hidden group border-none ring-1 transition-all bg-zinc-50 backdrop-blur-xl h-full shadow-sm ${isSquatBarre && needsPhoto ? 'ring-emerald-500/50 animate-pulse' : ' hover:ring-emerald-500/30 hover:shadow-md'}`}>
-                <div className="aspect-[4/3] bg-zinc-50 flex items-center justify-center relative overflow-hidden">
-                  {ex.photo ? (
-                    <img src={ex.photo} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="" />
-                  ) : (
-                    <div className="flex flex-col items-center gap-3 opacity-40 group-hover:opacity-60 transition-opacity">
-                      <div className="text-emerald-500">
-                        <DumbbellIcon size={40} />
-                      </div>
-                      <span className="text-[9px] font-black uppercase tracking-widest">{ex.name}</span>
-                    </div>
-                  )}
-                  
-                  {ex.videoUrl && (
-                    <div className="absolute bottom-2 right-2 z-10">
-                      <div className="w-8 h-8 bg-emerald-500 text-zinc-900 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                        <VideoIcon size={14} />
-                      </div>
-                    </div>
-                  )}
-                  
-                  {isSquatBarre && needsPhoto && (
-                    <div className="absolute top-2 left-2 z-10">
-                      <Badge variant="accent" className="!text-[10px] animate-bounce shadow-sm">SUGGESTION IA</Badge>
-                    </div>
-                  )}
-                  
-                  {/* Persistent Actions */}
-                  <div className="absolute top-2 right-2 flex gap-2 z-10">
-                    <button 
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        const newEx = { ...ex, id: Date.now(), name: `${ex.name} (Copie)` };
-                        try {
-                          await setDoc(doc(db, "exercises", newEx.id.toString()), newEx);
-                          showToast("Exercice dupliqué");
-                        } catch (err) {
-                          showToast("Erreur lors de la duplication", "error");
-                        }
-                      }}
-                      className="w-8 h-8 bg-zinc-100 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-600 hover:text-emerald-500 hover:bg-white shadow-sm transition-all"
-                      title="Dupliquer l'exercice"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    </button>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); setEditingEx(ex); }}
-                      className="w-8 h-8 bg-zinc-100 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-500 hover:text-emerald-500 hover:bg-white shadow-sm transition-all"
-                      title="Modifier l'exercice"
-                    >
-                      <Edit2Icon size={14} />
-                    </button>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setConfirmDeleteExId(ex.id);
-                      }}
-                      className="w-8 h-8 bg-zinc-100 backdrop-blur-sm rounded-full flex items-center justify-center text-zinc-500 hover:text-red-500 hover:bg-white shadow-sm transition-all"
-                      title="Supprimer l'exercice"
-                    >
-                      <Trash2Icon size={14} />
-                    </button>
-                  </div>
-              </div>
-              <div className="p-4 border-t ">
-                <div className="font-black text-sm truncate group-hover:text-emerald-500 transition-colors tracking-tight pr-8">{ex.name}</div>
-                <div className="flex justify-between items-center mt-2">
-                  <Badge variant="dark" className="!bg-white !p-0 !border-none !text-zinc-900">{ex.cat}</Badge>
-                  <div className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">{ex.equip}</div>
-                </div>
-              </div>
-            </Card>
-            </motion.div>
-          );
-        })}
-      </motion.div>
-
-      {/* Modal d'ajout Manuel */}
-      {createPortal(
-      <AnimatePresence>
-      {showAddModal && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/25 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
-          onClick={() => setShowAddModal(false)}
-        >
-           <motion.div
-             initial={{ scale: 0.95, opacity: 0, y: 20 }}
-             animate={{ scale: 1, opacity: 1, y: 0 }}
-             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-             className="w-full max-w-md"
-             onClick={e => e.stopPropagation()}
-           >
-             <Card className="w-full !p-8  relative shadow-2xl bg-zinc-100 backdrop-blur-2xl">
-              <button onClick={() => setShowAddModal(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 transition-colors bg-zinc-50 p-2 rounded-full hover:bg-white">
-                <XIcon size={24} />
-              </button>
-              
-              <h2 className="text-2xl font-black mb-1">NOUVEL EXERCICE</h2>
-              <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-8">Ajout manuel à la bibliothèque</p>
-
-              <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                <div className="space-y-1">
-                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Nom du mouvement</label>
-                   <Input 
-                    placeholder="Ex: Leg Press Incliné"
-                    value={newEx.name}
-                    onChange={e => setNewEx({...newEx, name: e.target.value})}
-                    className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm"
-                   />
-                </div>
-
-                <div className="space-y-1">
-                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Catégorie</label>
-                   <select 
-                     className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-emerald-500 outline-none appearance-none shadow-sm"
-                     value={newEx.cat}
-                     onChange={e => setNewEx({...newEx, cat: e.target.value})}
-                   >
-                     {EXERCISE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                   </select>
-                </div>
-
-                <div className="space-y-1">
-                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Équipement requis</label>
-                   <Input 
-                    placeholder="Ex: Machine, Barre, Haltères..."
-                    value={newEx.equip}
-                    onChange={e => setNewEx({...newEx, equip: e.target.value})}
-                    className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm"
-                   />
-                </div>
-
-                <div className="space-y-1">
-                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Photo (URL ou Fichier)</label>
-                   {newEx.photo?.startsWith('data:image') ? (
-                     <div className="flex items-center gap-3 p-2 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl shadow-sm">
-                       <img src={newEx.photo} alt="Preview" className="w-10 h-10 object-cover rounded-lg" />
-                       <span className="text-xs font-bold text-emerald-500 flex-1">Image chargée avec succès</span>
-                       <button onClick={() => setNewEx({...newEx, photo: ""})} className="p-2 text-zinc-500 hover:text-red-500">
-                         <XIcon size={16} />
-                       </button>
-                     </div>
-                   ) : (
-                     <Input 
-                      placeholder="https://..."
-                      value={newEx.photo || ""}
-                      onChange={e => setNewEx({...newEx, photo: e.target.value})}
-                      className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm"
-                     />
-                   )}
-                </div>
-
-                <div className="space-y-1">
-                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Vidéo (Lien ou Fichier)</label>
-                   <Input 
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    value={newEx.videoUrl || ""}
-                    onChange={e => setNewEx({...newEx, videoUrl: e.target.value})}
-                    className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm mb-2"
-                   />
-                   <input 
-                     type="file" 
-                     accept="video/*"
-                     disabled={isUploadingVideo}
-                     className="w-full text-[10px] text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-emerald-500 file:text-zinc-900 hover:file:bg-emerald-600 cursor-pointer bg-zinc-50 backdrop-blur-xl p-2 rounded-xl border border-zinc-200 shadow-sm disabled:opacity-50"
-                     onChange={async (e) => {
-                       const file = e.target.files?.[0];
-                       if (file) {
-                         if (file.size > 50 * 1024 * 1024) {
-                           showToast("La vidéo est trop volumineuse (max 50MB)", "error");
-                           return;
-                         }
-                         setIsUploadingVideo(true);
-                         try {
-                           if (!auth.currentUser?.uid || !state.currentClub?.id) throw new Error('Session ou club introuvable.');
-                           const storage = await getStorageClient();
-                           const videoRef = ref(storage, `videos/${state.currentClub.id}/${auth.currentUser.uid}/${Date.now()}_${file.name}`);
-                           await uploadBytes(videoRef, file);
-                           const url = await getDownloadURL(videoRef);
-                           setNewEx({...newEx, videoUrl: url});
-                           showToast("Vidéo chargée avec succès", "success");
-                         } catch (error) {
-                           console.error("Error uploading video:", error);
-                           showToast("Erreur lors du chargement de la vidéo", "error");
-                         } finally {
-                           setIsUploadingVideo(false);
-                         }
-                       }
-                     }}
-                   />
-                   {isUploadingVideo && <p className="text-[10px] font-bold text-emerald-500 mt-1 ml-1">Chargement de la vidéo en cours...</p>}
-                </div>
-
-                <div className="space-y-1">
-                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Ou charger un fichier</label>
-                   <input 
-                     type="file" 
-                     accept="image/*"
-                     className="w-full text-[10px] text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-emerald-500 file:text-zinc-900 hover:file:bg-emerald-600 cursor-pointer bg-zinc-50 backdrop-blur-xl p-2 rounded-xl border border-zinc-200 shadow-sm"
-                     onChange={(e) => {
-                       const file = e.target.files?.[0];
-                       if (file) {
-                         const reader = new FileReader();
-                         reader.onloadend = () => {
-                           const img = new Image();
-                           img.onload = () => {
-                             const canvas = document.createElement('canvas');
-                             const MAX_WIDTH = 800;
-                             const MAX_HEIGHT = 800;
-                             let width = img.width;
-                             let height = img.height;
-
-                             if (width > height) {
-                               if (width > MAX_WIDTH) {
-                                 height *= MAX_WIDTH / width;
-                                 width = MAX_WIDTH;
-                               }
-                             } else {
-                               if (height > MAX_HEIGHT) {
-                                 width *= MAX_HEIGHT / height;
-                                 height = MAX_HEIGHT;
-                               }
-                             }
-
-                             canvas.width = width;
-                             canvas.height = height;
-                             const ctx = canvas.getContext('2d');
-                             ctx?.drawImage(img, 0, 0, width, height);
-                             const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                             setNewEx({...newEx, photo: dataUrl});
-                           };
-                           img.src = reader.result as string;
-                         };
-                         reader.readAsDataURL(file);
-                       }
-                     }}
-                   />
-                </div>
-              </div>
-
-              <div className="pt-6 mt-6 border-t border-zinc-200 flex flex-col sm:flex-row gap-3">
-                <Button variant="secondary" fullWidth onClick={() => setShowAddModal(false)} className="bg-zinc-50 hover:bg-white">ANNULER</Button>
-                <Button variant="primary" fullWidth onClick={handleSaveNewEx} className="shadow-lg shadow-emerald-500/20">
-                  CRÉER <CheckIcon size={18} className="ml-2" />
-                </Button>
-              </div>
-             </Card>
-           </motion.div>
-        </motion.div>
-      )}
-      </AnimatePresence>,
-      document.body
-      )}
-      {/* Modal d'édition */}
-      {createPortal(
-      <AnimatePresence>
-      {editingEx && (
-        <motion.div 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/25 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => setEditingEx(null)}
-        >
-           <motion.div
-             initial={{ scale: 0.95, opacity: 0, y: 20 }}
-             animate={{ scale: 1, opacity: 1, y: 0 }}
-             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-             className="w-full max-w-md my-8"
-             onClick={e => e.stopPropagation()}
-           >
-             <Card className="w-full !p-8 relative shadow-2xl bg-zinc-100 backdrop-blur-2xl">
-              <button onClick={() => setEditingEx(null)} className="absolute top-6 right-6 text-zinc-500 hover:text-zinc-900 transition-colors bg-zinc-50 p-2 rounded-full hover:bg-white z-10">
-                <XIcon size={24} />
-              </button>
-              
-              <h2 className="text-2xl font-black mb-1">MODIFIER L'EXERCICE</h2>
-              <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-8">{editingEx.name}</p>
-
-              <div className="space-y-5 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                <div className="space-y-1">
-                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Nom du mouvement</label>
-                   <Input 
-                    placeholder="Ex: Leg Press Incliné"
-                    value={editingEx.name}
-                    onChange={e => setEditingEx({...editingEx, name: e.target.value})}
-                    className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm"
-                   />
-                </div>
-
-                <div className="space-y-1">
-                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Catégorie</label>
-                   <select 
-                     className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-emerald-500 outline-none appearance-none shadow-sm"
-                     value={editingEx.cat}
-                     onChange={e => setEditingEx({...editingEx, cat: e.target.value})}
-                   >
-                     {EXERCISE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                   </select>
-                </div>
-
-                <div className="space-y-1">
-                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Équipement requis</label>
-                   <Input 
-                    placeholder="Ex: Machine, Barre, Haltères..."
-                    value={editingEx.equip}
-                    onChange={e => setEditingEx({...editingEx, equip: e.target.value})}
-                    className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm"
-                   />
-                </div>
-
-                <div className="space-y-1">
-                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Photo (URL ou Fichier)</label>
-                   {editingEx.photo?.startsWith('data:image') ? (
-                     <div className="flex items-center gap-3 p-2 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl shadow-sm">
-                       <img src={editingEx.photo} alt="Preview" className="w-10 h-10 object-cover rounded-lg" />
-                       <span className="text-xs font-bold text-emerald-500 flex-1">Image chargée avec succès</span>
-                       <button onClick={() => setEditingEx({...editingEx, photo: ""})} className="p-2 text-zinc-500 hover:text-red-500">
-                         <XIcon size={16} />
-                       </button>
-                     </div>
-                   ) : (
-                     <Input 
-                      placeholder="https://..."
-                      value={editingEx.photo || ""}
-                      onChange={e => setEditingEx({...editingEx, photo: e.target.value})}
-                      className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm"
-                     />
-                   )}
-                </div>
-
-                <div className="space-y-1">
-                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Vidéo (Lien ou Fichier)</label>
-                   <Input 
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    value={editingEx.videoUrl || ""}
-                    onChange={e => setEditingEx({...editingEx, videoUrl: e.target.value})}
-                    className="\!bg-zinc-50 backdrop-blur-xl \!border-zinc-200 shadow-sm mb-2"
-                   />
-                   <input 
-                     type="file" 
-                     accept="video/*"
-                     disabled={isUploadingVideo}
-                     className="w-full text-[10px] text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-emerald-500 file:text-zinc-900 hover:file:bg-emerald-600 cursor-pointer bg-zinc-50 backdrop-blur-xl p-2 rounded-xl border border-zinc-200 shadow-sm disabled:opacity-50"
-                     onChange={async (e) => {
-                       const file = e.target.files?.[0];
-                       if (file) {
-                         if (file.size > 50 * 1024 * 1024) {
-                           showToast("La vidéo est trop volumineuse (max 50MB)", "error");
-                           return;
-                         }
-                         setIsUploadingVideo(true);
-                         try {
-                           if (!auth.currentUser?.uid || !state.currentClub?.id) throw new Error('Session ou club introuvable.');
-                           const storage = await getStorageClient();
-                           const videoRef = ref(storage, `videos/${state.currentClub.id}/${auth.currentUser.uid}/${Date.now()}_${file.name}`);
-                           await uploadBytes(videoRef, file);
-                           const url = await getDownloadURL(videoRef);
-                           setEditingEx({...editingEx, videoUrl: url});
-                           showToast("Vidéo chargée avec succès", "success");
-                         } catch (error) {
-                           console.error("Error uploading video:", error);
-                           showToast("Erreur lors du chargement de la vidéo", "error");
-                         } finally {
-                           setIsUploadingVideo(false);
-                         }
-                       }
-                     }}
-                   />
-                   {isUploadingVideo && <p className="text-[10px] font-bold text-emerald-500 mt-1 ml-1">Chargement de la vidéo en cours...</p>}
-                </div>
-
-                <div className="space-y-1">
-                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900 tracking-widest ml-1">Ou charger un fichier</label>
-                   <input 
-                     type="file" 
-                     accept="image/*"
-                     className="w-full text-[10px] text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:bg-emerald-500 file:text-zinc-900 hover:file:bg-emerald-600 cursor-pointer bg-zinc-50 backdrop-blur-xl p-2 rounded-xl border border-zinc-200 shadow-sm"
-                     onChange={(e) => {
-                       const file = e.target.files?.[0];
-                       if (file) {
-                         const reader = new FileReader();
-                         reader.onloadend = () => {
-                           const img = new Image();
-                           img.onload = () => {
-                             const canvas = document.createElement('canvas');
-                             const MAX_WIDTH = 800;
-                             const MAX_HEIGHT = 800;
-                             let width = img.width;
-                             let height = img.height;
-
-                             if (width > height) {
-                               if (width > MAX_WIDTH) {
-                                 height *= MAX_WIDTH / width;
-                                 width = MAX_WIDTH;
-                               }
-                             } else {
-                               if (height > MAX_HEIGHT) {
-                                 width *= MAX_HEIGHT / height;
-                                 height = MAX_HEIGHT;
-                               }
-                             }
-
-                             canvas.width = width;
-                             canvas.height = height;
-                             const ctx = canvas.getContext('2d');
-                             ctx?.drawImage(img, 0, 0, width, height);
-                             const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                             setEditingEx({...editingEx, photo: dataUrl});
-                           };
-                           img.src = reader.result as string;
-                         };
-                         reader.readAsDataURL(file);
-                       }
-                     }}
-                   />
-                </div>
-              </div>
-
-              <div className="pt-6 mt-6 border-t border-zinc-200 flex flex-col sm:flex-row gap-3">
-                <Button variant="secondary" fullWidth onClick={() => setEditingEx(null)} className="bg-zinc-50 hover:bg-white">ANNULER</Button>
-                <Button variant="primary" fullWidth onClick={() => handleUpdateEx(editingEx)} className="shadow-lg shadow-emerald-500/20">
-                  ENREGISTRER <SaveIcon size={18} className="ml-2" />
-                </Button>
-              </div>
-             </Card>
-           </motion.div>
-        </motion.div>
-      )}
-      </AnimatePresence>,
-      document.body
-    )}
-
-      {confirmDeleteExId && createPortal(
-        <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
-          >
-            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer cet exercice ?</h3>
-            <p className="text-zinc-500 mb-6">Cette action est irréversible.</p>
-            <div className="flex gap-3">
-              <Button variant="secondary" fullWidth onClick={() => setConfirmDeleteExId(null)}>Annuler</Button>
-              <Button variant="danger" fullWidth onClick={confirmDelete}>Supprimer</Button>
-            </div>
-          </motion.div>
-        </div>,
-        document.body
-      )}
-    </motion.div>
-  );
+export const ExercisesPage: React.FC<{ state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; showToast: (message: string, type?: string) => void }> = ({ state, setState, showToast }) => {
+  const clubId = state.user?.clubId || state.currentClub?.id || '';
+  const userUid = auth.currentUser?.uid || state.user?.firebaseUid || '';
+  const [filters, setFilters] = useState<ExerciseFilters>({ origin: 'all', sort: 'name', clubId });
+  const [filtersOpen, setFiltersOpen] = useState(false); const [editorOpen, setEditorOpen] = useState(false); const [editingExercise, setEditingExercise] = useState<Exercise | null>(null); const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null); const [draft, setDraft] = useState<ExerciseDraft>(toDraft()); const [uploading, setUploading] = useState<'photo' | 'video' | null>(null); const [saving, setSaving] = useState(false);
+  const categories = useMemo(() => Array.from(new Set([...EXERCISE_CATEGORIES, ...state.exercises.map(exercise => exercise.cat)])).sort((a, b) => a.localeCompare(b, 'fr')), [state.exercises]);
+  const equipment = useMemo(() => Array.from(new Set(state.exercises.map(exercise => exercise.equip).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr')), [state.exercises]);
+  const displayed = useMemo(() => filterExercises(state.exercises, { ...filters, clubId }), [state.exercises, filters, clubId]);
+  const resetFilters = () => setFilters({ origin: 'all', sort: 'name', clubId });
+  const openEditor = (exercise?: Exercise) => { setEditingExercise(exercise || null); setDraft(toDraft(exercise)); setEditorOpen(true); };
+  const persist = async (next: Exercise) => { await setDoc(doc(db, 'exercises', String(next.id)), next); setState(current => ({ ...current, exercises: [...current.exercises.filter(exercise => exercise.id !== next.id), next] })); };
+  const save = async () => { if (!clubId || !userUid) return showToast('Votre session ne permet pas de modifier la bibliothèque.', 'error'); setSaving(true); try { const now = new Date().toISOString(); const next = editingExercise ? updateClubExercise(editingExercise, draft, { clubId, now }) : buildClubExercise(draft, { id: createNumericId(), clubId, createdByUid: userUid, now }); await persist(next); showToast(editingExercise ? 'Exercice mis à jour.' : 'Exercice ajouté.', 'success'); setEditorOpen(false); } catch (error) { showToast(error instanceof Error ? error.message : 'Enregistrement impossible.', 'error'); } finally { setSaving(false); } };
+  const duplicate = async (source: Exercise) => { if (!clubId || !userUid) return showToast('Votre session ne permet pas de dupliquer cet exercice.', 'error'); try { const copy = duplicateExerciseForClub(source, { id: createNumericId(), clubId, createdByUid: userUid, now: new Date().toISOString() }); await persist(copy); showToast('Copie ajoutée à votre bibliothèque.', 'success'); } catch { showToast('Duplication impossible.', 'error'); } };
+  const archive = async (exercise: Exercise, restore = false) => { if (!canManageExercise(exercise, clubId)) return; try { const next = { ...exercise, isArchived: !restore, updatedAt: new Date().toISOString() }; await persist(next); showToast(restore ? 'Exercice restauré.' : 'Exercice archivé. Il reste disponible pour les programmes existants.', 'success'); if (selectedExercise?.id === exercise.id) setSelectedExercise(next); } catch { showToast('Mise à jour impossible.', 'error'); } };
+  const controls = <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><label className="text-xs font-medium text-zinc-700">Catégorie<select value={filters.category || ''} onChange={event => setFilters(current => ({ ...current, category: event.target.value }))} className="mt-1 h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm"><option value="">Toutes</option>{categories.map(value => <option key={value}>{value}</option>)}</select></label><label className="text-xs font-medium text-zinc-700">Muscle<select value={filters.muscle || ''} onChange={event => setFilters(current => ({ ...current, muscle: event.target.value }))} className="mt-1 h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm"><option value="">Tous</option>{EXERCISE_MUSCLES.map(value => <option key={value}>{value}</option>)}</select></label><label className="text-xs font-medium text-zinc-700">Équipement<select value={filters.equipment || ''} onChange={event => setFilters(current => ({ ...current, equipment: event.target.value }))} className="mt-1 h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm"><option value="">Tous</option>{equipment.map(value => <option key={value}>{value}</option>)}</select></label><label className="text-xs font-medium text-zinc-700">Difficulté<select value={filters.difficulty || ''} onChange={event => setFilters(current => ({ ...current, difficulty: event.target.value as ExerciseDifficulty | '' }))} className="mt-1 h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm"><option value="">Toutes</option>{EXERCISE_DIFFICULTIES.map(value => <option value={value} key={value}>{DIFFICULTY_LABELS[value]}</option>)}</select></label><label className="text-xs font-medium text-zinc-700">Type<select value={filters.exerciseType || ''} onChange={event => setFilters(current => ({ ...current, exerciseType: event.target.value as ExerciseType | '' }))} className="mt-1 h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm"><option value="">Tous</option>{EXERCISE_TYPES.map(value => <option value={value} key={value}>{TYPE_LABELS[value]}</option>)}</select></label><label className="text-xs font-medium text-zinc-700">Origine<select value={filters.origin || 'all'} onChange={event => setFilters(current => ({ ...current, origin: event.target.value as ExerciseOrigin }))} className="mt-1 h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm"><option value="all">Tout</option><option value="global">Velatra</option><option value="club">Mon club</option></select></label><label className="flex min-h-11 items-center gap-2 text-sm font-medium text-zinc-800"><input type="checkbox" checked={Boolean(filters.includeArchived)} onChange={event => setFilters(current => ({ ...current, includeArchived: event.target.checked }))} />Inclure les archivés</label></div>;
+  return <main className="space-y-6 pb-20" data-testid="exercise-library"><header className="flex flex-col gap-4 border-b border-zinc-200 pb-5 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-800">Coaching · Référentiel</p><h1 className="mt-1 font-display text-3xl font-bold tracking-tight text-zinc-950 sm:text-4xl">Bibliothèque d’exercices</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-700">Créez, organisez et réutilisez les mouvements de votre club. Les exercices Velatra sont consultables et duplicables.</p></div><button type="button" onClick={() => openEditor()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800"><Plus size={18} />Créer un exercice</button></header><section className="rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4"><div className="flex flex-col gap-3 lg:flex-row lg:items-center"><label className="relative block flex-1"><span className="sr-only">Rechercher</span><Search size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" /><input value={filters.search || ''} onChange={event => setFilters(current => ({ ...current, search: event.target.value }))} placeholder="Nom, catégorie, équipement, muscle ou tag…" className="h-11 w-full rounded-xl border border-zinc-300 bg-white pl-10 pr-3 text-sm text-zinc-900 placeholder:text-zinc-500" /></label><label className="text-xs font-medium text-zinc-700">Trier<select value={filters.sort || 'name'} onChange={event => setFilters(current => ({ ...current, sort: event.target.value as 'name' | 'recent' }))} className="ml-2 h-11 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900"><option value="name">A–Z</option><option value="recent">Ajout récent</option></select></label><button type="button" onClick={() => setFiltersOpen(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-zinc-300 px-3 text-sm font-semibold text-zinc-800 lg:hidden"><Filter size={17} />Filtres{countActiveFilters(filters) ? ` (${countActiveFilters(filters)})` : ''}</button></div><div className="mt-4 hidden lg:block">{controls}</div></section><div className="flex items-center justify-between gap-3"><p className="text-sm text-zinc-700"><strong className="text-zinc-950">{displayed.length}</strong> exercice{displayed.length > 1 ? 's' : ''}</p>{countActiveFilters(filters) > 0 && <button type="button" onClick={resetFilters} className="min-h-10 text-sm font-semibold text-emerald-900 underline underline-offset-4">Réinitialiser les filtres</button>}</div>{displayed.length === 0 ? <section className="rounded-2xl border border-dashed border-zinc-300 bg-white p-10 text-center"><Dumbbell className="mx-auto text-emerald-800" size={30} /><h2 className="mt-3 text-lg font-semibold text-zinc-950">Aucun exercice trouvé</h2><p className="mt-1 text-sm text-zinc-700">Modifiez vos filtres ou créez un exercice pour votre club.</p></section> : <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{displayed.map(exercise => { const manageable = canManageExercise(exercise, clubId); const archived = isExerciseArchived(exercise); const referenced = isExerciseReferenced(exercise.id, state.programs, state.presets); return <article key={exercise.id} className={`overflow-hidden rounded-2xl border bg-white shadow-sm hover:shadow-md ${archived ? 'border-amber-300 bg-amber-50/40' : 'border-zinc-200'}`}><button type="button" onClick={() => setSelectedExercise(exercise)} className="block w-full text-left"><div className="relative flex aspect-[16/8] items-center justify-center overflow-hidden bg-zinc-100">{exercise.photo ? <img src={exercise.photo} alt="" loading="lazy" className="h-full w-full object-cover" /> : <Dumbbell size={34} className="text-emerald-800" />}{archived && <span className="absolute left-3 top-3 rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-950">Archivé</span>}{exercise.videoUrl && <span className="absolute bottom-3 right-3 rounded-full bg-zinc-950/80 p-2 text-white"><Video size={15} /></span>}</div><div className="p-4"><div className="flex items-start justify-between gap-2"><div><p className="text-base font-semibold text-zinc-950">{exercise.name}</p><p className="mt-1 text-xs text-zinc-600">{exercise.cat} · {exercise.equip}</p></div><span className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ${exercise.clubId === 'global' ? 'bg-zinc-100 text-zinc-700' : 'bg-emerald-50 text-emerald-950'}`}>{exercise.clubId === 'global' ? 'Velatra' : 'Mon club'}</span></div>{exercise.primaryMuscles?.length ? <p className="mt-3 truncate text-xs text-zinc-700">{exercise.primaryMuscles.join(' · ')}</p> : <p className="mt-3 text-xs text-zinc-500">{TYPE_LABELS[getExerciseType(exercise)]}</p>}</div></button><div className="flex items-center justify-between border-t border-zinc-100 px-3 py-2"><span className="text-[11px] text-zinc-600">{referenced ? 'Utilisé dans des programmes' : archived ? 'Disponible dans l’historique' : 'Bibliothèque active'}</span><div className="flex items-center gap-1"><button type="button" onClick={() => void duplicate(exercise)} aria-label={`Dupliquer ${exercise.name}`} title="Dupliquer dans mon club" className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-700 hover:bg-zinc-100"><Copy size={16} /></button>{manageable && <><button type="button" onClick={() => openEditor(exercise)} aria-label={`Modifier ${exercise.name}`} className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-700 hover:bg-zinc-100"><Edit3 size={16} /></button><button type="button" onClick={() => void archive(exercise, archived)} aria-label={archived ? `Restaurer ${exercise.name}` : `Archiver ${exercise.name}`} className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-700 hover:bg-zinc-100"><ArchiveRestore size={16} /></button></>}</div></div></article>; })}</section>}<Dialog open={filtersOpen} onClose={() => setFiltersOpen(false)} label="Filtres des exercices" className="max-w-lg"><div className="flex items-center justify-between border-b border-zinc-200 p-4"><h2 className="text-lg font-semibold">Filtres</h2><button type="button" onClick={() => setFiltersOpen(false)} aria-label="Fermer" className="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200"><X size={18} /></button></div><div className="max-h-[70dvh] overflow-y-auto p-4">{controls}</div><div className="flex gap-2 border-t border-zinc-200 p-4"><button type="button" onClick={resetFilters} className="min-h-11 rounded-lg border border-zinc-300 px-4 text-sm font-semibold">Réinitialiser</button><button type="button" onClick={() => setFiltersOpen(false)} className="min-h-11 flex-1 rounded-lg bg-emerald-900 px-4 text-sm font-semibold text-white">Afficher {displayed.length} résultat{displayed.length > 1 ? 's' : ''}</button></div></Dialog><Dialog open={editorOpen} onClose={() => setEditorOpen(false)} label={editingExercise ? 'Modifier un exercice' : 'Créer un exercice'} className="max-w-3xl"><div className="flex items-center justify-between border-b border-zinc-200 p-4 sm:p-6"><div><h2 className="text-xl font-semibold text-zinc-950">{editingExercise ? 'Modifier l’exercice' : 'Nouvel exercice'}</h2><p className="mt-1 text-sm text-zinc-700">Les exercices Velatra restent en lecture seule. Dupliquez-les pour les adapter.</p></div><button type="button" onClick={() => setEditorOpen(false)} aria-label="Fermer" className="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200"><X size={18} /></button></div><div className="max-h-[68dvh] overflow-y-auto p-4 sm:p-6"><ExerciseForm draft={draft} setDraft={setDraft} clubId={clubId} userUid={userUid} showToast={showToast} uploading={uploading} setUploading={setUploading} /></div><div className="flex flex-col-reverse gap-2 border-t border-zinc-200 p-4 sm:flex-row sm:justify-end sm:p-6"><button type="button" onClick={() => setEditorOpen(false)} className="min-h-11 rounded-lg border border-zinc-300 px-4 text-sm font-semibold">Annuler</button><button type="button" disabled={saving || Boolean(uploading)} onClick={() => void save()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-900 px-4 text-sm font-semibold text-white disabled:opacity-50"><Check size={17} />{saving ? 'Enregistrement…' : 'Enregistrer'}</button></div></Dialog><Dialog open={Boolean(selectedExercise)} onClose={() => setSelectedExercise(null)} label="Détail de l’exercice" className="max-w-xl">{selectedExercise && <><div className="flex items-center justify-between border-b border-zinc-200 p-4"><div><p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-800">{selectedExercise.clubId === 'global' ? 'Exercice Velatra' : 'Exercice du club'}</p><h2 className="mt-1 text-xl font-semibold text-zinc-950">{selectedExercise.name}</h2></div><button type="button" onClick={() => setSelectedExercise(null)} aria-label="Fermer" className="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200"><X size={18} /></button></div><div className="max-h-[65dvh] space-y-4 overflow-y-auto p-4"><div className="aspect-video overflow-hidden rounded-xl bg-zinc-100">{selectedExercise.photo ? <img src={selectedExercise.photo} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center"><Dumbbell className="text-emerald-800" size={36} /></div>}</div><dl className="grid grid-cols-2 gap-3 text-sm"><div><dt className="text-zinc-600">Catégorie</dt><dd className="font-medium text-zinc-950">{selectedExercise.cat}</dd></div><div><dt className="text-zinc-600">Équipement</dt><dd className="font-medium text-zinc-950">{selectedExercise.equip}</dd></div><div><dt className="text-zinc-600">Type</dt><dd className="font-medium text-zinc-950">{TYPE_LABELS[getExerciseType(selectedExercise)]}</dd></div><div><dt className="text-zinc-600">Ajouté</dt><dd className="font-medium text-zinc-950">{selectedExercise.createdAt ? new Date(selectedExercise.createdAt).toLocaleDateString('fr-FR') : 'Date inconnue'}</dd></div></dl>{selectedExercise.description && <section><h3 className="text-sm font-semibold text-zinc-950">Description</h3><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-zinc-700">{selectedExercise.description}</p></section>}{selectedExercise.instructions && <section><h3 className="text-sm font-semibold text-zinc-950">Consignes</h3><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-zinc-700">{selectedExercise.instructions}</p></section>}{selectedExercise.videoUrl && <a href={selectedExercise.videoUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center gap-2 font-semibold text-emerald-900 underline underline-offset-4"><Video size={17} />Voir la vidéo</a>}</div><div className="flex flex-col gap-2 border-t border-zinc-200 p-4 sm:flex-row sm:justify-end"><button type="button" onClick={() => void duplicate(selectedExercise)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-zinc-300 px-4 text-sm font-semibold"><Copy size={16} />Dupliquer dans mon club</button>{canManageExercise(selectedExercise, clubId) && <button type="button" onClick={() => { openEditor(selectedExercise); setSelectedExercise(null); }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-900 px-4 text-sm font-semibold text-white"><Edit3 size={16} />Modifier</button>}</div></>}</Dialog></main>;
 };
