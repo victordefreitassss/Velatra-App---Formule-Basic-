@@ -206,6 +206,19 @@ export interface Exercise {
   photo: string | null;
   videoUrl?: string; // Added for video support
   perfId: string | null;
+  /** Optional knowledge-base fields. Old exercise documents remain valid. */
+  description?: string;
+  instructions?: string;
+  primaryMuscles?: string[];
+  secondaryMuscles?: string[];
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  tags?: string[];
+  exerciseType?: 'strength' | 'cardio' | 'timed' | 'distance' | 'mobility' | 'other';
+  /** Archived exercises remain resolvable by existing programs and session history. */
+  isArchived?: boolean;
+  createdByUid?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ExerciseEntry {

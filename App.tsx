@@ -10,6 +10,8 @@ import type { Notification, Page } from './types';
 import { 
   INIT_EXERCISES, CLUB_INFO, COACHES, CATEGORY_MEDIA, getExerciseMedia 
 } from './constants';
+import { buildClubExercise, mergeExercises } from './components/exerciseLibraryModel';
+import { createNumericId } from './components/dataHelpers';
 import { 
   apiFetch, auth, db, getMessagingClient, firebaseConfig,
   onAuthStateChanged, signOut, 
@@ -987,15 +989,7 @@ export default function App() {
       const fetchedExercises: Exercise[] = [];
       snap.forEach(d => fetchedExercises.push(d.data() as Exercise));
       
-      const mergedExercises = [...INIT_EXERCISES];
-      fetchedExercises.forEach(fetchedEx => {
-        const index = mergedExercises.findIndex(ex => ex.id === fetchedEx.id);
-        if (index >= 0) {
-          mergedExercises[index] = fetchedEx;
-        } else {
-          mergedExercises.push(fetchedEx);
-        }
-      });
+      const mergedExercises = mergeExercises(INIT_EXERCISES, fetchedExercises);
       
       const enhancedExercises = mergedExercises.map(ex => {
         const media = getExerciseMedia(ex.name, ex.cat || "Autre");
@@ -1126,9 +1120,16 @@ export default function App() {
           clubId={user.clubId}
           allPresets={state.presets}
           member={state.editingProg ? (state.users || []).find(u => Number(u.id) === state.editingProg!.memberId) : undefined}
-          onCreateExercise={async (exercise: Exercise) => {
+          onCreateExercise={async (draft) => {
+            const exercise = buildClubExercise(draft, {
+              id: createNumericId(),
+              clubId: user.clubId,
+              createdByUid: user.firebaseUid || auth.currentUser?.uid || '',
+              now: new Date().toISOString(),
+            });
             await setDoc(doc(db, 'exercises', String(exercise.id)), exercise);
             setState(current => ({ ...current, exercises: [...current.exercises.filter(item => item.id !== exercise.id), exercise] }));
+            return exercise;
           }}
           onSave={async (data, action) => {
             const dataWithClub = { ...data, clubId: user.clubId };
