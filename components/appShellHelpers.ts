@@ -126,6 +126,16 @@ export function getPrimaryHubsForRole(context: NavigationContext): PrimaryHubIte
 }
 export function getMobileMoreGroups(context: NavigationContext): MobileHubGroup[] {
   if (context.role === 'superadmin') return [{ label: 'Administration', hub: 'admin', items: getAllContextItems(context) }];
+  if (!isStaff(context.role)) {
+    const available = getContextItemsForHub('plus', context);
+    return [
+      { label: 'Mon coach', hub: 'plus' as const, ids: ['messages'] },
+      { label: 'Mon compte', hub: 'plus' as const, ids: ['profile'] },
+      { label: 'Mes informations', hub: 'plus' as const, ids: ['drive', 'about'] },
+      { label: 'Outils', hub: 'plus' as const, ids: ['ai_coach'] },
+    ].map(group => ({ label: group.label, hub: group.hub, items: available.filter(item => group.ids.includes(item.id)) }))
+      .filter(group => group.items.length > 0);
+  }
   const hubs: { id: AppHub; label: string }[] = isStaff(context.role)
     ? [...coachHubs.slice(1), { id: 'plus', label: 'Compte et aide' }]
     : [{ id: 'plus', label: 'Plus' }];

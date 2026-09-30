@@ -51,7 +51,7 @@ test('Member has five member spaces and no coach navigation or creation menu', (
     assert.deepEqual(getContextItemsForHub('sessions', ctx).map(item => item.id), ['calendar', 'planning', 'history']);
     assert.deepEqual(getContextItemsForHub('plus', ctx).map(item => item.id),
       ['profile', 'messages', 'drive', 'about', 'ai_coach']);
-    assert.deepEqual(getMobileMoreGroups(ctx).map(group => group.hub), ['plus']);
+    assert.deepEqual(getMobileMoreGroups(ctx).map(group => group.label), ['Mon coach', 'Mon compte', 'Mes informations', 'Outils']);
     assert.equal(getAppHubForPage('history', ctx), 'sessions');
   }
 });
@@ -62,6 +62,24 @@ test('Unimplemented member shop stays out of navigation despite available nutrit
   assert.ok(ids(ctx).includes('nutrition'));
   assert.ok(!ids(ctx).includes('supplements'));
   assert.equal(getAppHubForPage('supplements', ctx), 'plus');
+});
+
+test('Member Plus groups contain only available secondary routes and keep AI last', () => {
+  for (const type of ['solo', 'studio'] as const) {
+    const ctx = context('member', type);
+    const groups = getMobileMoreGroups(ctx);
+    const all = getAllContextItems(ctx);
+    assert.deepEqual(groups.flatMap(group => group.items.map(item => item.id)), ['messages', 'profile', 'drive', 'about', 'ai_coach']);
+    assert.ok(groups.every(group => group.items.every(item => item.hub === 'plus' && all.some(destination => destination.id === item.id))));
+    assert.ok(!groups.some(group => group.items.some(item => item.id === 'supplements')));
+  }
+});
+
+test('Disabled booking keeps the five member roots but removes the reservation shortcut', () => {
+  const ctx = context('member', 'solo', false);
+  assert.deepEqual(hubs(ctx), ['Accueil', 'Séances', 'Progression', 'Nutrition', 'Plus']);
+  assert.ok(!getContextItemsForHub('sessions', ctx).some(item => item.id === 'planning'));
+  assert.ok(getContextItemsForHub('sessions', ctx).some(item => item.id === 'calendar'));
 });
 
 test('Legacy clubs retain available historical secondary pages without inferring Solo', () => {
