@@ -117,6 +117,10 @@ describe('Firestore coach/member isolation', () => {
     await assertFails(updateDoc(doc(memberDb, 'users', 'member-a'), { credits: 999 }));
     const coachDb = testEnv.authenticatedContext('coach-a').firestore();
     await assertFails(setDoc(doc(coachDb, 'bookings', 'forged-credit'), { clubId: 'club-a', memberId: 101, assignedCoachUid: 'coach-a', creditDebited: true, memberUid: 'member-a' }));
+    await assertFails(setDoc(doc(coachDb, 'bookings', 'direct-coach-booking'), { clubId: 'club-a', memberId: 101, assignedCoachUid: 'coach-a', status: 'confirmed' }));
+    await assertFails(updateDoc(doc(coachDb, 'bookings', 'bookings-a'), { startTime: '2026-10-10T10:00:00.000Z' }));
+    const ownerDb = testEnv.authenticatedContext('owner').firestore();
+    await assertFails(setDoc(doc(ownerDb, 'bookings', 'direct-owner-trial'), { clubId: 'club-a', prospectId: 42, type: 'trial', status: 'confirmed' }));
   });
 
   it('allows member onboarding without granting payment status changes', async () => {

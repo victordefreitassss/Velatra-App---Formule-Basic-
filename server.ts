@@ -2,7 +2,7 @@ import { registerClub, ClubRegistrationError } from './server/clubRegistration.t
 import { canManageClub } from './productCapabilities.ts';
 import { completeWorkout } from './server/completeWorkout.ts';
 import { recordPaidInvoice } from './server/stripePayments.ts';
-import { reserveBooking, cancelBooking } from './server/bookings.ts';
+import { reserveBooking, cancelBooking, rescheduleBooking, bookingAvailability, createTrialBooking } from './server/bookings.ts';
 import express from "express";
 import path from "path";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
@@ -436,12 +436,32 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
 app.use("/api", verifyFirebaseSession, requireUserProfile);
 registerCoachingFollowup(app, admin.firestore());
 
-for (const action of ['reserve', 'cancel'] as const) {
+app.get('/api/bookings/availability', async (req, res) => {
+  try { return res.json(await bookingAvailability(admin.firestore(), req.auth.uid, String(req.query.date || ''))); }
+  catch (error: any) {
+    if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
+    console.error('Booking availability failed', { code: error?.code || 'unknown' });
+    return res.status(500).json({ error: 'Les places disponibles ne peuvent pas être vérifiées actuellement.' });
+  }
+});
+
+app.post('/api/bookings/trial', async (req, res) => {
+  try { return res.json(await createTrialBooking(admin.firestore(), req.auth.uid, req.body)); }
+  catch (error: any) {
+    if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
+    console.error('Trial booking failed', { code: error?.code || 'unknown' });
+    return res.status(500).json({ error: 'La séance d’essai n’a pas pu être planifiée.' });
+  }
+});
+
+for (const action of ['reserve', 'cancel', 'reschedule'] as const) {
   app.post(`/api/bookings/${action}`, async (req, res) => {
     try {
       const result = action === 'reserve'
         ? await reserveBooking(admin.firestore(), req.auth.uid, req.body)
-        : await cancelBooking(admin.firestore(), req.auth.uid, String(req.body?.id || ''));
+        : action === 'reschedule'
+          ? await rescheduleBooking(admin.firestore(), req.auth.uid, req.body)
+          : await cancelBooking(admin.firestore(), req.auth.uid, String(req.body?.id || ''));
       return res.json(result);
     } catch (error: any) {
       if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
