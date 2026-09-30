@@ -1,5 +1,8 @@
 
 export type Role = "superadmin" | "owner" | "coach" | "member";
+/** Target domain role. Manager provisioning remains disabled until server/rules support it. */
+export type ProductRole = Role | 'manager';
+export type SaasPlanId = string;
 export type AccountType = 'solo' | 'studio';
 export type Gender = "F" | "M";
 export type Goal = "Perte de poids" | "Prise de masse" | "Sport santé bien-être" | "Prépa physique" | "Remise en forme" | "Performance sportive" | "Renforcement musculaire" | "Souplesse et mobilité" | "Autre";
@@ -8,6 +11,8 @@ export interface Club {
   id: string;
   /** Canonical product type. Absent on legacy clubs; never inferred from plan/notes. */
   accountType?: AccountType;
+  /** Explicit SaaS offer; independent of the member-facing Plan and legacy plan. */
+  saasPlanId?: SaasPlanId;
   name: string;
   ownerId: string;
   email: string;
