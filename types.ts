@@ -96,6 +96,8 @@ export interface User {
   credits?: number;
   sessionCredits?: Record<string, number>;
   onboardingCompleted?: boolean;
+  /** Converted CRM members retain technical legacy defaults until real measures are supplied. */
+  profileMeasurementsPending?: boolean;
   paymentStatus?: 'active' | 'suspended';
   role: Role;
   avatar: string;
@@ -369,7 +371,11 @@ export interface ProspectNote {
   id: string;
   date: string; // ISO format
   content: string;
+  authorUid?: string;
+  authorName?: string;
 }
+
+export interface ProspectActivity { id: string; date: string; label: string; authorUid?: string; }
 
 export interface Prospect {
   id: number;
@@ -379,11 +385,19 @@ export interface Prospect {
   email: string;
   phone: string;
   date: string;
-  status: 'lead' | 'contacted' | 'trial' | 'call_pending' | 'won' | 'lost';
+  status: 'lead' | 'contacted' | 'trial' | 'call_pending' | 'won' | 'lost' | 'pending';
   answers: Record<string, string>;
   notes?: string;
   notesHistory?: ProspectNote[];
   nextReminderDate?: string; // ISO format
+  source?: string;
+  assignedCoachUid?: string | null;
+  activityHistory?: ProspectActivity[];
+  lostReason?: string;
+  lostAt?: string;
+  convertedMemberUid?: string;
+  convertedMemberId?: number;
+  convertedAt?: string;
 }
 
 export interface Task {
@@ -721,6 +735,7 @@ export interface AppState {
   page: Page;
   /** One-time UI request consumed by its destination page; never persisted to Firebase. */
   pendingUiAction?: 'add-member' | 'add-preset' | 'add-prospect' | 'edit-space' | 'booking-settings';
+  pendingProspectUid?: string;
   onboardingDataReady?: boolean;
   selectedMember: User | null;
   selectedDay: number;

@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { FieldValue, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { MemberCreationError as BookingError } from './createMember.ts';
+import { legacyProspectNumericId } from './prospectIdentity.ts';
 
 const fail = (status: number, message: string): never => { throw new BookingError(status, message); };
 const PARIS = 'Europe/Paris';
@@ -264,17 +265,19 @@ export async function createTrialBooking(db: Firestore, uid: string, input: any)
       ...locks.map(ref => tx.get(ref))
     ]);
     const profile = profileDoc.data(), prospect = prospectDoc.data();
-    if (profile?.clubId !== initial.clubId || !['owner', 'coach'].includes(profile.role) || prospect?.clubId !== initial.clubId || !Number.isSafeInteger(Number(prospect.id))) fail(403, 'Ce prospect ne fait pas partie de votre espace.');
+    if (profile?.clubId !== initial.clubId || !['owner', 'coach'].includes(profile.role) || prospect?.clubId !== initial.clubId) fail(403, 'Ce prospect ne fait pas partie de votre espace.');
+    const prospectId = Number.isSafeInteger(Number(prospect.id)) && Number(prospect.id) > 0 ? Number(prospect.id) : legacyProspectNumericId(prospectUid);
+    if (prospect.convertedMemberUid || prospect.status === 'won') fail(409, 'Ce prospect est déjà devenu adhérent.');
     if (previous.exists) {
       const old = previous.data()!;
-      if (old.clubId !== initial.clubId || Number(old.prospectId) !== Number(prospect.id) || ![uid, String(profile.id)].includes(String(old.coachId)) || old.startTime !== start.toISOString() || old.endTime !== end.toISOString() || old.type !== 'trial') fail(409, 'Cette réservation doit être vérifiée.');
+      if (old.clubId !== initial.clubId || Number(old.prospectId) !== prospectId || ![uid, String(profile.id)].includes(String(old.coachId)) || old.startTime !== start.toISOString() || old.endTime !== end.toISOString() || old.type !== 'trial') fail(409, 'Cette réservation doit être vérifiée.');
       if (old.status === 'confirmed') return { success: true, id, alreadyBooked: true };
     }
     const conflicts = active.docs.map(doc => doc.data()).filter(booking => new Date(booking.startTime) < end && new Date(booking.endTime) > start);
-    if (conflicts.some(booking => Number(booking.prospectId) === Number(prospect.id) || [uid, String(profile.id)].includes(String(booking.coachId)))) fail(409, 'Ce créneau est déjà occupé.');
+    if (conflicts.some(booking => Number(booking.prospectId) === prospectId || [uid, String(profile.id)].includes(String(booking.coachId)))) fail(409, 'Ce créneau est déjà occupé.');
     bumpLocks(tx, lockDocs);
-    tx.set(bookingRef, { id, clubId: initial.clubId, coachId: String(profile.id), prospectId: Number(prospect.id), startTime: start.toISOString(), endTime: end.toISOString(), status: 'confirmed', type: 'trial' });
-    tx.update(prospectRef, { status: 'trial' });
+    tx.set(bookingRef, { id, clubId: initial.clubId, coachId: String(profile.id), prospectId, startTime: start.toISOString(), endTime: end.toISOString(), status: 'confirmed', type: 'trial' });
+    tx.update(prospectRef, { id: prospectId, status: 'trial', activityHistory: [{ id, date: new Date().toISOString(), label: 'Essai programmé', authorUid: uid }, ...(Array.isArray(prospect.activityHistory) ? prospect.activityHistory : [])].slice(0, 80) });
     return { success: true, id };
   });
 }

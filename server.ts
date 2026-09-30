@@ -11,6 +11,8 @@ import { FieldValue, getFirestore, type Firestore } from "firebase-admin/firesto
 import nodemailer from "nodemailer";
 import Stripe from "stripe";
 import { createManagedMember, MemberCreationError } from "./server/createMember.ts";
+import { convertProspect } from "./server/convertProspect.ts";
+import { legacyProspectNumericId } from './server/prospectIdentity.ts';
 import { resolveMemberCoachingContact } from "./server/memberCoachingContact.ts";
 import { randomInt } from "node:crypto";
 import { validateMemberRegistration } from "./server/memberRegistration.ts";
@@ -203,7 +205,9 @@ app.post('/api/public/prospects', async (req: any, res: any) => {
 
     const club = await admin.firestore().collection('clubs').doc(submission.clubId).get();
     if (!club.exists) return res.status(404).json({ error: "Ce code de club n'existe pas." });
-    await admin.firestore().collection('prospects').add({
+    const prospectRef = admin.firestore().collection('prospects').doc();
+    await prospectRef.set({
+      id: legacyProspectNumericId(prospectRef.id),
       clubId: submission.clubId,
       name: submission.name,
       email: submission.email,
@@ -478,6 +482,15 @@ app.post('/api/create-member', async (req: any, res: any) => {
     if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
     console.error('Member creation failed', { code: error?.code || 'unknown' });
     return res.status(500).json({ error: "La création n’a pas pu aboutir. Rechargez la liste des adhérents avant de réessayer." });
+  }
+});
+
+app.post('/api/prospects/:id/convert', async (req: any, res: any) => {
+  try { return res.json(await convertProspect(admin.auth(), admin.firestore(), req.auth.uid, String(req.params.id), req.body)); }
+  catch (error: any) {
+    if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
+    console.error('Prospect conversion failed', { code: error?.code || 'unknown' });
+    return res.status(500).json({ error: 'La conversion ne peut pas être confirmée. Réessayez sans créer un autre prospect.' });
   }
 });
 

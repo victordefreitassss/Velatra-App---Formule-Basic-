@@ -124,6 +124,15 @@ it('creates a CRM trial through the server once and prevents coach overlap', asy
   await assert.rejects(createTrialBooking(db, 'booking-outsider', { prospectUid: 'booking-prospect', startTime: slot.startTime, endTime: slot.endTime }), { status: 403 });
 });
 
+it('plans a trial for an older public prospect without a numeric id', async () => {
+  await db.doc('prospects/legacy-public-trial').set({ clubId: '876543', status: 'pending', name: 'Legacy Lead', email: 'legacy@example.test' });
+  const slot = futureInput(12);
+  const result = await createTrialBooking(db, 'booking-owner', { prospectUid: 'legacy-public-trial', startTime: slot.startTime, endTime: slot.endTime });
+  const prospect = (await db.doc('prospects/legacy-public-trial').get()).data();
+  assert.equal(prospect?.status, 'trial');
+  assert.equal((await db.doc(`bookings/${result.id}`).get()).data()?.prospectId, prospect?.id);
+});
+
 it('validates coach, member, availability, duration, credits and policy boundaries', async () => {
   const slot = futureInput(10);
   await db.doc('users/booking-limits').set({ id: 9070, role: 'member', clubId: '876543', credits: 1, assignedCoachUid: 'booking-coach' });

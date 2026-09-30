@@ -58,6 +58,24 @@ after(async () => {
 });
 
 describe('Firestore coach/member isolation', () => {
+  it('keeps CRM conversion links server-owned while allowing ordinary staff notes and reminders', async () => {
+    const owner = testEnv.authenticatedContext('owner').firestore();
+    const coach = testEnv.authenticatedContext('coach-a').firestore();
+    const member = testEnv.authenticatedContext('member-a').firestore();
+    const prospect = doc(owner, 'prospects', 'crm-rules-prospect');
+    await assertSucceeds(setDoc(prospect, { id: 9991, clubId: 'club-a', name: 'Lead', email: 'lead@example.test', phone: '', date: new Date().toISOString(), status: 'lead', answers: {}, notesHistory: [] }));
+    await assertSucceeds(updateDoc(doc(coach, 'prospects', 'crm-rules-prospect'), { status: 'call_pending', nextReminderDate: new Date().toISOString() }));
+    await assertFails(updateDoc(prospect, { status: 'won' }));
+    await assertFails(updateDoc(prospect, { convertedMemberUid: 'member-a' }));
+    await assertFails(updateDoc(prospect, { id: 123456 }));
+    await assertFails(deleteDoc(prospect));
+    await assertSucceeds(updateDoc(prospect, { status: 'contacted', nextReminderDate: null, notesHistory: [{ id: 'n1', date: new Date().toISOString(), content: 'Note conservée' }] }));
+    await assertFails(deleteDoc(prospect));
+    await assertFails(setDoc(doc(owner, 'prospects', 'crm-fake-won'), { clubId: 'club-a', status: 'won' }));
+    await assertFails(getDoc(doc(member, 'prospects', 'crm-rules-prospect')));
+    await assertFails(updateDoc(doc(testEnv.authenticatedContext('other-member').firestore(), 'prospects', 'crm-rules-prospect'), { status: 'contacted' }));
+    await assertFails(setDoc(doc(owner, 'crmConversionClaims', 'crm-rules-prospect'), { clubId: 'club-a' }));
+  });
   it('protects canonical accountType against changes, removal and legacy backfills by clients', async () => {
     for (const [uid, claims] of [
       ['owner', {}], ['coach-a', {}], ['member-a', {}],
