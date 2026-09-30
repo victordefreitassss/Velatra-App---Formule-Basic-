@@ -216,6 +216,9 @@ export interface ExerciseEntry {
   tempo: string;
   duration: string;
   notes: string;
+  targetLoad?: string; // Coach prescription, distinct from completed set weight.
+  targetRpe?: string; // Coach prescription, distinct from SessionLog feedback RPE.
+  targetRir?: string;
   setGroup: number | null;
   setType: "normal" | "superset" | "biset" | "triset" | "giantset" | "dropset" | "custom" | null;
   setName: string | null;
@@ -234,6 +237,7 @@ export interface Program {
   memberId: number;
   name: string;
   presetId: number | null;
+  objectifs?: Goal[];
   nbDays: number;
   durationWeeks?: number | null;
   startDate: string;
@@ -241,6 +245,7 @@ export interface Program {
   currentDayIndex: number;
   days: Day[];
   memberRemarks?: string; // Remarques de l'adhérent
+  coachRemarks?: string;
   isPlannedSession?: boolean;
   bookingId?: string;
   originalProgramId?: number;
