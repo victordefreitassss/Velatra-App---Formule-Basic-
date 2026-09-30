@@ -2,7 +2,7 @@ import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { initializeTestEnvironment, RulesTestEnvironment, assertFails, assertSucceeds } from '@firebase/rules-unit-testing';
-import { collection, deleteField, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
 
 const projectId = 'demo-velatra';
 let testEnv: RulesTestEnvironment;
@@ -263,5 +263,30 @@ describe('Firestore coach/member isolation', () => {
     await assertFails(setDoc(doc(db, 'aiConversations', 'member-a_general'), {
       ownerUid: 'member-a', clubId: 'club-a', role: 'member', memberId: null, messages: []
     }));
+  });
+  it('keeps the new coaching journey, templates, responses and habit records server-only', async () => {
+    for (const uid of ['member-a', 'coach-a', 'coach-b', 'owner', 'other-member']) {
+      const client = testEnv.authenticatedContext(uid).firestore();
+      for (const collectionName of ['coachingJourneys', 'coachCheckInTemplates', 'coachCheckInAssignments', 'coachCheckInResponses', 'coachHabits', 'coachHabitEntries']) {
+        await assertFails(getDoc(doc(client, collectionName, 'member-a')));
+        await assertFails(setDoc(doc(client, collectionName, `forged-${uid}`), { clubId: 'club-a', memberUid: 'member-a', role: 'owner' }));
+      }
+    }
+    await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), 'coachingJourneys', 'member-a')));
+  });
+  it('cannot forge, replace or erase server-confirmed session feedback through the client SDK', async () => {
+    const member = testEnv.authenticatedContext('member-a').firestore();
+    const coach = testEnv.authenticatedContext('coach-a').firestore();
+    await assertFails(setDoc(doc(member, 'logs', 'forged-feedback'), { clubId: 'club-a', memberId: 101,
+      assignedCoachUid: 'coach-a', memberFeedback: { pain: false }, rpe: 2 }));
+    await testEnv.withSecurityRulesDisabled(async context => {
+      await setDoc(doc(context.firestore(), 'logs', 'server-feedback'), { clubId: 'club-a', memberId: 101,
+        assignedCoachUid: 'coach-a', rpe: 7, memberFeedback: { energy: 3, pain: false } });
+    });
+    await assertFails(updateDoc(doc(member, 'logs', 'server-feedback'), { rpe: 1 }));
+    await assertFails(updateDoc(doc(coach, 'logs', 'server-feedback'), { memberFeedback: { energy: 5, pain: false } }));
+    await assertFails(deleteDoc(doc(member, 'logs', 'server-feedback')));
+    await assertFails(deleteDoc(doc(coach, 'logs', 'server-feedback')));
+    await assertSucceeds(updateDoc(doc(coach, 'logs', 'server-feedback'), { notes: 'Revu par le coach' }));
   });
 });

@@ -277,6 +277,7 @@ export interface SessionLog {
   notes?: string;
   score?: number;
   rpe?: number;
+  memberFeedback?: { energy: number; pain: boolean; painArea: string; comment: string; submittedAt: string };
   duration?: number;
   coachId?: number;
 }

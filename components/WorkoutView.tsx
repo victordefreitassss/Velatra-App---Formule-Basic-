@@ -37,6 +37,10 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, state
   const savingRef = useRef(false);
   const [error, setError] = useState('');
   const [online, setOnline] = useState(navigator.onLine);
+  const [feedback, setFeedback] = useState({ rpe: 5, energy: 3, pain: false, painArea: '', comment: '' });
+  const [feedbackBusy, setFeedbackBusy] = useState(false);
+  const [feedbackError, setFeedbackError] = useState('');
+  const [feedbackLater, setFeedbackLater] = useState(false);
   const day = workoutDay(draft.program);
   const steps = executionSteps(day);
   const current = steps[Math.min(draft.cursor, steps.length - 1)];
@@ -174,6 +178,19 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, state
     onComplete(draft.receipt.log, draft.receipt.performances);
   };
   const savedLog = draft.receipt?.log;
+  const submitFeedback = async () => {
+    if (!savedLog || feedbackBusy) return;
+    setFeedbackBusy(true); setFeedbackError('');
+    try {
+      const response = await apiFetch(`/api/followup/sessions/${savedLog.id}/feedback`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(feedback) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Impossible d’enregistrer votre retour.');
+      const updated = { ...savedLog, rpe: feedback.rpe, memberFeedback: result.feedback };
+      commit({ ...draft, receipt: { ...draft.receipt!, log: updated } });
+      setState(previous => ({ ...previous, logs: previous.logs.map(log => log.id === updated.id ? updated : log) }));
+    } catch (cause: any) { setFeedbackError(cause.message || 'Réessayez lorsque la connexion revient.'); }
+    finally { setFeedbackBusy(false); }
+  };
   const videoUrl = exercise?.videoUrl && /^https?:\/\//i.test(exercise.videoUrl) ? exercise.videoUrl : null;
 
   return createPortal(
@@ -189,6 +206,18 @@ export const WorkoutView: React.FC<WorkoutViewProps> = ({ program, member, state
           <section className="va-workout-finish" aria-labelledby="workout-finished">
             <span className="va-workout-success" aria-hidden="true">✓</span><h2 id="workout-finished">Séance terminée</h2>
             <p>Votre séance est enregistrée dans votre historique.</p>
+            {!savedLog.memberFeedback && !feedbackLater && <form className="mt-4 space-y-3 rounded-2xl border border-emerald-200 bg-white p-4 text-left" onSubmit={event => { event.preventDefault(); submitFeedback(); }}>
+              <h3 className="font-semibold text-zinc-950">Comment ça s’est passé ?</h3>
+              <p className="text-sm text-zinc-700">Votre séance est déjà sauvegardée. Ce retour est facultatif.</p>
+              <label className="block text-sm font-semibold text-zinc-800">Difficulté ressentie : {feedback.rpe}/10<input className="mt-1 w-full accent-emerald-800" type="range" min="1" max="10" value={feedback.rpe} onChange={event => setFeedback({ ...feedback, rpe: Number(event.target.value) })} /></label>
+              <label className="block text-sm font-semibold text-zinc-800">Énergie : {feedback.energy}/5<input className="mt-1 w-full accent-emerald-800" type="range" min="1" max="5" value={feedback.energy} onChange={event => setFeedback({ ...feedback, energy: Number(event.target.value) })} /></label>
+              <label className="flex min-h-11 items-center gap-2 text-sm font-semibold text-zinc-800"><input type="checkbox" checked={feedback.pain} onChange={event => setFeedback({ ...feedback, pain: event.target.checked })} /> J’ai ressenti une douleur</label>
+              {feedback.pain && <label className="block text-sm font-semibold text-zinc-800">Zone concernée<input className="mt-1 min-h-11 w-full rounded-xl border border-zinc-300 px-3 text-zinc-950" maxLength={100} value={feedback.painArea} onChange={event => setFeedback({ ...feedback, painArea: event.target.value })} /></label>}
+              <label className="block text-sm font-semibold text-zinc-800">Commentaire facultatif<textarea className="mt-1 min-h-20 w-full rounded-xl border border-zinc-300 p-3 text-zinc-950" maxLength={1000} value={feedback.comment} onChange={event => setFeedback({ ...feedback, comment: event.target.value })} /></label>
+              {feedbackError && <p role="alert" className="text-sm text-red-800">{feedbackError}</p>}
+              <div className="flex flex-wrap gap-2"><button type="submit" disabled={feedbackBusy} className="min-h-11 rounded-xl bg-emerald-800 px-4 text-sm font-semibold text-white disabled:opacity-50">{feedbackBusy ? 'Envoi…' : 'Envoyer mon ressenti'}</button><button type="button" className="min-h-11 rounded-xl border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-900" onClick={() => setFeedbackLater(true)}>Plus tard</button></div>
+            </form>}
+            {savedLog.memberFeedback && <p role="status" className="mt-3 text-sm font-semibold text-emerald-900">✓ Votre ressenti a été envoyé au coach.</p>}
             <dl className="va-workout-summary"><div><dt>Durée écoulée</dt><dd>{timeLabel(Math.round(savedLog.duration || 0))}</dd></div><div><dt>Exercices</dt><dd>{savedLog.exercises?.length || 0}</dd></div><div><dt>Séries réalisées</dt><dd>{savedLog.exercises?.reduce((total, ex) => total + ex.sets.length, 0) || 0}</dd></div></dl>
             <p>{state.logs.filter(log => log.clubId === member.clubId && Number(log.memberId) === Number(member.id)).length} séance(s) dans votre carnet. Chaque série compte, y compris au poids du corps.</p>
             <details className="va-workout-details"><summary>Revoir mes séries</summary><div className="va-workout-records">{savedLog.exercises?.map((ex, index) => {

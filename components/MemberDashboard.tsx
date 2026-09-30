@@ -11,6 +11,7 @@ import { GoogleGenAI } from '../services/aiService';
 import confetti from 'canvas-confetti';
 import { MemberWorkoutEntry } from './MemberWorkoutEntry';
 import { MemberTrainingProgress } from './MemberTrainingProgress';
+import { MemberFollowup } from './CoachingFollowup';
 
 interface MemberDashboardProps {
   state: AppState;
@@ -307,6 +308,7 @@ export const MemberDashboard: React.FC<MemberDashboardProps> = ({ state, setStat
       <header className="va-today-heading"><p>Aujourd’hui</p><h1>Bonjour {user.name.split(' ')[0]}</h1></header>
 
       <MemberWorkoutEntry state={state} setState={setState} onRequestPlan={requestPlan} />
+      <div className="px-2"><MemberFollowup /></div>
       <MemberTrainingProgress state={state} setState={setState} compact />
       <section aria-label="Mon coach et mon objectif" className="va-member-coach-row">
         <div><p className="text-sm font-semibold text-zinc-900">Mon objectif</p><p className="mt-1 text-sm text-zinc-700">{user.objectifs?.[0] || 'À définir avec votre coach'}</p></div>
