@@ -1,1216 +1,1020 @@
-import React, { useState, useMemo } from 'react';
-import { createPortal } from 'react-dom';
-import { AppState, Subscription, Payment, Plan, Expense, Invoice } from '../types';
-import { db, doc, updateDoc, setDoc, deleteDoc } from '../firebase';
-import { Plus, Search, Trash2, DollarSign, TrendingUp, CreditCard, AlertCircle, CheckCircle, Clock, User, Package, FileText, MessageCircle, Link as LinkIcon, Download, TrendingDown, MoreHorizontal } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, PieChart, Pie, Cell } from 'recharts';
-import { motion } from 'framer-motion';
-
-interface Props {
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { AppState, Payment } from "../types";
+import { apiFetch, db, doc, setDoc, deleteDoc } from "../firebase";
+import { billingRequest, downloadReceipt } from "../components/billingClient";
+import {
+  billingMetrics,
+  matchesPeriod,
+  netPayment,
+  paymentStatusLabels,
+  subscriptionStatusLabels,
+  vatPart,
+  financialCsv,
+} from "../components/billingMetrics";
+import {
+  Plus,
+  Search,
+  Download,
+  CreditCard,
+  FileText,
+  Archive,
+  ArrowRight,
+} from "lucide-react";
+const money = (n: number) =>
+  new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(
+    n,
+  );
+const button =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-800 disabled:opacity-60";
+const input =
+  "mt-1 min-h-11 w-full min-w-0 rounded-xl border border-zinc-300 bg-white px-3 text-zinc-900 placeholder:text-zinc-600 focus:outline-2 focus:outline-emerald-800";
+const panel =
+  "min-w-0 rounded-2xl border border-zinc-200 bg-white/95 p-4 sm:p-5";
+export const FinancesPage: React.FC<{
   state: AppState;
   setState?: any;
   showToast?: any;
-}
-
-export const FinancesPage: React.FC<Props> = ({ state, setState, showToast }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'subscriptions' | 'payments' | 'invoices' | 'expenses' | 'plans'>('overview');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isAddingPlan, setIsAddingPlan] = useState(false);
-  const [newPlan, setNewPlan] = useState<Partial<Plan>>({ name: '', price: 0, billingCycle: 'monthly', description: '' });
-  const [isAddingExpense, setIsAddingExpense] = useState(false);
-  const [newExpense, setNewExpense] = useState<Partial<Expense>>({ amount: 0, category: 'other', date: new Date().toISOString().split('T')[0], description: '', vatRate: 20 });
-  const [isAddingFixedCost, setIsAddingFixedCost] = useState(false);
-  const [newFixedCost, setNewFixedCost] = useState({ name: '', amount: 0 });
-  const [isEditingGoal, setIsEditingGoal] = useState(false);
-  const [newGoal, setNewGoal] = useState(state.currentClub?.settings?.finances?.monthlyGoal || 5000);
-  const [isAnnual, setIsAnnual] = useState(false);
-  const [dateFilter, setDateFilter] = useState<'30d' | '7d' | 'thisMonth' | 'thisYear' | 'all'>('30d');
-  const [openFinanceActions, setOpenFinanceActions] = useState<string | null>(null);
-
-  // Helper for date filtering
-  const isWithinDateFilter = (dateString: string) => {
-    if (dateFilter === 'all') return true;
-    const itemDate = new Date(dateString).getTime();
-    const now = new Date();
-    const todayMillis = now.getTime();
-    
-    if (dateFilter === '7d') {
-      return itemDate >= todayMillis - 7 * 24 * 60 * 60 * 1000;
-    }
-    if (dateFilter === '30d') {
-      return itemDate >= todayMillis - 30 * 24 * 60 * 60 * 1000;
-    }
-    if (dateFilter === 'thisMonth') {
-      const d = new Date(dateString);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    }
-    if (dateFilter === 'thisYear') {
-      const d = new Date(dateString);
-      return d.getFullYear() === now.getFullYear();
-    }
-    return true;
-  };
-
-  // Derived Data
-  const activeSubscriptions = state.subscriptions.filter(s => s.status === 'active');
-  const mrr = activeSubscriptions.reduce((acc, sub) => {
-    if (sub.billingCycle === 'monthly') return acc + sub.price;
-    if (sub.billingCycle === 'yearly') return acc + (sub.price / 12);
-    return acc;
-  }, 0);
-  
-  const arpu = activeSubscriptions.length > 0 ? mrr / activeSubscriptions.length : 0;
-
-  const filteredPayments = state.payments.filter(p => isWithinDateFilter(p.date));
-  const filteredExpensesList = state.expenses.filter(e => isWithinDateFilter(e.date));
-  const paymentCategoryLabel: Record<string, string> = { subscription: 'Abonnement', coaching: 'Coaching', boutique: 'Boutique', other: 'Autre' };
-  const expenseCategoryLabel: Record<string, string> = { rent: 'Loyer', salary: 'Salaire', equipment: 'Matériel', marketing: 'Marketing', software: 'Logiciels', other: 'Autre' };
-
-  const totalRevenue = filteredPayments.filter(p => p.status === 'paid').reduce((acc, p) => acc + p.amount, 0);
-  const pendingPayments = filteredPayments.filter(p => p.status === 'pending').reduce((acc, p) => acc + p.amount, 0);
-  // Fixed costs are monthly. Depending on date filter, we might just estimate or exclude. Keep simple for now and add directly to total expenses.
-  const totalMonthlyFixedCosts = (state.fixedCosts || []).reduce((acc, cost) => acc + cost.amount, 0);
-  
-  // Adjust fixed costs based on timeframe for accurate UI
-  let applicableFixedCosts = totalMonthlyFixedCosts;
-  if (dateFilter === '7d') applicableFixedCosts = (totalMonthlyFixedCosts / 30) * 7;
-  else if (dateFilter === 'thisYear') applicableFixedCosts = totalMonthlyFixedCosts * (new Date().getMonth() + 1); // rough estimate
-  else if (dateFilter === 'all') applicableFixedCosts = totalMonthlyFixedCosts * 12; // just an arbitrary year scaling
-
-  const totalExpenses = filteredExpensesList.reduce((acc, e) => acc + e.amount, 0) + applicableFixedCosts;
-  const netProfit = totalRevenue - totalExpenses;
-
-  // TVA Calculations
-  const tvaCollected = filteredPayments.reduce((acc, payment) => {
-    if (payment.status !== 'paid') return acc;
-    const rate = payment.vatRate || 20;
-    const ht = payment.amount / (1 + rate / 100);
-    return acc + (payment.amount - ht);
-  }, 0);
-
-  const tvaDeductible = filteredExpensesList.reduce((acc, expense) => {
-    const rate = expense.vatRate || 20;
-    const ht = expense.amount / (1 + rate / 100);
-    return acc + (expense.amount - ht);
-  }, 0);
-
-  const tvaNet = tvaCollected - tvaDeductible;
-
-  // Financial Goals
-  const monthlyGoal = state.currentClub?.settings?.finances?.monthlyGoal || 5000;
-  const goalProgress = Math.min((mrr / monthlyGoal) * 100, 100);
-
-  // Cash Flow Projection (Next Month)
-  const projectedRevenue = mrr + (state.payments.filter(p => p.category === 'coaching' || p.category === 'boutique').reduce((acc, p) => acc + p.amount, 0) / 3); // Rough estimate: MRR + average monthly one-off sales
-
-  const filteredExpenses = state.expenses.filter(e => {
-    if (!isWithinDateFilter(e.date)) return false;
-    if (searchTerm && !e.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    return true;
-  }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-  // Generate chart data based on real payments and expenses (unfiltered by date to show history)
-  const chartData = useMemo(() => {
-    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-    const currentMonth = new Date().getMonth();
-    
-    const monthlyData = Array(6).fill(0).map((_, i) => {
-      const monthIndex = (currentMonth - i + 12) % 12;
-      return { name: months[monthIndex], rev: 0, exp: 0, monthIndex };
-    }).reverse();
-
-    state.payments.filter(p => p.status === 'paid').forEach(p => {
-      const d = new Date(p.date);
-      const m = d.getMonth();
-      const target = monthlyData.find(md => md.monthIndex === m);
-      if (target) target.rev += p.amount;
-    });
-
-    state.expenses.forEach(e => {
-      const d = new Date(e.date);
-      const m = d.getMonth();
-      const target = monthlyData.find(md => md.monthIndex === m);
-      if (target) target.exp += e.amount;
-    });
-
-    const totalMonthlyFixedCosts = (state.fixedCosts || []).reduce((acc, cost) => acc + cost.amount, 0);
-    monthlyData.forEach(md => {
-      md.exp += totalMonthlyFixedCosts;
-    });
-
-    return monthlyData.map(md => ({
-      name: md.name,
-      Revenus: md.rev,
-      Dépenses: md.exp,
-      Bénéfice: md.rev - md.exp
-    }));
-  }, [state.payments, state.expenses, state.fixedCosts]);
-
-  const pieChartData = useMemo(() => {
-    const categories = {
-      subscription: { name: 'Abonnements', value: 0, color: '#166534' },
-      coaching: { name: 'Coaching', value: 0, color: '#4d7c0f' },
-      boutique: { name: 'Boutique', value: 0, color: '#64748b' },
-      other: { name: 'Autre', value: 0, color: '#a1a1aa' }
+}> = ({ state, showToast }) => {
+  const [tab, setTab] = useState("overview"),
+    [period, setPeriod] = useState("thisMonth"),
+    [query, setQuery] = useState(""),
+    [selected, setSelected] = useState<Payment | null>(null),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false),
+    [form, setForm] = useState<"plan" | "payment" | "expense" | "fixed" | null>(
+      null,
+    ),
+    [fields, setFields] = useState<any>({});
+  const keys = useRef<Record<string, string>>({}),
+    key = (action: string) => (keys.current[action] ||= crypto.randomUUID());
+  const [stripeStatus, setStripeStatus] = useState({
+    connected: false,
+    webhookConfigured: false,
+  });
+  useEffect(() => {
+    let alive = true;
+    apiFetch("/api/stripe/status")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((r: any) => {
+        if (alive)
+          setStripeStatus({
+            connected: r.connected === true,
+            webhookConfigured: r.webhookConfigured === true,
+          });
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
     };
-
-    filteredPayments.filter(p => p.status === 'paid').forEach(p => {
-      const cat = p.category || 'other';
-      if (categories[cat]) {
-        categories[cat].value += p.amount;
-      } else {
-        categories.other.value += p.amount;
+  }, [state.user?.clubId]);
+  const selectedPayment =
+    selected && (state.payments.find((p) => p.id === selected.id) || selected);
+  const manager =
+    state.user?.role === "owner" || state.user?.role === "superadmin";
+  const members = state.users.filter((u) => u.role === "member");
+  const payments = useMemo(
+    () => state.payments.filter((p) => matchesPeriod(p.date, period)),
+    [state.payments, period],
+  );
+  const expenses = useMemo(
+    () => state.expenses.filter((e) => matchesPeriod(e.date, period)),
+    [state.expenses, period],
+  );
+  const metrics = useMemo(
+    () => billingMetrics(state.subscriptions, payments, expenses),
+    [state.subscriptions, payments, expenses],
+  );
+  const memberName = (id: number) =>
+    state.users.find((u) => u.id === id)?.name || `Adhérent ${id}`;
+  const matching = (s: string) =>
+    s.toLocaleLowerCase().includes(query.toLocaleLowerCase());
+  const visiblePayments = payments
+    .filter((p) =>
+      matching(
+        `${memberName(p.memberId)} ${p.description || ""} ${paymentStatusLabels[p.status]}`,
+      ),
+    )
+    .sort(
+      (a, b) =>
+        Number(b.status === "pending") - Number(a.status === "pending") ||
+        b.date.localeCompare(a.date),
+    );
+  const run = async (fn: () => Promise<void>) => {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+    } catch (e: any) {
+      setError(e.message || "Action non confirmée.");
+      showToast?.(e.message, "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const action = async (path: string, body?: any) => {
+    await billingRequest(path, body);
+    showToast?.("Opération confirmée.");
+  };
+  const openForm = (kind: any) => {
+    setFields({
+      name: "",
+      price: "",
+      billingCycle: "monthly",
+      description: "",
+      amount: "",
+      date: new Date().toISOString().slice(0, 10),
+      method: "cash",
+      vatRate: "",
+      memberId: members[0]?.id || "",
+      category: "other",
+    });
+    delete keys.current[kind];
+    setForm(kind);
+  };
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    run(async () => {
+      if (form === "plan")
+        await action("/api/billing/plans", {
+          ...fields,
+          price: Number(fields.price),
+          vatRate: fields.vatRate === "" ? null : Number(fields.vatRate),
+          requestId: key("plan"),
+        });
+      if (form === "payment")
+        await action("/api/billing/payments", {
+          ...fields,
+          memberId: Number(fields.memberId),
+          amount: Number(fields.amount),
+          vatRate: fields.vatRate === "" ? null : Number(fields.vatRate),
+          requestId: key("payment"),
+        });
+      if (form === "expense" || form === "fixed") {
+        const id = key(form),
+          collection = form === "expense" ? "expenses" : "fixedCosts";
+        const data =
+          form === "expense"
+            ? {
+                id,
+                clubId: state.user?.clubId,
+                amount: Number(fields.amount),
+                category: fields.category,
+                date: fields.date,
+                description: fields.description,
+                ...(fields.vatRate === ""
+                  ? {}
+                  : { vatRate: Number(fields.vatRate) }),
+              }
+            : {
+                id,
+                clubId: state.user?.clubId,
+                name: fields.name,
+                amount: Number(fields.amount),
+              };
+        if (!Number.isFinite(data.amount) || data.amount <= 0)
+          throw new Error("Montant invalide.");
+        await setDoc(doc(db, collection, id), data);
       }
+      setForm(null);
     });
-
-    return Object.values(categories).filter(c => c.value > 0);
-  }, [filteredPayments]);
-
-  const handleExportCSV = () => {
-    const csvRows = [];
-    const headers = [
-      'Date', 
-      'Type', 
-      'Catégorie', 
-      'Description / Client', 
-      'Montant HT (€)', 
-      'Taux TVA (%)', 
-      'Montant TVA (€)', 
-      'Montant TTC (€)', 
-      'Statut'
-    ];
-    csvRows.push(headers.join(';')); // Use semicolon for Excel in Europe
-
-    const formatNum = (num: number) => num.toFixed(2).replace('.', ',');
-
-    const allTransactions = [
-      ...filteredPayments.map(p => ({ ...p, type: 'Revenu', dateObj: new Date(p.date) })),
-      ...filteredExpensesList.map(e => ({ ...e, type: 'Dépense', dateObj: new Date(e.date) }))
-    ].sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
-
-    allTransactions.forEach(t => {
-      if (t.type === 'Revenu') {
-        const payment = t as any;
-        const member = state.users.find(m => m.id === payment.memberId);
-        const memberName = member ? member.name : 'Client Inconnu';
-        const rate = payment.vatRate || 20;
-        const ht = payment.amount / (1 + rate / 100);
-        const tva = payment.amount - ht;
-
-        csvRows.push([
-          payment.dateObj.toLocaleDateString('fr-FR'),
-          'Revenu',
-          payment.category || 'Autre',
-          `"${memberName}"`,
-          formatNum(ht),
-          formatNum(rate),
-          formatNum(tva),
-          formatNum(payment.amount),
-          payment.status === 'paid' ? 'Payé' : payment.status === 'pending' ? 'En attente' : 'Échoué'
-        ].join(';'));
-      } else {
-        const expense = t as any;
-        const rate = expense.vatRate || 20;
-        const ht = expense.amount / (1 + rate / 100);
-        const tva = expense.amount - ht;
-
-        csvRows.push([
-          expense.dateObj.toLocaleDateString('fr-FR'),
-          'Dépense',
-          expense.category,
-          `"${expense.description}"`,
-          formatNum(-ht),
-          formatNum(rate),
-          formatNum(-tva),
-          formatNum(-expense.amount),
-          'Payé'
-        ].join(';'));
-      }
-    });
-
-    (state.fixedCosts || []).forEach(cost => {
-      const rate = 20;
-      const ht = cost.amount / (1 + rate / 100);
-      const tva = cost.amount - ht;
-
-      csvRows.push([
-        new Date().toLocaleDateString('fr-FR'),
-        'Charge Fixe',
-        'Mensuelle',
-        `"${cost.name}"`,
-        formatNum(-ht),
-        formatNum(rate),
-        formatNum(-tva),
-        formatNum(-cost.amount),
-        'Projeté'
-      ].join(';'));
-    });
-
-    const csvContent = "\uFEFF" + csvRows.join("\n"); // Add BOM for Excel UTF-8
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `export_comptable_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  };
+  const exportRows = () => [
+    ["Date", "Type", "Adhérent / description", "Montant", "TVA", "Statut"],
+    ...payments.map((p) => [
+      p.date,
+      "Paiement",
+      memberName(p.memberId),
+      p.amount,
+      p.vatRate ?? "Non renseignée",
+      paymentStatusLabels[p.status],
+    ]),
+    ...expenses.map((e) => [
+      e.date,
+      "Dépense",
+      e.description,
+      -e.amount,
+      e.vatRate ?? "Non renseignée",
+      "Saisie interne",
+    ]),
+  ];
+  const exportCsv = () => {
+    const url = URL.createObjectURL(
+        new Blob([financialCsv(exportRows())], {
+          type: "text/csv;charset=utf-8;",
+        }),
+      ),
+      a = document.createElement("a");
+    a.href = url;
+    a.download = "export_financier.csv";
+    a.click();
     URL.revokeObjectURL(url);
   };
-
-  const loadPdfTools = async () => {
-    try {
+  const exportPdf = () =>
+    run(async () => {
       const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
-        import('jspdf'),
-        import('jspdf-autotable'),
+        import("jspdf"),
+        import("jspdf-autotable"),
       ]);
-      return { jsPDF, autoTable };
-    } catch (error) {
-      console.error('PDF tools could not be loaded', error);
-      showToast?.('Le module PDF n’a pas pu être chargé. Réessayez.', 'error');
-      return null;
-    }
-  };
-
-  const handleExportPDF = async () => {
-    const pdfTools = await loadPdfTools();
-    if (!pdfTools) return;
-    const { jsPDF, autoTable } = pdfTools;
-    const doc = new jsPDF();
-    const clubName = state.currentClub?.name || 'Mon Club';
-    
-    doc.setFontSize(22);
-    doc.text('Bilan Comptable', 105, 20, { align: 'center' });
-    
-    doc.setFontSize(10);
-    doc.text(`Club: ${clubName}`, 14, 30);
-    doc.text(`Date d'export: ${new Date().toLocaleDateString('fr-FR')}`, 14, 36);
-
-    // Summary Box
-    doc.setFillColor(245, 245, 245);
-    doc.rect(14, 42, 182, 35, 'F');
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RÉSUMÉ FINANCIER', 20, 50);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Total Revenus TTC: ${totalRevenue.toFixed(2)} €`, 20, 58);
-    doc.text(`Total Dépenses TTC: ${totalExpenses.toFixed(2)} €`, 20, 65);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Bénéfice Net TTC: ${netProfit.toFixed(2)} €`, 20, 72);
-
-    doc.setFont('helvetica', 'normal');
-    doc.text(`TVA Collectée: ${tvaCollected.toFixed(2)} €`, 110, 58);
-    doc.text(`TVA Déductible: ${tvaDeductible.toFixed(2)} €`, 110, 65);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`TVA Nette: ${tvaNet.toFixed(2)} €`, 110, 72);
-
-    const tableData: any[] = [];
-    
-    const allTransactions = [
-      ...filteredPayments.filter(p => p.status === 'paid').map(p => ({ ...p, type: 'Revenu', dateObj: new Date(p.date) })),
-      ...filteredExpensesList.map(e => ({ ...e, type: 'Dépense', dateObj: new Date(e.date) }))
-    ].sort((a, b) => b.dateObj.getTime() - a.dateObj.getTime());
-
-    allTransactions.forEach(t => {
-      if (t.type === 'Revenu') {
-        const payment = t as any;
-        const member = state.users.find(m => m.id === payment.memberId);
-        const memberName = member ? member.name : 'Client Inconnu';
-        const rate = payment.vatRate || 20;
-        const ht = payment.amount / (1 + rate / 100);
-        const tva = payment.amount - ht;
-
-        tableData.push([
-          payment.dateObj.toLocaleDateString('fr-FR'),
-          'Revenu',
-          payment.category || 'Autre',
-          memberName,
-          `${ht.toFixed(2)} €`,
-          `${tva.toFixed(2)} €`,
-          `${payment.amount.toFixed(2)} €`
-        ]);
-      } else {
-        const expense = t as any;
-        const rate = expense.vatRate || 20;
-        const ht = expense.amount / (1 + rate / 100);
-        const tva = expense.amount - ht;
-
-        tableData.push([
-          expense.dateObj.toLocaleDateString('fr-FR'),
-          'Dépense',
-          expense.category,
-          expense.description,
-          `-${ht.toFixed(2)} €`,
-          `-${tva.toFixed(2)} €`,
-          `-${expense.amount.toFixed(2)} €`
-        ]);
-      }
-    });
-
-    autoTable(doc, {
-      startY: 85,
-      head: [['Date', 'Type', 'Catégorie', 'Description', 'HT', 'TVA', 'TTC']],
-      body: tableData,
-      theme: 'striped',
-      headStyles: { fillColor: [20, 20, 20] },
-      styles: { fontSize: 8 }
-    });
-
-    doc.save(`bilan_comptable_${new Date().toISOString().split('T')[0]}.pdf`);
-  };
-
-  const handleDownloadInvoice = async (payment: Payment) => {
-    const pdfTools = await loadPdfTools();
-    if (!pdfTools) return;
-    const { jsPDF, autoTable } = pdfTools;
-    const doc = new jsPDF();
-    const member = state.users.find(m => m.id === payment.memberId);
-    const memberName = member ? member.name : 'Client Inconnu';
-    const clubName = state.currentClub?.name || 'Mon Club';
-
-    doc.setFontSize(20);
-    doc.text('FACTURE', 105, 20, { align: 'center' });
-    
-    doc.setFontSize(12);
-    doc.text(`Club: ${clubName}`, 20, 40);
-    doc.text(`Date: ${new Date(payment.date).toLocaleDateString('fr-FR')}`, 20, 50);
-    doc.text(`Facture N°: ${payment.id.substring(0, 8).toUpperCase()}`, 20, 60);
-    
-    doc.text(`Client: ${memberName}`, 120, 40);
-    
-    autoTable(doc, {
-      startY: 80,
-      head: [['Description', 'Montant HT', 'TVA', 'Montant TTC']],
-      body: [
+      const pdf = new jsPDF();
+      pdf.setFontSize(18);
+      pdf.text("Synthèse financière", 14, 20);
+      pdf.setFontSize(10);
+      pdf.text(
         [
-          `Paiement - ${payment.category || 'Service'}`, 
-          `${(payment.amount / 1.2).toFixed(2)} €`, 
-          '20%', 
-          `${payment.amount.toFixed(2)} €`
+          `Structure : ${state.currentClub?.name || "Velatra"}`,
+          `Période : ${period} — export du ${new Date().toLocaleDateString("fr-FR")}`,
+          `Encaissements nets des remboursements : ${money(metrics.revenue)}`,
+          `Dépenses saisies : ${money(metrics.spent)}`,
+          `Solde de pilotage : ${money(metrics.balance)}`,
+          "Charges fixes déclarées séparément. TVA uniquement renseignée.",
+          "Cette synthèse ne représente pas une comptabilité exhaustive.",
         ],
-      ],
-    });
-
-    doc.save(`facture_${payment.id.substring(0, 8)}.pdf`);
-  };
-
-  const handleAddPlan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!state.user?.clubId) return;
-    
-    const id = Date.now().toString();
-    const plan: Plan = {
-      id,
-      clubId: state.user.clubId,
-      name: newPlan.name || '',
-      price: Number(newPlan.price),
-      billingCycle: newPlan.billingCycle as 'monthly' | 'yearly' | 'once',
-      description: newPlan.description || ''
-    };
-
-    try {
-      await setDoc(doc(db, "plans", id), plan);
-      setIsAddingPlan(false);
-      setNewPlan({ name: '', price: 0, billingCycle: 'monthly', description: '' });
-    } catch (err) {
-      console.error("Error adding plan", err);
-    }
-  };
-
-  const [confirmDeletePlanId, setConfirmDeletePlanId] = useState<string | null>(null);
-  const [confirmDeleteExpenseId, setConfirmDeleteExpenseId] = useState<string | null>(null);
-
-  const confirmDeletePlan = async () => {
-    if (!confirmDeletePlanId) return;
-    try {
-      await deleteDoc(doc(db, "plans", confirmDeletePlanId));
-    } catch (err) {
-      console.error("Error deleting plan", err);
-    } finally {
-      setConfirmDeletePlanId(null);
-    }
-  };
-
-  const handleDeletePlan = async (id: string) => {
-    setConfirmDeletePlanId(id);
-  };
-
-  const handleAddExpense = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!state.user?.clubId) return;
-    const id = Date.now().toString();
-    const expense: Expense = {
-      id,
-      clubId: state.user.clubId,
-      amount: Number(newExpense.amount),
-      category: newExpense.category as any,
-      date: newExpense.date || new Date().toISOString(),
-      description: newExpense.description || '',
-      vatRate: Number(newExpense.vatRate) || 20
-    };
-    try {
-      await setDoc(doc(db, "expenses", id), expense);
-      setIsAddingExpense(false);
-      setNewExpense({ amount: 0, category: 'other', date: new Date().toISOString().split('T')[0], description: '', vatRate: 20 });
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleAddFixedCost = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!state.user?.clubId) return;
-    
-    const id = Date.now().toString();
-    const cost = {
-      id,
-      clubId: state.user.clubId,
-      name: newFixedCost.name,
-      amount: Number(newFixedCost.amount)
-    };
-
-    try {
-      await setDoc(doc(db, "fixedCosts", id), cost);
-      setIsAddingFixedCost(false);
-      setNewFixedCost({ name: '', amount: 0 });
-    } catch (err) {
-      console.error("Error adding fixed cost", err);
-    }
-  };
-
-  const handleDeleteFixedCost = async (id: string) => {
-    try {
-      await deleteDoc(doc(db, "fixedCosts", id));
-    } catch (err) {
-      console.error("Error deleting fixed cost", err);
-    }
-  };
-
-  const handleUpdateGoal = async () => {
-    if (!state.currentClub?.id) return;
-    try {
-      await updateDoc(doc(db, "clubs", state.currentClub.id), {
-        'settings.finances.monthlyGoal': Number(newGoal)
+        14,
+        30,
+      );
+      autoTable(pdf, {
+        startY: 75,
+        head: [exportRows()[0]],
+        body: exportRows().slice(1),
       });
-      setIsEditingGoal(false);
-    } catch (err) {
-      console.error("Error updating goal", err);
-    }
-  };
-
-  const confirmDeleteExpense = async () => {
-    if (!confirmDeleteExpenseId) return;
-    try {
-      await deleteDoc(doc(db, "expenses", confirmDeleteExpenseId));
-    } catch (err) {
-      console.error("Error deleting expense", err);
-    } finally {
-      setConfirmDeleteExpenseId(null);
-    }
-  };
-
-  const handleDeleteExpense = async (id: string) => {
-    setConfirmDeleteExpenseId(id);
-  };
-
-  const [confirmRefundPaymentId, setConfirmRefundPaymentId] = useState<string | null>(null);
-
-  const confirmRefundPayment = async () => {
-    if (!confirmRefundPaymentId) return;
-    const payment = state.payments.find(p => p.id === confirmRefundPaymentId);
-    if (!payment) return;
-
-    try {
-      if (showToast) showToast("Remboursement en cours...", "info");
-      await updateDoc(doc(db, "payments", payment.id), { status: 'failed' });
-      if (showToast) showToast("Paiement marqué comme remboursé avec succès !");
-    } catch (e) {
-      if (showToast) showToast("Erreur lors du remboursement", "error");
-    } finally {
-      setConfirmRefundPaymentId(null);
-    }
-  };
-
-  const handleUpdatePaymentCategory = async (paymentId: string, category: 'subscription' | 'coaching' | 'boutique' | 'other') => {
-    try {
-      await updateDoc(doc(db, "payments", paymentId), { category });
-      showToast("Catégorie mise à jour", "success");
-    } catch (err) {
-      console.error("Error updating payment category:", err);
-      showToast("Erreur lors de la mise à jour", "error");
-    }
-  };
-
-  return (
-    <div className="w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6 page-transition">
-      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-display font-bold text-zinc-900">Finances</h1>
-          <p className="text-sm text-zinc-600 mt-1">Revenus, dépenses et paiements de votre activité.</p>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full xl:w-auto">
-          <button
-            onClick={handleExportPDF}
-            className="flex items-center gap-2 bg-emerald-800 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-emerald-900 transition-colors whitespace-nowrap"
-          >
-            <FileText className="w-4 h-4" />
-            Bilan PDF
-          </button>
-          <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 text-zinc-900 px-4 py-2 rounded-xl text-sm font-medium hover:bg-zinc-100 transition-colors whitespace-nowrap"
-          >
-            <Download className="w-4 h-4" />
-            Export CSV
-          </button>
-          <div className="order-last flex w-full bg-white p-1 rounded-xl border border-zinc-200 overflow-x-auto xl:order-none xl:w-auto" role="tablist" aria-label="Sections financières">
-            <button role="tab" aria-selected={activeTab === 'overview'} onClick={() => setActiveTab('overview')} className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'overview' ? 'bg-emerald-800 text-white' : 'text-zinc-700 hover:bg-zinc-50'}`}>Vue d'ensemble</button>
-            <button role="tab" aria-selected={activeTab === 'payments'} onClick={() => setActiveTab('payments')} className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'payments' ? 'bg-emerald-800 text-white' : 'text-zinc-700 hover:bg-zinc-50'}`}>Paiements</button>
-            <button role="tab" aria-selected={activeTab === 'expenses'} onClick={() => setActiveTab('expenses')} className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'expenses' ? 'bg-emerald-800 text-white' : 'text-zinc-700 hover:bg-zinc-50'}`}>Dépenses</button>
-            <button role="tab" aria-selected={activeTab === 'plans'} onClick={() => setActiveTab('plans')} className={`px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'plans' ? 'bg-emerald-800 text-white' : 'text-zinc-700 hover:bg-zinc-50'}`}>Formules</button>
-          </div>
-          
-          <select 
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value as any)}
-            aria-label="Période des données financières"
-            className="flex-1 sm:flex-none bg-white border border-zinc-200 text-zinc-900 px-3 sm:px-4 py-2.5 rounded-xl text-sm font-medium hover:border-zinc-300 focus:outline-none focus:border-emerald-700 transition-colors"
-          >
-            <option value="7d">7 derniers jours</option>
-            <option value="30d">30 derniers jours</option>
-            <option value="thisMonth">Ce mois-ci</option>
-            <option value="thisYear">Cette année</option>
-            <option value="all">Historique complet</option>
-          </select>
-        </div>
-      </div>
-
-      {activeTab === 'overview' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
-            <div 
-              className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 relative overflow-hidden group cursor-pointer hover:border-emerald-500/50 transition-colors"
-              onClick={() => setIsAnnual(!isAnnual)}
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-900/5 rounded-full -mr-10 -mt-10"></div>
-              <div className="flex justify-between items-start relative z-10">
-                <div>
-                  <p className="text-xs sm:text-sm text-zinc-700 font-medium mb-1 flex items-center gap-2">
-                    {isAnnual ? 'ARR (Revenu Annuel)' : 'MRR (Revenu Mensuel)'}
-                    <span className="hidden sm:inline text-xs bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-600 uppercase tracking-wider">Cliquer pour basculer</span>
-                  </p>
-                  <h3 className="text-xl sm:text-4xl font-display font-bold text-zinc-900">
-                    {isAnnual ? (mrr * 12).toFixed(2) : mrr.toFixed(2)} €
-                  </h3>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800">
-                  <TrendingUp className="w-6 h-6" />
-                </div>
-              </div>
-              <p className="mt-3 flex items-center gap-1 text-xs sm:text-sm text-emerald-900"><TrendingUp className="h-4 w-4 shrink-0" /> {activeSubscriptions.length} abonnements actifs</p>
-            </div>
-
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-zinc-200/60 rounded-full -mr-10 -mt-10"></div>
-              <div className="flex justify-between items-start relative z-10">
-                <div>
-                  <p className="text-xs sm:text-sm text-zinc-700 font-medium mb-1">Panier moyen (ARPU)</p>
-                  <h3 className="text-xl sm:text-4xl font-display font-bold text-zinc-900">{arpu.toFixed(2)} €</h3>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-zinc-200 flex items-center justify-center text-zinc-800">
-                  <Package className="w-6 h-6" />
-                </div>
-              </div>
-              <p className="text-xs sm:text-sm text-zinc-700 mt-3">Revenu moyen par abonné</p>
-            </div>
-
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-900/5 rounded-full -mr-10 -mt-10"></div>
-              <div className="flex justify-between items-start relative z-10">
-                <div>
-                  <p className="text-xs sm:text-sm text-zinc-700 font-medium mb-1">Bénéfice net</p>
-                  <h3 className="text-xl sm:text-4xl font-display font-bold text-zinc-900">{netProfit.toFixed(2)} €</h3>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800">
-                  <DollarSign className="w-6 h-6" />
-                </div>
-              </div>
-              <p className="text-xs text-zinc-700 mt-3">Revenus − dépenses</p>
-            </div>
-
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-100/80 rounded-full -mr-10 -mt-10"></div>
-              <div className="flex justify-between items-start relative z-10">
-                <div>
-                  <p className="text-xs sm:text-sm text-zinc-700 font-medium mb-1">En attente</p>
-                  <h3 className="text-xl sm:text-4xl font-display font-bold text-zinc-900">{pendingPayments.toFixed(2)} €</h3>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-800">
-                  <Clock className="w-6 h-6" />
-                </div>
-              </div>
-              <p className="text-xs text-zinc-700 mt-3">Paiements à recouvrer</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 relative overflow-hidden group">
-              <div className="flex justify-between items-start relative z-10">
-                <div className="w-full">
-                  <p className="text-zinc-500 font-medium mb-2 flex items-center justify-between">
-                    Objectif Mensuel
-                    <span className="text-emerald-800 font-bold">{goalProgress.toFixed(0)}%</span>
-                  </p>
-                  
-                  {isEditingGoal ? (
-                    <div className="flex items-center gap-2 mb-4">
-                      <input 
-                        type="number" 
-                        value={newGoal} 
-                        onChange={e => setNewGoal(Number(e.target.value))}
-                        className="w-24 bg-white border border-zinc-200 rounded-lg p-1 text-zinc-900 text-lg font-bold"
-                      />
-                      <button onClick={handleUpdateGoal} className="bg-emerald-800 text-white px-3 py-1 rounded-lg text-sm font-semibold">OK</button>
-                      <button onClick={() => setIsEditingGoal(false)} className="text-zinc-500 hover:text-zinc-900 text-sm">Annuler</button>
-                    </div>
-                  ) : (
-                    <h3 
-                      className="text-2xl font-display font-bold text-zinc-900 mb-4 cursor-pointer hover:text-emerald-800 transition-colors"
-                      onClick={() => setIsEditingGoal(true)}
-                      title="Modifier l'objectif"
-                    >
-                      {mrr.toFixed(0)} € / {monthlyGoal} €
-                    </h3>
-                  )}
-
-                  <div className="w-full bg-zinc-100 rounded-full h-3 overflow-hidden">
-                    <div 
-                      className="bg-emerald-800 h-3 rounded-full transition-all duration-1000 ease-out"
-                      style={{ width: `${goalProgress}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 relative overflow-hidden group">
-              <div className="flex justify-between items-start relative z-10">
-                <div>
-                  <p className="text-zinc-500 font-medium mb-1">Prévision Trésorerie (M+1)</p>
-                  <h3 className="text-2xl font-display font-bold text-zinc-900">{projectedRevenue.toFixed(2)} €</h3>
-                  <p className="text-sm text-zinc-500 mt-2">Basé sur le MRR et la moyenne des ventes</p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-zinc-200 flex items-center justify-center text-zinc-800">
-                  <TrendingUp className="w-5 h-5" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 relative overflow-hidden group">
-              <div className="flex justify-between items-start relative z-10">
-                <div className="w-full">
-                  <p className="text-zinc-500 font-medium mb-2">Bilan TVA</p>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm text-zinc-500">Collectée</span>
-                    <span className="font-medium text-zinc-900">{tvaCollected.toFixed(2)} €</span>
-                  </div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-zinc-500">Déductible</span>
-                    <span className="font-medium text-zinc-900">-{tvaDeductible.toFixed(2)} €</span>
-                  </div>
-                  <div className="w-full h-px bg-zinc-100 my-2"></div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-zinc-900">TVA Nette</span>
-                    <span className={`font-bold ${tvaNet > 0 ? 'text-red-700' : 'text-emerald-800'}`}>
-                      {tvaNet > 0 ? 'À payer: ' : 'Crédit: '}
-                      {Math.abs(tvaNet).toFixed(2)} €
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 min-w-0">
-              <h3 className="text-base sm:text-lg font-semibold text-zinc-900 mb-4 sm:mb-6">Revenus vs Dépenses (6 derniers mois)</h3>
-              <div className="h-64 sm:h-72 w-full min-w-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
-                    <XAxis dataKey="name" stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#52525b" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}€`} width={44} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', borderRadius: '8px', color: '#18181b', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                      itemStyle={{ color: '#18181b' }}
-                    />
-                    <Legend />
-                    <Bar dataKey="Revenus" fill="#166534" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Dépenses" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 sm:p-6 min-w-0">
-              <h3 className="text-base sm:text-lg font-semibold text-zinc-900 mb-4 sm:mb-6">Répartition des Revenus</h3>
-              <div className="h-64 sm:h-72 w-full min-w-0 flex items-center justify-center">
-                {pieChartData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={pieChartData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {pieChartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        formatter={(value: number) => `${value.toFixed(2)} €`}
-                        contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e5e7eb', borderRadius: '8px', color: '#18181b', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                      />
-                      <Legend verticalAlign="bottom" height={36}/>
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="text-zinc-500 text-sm">Aucune donnée disponible</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'payments' && (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-black text-zinc-900">Historique des paiements</h2>
-          </div>
-
-          <div className="hidden lg:block bg-zinc-50 border border-zinc-200 rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-white text-zinc-500 uppercase text-xs">
-                  <tr>
-                    <th className="px-6 py-4 font-medium">Date</th>
-                    <th className="px-6 py-4 font-medium">Membre</th>
-                    <th className="px-6 py-4 font-medium">Catégorie</th>
-                    <th className="px-6 py-4 font-medium">Méthode</th>
-                    <th className="px-6 py-4 font-medium">Statut</th>
-                    <th className="px-6 py-4 font-medium">Montant</th>
-                    <th className="px-6 py-4 font-medium text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200">
-                  {filteredPayments.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(payment => {
-                    const member = state.users.find(u => Number(u.id) === payment.memberId);
-                    return (
-                      <tr key={payment.id} className="hover:bg-white transition-colors">
-                        <td className="px-6 py-4 text-zinc-900">{new Date(payment.date).toLocaleDateString('fr-FR')}</td>
-                        <td className="px-6 py-4 text-zinc-900 font-medium">{member ? member.name : 'Client inconnu'}</td>
-                        <td className="px-6 py-4 text-zinc-500">
-                          <select 
-                            className="bg-transparent border-none text-sm focus:ring-0 cursor-pointer hover:bg-zinc-100 rounded px-2 py-1 -ml-2"
-                            value={payment.category || 'other'}
-                            onChange={(e) => handleUpdatePaymentCategory(payment.id, e.target.value as any)}
-                          >
-                            <option value="subscription">Abonnement</option>
-                            <option value="coaching">Coaching</option>
-                            <option value="boutique">Boutique</option>
-                            <option value="other">Autre</option>
-                          </select>
-                        </td>
-                        <td className="px-6 py-4 text-zinc-500 capitalize">{payment.method === 'card' ? 'Carte Bancaire' : payment.method}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            payment.status === 'paid' ? 'bg-green-100 text-green-700' : 
-                            payment.status === 'pending' ? 'bg-orange-100 text-orange-700' : 
-                            'bg-red-100 text-red-700'
-                          }`}>
-                            {payment.status === 'paid' ? 'Payé' : payment.status === 'pending' ? 'En attente' : 'Échoué'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 font-bold text-zinc-900">{payment.amount.toFixed(2)} €</td>
-                        <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
-                          {payment.status === 'paid' && (
-                            <>
-                              <button 
-                                onClick={() => handleDownloadInvoice(payment)}
-                                className="text-emerald-500 hover:text-emerald-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1"
-                              >
-                                <FileText className="w-3 h-3" />
-                                Facture
-                              </button>
-                              <button 
-                                onClick={() => setConfirmRefundPaymentId(payment.id)}
-                                className="text-red-500 hover:text-red-700 text-xs font-bold uppercase tracking-wider"
-                              >
-                                Rembourser
-                              </button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {filteredPayments.length === 0 && (
-                    <tr>
-                      <td colSpan={7} className="px-6 py-8 text-center text-zinc-600">Aucun paiement pour cette période.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="space-y-3 lg:hidden" aria-label="Liste des paiements">
-            {filteredPayments.length === 0 ? (
-              <div className="rounded-xl border border-zinc-200 bg-white px-4 py-8 text-center text-sm text-zinc-700">Aucun paiement pour cette période.</div>
-            ) : [...filteredPayments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(payment => {
-              const member = state.users.find(user => Number(user.id) === payment.memberId);
-              const statusLabel = payment.status === 'paid' ? 'Payé' : payment.status === 'pending' ? 'En attente' : 'Échoué';
-              const statusStyles = payment.status === 'paid' ? 'bg-emerald-50 text-emerald-900' : payment.status === 'pending' ? 'bg-amber-50 text-amber-900' : 'bg-red-50 text-red-800';
-              return <article key={payment.id} className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-sm font-semibold text-zinc-900">{member?.name || 'Client inconnu'}</h3>
-                    <p className="mt-1 text-xs text-zinc-700">{new Date(payment.date).toLocaleDateString('fr-FR')} · {payment.method === 'card' ? 'Carte bancaire' : payment.method}</p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-base font-semibold text-zinc-900">{payment.amount.toFixed(2)} €</p>
-                    <span className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-medium ${statusStyles}`}>{statusLabel}</span>
-                  </div>
-                </div>
-                <div className="mt-3 flex items-center justify-between gap-3 border-t border-zinc-100 pt-3">
-                  <label className="flex min-w-0 items-center gap-2 text-xs text-zinc-700"><span className="shrink-0">Catégorie</span>
-                    <select aria-label={`Catégorie du paiement de ${member?.name || 'ce membre'}`} className="min-h-11 min-w-0 rounded-lg border border-zinc-200 bg-white px-2 text-sm font-medium text-zinc-900" value={payment.category || 'other'} onChange={event => handleUpdatePaymentCategory(payment.id, event.target.value as any)}>
-                      <option value="subscription">Abonnement</option><option value="coaching">Coaching</option><option value="boutique">Boutique</option><option value="other">Autre</option>
-                    </select>
-                  </label>
-                  {payment.status === 'paid' && <div className="relative shrink-0">
-                    <button type="button" onClick={() => setOpenFinanceActions(openFinanceActions === payment.id ? null : payment.id)} aria-label={`Actions du paiement de ${member?.name || 'ce membre'}`} aria-expanded={openFinanceActions === payment.id} className="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50"><MoreHorizontal className="h-5 w-5" /></button>
-                    {openFinanceActions === payment.id && <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-lg">
-                      <button type="button" onClick={() => { handleDownloadInvoice(payment); setOpenFinanceActions(null); }} className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium text-zinc-800 hover:bg-zinc-50"><FileText className="h-4 w-4" /> Télécharger la facture</button>
-                      <button type="button" onClick={() => { setConfirmRefundPaymentId(payment.id); setOpenFinanceActions(null); }} className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium text-red-800 hover:bg-red-50"><AlertCircle className="h-4 w-4" /> Rembourser</button>
-                    </div>}
-                  </div>}
-                </div>
-              </article>;
-            })}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'expenses' && (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-black text-zinc-900">Dépenses du club</h2>
-            <button 
-              onClick={() => setIsAddingExpense(true)}
-              className="bg-emerald-500 hover:bg-emerald-600 text-zinc-900 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Ajouter une dépense</span>
-            </button>
-          </div>
-
-          {isAddingExpense && (
-            <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-6">
-              <h3 className="text-lg font-medium text-zinc-900 mb-4">Nouvelle dépense</h3>
-              <form onSubmit={handleAddExpense} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-zinc-500 mb-1">Description</label>
-                  <input required type="text" value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900" placeholder="Ex: Loyer, Logiciel..." />
-                </div>
-                <div>
-                  <label className="block text-sm text-zinc-500 mb-1">Montant (€)</label>
-                  <input required type="number" step="0.01" value={newExpense.amount || ''} onChange={e => setNewExpense({...newExpense, amount: Number(e.target.value) || 0})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900" />
-                </div>
-                <div>
-                  <label className="block text-sm text-zinc-500 mb-1">Catégorie</label>
-                  <select value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value as any})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900">
-                    <option value="rent">Loyer</option>
-                    <option value="salary">Salaire</option>
-                    <option value="equipment">Matériel</option>
-                    <option value="marketing">Marketing</option>
-                    <option value="software">Logiciels</option>
-                    <option value="other">Autre</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-zinc-500 mb-1">Taux de TVA (%)</label>
-                  <select value={newExpense.vatRate || 20} onChange={e => setNewExpense({...newExpense, vatRate: Number(e.target.value)})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900">
-                    <option value={20}>20% (Standard)</option>
-                    <option value={10}>10% (Intermédiaire)</option>
-                    <option value={5.5}>5.5% (Réduit)</option>
-                    <option value={2.1}>2.1% (Particulier)</option>
-                    <option value={0}>0% (Exonéré)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-zinc-500 mb-1">Date</label>
-                  <input required type="date" value={newExpense.date} onChange={e => setNewExpense({...newExpense, date: e.target.value})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900" />
-                </div>
-                <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-                  <button type="button" onClick={() => setIsAddingExpense(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
-                  <button type="submit" className="bg-emerald-500 text-zinc-900 px-6 py-2 rounded-lg font-medium hover:bg-emerald-600 transition-colors">Enregistrer</button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          <div className="hidden lg:block bg-zinc-50 border border-zinc-200 rounded-2xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-white text-zinc-500 uppercase text-xs">
-                  <tr>
-                    <th className="px-6 py-4 font-medium">Date</th>
-                    <th className="px-6 py-4 font-medium">Description</th>
-                    <th className="px-6 py-4 font-medium">Catégorie</th>
-                    <th className="px-6 py-4 font-medium">Montant</th>
-                    <th className="px-6 py-4 font-medium text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200">
-                  {filteredExpenses.map(expense => (
-                    <tr key={expense.id} className="hover:bg-white/50 transition-colors">
-                      <td className="px-6 py-4 text-zinc-500">{new Date(expense.date).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 font-medium text-zinc-900">{expense.description}</td>
-                      <td className="px-6 py-4 text-zinc-600">{expenseCategoryLabel[expense.category] || 'Autre'}</td>
-                      <td className="px-6 py-4 text-red-500 font-medium">-{expense.amount} €</td>
-                      <td className="px-6 py-4 text-right">
-                        <button onClick={() => handleDeleteExpense(expense.id)} aria-label={`Supprimer la dépense ${expense.description}`} className="min-h-11 min-w-11 text-zinc-600 hover:text-red-700 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredExpenses.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-zinc-500">Aucune dépense enregistrée.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="space-y-3 lg:hidden" aria-label="Liste des dépenses">
-            {filteredExpenses.length === 0 ? (
-              <div className="rounded-xl border border-zinc-200 bg-white px-4 py-8 text-center text-sm text-zinc-700">Aucune dépense pour cette période.</div>
-            ) : filteredExpenses.map(expense => <article key={expense.id} className="flex items-start justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
-              <div className="min-w-0">
-                <h3 className="break-words text-sm font-semibold text-zinc-900">{expense.description || 'Dépense'}</h3>
-                <p className="mt-1 text-xs text-zinc-700">{expenseCategoryLabel[expense.category] || 'Autre'} · {new Date(expense.date).toLocaleDateString('fr-FR')}</p>
-              </div>
-              <div className="flex shrink-0 items-start gap-2">
-                <span className="pt-2 text-sm font-semibold text-red-800">−{expense.amount.toFixed(2)} €</span>
-                <div className="relative">
-                  <button type="button" onClick={() => setOpenFinanceActions(openFinanceActions === `expense:${expense.id}` ? null : `expense:${expense.id}`)} aria-label={`Actions pour la dépense ${expense.description}`} aria-expanded={openFinanceActions === `expense:${expense.id}`} className="flex h-11 w-11 items-center justify-center rounded-lg border border-zinc-200 text-zinc-700 hover:bg-zinc-50"><MoreHorizontal className="h-5 w-5" /></button>
-                  {openFinanceActions === `expense:${expense.id}` && <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-lg"><button type="button" onClick={() => { handleDeleteExpense(expense.id); setOpenFinanceActions(null); }} className="flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-left text-sm font-medium text-red-800 hover:bg-red-50"><Trash2 className="h-4 w-4" /> Supprimer</button></div>}
-                </div>
-              </div>
-            </article>)}
-          </div>
-
-          <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 mt-8">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-lg font-black text-zinc-900">Charges Fixes Mensuelles</h3>
-                <p className="text-sm text-zinc-500">Ces charges sont automatiquement prises en compte dans vos prévisions.</p>
-              </div>
-              <button 
-                onClick={() => setIsAddingFixedCost(true)}
-                className="bg-zinc-100 hover:bg-zinc-100 text-zinc-900 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"
+      pdf.save("synthese_financiere.pdf");
+    });
+  const checkout = (p: Payment) =>
+    run(async () => {
+      const r = await billingRequest("/api/billing/checkout", {
+        paymentId: p.id,
+      });
+      await navigator.clipboard.writeText(r.link);
+      showToast?.("Lien de paiement personnalisé copié.");
+    });
+  const receipt = (p: Payment) =>
+    run(async () => {
+      if (p.hostedInvoiceUrl) {
+        window.open(p.hostedInvoiceUrl, "_blank", "noopener");
+        return;
+      }
+      const r = await billingRequest(`/api/billing/payments/${p.id}/receipt`);
+      await downloadReceipt(r);
+    });
+  const paymentActions = (p: Payment) => (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {["pending", "failed"].includes(p.status) && (
+        <>
+          {["cash", "transfer"].includes(p.method) &&
+            p.status === "pending" && (
+              <button
+                disabled={busy}
+                className={button}
+                onClick={() =>
+                  run(() =>
+                    action(`/api/billing/payments/${p.id}/manual`, {
+                      method: p.method,
+                      date: new Date().toISOString(),
+                    }),
+                  )
+                }
               >
-                <Plus className="w-4 h-4" />
-                <span>Ajouter une charge</span>
+                Encaisser manuellement
               </button>
-            </div>
-
-            {isAddingFixedCost && (
-              <div className="bg-white border border-zinc-200 rounded-xl p-6 mb-6">
-                <form onSubmit={handleAddFixedCost} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-zinc-500 mb-1">Nom de la charge</label>
-                    <input required type="text" value={newFixedCost.name} onChange={e => setNewFixedCost({...newFixedCost, name: e.target.value})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900" placeholder="Ex: Loyer, Électricité..." />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-zinc-500 mb-1">Montant Mensuel (€)</label>
-                    <input required type="number" step="0.01" value={newFixedCost.amount || ''} onChange={e => setNewFixedCost({...newFixedCost, amount: Number(e.target.value) || 0})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900" />
-                  </div>
-                  <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-                    <button type="button" onClick={() => setIsAddingFixedCost(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 font-medium">Annuler</button>
-                    <button type="submit" className="bg-emerald-500 hover:bg-emerald-600 text-zinc-900 px-6 py-2 rounded-xl font-bold transition-colors">Enregistrer</button>
-                  </div>
-                </form>
-              </div>
             )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {state.fixedCosts?.map(cost => (
-                <div key={cost.id} className="bg-white border border-zinc-200 rounded-xl p-4 flex justify-between items-center group">
-                  <div>
-                    <p className="font-medium text-zinc-900">{cost.name}</p>
-                    <p className="text-sm text-zinc-500">{cost.amount.toFixed(2)} € / mois</p>
+          {manager && ["card", "sepa"].includes(p.method) && (
+            <>
+              <button
+                disabled={
+                  busy ||
+                  !stripeStatus.connected ||
+                  !stripeStatus.webhookConfigured
+                }
+                className={button}
+                onClick={() => checkout(p)}
+              >
+                Lien Stripe
+              </button>
+              <button
+                disabled={busy || !stripeStatus.connected}
+                className={button}
+                onClick={() =>
+                  run(async () => {
+                    const r = await billingRequest(
+                      `/api/billing/payments/${p.id}/charge`,
+                    );
+                    showToast?.(
+                      r.success
+                        ? "Stripe confirme l’encaissement."
+                        : "Stripe attend une action.",
+                    );
+                  })
+                }
+              >
+                Prélever
+              </button>
+            </>
+          )}
+        </>
+      )}
+      {p.status === "paid" && (
+        <button disabled={busy} className={button} onClick={() => receipt(p)}>
+          <FileText size={16} />
+          {p.hostedInvoiceUrl ? "Facture Stripe" : "Justificatif"}
+        </button>
+      )}
+      {manager && p.status === "paid" && (
+        <details className="relative">
+          <summary className={button}>Autres actions</summary>
+          <div className="mt-2 rounded-xl border bg-white p-3 text-sm">
+            {["cash", "transfer"].includes(p.method) &&
+            !p.stripePaymentIntentId &&
+            !p.stripeChargeId &&
+            !p.stripeInvoiceId ? (
+              <button
+                disabled={busy}
+                className={button}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Confirmez uniquement si vous avez déjà rendu ce montant au client en espèces ou par virement. Velatra enregistre ce retour ; aucun transfert n’est effectué.",
+                    )
+                  )
+                    run(() =>
+                      action(`/api/billing/payments/${p.id}/refund`, {
+                        requestId: key(`refund-${p.id}`),
+                        note: "Retour du montant confirmé par le responsable",
+                      }),
+                    );
+                }}
+              >
+                Enregistrer le remboursement manuel complet
+              </button>
+            ) : (
+              <p className="max-w-xs text-zinc-800">
+                Le remboursement Stripe se fait depuis Stripe. Velatra ne simule
+                aucun remboursement.
+              </p>
+            )}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+  const field = (
+    name: string,
+    label: string,
+    type = "text",
+    required = true,
+  ) => (
+    <label className="block min-w-0 text-sm font-semibold text-zinc-800">
+      {label}
+      <input
+        name={name}
+        className={input}
+        type={type}
+        required={required}
+        min={type === "number" ? 0 : undefined}
+        step={type === "number" ? "0.01" : undefined}
+        value={fields[name] ?? ""}
+        onChange={(e) => setFields({ ...fields, [name]: e.target.value })}
+      />
+    </label>
+  );
+  return (
+    <div className="mx-auto w-full min-w-0 max-w-[1800px] space-y-5 p-3 sm:p-6 lg:p-8 text-zinc-900">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-display font-bold">Finances</h1>
+          <p className="mt-1 text-sm text-zinc-700">
+            Encaissements, abonnements et formules de votre activité.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button className={button} onClick={exportCsv}>
+            <Download size={16} />
+            CSV financier
+          </button>
+          <button disabled={busy} className={button} onClick={exportPdf}>
+            Synthèse PDF
+          </button>
+        </div>
+      </header>
+      {manager && !stripeStatus.connected && (
+        <p className={panel + " text-sm text-zinc-700"}>
+          Stripe indisponible. Les formules et encaissements manuels restent
+          utilisables. Configurez Stripe dans Paramètres pour les paiements en
+          ligne.
+        </p>
+      )}
+      {manager && stripeStatus.connected && !stripeStatus.webhookConfigured && (
+        <p className={panel + " text-sm text-zinc-700"}>
+          Stripe connecté ; configurez la signature du webhook dans Paramètres
+          pour les liens de paiement.
+        </p>
+      )}
+      {error && (
+        <div
+          role="alert"
+          className="rounded-xl border border-red-300 bg-red-50 p-3 text-red-900"
+        >
+          {error}
+        </div>
+      )}
+      <nav aria-label="Sections financières" className="flex flex-wrap gap-2">
+        {[
+          ["overview", "Résumé"],
+          ["payments", "Paiements"],
+          ["subscriptions", "Abonnements"],
+          ["plans", "Formules"],
+          ["expenses", "Dépenses"],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            aria-current={tab === id ? "page" : undefined}
+            className={
+              button +
+              (tab === id
+                ? " !bg-emerald-900 !text-white !border-emerald-900"
+                : "")
+            }
+            onClick={() => {
+              setTab(id);
+              setSelected(null);
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <label className="flex-1 min-w-0 text-sm font-medium">
+          Rechercher
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-4 text-zinc-600" />
+            <input
+              className={input + " !pl-9"}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Adhérent, formule, paiement…"
+            />
+          </div>
+        </label>
+        <label className="text-sm font-medium">
+          Période des paiements et dépenses
+          <select
+            className={input}
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+          >
+            <option value="thisMonth">Ce mois</option>
+            <option value="30d">30 derniers jours</option>
+            <option value="7d">7 derniers jours</option>
+            <option value="thisYear">Cette année</option>
+            <option value="all">Toutes les dates</option>
+          </select>
+        </label>
+      </div>
+      {tab === "overview" && (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              ["Encaissements nets", metrics.revenue],
+              [
+                "À encaisser",
+                payments
+                  .filter((p) => p.status === "pending")
+                  .reduce((n, p) => n + p.amount, 0),
+              ],
+              ["Dépenses saisies", metrics.spent],
+              ["Solde de pilotage", metrics.balance],
+            ].map(([label, value]) => (
+              <div key={label} className={panel}>
+                <p className="text-sm font-medium text-zinc-700">{label}</p>
+                <p className="mt-2 text-2xl font-bold">
+                  {money(Number(value))}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-4 xl:grid-cols-2">
+            <section className={panel}>
+              <h2 className="text-lg font-bold">Abonnements récurrents</h2>
+              <dl className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {[
+                  ["MRR", metrics.mrr],
+                  ["ARR", metrics.arr],
+                  ["ARPU récurrent", metrics.arpu],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <dt className="text-sm text-zinc-700">{label}</dt>
+                    <dd className="mt-1 text-xl font-bold">
+                      {money(Number(value))}
+                    </dd>
                   </div>
-                  <button 
-                    onClick={() => handleDeleteFixedCost(cost.id)}
-                    className="p-2 text-zinc-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                ))}
+              </dl>
+              <p className="mt-4 text-sm text-zinc-700">
+                MRR : abonnements récurrents actifs, prix annuels divisés par
+                12. ARR : MRR × 12. ARPU : MRR / {metrics.recurringCount}{" "}
+                abonnements récurrents actifs. Paiements uniques exclus.
+              </p>
+            </section>
+            <section className={panel}>
+              <h2 className="text-lg font-bold">TVA renseignée</h2>
+              <p className="mt-3">
+                Sur encaissements : {money(metrics.vatCollected)}
+              </p>
+              <p className="mt-1">
+                Sur dépenses : {money(metrics.vatExpenses)}
+              </p>
+              <p className="mt-3 text-sm text-zinc-700">
+                {metrics.unknownVatCount} donnée(s) avec TVA non renseignée,
+                exclue(s) de ces calculs. Ce suivi ne constitue pas une
+                déclaration de TVA.
+              </p>
+            </section>
+          </div>
+          <section className={panel}>
+            <h2 className="text-lg font-bold">Paiements à suivre</h2>
+            <div className="mt-3 space-y-2">
+              {visiblePayments
+                .filter((p) => ["pending", "failed"].includes(p.status))
+                .slice(0, 5)
+                .map((p) => (
+                  <button
+                    className="flex w-full min-w-0 items-center justify-between gap-3 rounded-xl bg-zinc-50 p-3 text-left"
+                    key={p.id}
+                    onClick={() => {
+                      setTab("payments");
+                      setSelected(p);
+                    }}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <span className="min-w-0 break-words">
+                      {memberName(p.memberId)}
+                      <span className="block text-sm text-zinc-700">
+                        {paymentStatusLabels[p.status]}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-bold">
+                      {money(p.amount)}
+                    </span>
+                  </button>
+                ))}
+              {!visiblePayments.some((p) =>
+                ["pending", "failed"].includes(p.status),
+              ) && (
+                <p className="text-sm text-zinc-700">
+                  Aucun paiement nécessitant une action sur cette période.
+                </p>
+              )}
+            </div>
+          </section>
+          <p className="text-sm text-zinc-700">
+            Le solde utilise les encaissements nets et les dépenses saisies sur
+            la période. Les charges fixes déclarées sont affichées séparément,
+            sans extrapolation ni double comptage.
+          </p>
+        </>
+      )}
+      {tab === "payments" && (
+        <>
+          <button className={button} onClick={() => openForm("payment")}>
+            <Plus size={16} />
+            Créer un paiement en attente
+          </button>
+          <div className="grid min-w-0 gap-4 min-[1600px]:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+            <div className="space-y-3">
+              {visiblePayments.map((p) => (
+                <article key={p.id} className={panel}>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <button
+                      className="min-w-0 text-left"
+                      onClick={() => setSelected(p)}
+                    >
+                      <h2 className="break-words font-bold">
+                        {memberName(p.memberId)}
+                      </h2>
+                      <p className="mt-1 text-sm text-zinc-700">
+                        {new Date(p.date).toLocaleDateString("fr-FR")} ·{" "}
+                        {paymentStatusLabels[p.status]} · {p.method}
+                      </p>
+                    </button>
+                    <strong>{money(p.amount)}</strong>
+                  </div>
+                  <p className="mt-2 break-words text-sm text-zinc-700">
+                    {p.description || "Paiement"} ·{" "}
+                    {p.vatRate == null
+                      ? "TVA non renseignée"
+                      : `TVA ${p.vatRate} %`}
+                    {p.refundedAmount
+                      ? ` · Remboursé ${money(p.refundedAmount)}`
+                      : ""}
+                  </p>
+                  {paymentActions(p)}
+                </article>
+              ))}
+              {!visiblePayments.length && (
+                <p className={panel}>Aucun paiement sur cette période.</p>
+              )}
+            </div>
+            <aside className={panel + " hidden self-start min-[1600px]:block"}>
+              <h2 className="text-lg font-bold">Détail du paiement</h2>
+              {selectedPayment ? (
+                <>
+                  <p className="mt-3 break-words">
+                    {memberName(selectedPayment.memberId)}
+                  </p>
+                  <p className="mt-2 font-bold">
+                    {money(selectedPayment.amount)} ·{" "}
+                    {paymentStatusLabels[selectedPayment.status]}
+                  </p>
+                  <p className="mt-2 break-all text-xs text-zinc-700">
+                    Référence : {selectedPayment.id}
+                  </p>
+                  {paymentActions(selectedPayment)}
+                </>
+              ) : (
+                <p className="mt-3 text-sm text-zinc-700">
+                  Sélectionnez un paiement pour le consulter ici.
+                </p>
+              )}
+            </aside>
+          </div>
+        </>
+      )}
+      {tab === "payments" && !!state.invoices?.length && (
+        <details className={panel}>
+          <summary className="min-h-11 cursor-pointer font-semibold">
+            Justificatifs et documents historiques
+          </summary>
+          <p className="mt-2 text-sm text-zinc-700">
+            Documents conservés ; aucune certification fiscale rétroactive.
+          </p>
+          <div className="mt-3 space-y-3">
+            {state.invoices
+              .filter((i) => matchesPeriod(i.date, period))
+              .map((i) => (
+                <div
+                  key={i.id}
+                  className="flex flex-wrap justify-between gap-2 border-t pt-3"
+                >
+                  <span className="min-w-0 break-words">
+                    {i.number} · {memberName(i.memberId)} · {money(i.amount)} ·{" "}
+                    {i.status}
+                  </span>
+                  <button
+                    className={button}
+                    disabled={busy || i.status !== "paid"}
+                    onClick={() => run(() => downloadReceipt(i))}
+                  >
+                    Télécharger le justificatif
                   </button>
                 </div>
               ))}
-              {(!state.fixedCosts || state.fixedCosts.length === 0) && (
-                <div className="col-span-full text-center py-8 text-zinc-500 border border-dashed border-zinc-200 rounded-xl">
-                  Aucune charge fixe enregistrée.
-                </div>
-              )}
-            </div>
           </div>
+        </details>
+      )}
+      {tab === "subscriptions" && (
+        <div className="grid gap-3 xl:grid-cols-2">
+          {state.subscriptions
+            .filter((s) => matching(`${s.planName} ${memberName(s.memberId)}`))
+            .map((s) => (
+              <article key={s.id} className={panel}>
+                <h2 className="break-words font-bold">
+                  {memberName(s.memberId)}
+                </h2>
+                <p className="mt-2">
+                  {s.planName} · {money(s.price)} /{" "}
+                  {s.billingCycle === "monthly"
+                    ? "mois"
+                    : s.billingCycle === "yearly"
+                      ? "an"
+                      : "une fois"}
+                </p>
+                <p className="mt-1 text-sm text-zinc-700">
+                  {subscriptionStatusLabels[s.status]} · depuis{" "}
+                  {new Date(s.startDate).toLocaleDateString("fr-FR")}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {s.contractUrl && (
+                    <a
+                      className={button}
+                      href={s.contractUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Contrat
+                    </a>
+                  )}
+                  {manager &&
+                    s.status === "pending" &&
+                    s.collectionMode === "stripe" && (
+                      <button
+                        disabled={
+                          busy ||
+                          !stripeStatus.connected ||
+                          !stripeStatus.webhookConfigured
+                        }
+                        className={button}
+                        onClick={() =>
+                          run(async () => {
+                            const r = await billingRequest(
+                              "/api/billing/checkout",
+                              { subscriptionId: s.id },
+                            );
+                            await navigator.clipboard.writeText(r.link);
+                            showToast?.("Lien copié.");
+                          })
+                        }
+                      >
+                        Lien de paiement Stripe
+                      </button>
+                    )}
+                  {s.status === "active" &&
+                    s.collectionMode !== "stripe" &&
+                    !s.stripeSubscriptionId && (
+                      <button
+                        className={button}
+                        disabled={busy}
+                        onClick={() =>
+                          run(() =>
+                            action(`/api/billing/subscriptions/${s.id}/cancel`),
+                          )
+                        }
+                      >
+                        Clôturer l’abonnement interne
+                      </button>
+                    )}
+                </div>
+              </article>
+            ))}
+          {!state.subscriptions.length && (
+            <p className={panel}>
+              Aucun abonnement. L’assignation se fait depuis Client 360 →
+              Administratif.
+            </p>
+          )}
         </div>
       )}
-
-      {activeTab === 'plans' && (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-black text-zinc-900">Vos formules d'abonnement</h2>
-            <button 
-              onClick={() => setIsAddingPlan(true)}
-              className="bg-emerald-500 hover:bg-emerald-600 text-zinc-900 px-4 py-2 rounded-xl font-medium transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nouvelle Formule</span>
+      {tab === "plans" && (
+        <>
+          <button className={button} onClick={() => openForm("plan")}>
+            <Plus size={16} />
+            Nouvelle formule
+          </button>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {state.plans
+              .filter((p) => matching(p.name))
+              .map((p) => (
+                <article key={p.id} className={panel}>
+                  <h2 className="break-words text-lg font-bold">{p.name}</h2>
+                  <p className="mt-2 text-xl font-bold">
+                    {money(p.price)}{" "}
+                    <span className="text-sm font-normal">
+                      {p.isTTC === false ? "HT" : "TTC"} /{" "}
+                      {p.billingCycle === "monthly"
+                        ? "mois"
+                        : p.billingCycle === "yearly"
+                          ? "an"
+                          : "une fois"}
+                    </span>
+                  </p>
+                  <p className="mt-2 break-words text-sm text-zinc-700">
+                    {p.description || "Sans description"} ·{" "}
+                    {p.isActive === false ? "Archivée" : "Disponible"}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {p.isActive !== false && (
+                      <button
+                        disabled={busy}
+                        className={button}
+                        onClick={() =>
+                          run(() =>
+                            action(`/api/billing/plans/${p.id}/archive`),
+                          )
+                        }
+                      >
+                        <Archive size={16} />
+                        Archiver
+                      </button>
+                    )}
+                    {manager && p.isActive !== false && (
+                      <button
+                        disabled={busy || !stripeStatus.connected}
+                        className={button}
+                        onClick={() =>
+                          run(() => action(`/api/billing/plans/${p.id}/sync`))
+                        }
+                      >
+                        {p.stripePriceId
+                          ? "Vérifier la synchronisation"
+                          : "Synchroniser Stripe"}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))}
+          </div>
+          <p className="text-sm text-zinc-700">
+            La configuration détaillée des crédits et l’édition des formules
+            restent dans Paramètres. Une formule archivée reste dans
+            l’historique.
+          </p>
+        </>
+      )}
+      {tab === "expenses" && (
+        <>
+          <div className="flex flex-wrap gap-2">
+            <button className={button} onClick={() => openForm("expense")}>
+              Ajouter une dépense
+            </button>
+            <button className={button} onClick={() => openForm("fixed")}>
+              Ajouter une charge fixe
             </button>
           </div>
-
-          {isAddingPlan && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-zinc-50 border border-zinc-200 rounded-xl p-6"
-            >
-              <h3 className="text-lg font-medium text-zinc-900 mb-4">Créer une formule</h3>
-              <form onSubmit={handleAddPlan} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-zinc-500 mb-1">Nom de la formule</label>
-                  <input required type="text" value={newPlan.name} onChange={e => setNewPlan({...newPlan, name: e.target.value})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900" placeholder="Ex: Annuel" />
-                </div>
-                <div>
-                  <label className="block text-sm text-zinc-500 mb-1">Prix (€)</label>
-                  <input required type="number" step="0.01" value={newPlan.price || ''} onChange={e => setNewPlan({...newPlan, price: Number(e.target.value) || 0})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900" />
-                </div>
-                <div>
-                  <label className="block text-sm text-zinc-500 mb-1">Cycle de facturation</label>
-                  <select value={newPlan.billingCycle} onChange={e => setNewPlan({...newPlan, billingCycle: e.target.value as any})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900">
-                    <option value="monthly">Mensuel</option>
-                    <option value="yearly">Annuel</option>
-                    <option value="once">Paiement unique</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-zinc-500 mb-1">Description</label>
-                  <input type="text" value={newPlan.description} onChange={e => setNewPlan({...newPlan, description: e.target.value})} className="w-full bg-white border border-zinc-200 rounded-lg p-2 text-zinc-900" placeholder="Avantages inclus..." />
-                </div>
-                <div className="md:col-span-2 flex justify-end gap-2 mt-2">
-                  <button type="button" onClick={() => setIsAddingPlan(false)} className="px-4 py-2 text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
-                  <button type="submit" className="bg-emerald-500 text-zinc-900 px-6 py-2 rounded-lg font-medium hover:bg-emerald-600 transition-colors">Enregistrer</button>
-                </div>
-              </form>
-            </motion.div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {state.plans.map(plan => (
-              <div key={plan.id} className="bg-zinc-50 border border-zinc-200 rounded-2xl p-6 relative group">
-                <button 
-                  onClick={() => handleDeletePlan(plan.id)}
-                  className="absolute top-4 right-4 text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+          <div className="grid gap-4 xl:grid-cols-2">
+            <section className={panel}>
+              <h2 className="font-bold">Dépenses saisies sur la période</h2>
+              {expenses
+                .filter((e) => matching(e.description))
+                .map((e) => (
+                  <div
+                    key={e.id}
+                    className="mt-3 flex flex-wrap justify-between gap-2 border-t pt-3"
+                  >
+                    <span className="min-w-0 break-words">
+                      {e.description || e.category} · {money(e.amount)}
+                      <span className="block text-sm text-zinc-700">
+                        {e.vatRate == null
+                          ? "TVA non renseignée"
+                          : `TVA ${e.vatRate} %`}
+                      </span>
+                    </span>
+                    <button
+                      className={button}
+                      onClick={() =>
+                        run(async () => {
+                          await deleteDoc(doc(db, "expenses", e.id));
+                        })
+                      }
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                ))}
+            </section>
+            <section className={panel}>
+              <h2 className="font-bold">Charges fixes mensuelles déclarées</h2>
+              <p className="mt-2 text-sm text-zinc-700">
+                Information séparée ; les dépenses réellement payées sont
+                saisies dans Dépenses.
+              </p>
+              {state.fixedCosts?.map((c) => (
+                <div
+                  key={c.id}
+                  className="mt-3 flex flex-wrap justify-between gap-2 border-t pt-3"
                 >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-                <div className="w-12 h-12 bg-white rounded-xl border border-zinc-200 flex items-center justify-center text-emerald-500 mb-4">
-                  <Package className="w-6 h-6" />
+                  <span className="break-words">
+                    {c.name} · {money(c.amount)} / mois
+                  </span>
+                  <button
+                    className={button}
+                    onClick={() =>
+                      run(async () => {
+                        await deleteDoc(doc(db, "fixedCosts", c.id));
+                      })
+                    }
+                  >
+                    Supprimer
+                  </button>
                 </div>
-                <h3 className="text-xl font-bold text-zinc-900 mb-1">{plan.name}</h3>
-                <div className="flex items-baseline gap-1 mb-4">
-                  <span className="text-3xl font-display font-bold text-zinc-900">{plan.price}€</span>
-                  <span className="text-zinc-500 text-sm">/{plan.billingCycle === 'monthly' ? 'mois' : plan.billingCycle === 'yearly' ? 'an' : 'fois'}</span>
-                </div>
-                {plan.description && <p className="text-sm text-zinc-500">{plan.description}</p>}
-              </div>
-            ))}
-            {state.plans.length === 0 && !isAddingPlan && (
-              <div className="col-span-3 text-center py-12 border border-dashed border-zinc-200 rounded-2xl">
-                <p className="text-zinc-500">Aucune formule créée. Ajoutez votre première formule d'abonnement.</p>
-              </div>
-            )}
+              ))}
+            </section>
           </div>
-        </div>
+        </>
       )}
-
-      {confirmDeletePlanId && createPortal(
-        <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
-          >
-            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer cette formule ?</h3>
-            <p className="text-zinc-500 mb-6">Les abonnements existants ne seront pas impactés.</p>
-            <div className="flex gap-3">
-              <button className="flex-1 bg-zinc-100 hover:bg-zinc-100 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={() => setConfirmDeletePlanId(null)}>Annuler</button>
-              <button className="flex-1 bg-red-500 hover:bg-red-600 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={confirmDeletePlan}>Supprimer</button>
+      {form && (
+        <section className={panel} aria-label="Formulaire financier">
+          <h2 className="text-lg font-bold">
+            {form === "plan"
+              ? "Créer une formule"
+              : form === "payment"
+                ? "Créer un paiement en attente"
+                : form === "expense"
+                  ? "Saisir une dépense"
+                  : "Déclarer une charge fixe"}
+          </h2>
+          <form onSubmit={submit} className="mt-4 grid gap-4 sm:grid-cols-2">
+            {form === "payment" && (
+              <label className="text-sm font-semibold">
+                Adhérent
+                <select
+                  className={input}
+                  value={fields.memberId}
+                  required
+                  onChange={(e) =>
+                    setFields({ ...fields, memberId: e.target.value })
+                  }
+                >
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {["plan", "fixed"].includes(form) && field("name", "Nom")}
+            {field(
+              form === "plan" ? "price" : "amount",
+              form === "plan" ? "Prix TTC (€)" : "Montant TTC (€)",
+              "number",
+            )}
+            {form === "plan" && (
+              <label className="text-sm font-semibold">
+                Périodicité
+                <select
+                  className={input}
+                  value={fields.billingCycle}
+                  onChange={(e) =>
+                    setFields({ ...fields, billingCycle: e.target.value })
+                  }
+                >
+                  <option value="monthly">Mensuelle</option>
+                  <option value="yearly">Annuelle</option>
+                  <option value="once">Paiement unique</option>
+                </select>
+              </label>
+            )}
+            {form === "payment" && (
+              <label className="text-sm font-semibold">
+                Moyen prévu
+                <select
+                  className={input}
+                  value={fields.method}
+                  onChange={(e) =>
+                    setFields({ ...fields, method: e.target.value })
+                  }
+                >
+                  <option value="cash">Espèces</option>
+                  <option value="transfer">Virement</option>
+                  <option value="card">Carte / Stripe</option>
+                </select>
+              </label>
+            )}
+            {form !== "fixed" && (
+              <>
+                {field(
+                  "vatRate",
+                  "TVA (%) — laisser vide si inconnue",
+                  "number",
+                  false,
+                )}
+                {field("description", "Description", "text", false)}
+              </>
+            )}
+            {form === "expense" && (
+              <label className="text-sm font-semibold">
+                Catégorie
+                <select
+                  className={input}
+                  value={fields.category}
+                  onChange={(e) =>
+                    setFields({ ...fields, category: e.target.value })
+                  }
+                >
+                  {[
+                    "other",
+                    "rent",
+                    "equipment",
+                    "marketing",
+                    "salary",
+                    "software",
+                  ].map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {["payment", "expense"].includes(form) &&
+              field("date", "Date", "date")}
+            <div className="flex flex-wrap gap-2 sm:col-span-2">
+              <button
+                disabled={busy}
+                className={button + " !bg-emerald-900 !text-white"}
+                type="submit"
+              >
+                {busy ? "Confirmation…" : "Enregistrer"}
+              </button>
+              <button
+                className={button}
+                type="button"
+                onClick={() => setForm(null)}
+              >
+                Annuler
+              </button>
             </div>
-          </motion.div>
-        </div>,
-        document.body
-      )}
-
-      {confirmDeleteExpenseId && createPortal(
-        <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
-          >
-            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer cette dépense ?</h3>
-            <p className="text-zinc-500 mb-6">Cette action est irréversible.</p>
-            <div className="flex gap-3">
-              <button className="flex-1 bg-zinc-100 hover:bg-zinc-100 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={() => setConfirmDeleteExpenseId(null)}>Annuler</button>
-              <button className="flex-1 bg-red-500 hover:bg-red-600 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={confirmDeleteExpense}>Supprimer</button>
-            </div>
-          </motion.div>
-        </div>,
-        document.body
-      )}
-
-      {confirmRefundPaymentId && createPortal(
-        <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl"
-          >
-            <h3 className="text-xl font-black text-zinc-900 mb-2">Rembourser le paiement ?</h3>
-            <p className="text-zinc-500 mb-6">Voulez-vous vraiment rembourser ce paiement ? Cette action est irréversible.</p>
-            <div className="flex gap-3">
-              <button className="flex-1 bg-zinc-100 hover:bg-zinc-100 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={() => setConfirmRefundPaymentId(null)}>Annuler</button>
-              <button className="flex-1 bg-red-500 hover:bg-red-600 text-zinc-900 px-4 py-3 rounded-xl font-bold transition-colors" onClick={confirmRefundPayment}>Rembourser</button>
-            </div>
-          </motion.div>
-        </div>,
-        document.body
+          </form>
+        </section>
       )}
     </div>
   );

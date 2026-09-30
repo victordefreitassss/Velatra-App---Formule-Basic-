@@ -1,3 +1,5 @@
+import { billingRequest, downloadReceipt } from '../components/billingClient';
+import { netPayment, paymentStatusLabels, subscriptionStatusLabels } from '../components/billingMetrics';
 import { canManageClub, getProductCapabilities, resolveAccountType } from '../productCapabilities';
 import { AddMemberDialog } from '../components/AddMemberDialog';
 import { CoachFollowup } from '../components/CoachingFollowup';
@@ -88,6 +90,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   }, [selectedProfile?.id]);
 
+  // Financial balances come from the canonical roster subscription, including
+  // grants after assignment and Booking V2 consumption/refunds.
+  useEffect(()=>{
+    if(!selectedProfile)return;
+    const canonical=state.users.find(u=>Number(u.id)===Number(selectedProfile.id)&&u.clubId===selectedProfile.clubId);
+    if(canonical)setSelectedProfile(previous=>previous?{...previous,credits:canonical.credits,sessionCredits:canonical.sessionCredits,stripeCustomerId:canonical.stripeCustomerId}:previous);
+  },[state.users,selectedProfile?.id]);
+
   const openProfile = (member: User, trigger: HTMLElement) => {
     returnFocusRef.current = trigger;
     closingHistoryRef.current = false;
@@ -172,6 +182,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [isAssigningPlan, setIsAssigningPlan] = useState(false);
   const [isEditingSub, setIsEditingSub] = useState(false);
   const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [billingMode, setBillingMode] = useState<'manual'|'stripe'>('manual');
+  const [billingBusy, setBillingBusy] = useState(false);
+  const billingKeys = useRef<Record<string,string>>({});
+  const billingKey = (k:string) => billingKeys.current[k] ||= crypto.randomUUID();
   const [subStartDate, setSubStartDate] = useState(localDateKey());
   const [subCommitmentDate, setSubCommitmentDate] = useState('');
   const [subContractUrl, setSubContractUrl] = useState('');
@@ -205,7 +219,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     name: '', email: '', phone: '', gender: 'M', age: 30, birthDate: '', weight: 70, height: 175, objectifs: [], notes: ''
   });
   const [isAddingPayment, setIsAddingPayment] = useState(false);
-  const [newPayment, setNewPayment] = useState<Partial<Payment>>({ amount: 0, method: 'cash', status: 'paid', date: localDateKey() });
+  const [newPayment, setNewPayment] = useState<Partial<Payment>>({ amount: 0, method: 'cash', status: 'pending', date: localDateKey() });
   const [isUploadingDriveFile, setIsUploadingDriveFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [confirmDeleteFileId, setConfirmDeleteFileId] = useState<string | null>(null);
@@ -597,41 +611,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
   };
 
-  const handleUpdateCredits = async (member: User, amount: number) => {
-    if (!member.firebaseUid) return;
-    const currentCredits = member.credits || 0;
-    const newCredits = Math.max(0, currentCredits + amount);
-    
-    try {
-      await updateDoc(doc(db, "users", member.firebaseUid), {
-        credits: newCredits
-      });
-      setSelectedProfile({ ...member, credits: newCredits });
-      showToast(`Crédits mis à jour (${newCredits})`);
-    } catch (err) {
-      console.error("Error updating credits:", err);
-      showToast("Erreur lors de la mise à jour des crédits", "error");
-    }
+  const handleUpdateCredits = async (member: User, delta: number) => {
+    try { const result = await billingRequest(`/api/billing/members/${member.id}/credits`, {delta,requestId:billingKey(`credits-${member.id}`)}); setSelectedProfile({...member,...result}); delete billingKeys.current[`credits-${member.id}`]; showToast('Crédits mis à jour'); }
+    catch(e:any){showToast(e.message,'error');}
   };
-
-  const handleUpdateSessionCredits = async (member: User, typeId: string, amount: number) => {
-    if (!member.firebaseUid) return;
-    const currentCredits = member.sessionCredits?.[typeId] || 0;
-    const newCredits = Math.max(0, currentCredits + amount);
-    
-    try {
-      await updateDoc(doc(db, "users", member.firebaseUid), {
-        [`sessionCredits.${typeId}`]: newCredits
-      });
-      setSelectedProfile({ 
-        ...member, 
-        sessionCredits: { ...(member.sessionCredits || {}), [typeId]: newCredits } 
-      });
-      showToast(`Crédits mis à jour (${newCredits})`);
-    } catch (err) {
-      console.error("Error updating session credits:", err);
-      showToast("Erreur lors de la mise à jour des crédits", "error");
-    }
+  const handleUpdateSessionCredits = async (member: User, sessionTypeId: string, delta: number) => {
+    try { const result = await billingRequest(`/api/billing/members/${member.id}/credits`, {delta,sessionTypeId,requestId:billingKey(`session-${member.id}-${sessionTypeId}`)}); setSelectedProfile({...member,...result}); delete billingKeys.current[`session-${member.id}-${sessionTypeId}`]; showToast('Crédits séance mis à jour'); }
+    catch(e:any){showToast(e.message,'error');}
   };
 
   const handleEditProgram = (member: User) => {
@@ -658,27 +644,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleAddPayment = async () => {
-    if (!selectedProfile || !newPayment.amount || !newPayment.method) return;
-    try {
-      const paymentData: Payment = {
-        id: Date.now().toString(),
-        clubId: selectedProfile.clubId,
-        memberId: Number(selectedProfile.id),
-        amount: Number(newPayment.amount),
-        date: newPayment.date || localDateKey(),
-        method: newPayment.method as any,
-        status: newPayment.status as any,
-        category: newPayment.category || 'other',
-        reference: `PAY-${Date.now()}`
-      } as Payment;
-      await setDoc(doc(db, "payments", paymentData.id), paymentData);
-      showToast("Paiement ajouté avec succès");
-      setIsAddingPayment(false);
-      setNewPayment({ amount: 0, method: 'cash', status: 'paid', date: localDateKey(), category: 'other' });
-    } catch (err) {
-      console.error("Error adding payment:", err);
-      showToast("Erreur lors de l'ajout du paiement", "error");
-    }
+    if(!selectedProfile||billingBusy)return;setBillingBusy(true);
+    try { await billingRequest('/api/billing/payments',{...newPayment,amount:Number(newPayment.amount),memberId:Number(selectedProfile.id),requestId:billingKey('payment')}); delete billingKeys.current.payment; showToast('Paiement en attente créé. L’encaissement se confirme séparément.');setIsAddingPayment(false);setNewPayment({amount:0,method:'cash',status:'pending',date:localDateKey(),category:'other'}); }
+    catch(e:any){showToast(e.message,'error');}finally{setBillingBusy(false);}
   };
 
   const [isUploadingOfficialDocument, setIsUploadingOfficialDocument] = useState(false);
@@ -1325,7 +1293,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
     const memberOrders = (state.supplementOrders || []).filter(o => Number(o.adherentId) === mid);
     const totalSpent = memberOrders.filter(o => o.status === 'completed').reduce((acc, curr) => acc + curr.total, 0);
-    const subscription = (state.subscriptions || []).find(s => s.memberId === mid && s.status === 'active');
+    const subscription = (state.subscriptions || []).find(s => s.memberId === mid && ['active','pending','past_due','unpaid'].includes(s.status));
 
     return { 
       perfs: Object.values(topPerfs) as Performance[], 
@@ -1338,82 +1306,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleAssignSubscription = async () => {
-    if (!selectedProfile || !selectedPlanId || !state.user?.clubId) return;
-    
-    const plan = state.plans.find(p => p.id === selectedPlanId);
-    if (!plan) return;
-
-    const subId = Date.now().toString();
-    const subscription: Subscription = {
-      id: subId,
-      clubId: state.user.clubId,
-      memberId: Number(selectedProfile.id),
-      planId: plan.id,
-      planName: plan.name,
-      price: plan.price,
-      billingCycle: plan.billingCycle,
-      startDate: new Date(subStartDate).toISOString(),
-      status: 'active'
-    };
-
-    if (subCommitmentDate) {
-      subscription.commitmentEndDate = new Date(subCommitmentDate).toISOString();
-    }
-    if (subContractUrl) {
-      subscription.contractUrl = subContractUrl;
-    }
-
-    try {
-      await setDoc(doc(db, "subscriptions", subId), subscription);
-      
-      // Create notification for the member
-      await addDoc(collection(db, 'notifications'), {
-        clubId: state.user.clubId,
-        userId: Number(selectedProfile.id),
-        title: 'Nouvel abonnement',
-        message: `L'abonnement "${plan.name}" vous a été assigné.`,
-        type: 'success',
-        read: false,
-        createdAt: new Date().toISOString(),
-        link: 'profile'
-      });
-
-      // Add credits to user
-      if (selectedProfile.firebaseUid && (plan.credits || plan.sessionCredits)) {
-        const updates: any = {};
-        if (plan.credits) {
-          let multiplier = 1;
-          if (plan.billingCycle === 'monthly' && plan.creditsInterval === 'weekly') multiplier = 4;
-          if (plan.billingCycle === 'yearly' && plan.creditsInterval === 'monthly') multiplier = 12;
-          if (plan.billingCycle === 'yearly' && plan.creditsInterval === 'weekly') multiplier = 52;
-          
-          updates.credits = (selectedProfile.credits || 0) + (plan.credits * multiplier);
-        }
-        if (plan.sessionCredits) {
-          Object.entries(plan.sessionCredits).forEach(([typeId, amount]) => {
-            if (amount) {
-              const interval = plan.sessionCreditsIntervals?.[typeId] || 'cycle';
-              let multiplier = 1;
-              if (plan.billingCycle === 'monthly' && interval === 'weekly') multiplier = 4;
-              if (plan.billingCycle === 'yearly' && interval === 'monthly') multiplier = 12;
-              if (plan.billingCycle === 'yearly' && interval === 'weekly') multiplier = 52;
-              
-              updates[`sessionCredits.${typeId}`] = (selectedProfile.sessionCredits?.[typeId] || 0) + (amount * multiplier);
-            }
-          });
-        }
-        await updateDoc(doc(db, "users", selectedProfile.firebaseUid), updates);
-      }
-
-      showToast("Abonnement assigné avec succès");
-      setIsAssigningPlan(false);
-      setSelectedPlanId('');
-      setSubCommitmentDate('');
-      setSubContractUrl('');
-    } catch (err) {
-      console.error("Error assigning subscription", err);
-      showToast("Erreur lors de l'assignation", "error");
-    }
+    if(!selectedProfile||!selectedPlanId||billingBusy)return;setBillingBusy(true);
+    try { await billingRequest('/api/billing/subscriptions/assign',{memberId:Number(selectedProfile.id),planId:selectedPlanId,startDate:subStartDate,commitmentEndDate:subCommitmentDate||undefined,contractUrl:subContractUrl||undefined,collectionMode:billingMode,requestId:billingKey('assign')}); delete billingKeys.current.assign; showToast(billingMode==='stripe'?'Abonnement en attente de confirmation Stripe.':'Abonnement assigné et crédits appliqués.');setIsAssigningPlan(false);setSelectedPlanId('');setSubCommitmentDate('');setSubContractUrl(''); }
+    catch(e:any){showToast(e.message,'error');}finally{setBillingBusy(false);}
   };
 
   const handleSendOnboardingEmail = async () => {
@@ -1459,15 +1354,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const handleUpdateSubscription = async () => {
     if (!selectedProfile) return;
-    const subscription = state.subscriptions.find(s => s.memberId === Number(selectedProfile.id) && s.status === 'active');
+    const subscription = state.subscriptions.find(s => s.memberId === Number(selectedProfile.id) && ['active','pending','past_due','unpaid'].includes(s.status));
     if (!subscription) return;
 
     try {
-      await updateDoc(doc(db, "subscriptions", subscription.id), {
-        startDate: new Date(subStartDate).toISOString(),
-        commitmentEndDate: subCommitmentDate ? new Date(subCommitmentDate).toISOString() : null,
-        contractUrl: subContractUrl || null
-      });
+      await billingRequest(`/api/billing/subscriptions/${subscription.id}`, {
+        startDate: subStartDate, commitmentEndDate: subCommitmentDate || null, contractUrl: subContractUrl || null
+      }, 'PATCH');
       showToast("Abonnement mis à jour avec succès");
       setIsEditingSub(false);
     } catch (err) {
@@ -1662,57 +1555,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     } finally { setIsCreatingMember(false); }
   };
 
-  const isStripeConnected = Boolean(state.currentClub?.settings?.payment?.stripeConnected);
+  const [isStripeConnected,setIsStripeConnected] = useState(false);
+  useEffect(()=>{let alive=true;apiFetch('/api/stripe/status').then(r=>r.ok?r.json():{}).then((r:any)=>{if(alive)setIsStripeConnected(r.connected===true);}).catch(()=>{});return()=>{alive=false;};},[state.user?.clubId]);
 
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
 
   const handleCopyPaymentLink = async () => {
-    if (!isStripeConnected) {
-      showToast("Veuillez connecter votre compte Stripe dans les Paramètres pour générer des liens de paiement.", "error");
-      return;
-    }
-    
-    const subscription = state.subscriptions?.find(s => s.memberId === Number(selectedProfile?.id) && s.status === 'active');
-    if (!subscription) {
-      showToast("Ce membre n'a pas d'abonnement actif. Veuillez lui assigner une formule d'abord.", "error");
-      return;
-    }
-
-    const plan = state.plans?.find(p => p.id === subscription.planId);
-    if (!plan || !plan.stripePriceId) {
-      showToast("La formule de ce membre n'a pas d'ID Stripe. Veuillez recréer ou modifier la formule dans les paramètres.", "error");
-      return;
-    }
-
-    setIsGeneratingLink(true);
-    try {
-      const res = await apiFetch('/api/stripe/payment-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          priceId: plan.stripePriceId
-        })
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Erreur lors de la génération du lien");
-      }
-
-      const data = await res.json();
-      const url = new URL(data.link);
-      url.searchParams.append('client_reference_id', selectedProfile.id.toString());
-      if (selectedProfile.email) {
-        url.searchParams.append('prefilled_email', selectedProfile.email);
-      }
-      navigator.clipboard.writeText(url.toString());
-      showToast("Lien de paiement Stripe généré et copié dans le presse-papier !", "success");
-    } catch (error: any) {
-      console.error("Error generating payment link:", error);
-      showToast(error.message || "Erreur lors de la génération du lien", "error");
-    } finally {
-      setIsGeneratingLink(false);
-    }
+    const sub=state.subscriptions.find(s=>s.memberId===Number(selectedProfile?.id)&&s.status==='pending');
+    if(!sub){showToast('Choisissez un abonnement Stripe en attente de paiement.','error');return;}
+    setIsGeneratingLink(true);try{const result=await billingRequest('/api/billing/checkout',{subscriptionId:sub.id});await navigator.clipboard.writeText(result.link);showToast('Lien personnalisé copié.');}catch(e:any){showToast(e.message,'error');}finally{setIsGeneratingLink(false);}
   };
 
   const [isCharging, setIsCharging] = useState<string | null>(null);
@@ -1720,104 +1571,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [isGeneratingLinkForPayment, setIsGeneratingLinkForPayment] = useState<string | null>(null);
 
   const handleGeneratePaymentLink = async (payment: Payment) => {
-    if (!isStripeConnected) {
-      showToast("Veuillez connecter votre compte Stripe dans les Paramètres.", "error");
-      return;
-    }
-
-    setIsGeneratingLinkForPayment(payment.id);
-    try {
-      // We create a one-off product and price for this specific payment
-      const resPrice = await apiFetch('/api/stripe/create-plan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: payment.category === 'subscription' ? 'Abonnement' : payment.category === 'coaching' ? 'Coaching' : 'Paiement',
-          price: payment.amount,
-          billingCycle: 'once',
-          description: `Paiement pour ${state.currentClub?.name || 'Club'}`
-        })
-      });
-
-      if (!resPrice.ok) throw new Error("Erreur lors de la création du prix Stripe");
-      const priceData = await resPrice.json();
-
-      const resLink = await apiFetch('/api/stripe/payment-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          priceId: priceData.priceId
-        })
-      });
-
-      if (!resLink.ok) throw new Error("Erreur lors de la génération du lien");
-      const linkData = await resLink.json();
-
-      const url = new URL(linkData.link);
-      url.searchParams.append('client_reference_id', selectedProfile.id.toString());
-      if (selectedProfile.email) {
-        url.searchParams.append('prefilled_email', selectedProfile.email);
-      }
-
-      navigator.clipboard.writeText(url.toString());
-      showToast("Lien de paiement copié dans le presse-papier !", "success");
-    } catch (error: any) {
-      console.error("Error generating payment link:", error);
-      showToast(error.message || "Erreur lors de la génération du lien", "error");
-    } finally {
-      setIsGeneratingLinkForPayment(null);
-    }
+    setIsGeneratingLinkForPayment(payment.id);try{const result=await billingRequest('/api/billing/checkout',{paymentId:payment.id});await navigator.clipboard.writeText(result.link);showToast('Lien personnalisé copié.');}catch(e:any){showToast(e.message,'error');}finally{setIsGeneratingLinkForPayment(null);}
   };
-
   const handleCharge = async (payment: Payment) => {
-    const member = state.users.find(u => Number(u.id) === payment.memberId);
-    if (!member) return;
-
-    if (!isStripeConnected) {
-      showToast("Veuillez connecter votre compte Stripe dans les Paramètres.", "error");
-      return;
-    }
-
-    if (!member.stripeCustomerId) {
-      showToast("Ce membre n'a pas encore de moyen de paiement enregistré sur Stripe.", "error");
-      return;
-    }
-
-    setIsCharging(payment.id);
-    try {
-      const res = await apiFetch('/api/stripe/charge-customer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: member.stripeCustomerId,
-          amount: payment.amount,
-          description: `Paiement pour ${payment.category || 'service'}`
-        })
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Erreur lors du prélèvement");
-      }
-
-      const data = await res.json();
-      
-      if (data.success && data.status === 'succeeded') {
-        // Update payment status to paid
-        await updateDoc(doc(db, "payments", payment.id), {
-          status: 'paid',
-          date: new Date().toISOString()
-        });
-        showToast("Prélèvement effectué avec succès !", "success");
-      } else {
-        showToast("Le prélèvement est en attente ou nécessite une action.", "info");
-      }
-    } catch (error: any) {
-      console.error("Error charging customer:", error);
-      showToast(error.message || "Erreur lors du prélèvement", "error");
-    } finally {
-      setIsCharging(null);
-    }
+    setIsCharging(payment.id);try{const result=await billingRequest(`/api/billing/payments/${payment.id}/charge`);showToast(result.success?'Encaissement confirmé par Stripe.':'Stripe attend une confirmation.');}catch(e:any){showToast(e.message,'error');}finally{setIsCharging(null);}
+  };
+  const handleManualPayment = async (payment: Payment) => {
+    try{await billingRequest(`/api/billing/payments/${payment.id}/manual`,{method:payment.method,date:new Date().toISOString()});showToast('Encaissement manuel enregistré.');}catch(e:any){showToast(e.message,'error');}
   };
 
   const handleRemind = (payment: Payment) => {
@@ -1834,84 +1594,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleGenerateInvoice = async (payment: Payment) => {
-    if (!state.user?.clubId) return;
-    const id = Date.now().toString();
-    const invoiceNumber = `FAC-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-    const invoice: Invoice = {
-      id,
-      clubId: state.user.clubId,
-      memberId: payment.memberId,
-      paymentId: payment.id,
-      amount: payment.amount,
-      date: new Date().toISOString(),
-      status: payment.status === 'paid' ? 'paid' : 'pending',
-      number: invoiceNumber
-    };
-    try {
-      await setDoc(doc(db, "invoices", id), invoice);
-      await updateDoc(doc(db, "payments", payment.id), { invoiceId: id });
-      showToast(`Facture ${invoiceNumber} générée avec succès.`, "success");
-    } catch (err) {
-      console.error(err);
-      showToast("Erreur lors de la génération de la facture.", "error");
-    }
+    try{const receipt=await billingRequest(`/api/billing/payments/${payment.id}/receipt`);await downloadReceipt(receipt);showToast('Justificatif généré.');}catch(e:any){showToast(e.message,'error');}
   };
-
-  const handleDownloadInvoice = (invoice: Invoice) => {
-    const member = state.users.find(u => Number(u.id) === invoice.memberId);
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(`
-      <html>
-        <head>
-          <title>Facture ${invoice.number}</title>
-          <style>
-            body { font-family: sans-serif; padding: 40px; color: #141414; }
-            .header { display: flex; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 40px; }
-            .details { margin-bottom: 40px; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
-            .total { text-align: right; font-size: 24px; font-weight: bold; margin-top: 40px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div>
-              <h1>FACTURE</h1>
-              <p><strong>N° :</strong> ${invoice.number}</p>
-              <p><strong>Date :</strong> ${new Date(invoice.date).toLocaleDateString()}</p>
-              <p><strong>Statut :</strong> ${invoice.status === 'paid' ? 'Payée' : 'En attente'}</p>
-            </div>
-            <div style="text-align: right;">
-              <h2>${state.currentClub?.name || 'Club de Sport'}</h2>
-            </div>
-          </div>
-          <div class="details">
-            <h3>Facturé à :</h3>
-            <p><strong>${member?.name || 'Client'}</strong><br/>${member?.email || ''}</p>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th style="text-align: right;">Montant</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Abonnement / Prestation de coaching</td>
-                <td style="text-align: right;">${invoice.amount.toFixed(2)} €</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="total">
-            Total : ${invoice.amount.toFixed(2)} €
-          </div>
-          <script>window.print();</script>
-        </body>
-      </html>
-    `);
-    win.document.close();
+  const handleDownloadInvoice = async (invoice: Invoice) => {
+    try{await downloadReceipt(invoice);}catch{showToast('Le téléchargement a échoué.','error');}
   };
 
   const expiringSubscriptions = state.subscriptions.filter(sub => {
@@ -2275,7 +1961,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         </div>
                         {selectedProfile.status === 'paused' ? (
                           <span className="rounded-full bg-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-800">En pause</span>
-                        ) : <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-900">Actif</span>}
+                        ) : <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-900">{subscriptionStatusLabels[stats.subscription.status]}</span>}
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
@@ -2486,7 +2172,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             Abonnement & Forfait
                           </h4>
                           {(() => {
-                            const activeSub = state.subscriptions?.find(s => s.memberId === Number(selectedProfile?.id) && s.status === 'active');
+                            const activeSub = state.subscriptions?.find(s => s.memberId === Number(selectedProfile?.id) && ['active','pending','past_due','unpaid'].includes(s.status));
                             const activePlan = activeSub ? state.plans?.find(p => p.id === activeSub.planId) : null;
                             const memberBookings = state.bookings?.filter(b => b.memberId === Number(selectedProfile?.id) && b.status !== 'cancelled') || [];
                             const totalBookings = memberBookings.length;
@@ -2883,7 +2569,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
     <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Crédits Coaching</h3>
+                      <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-800">Crédits Coaching</h3>
                     </div>
                     
                     <div className="space-y-4">
@@ -2893,8 +2579,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Standard</div>
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center \!bg-zinc-50 \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" onClick={() => handleUpdateCredits(selectedProfile, -1)}>-</Button>
-                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center \!bg-zinc-50 \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" onClick={() => handleUpdateCredits(selectedProfile, 1)}>+</Button>
+                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center \!bg-zinc-50 \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" disabled={state.user?.role!=='owner'||billingBusy} onClick={() => handleUpdateCredits(selectedProfile, -1)}>-</Button>
+                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center \!bg-zinc-50 \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" disabled={state.user?.role!=='owner'||billingBusy} onClick={() => handleUpdateCredits(selectedProfile, 1)}>+</Button>
                         </div>
                       </div>
 
@@ -2905,15 +2591,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{type.name}</div>
                           </div>
                           <div className="flex gap-2">
-                            <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, -1)}>-</Button>
-                            <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, 1)}>+</Button>
+                            <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" disabled={state.user?.role!=='owner'||billingBusy} onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, -1)}>-</Button>
+                            <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" disabled={state.user?.role!=='owner'||billingBusy} onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, 1)}>+</Button>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
     <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
-                    <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Fidélité & Achats</h3>
+                    <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-800">Fidélité & Achats</h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center">
                         <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Points</div>
@@ -2921,22 +2607,22 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
                       <div className="text-center">
                         <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total Achats</div>
-                        <div className="text-xl font-black text-emerald-500">{stats.totalSpent}€</div>
+                        <div className="text-xl font-black text-emerald-800">{stats.totalSpent}€</div>
                       </div>
                     </div>
                   </div>
                       <div className="space-y-4">
                     <div className="flex items-center justify-between px-1">
-                       <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Abonnement</h3>
+                       <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-800">Abonnement</h3>
                     </div>
                     {stats.subscription ? (
                       <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 shadow-sm space-y-4">
-                        <div className="flex justify-between items-start">
-                          <span className="font-black text-zinc-900 text-lg uppercase italic">{stats.subscription.planName}</span>
-                          <span className="text-[10px] px-2 py-1 bg-green-500/20 text-green-600 rounded-full font-black uppercase tracking-widest">Actif</span>
+                        <div className="flex flex-wrap justify-between items-start gap-2">
+                          <span className="min-w-0 break-words font-black text-zinc-900 text-lg uppercase italic">{stats.subscription.planName}</span>
+                          <span className="text-[10px] px-2 py-1 bg-green-500/20 text-emerald-900 rounded-full font-black uppercase tracking-widest">{subscriptionStatusLabels[stats.subscription.status]}</span>
                         </div>
                         <div className="text-[10px] font-bold text-zinc-900 uppercase tracking-widest">
-                          {stats.subscription.price}€ / {stats.subscription.billingCycle === 'monthly' ? 'mois' : stats.subscription.billingCycle === 'yearly' ? 'an' : 'fois'}
+                          <span className="block text-sm">{subscriptionStatusLabels[stats.subscription.status]}</span>{stats.subscription.price}€ / {stats.subscription.billingCycle === 'monthly' ? 'mois' : stats.subscription.billingCycle === 'yearly' ? 'an' : 'fois'}
                         </div>
                         
                         <div className="pt-4 border-t  space-y-2">
@@ -2954,7 +2640,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           )}
                           {stats.subscription.contractUrl && (
                             <div className="flex justify-between text-xs pt-2">
-                              <a href={stats.subscription.contractUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-500 font-bold flex items-center gap-1 hover:underline">
+                              <a href={stats.subscription.contractUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-800 font-bold flex items-center gap-1 hover:underline">
                                 <LinkIcon size={12} /> Voir le contrat
                               </a>
                             </div>
@@ -2977,7 +2663,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                 type="file" 
                                 accept=".pdf,image/*" 
                                 onChange={handleFileUpload}
-                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-emerald-500/10 file:text-emerald-500 hover:file:bg-emerald-500/20 transition-colors"
+                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-emerald-500/10 file:text-emerald-800 hover:file:bg-emerald-500/20 transition-colors"
                               />
                             </div>
                             <div className="space-y-1">
@@ -2986,7 +2672,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             </div>
                             <div className="flex flex-col sm:flex-row gap-2 pt-2 sticky bottom-0 bg-white pb-2 z-10">
                               <button onClick={() => setIsEditingSub(false)} className="flex-1 px-3 py-2 text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
-                              <button onClick={handleUpdateSubscription} className="flex-1 bg-emerald-500 text-zinc-900 px-3 py-2 rounded-xl text-xs font-black uppercase text-zinc-500 tracking-wider">Enregistrer</button>
+                              <button onClick={handleUpdateSubscription} className="flex-1 bg-emerald-800 text-white px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider">Enregistrer</button>
                             </div>
                           </div>
                         ) : (
@@ -3005,6 +2691,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         <p className="text-xs text-zinc-500 font-medium px-1">Aucun abonnement actif.</p>
                         {isAssigningPlan ? (
                           <div className="space-y-3 bg-zinc-50 p-4 rounded-3xl border border-zinc-200 shadow-sm max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
+                            <label className="block text-sm text-zinc-800 mb-2">Encaissement<select aria-label="Mode de règlement abonnement" value={billingMode} onChange={e=>setBillingMode(e.target.value as any)} className="w-full rounded-xl border bg-white p-3"><option value="manual">Interne / règlement manuel — actif immédiatement</option><option value="stripe" disabled={state.user?.role!=='owner'}>Stripe — en attente jusqu’au paiement confirmé</option></select></label>
                             <select 
                               value={selectedPlanId} 
                               onChange={e => {
@@ -3024,7 +2711,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                               className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-3 text-zinc-900 text-xs font-medium focus:outline-none focus:border-emerald-500 shadow-sm"
                             >
                               <option value="">Sélectionner une formule</option>
-                              {state.plans.map(p => <option key={p.id} value={p.id}>{p.name} - {p.price}€</option>)}
+                              {state.plans.filter(p => p.isActive !== false).map(p => <option key={p.id} value={p.id}>{p.name} - {p.price}€</option>)}
                             </select>
                             
                             <div className="space-y-1">
@@ -3052,7 +2739,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                 type="file" 
                                 accept=".pdf,image/*" 
                                 onChange={handleFileUpload}
-                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-emerald-500/10 file:text-emerald-500 hover:file:bg-emerald-500/20 transition-colors"
+                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-emerald-500/10 file:text-emerald-800 hover:file:bg-emerald-500/20 transition-colors"
                               />
                             </div>
                             <div className="space-y-1">
@@ -3062,7 +2749,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
                             <div className="flex flex-col sm:flex-row gap-2 pt-2 sticky bottom-0 bg-zinc-50 pb-2 z-10">
                               <button onClick={() => setIsAssigningPlan(false)} className="flex-1 px-3 py-2 text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
-                              <button onClick={handleAssignSubscription} disabled={!selectedPlanId} className="flex-1 bg-emerald-500 text-zinc-900 px-3 py-2 rounded-xl text-xs font-black uppercase text-zinc-500 tracking-wider disabled:opacity-50">Confirmer</button>
+                              <button onClick={handleAssignSubscription} disabled={!selectedPlanId || billingBusy} className="flex-1 bg-emerald-800 text-white px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider disabled:opacity-50">Confirmer</button>
                             </div>
                           </div>
                         ) : (
@@ -3080,19 +2767,19 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </div>
     
   </div>
-  {/* The rest of billing was already here...? Oh wait, let's keep the existing stuff if there was any... wait, billing was only containing payments list actually. */}
+
 
                   <section className="space-y-8">
                     <div className="flex items-center gap-4">
-                       <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CreditCardIcon size={24} /></div>
+                       <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-800"><CreditCardIcon size={24} /></div>
                        <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Finances & Facturation</h3>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                       <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm">
                         <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Solde Total Payé</div>
-                        <div className="text-4xl font-black text-emerald-500">
-                          {state.payments?.filter(p => p.memberId === Number(selectedProfile.id) && p.status === 'paid').reduce((sum, p) => sum + p.amount, 0) || 0}€
+                        <div className="text-4xl font-black text-emerald-800">
+                          {state.payments?.filter(p => p.memberId === Number(selectedProfile.id)).reduce((sum, p) => sum + netPayment(p), 0) || 0}€
                         </div>
                       </div>
                       <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm flex flex-col justify-center">
@@ -3156,13 +2843,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                 value={newPayment.status} 
                                 onChange={(e) => setNewPayment({...newPayment, status: e.target.value as any})}
                               >
-                                <option value="paid">Payé</option>
-                                <option value="pending">En attente</option>
-                                <option value="failed">Échoué</option>
+                                <option value="pending">En attente — à confirmer</option>
                               </select>
                             </div>
                           </div>
-                          <Button variant="primary" fullWidth onClick={handleAddPayment} disabled={!newPayment.amount}>
+                          <Button variant="primary" fullWidth onClick={handleAddPayment} disabled={!newPayment.amount || billingBusy}>
                             ENREGISTRER LE PAIEMENT
                           </Button>
                         </div>
@@ -3180,7 +2865,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                     <div className="flex items-center gap-3 mb-1">
                                       <span className="text-lg font-black text-zinc-900">{payment.amount}€</span>
                                       <Badge variant={payment.status === 'paid' ? 'success' : payment.status === 'pending' ? 'orange' : 'dark'}>
-                                        {payment.status === 'paid' ? 'Payé' : payment.status === 'pending' ? 'En attente' : 'Échoué'}
+                                        {paymentStatusLabels[payment.status]}
                                       </Badge>
                                     </div>
                                     <div className="text-xs text-zinc-500">
@@ -3189,13 +2874,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                   </div>
                                   
                                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0">
-                                    {payment.status !== 'paid' && (
+                                    {['pending','failed'].includes(payment.status) && (
                                       <>
-                                        {(payment.method === 'card' || payment.method === 'sepa') && isStripeConnected && (
+                                        {(payment.method === 'card' || payment.method === 'sepa') && isStripeConnected && state.user?.role==='owner' && (
                                           <>
                                             <Button 
                                               variant="secondary" 
-                                              className="!py-2 !px-3 !text-[10px] !rounded-xl text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10" 
+                                              className="!py-2 !px-3 !text-[10px] !rounded-xl text-emerald-800 border-emerald-500/30 hover:bg-emerald-500/10"
                                               onClick={() => handleCharge(payment)}
                                               disabled={isCharging === payment.id}
                                             >
@@ -3204,7 +2889,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                             </Button>
                                             <Button 
                                               variant="secondary" 
-                                              className="!py-2 !px-3 !text-[10px] !rounded-xl text-blue-500 border-blue-500/30 hover:bg-blue-500/10" 
+                                              className="!py-2 !px-3 !text-[10px] !rounded-xl text-blue-800 border-blue-500/30 hover:bg-blue-500/10"
                                               onClick={() => handleGeneratePaymentLink(payment)}
                                               disabled={isGeneratingLinkForPayment === payment.id}
                                             >
@@ -3213,19 +2898,20 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                             </Button>
                                           </>
                                         )}
-                                        <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl text-orange-500 border-orange-500/30 hover:bg-orange-500/10" onClick={() => handleRemind(payment)}>
+                                        <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl text-amber-800 border-orange-500/30 hover:bg-orange-500/10" onClick={() => handleRemind(payment)}>
                                           <BellIcon size={14} className="mr-1" /> RELANCER
                                         </Button>
                                       </>
                                     )}
                                     
+                                    {payment.status === 'pending' && ['cash','transfer'].includes(payment.method) && <Button variant="secondary" onClick={() => handleManualPayment(payment)}>Encaisser manuellement</Button>}
                                     {invoice ? (
                                       <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl" onClick={() => handleDownloadInvoice(invoice)}>
-                                        <DownloadIcon size={14} className="mr-1" /> FACTURE
+                                        <DownloadIcon size={14} className="mr-1" /> JUSTIFICATIF
                                       </Button>
                                     ) : (
-                                      <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl" onClick={() => handleGenerateInvoice(payment)}>
-                                        <FileTextIcon size={14} className="mr-1" /> GÉNÉRER FACTURE
+                                      <Button variant="secondary" disabled={payment.status!=='paid'} className="!py-2 !px-3 !text-[10px] !rounded-xl" onClick={() => handleGenerateInvoice(payment)}>
+                                        <FileTextIcon size={14} className="mr-1" /> GÉNÉRER JUSTIFICATIF
                                       </Button>
                                     )}
                                   </div>

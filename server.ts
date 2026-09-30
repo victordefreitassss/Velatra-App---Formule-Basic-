@@ -1,7 +1,8 @@
 import { registerClub, ClubRegistrationError } from './server/clubRegistration.ts';
 import { canManageClub } from './productCapabilities.ts';
 import { completeWorkout } from './server/completeWorkout.ts';
-import { recordPaidInvoice } from './server/stripePayments.ts';
+import { registerBillingWebhooks } from './server/stripePayments.ts';
+import { billingContext, registerBillingRoutes } from './server/billing.ts';
 import { reserveBooking, cancelBooking, rescheduleBooking, bookingAvailability, createTrialBooking } from './server/bookings.ts';
 import express from "express";
 import path from "path";
@@ -84,59 +85,7 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 // ==========================================
 // Stripe Webhook (MUST be before express.json)
 // ==========================================
-app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-  try {
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-    const signature = req.headers['stripe-signature'];
-    if (!webhookSecret || !stripeSecretKey || typeof signature !== 'string') {
-      return res.status(503).send('Stripe webhook verification is not configured.');
-    }
-
-    const stripe = new Stripe(stripeSecretKey);
-    const event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret);
-
-    // Process the event
-    if (!admin.apps.length) throw new Error("Firebase Admin non initialisé");
-    const db = admin.firestore();
-
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as any;
-      const memberId = session.client_reference_id;
-      const stripeCustomerId = session.customer as string;
-      const stripeSubscriptionId = session.subscription as string;
-      
-      console.log(`[Stripe Webhook] Checkout Completed: memberId=${memberId}, subId=${stripeSubscriptionId}`);
-
-      if (memberId) {
-        // Find subscription for this member that is "pending" or "active"
-        const subsSnapshot = await db.collection("subscriptions")
-          .where("memberId", "==", Number(memberId))
-          .get();
-
-        if (!subsSnapshot.empty) {
-          // Identify the most recent or relevant one, or just update the pending one.
-          const subDoc = subsSnapshot.docs[0]; // simplistic assumption
-          await subDoc.ref.update({
-            status: 'active',
-            stripeSubscriptionId: stripeSubscriptionId,
-            startDate: new Date().toISOString()
-          });
-          console.log(`Updated subscription ${subDoc.id} with status active`);
-        }
-      }
-    }
-
-    if (event.type === 'invoice.paid' || event.type === 'invoice.payment_succeeded') {
-      await recordPaidInvoice(db, event.data.object);
-    }
-
-    res.json({received: true});
-  } catch (err: any) {
-    console.error(`Webhook Error: ${err.message}`);
-    res.status(400).send('Webhook could not be processed.');
-  }
-});
+registerBillingWebhooks(app, admin.firestore());
 
 app.use(express.json());
 
@@ -259,7 +208,7 @@ const requireUserProfile = async (req: any, res: any, next: any) => {
 const MEMBER_SCOPED_COLLECTIONS: Array<[string, string]> = [
   ['programs', 'memberId'], ['archivedPrograms', 'memberId'], ['performances', 'memberId'],
   ['logs', 'memberId'], ['bodyData', 'memberId'], ['nutritionPlans', 'memberId'],
-  ['nutritionLogs', 'userId'], ['subscriptions', 'memberId'], ['payments', 'memberId'],
+  ['nutritionLogs', 'userId'], ['subscriptions', 'memberId'], ['payments', 'memberId'], ['invoices', 'memberId'],
   ['supplementOrders', 'adherentId'], ['progressPhotos', 'memberId'],
   ['bookings', 'memberId'], ['notifications', 'userId'], ['messages', 'from,to']
 ];
@@ -439,6 +388,7 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
 // All remaining API routes require a verified session and a server-side profile.
 app.use("/api", verifyFirebaseSession, requireUserProfile);
 registerCoachingFollowup(app, admin.firestore());
+registerBillingRoutes(app, admin.firestore());
 
 app.get('/api/bookings/availability', async (req, res) => {
   try { return res.json(await bookingAvailability(admin.firestore(), req.auth.uid, String(req.query.date || ''))); }
@@ -780,32 +730,6 @@ app.post('/api/assign-member-coach', async (req: any, res: any) => {
 const isTrustedSuperAdmin = (req: any) => req.auth?.email_verified === true && req.auth?.email === 'victor.defreitas.pro@gmail.com';
 const isClubManager = (req: any) => canManageClub({ ...req.profile, trustedSuperAdmin: isTrustedSuperAdmin(req) }, req.profile?.clubId);
 
-const getStripeClientForRequest = async (req: any, allowMember = false) => {
-  const profile = req.profile;
-  if ((!isClubManager(req) && !(allowMember && profile?.role === 'member')) || !profile.clubId) {
-    throw new Error("Droits insuffisants pour utiliser Stripe.");
-  }
-
-  const db = admin.firestore();
-  const secretRef = db.collection('stripeSecrets').doc(profile.clubId);
-  const secureSecret = await secretRef.get();
-  let secretKey = secureSecret.exists ? secureSecret.data()?.secretKey : undefined;
-
-  // Migrate legacy keys out of the client-readable club document the first time a manager uses Stripe.
-  if (!secretKey) {
-    const clubRef = db.collection('clubs').doc(profile.clubId);
-    const clubSnapshot = await clubRef.get();
-    secretKey = clubSnapshot.data()?.settings?.payment?.stripeSecretKey;
-    if (secretKey) {
-      await secretRef.set({ secretKey, clubId: profile.clubId, updatedBy: req.auth.uid, updatedAt: new Date().toISOString() });
-      await clubRef.update({ 'settings.payment.stripeSecretKey': FieldValue.delete() });
-    }
-  }
-
-  if (!secretKey) throw new Error("Connectez d'abord votre compte Stripe dans les paramètres.");
-  return new Stripe(secretKey);
-};
-
 app.get('/api/stripe/status', async (req: any, res: any) => {
   try {
     const profile = req.profile;
@@ -825,9 +749,10 @@ app.get('/api/stripe/status', async (req: any, res: any) => {
         connected = true;
       }
     }
-    return res.json({ connected });
+    if (connected) { try { await new Stripe(secureSecret.data()?.secretKey || (await secretRef.get()).data()?.secretKey).accounts.retrieve(); } catch { connected = false; } }
+    return res.json({ connected, webhookConfigured: !!secureSecret.data()?.webhookSecret, webhookUrl: `/api/stripe/webhook/${clubId}` });
   } catch (error: any) {
-    console.error('Stripe status lookup failed:', error.message);
+    console.error('Stripe status lookup failed', { code: error?.code || 'unknown' });
     return res.status(500).json({ error: "Impossible de vérifier la connexion Stripe." });
   }
 });
@@ -836,6 +761,8 @@ app.post('/api/stripe/connect', async (req: any, res: any) => {
   try {
     const profile = req.profile;
     const secretKey = String(req.body?.secretKey || '').trim();
+    const webhookSecret = String(req.body?.webhookSecret || '').trim();
+    if (webhookSecret && !/^whsec_[a-zA-Z0-9]+$/.test(webhookSecret)) return res.status(400).json({ error: 'Secret webhook invalide.' });
     if (!isClubManager(req) || !profile.clubId) {
       return res.status(403).json({ error: "Seul le propriétaire du club peut connecter Stripe." });
     }
@@ -844,18 +771,20 @@ app.post('/api/stripe/connect', async (req: any, res: any) => {
     }
 
     const db = admin.firestore();
+    const account = await new Stripe(secretKey).accounts.retrieve();
     await db.collection('stripeSecrets').doc(profile.clubId).set({
-      secretKey,
+      secretKey, stripeAccountId: account.id,
       clubId: profile.clubId,
       updatedBy: req.auth.uid,
-      updatedAt: new Date().toISOString()
-    });
+      updatedAt: new Date().toISOString(),
+      webhookSecret: webhookSecret || null
+    }, { merge: true });
     await db.collection('clubs').doc(profile.clubId).set({
       settings: { payment: { stripeConnected: true } }
     }, { merge: true });
     return res.json({ success: true, connected: true });
   } catch (error: any) {
-    console.error('Stripe connection failed:', error.message);
+    console.error('Stripe connection failed', { code: error?.code || 'unknown' });
     return res.status(500).json({ error: "Impossible d'enregistrer la connexion Stripe." });
   }
 });
@@ -873,7 +802,7 @@ app.delete('/api/stripe/connect', async (req: any, res: any) => {
     }, { merge: true });
     return res.json({ success: true, connected: false });
   } catch (error: any) {
-    console.error('Stripe disconnection failed:', error.message);
+    console.error('Stripe disconnection failed', { code: error?.code || 'unknown' });
     return res.status(500).json({ error: "Impossible de déconnecter Stripe." });
   }
 });
@@ -944,123 +873,6 @@ app.post("/api/create-staff", async (req, res) => {
   }
 });
 
-// Endpoint to create a Stripe Price/Plan
-app.post("/api/stripe/create-plan", async (req, res) => {
-  try {
-    const { name, amount, price, currency, unit, billingCycle, description } = req.body;
-    
-    // Support both amount/price
-    let finalAmount = amount !== undefined ? amount : price;
-    if (!name?.trim() || finalAmount === undefined || !Number.isFinite(Number(finalAmount)) || Number(finalAmount) <= 0) {
-       return res.status(400).json({ error: "Le montant (amount ou price) est invalide ou manquant." });
-    }
-
-    const stripe = await getStripeClientForRequest(req);
-    
-    // 1. Create a product
-    const product = await stripe.products.create({ name: name.trim(), ...(description ? { description: String(description).slice(0, 500) } : {}) });
-    
-    // 2. Create the price
-    const priceData: any = {
-      product: product.id,
-      unit_amount: Math.round(Number(finalAmount) * 100),
-      currency: currency || 'eur',
-    };
-    
-    // Support both unit/billingCycle
-    const finalUnit = unit || billingCycle;
-    
-    if (finalUnit && finalUnit !== 'once') {
-      // Map 'monthly' to 'month', 'yearly' to 'year', etc if needed.
-      let stripeInterval = finalUnit;
-      if (finalUnit === 'monthly') stripeInterval = 'month';
-      if (finalUnit === 'yearly') stripeInterval = 'year';
-      if (finalUnit === 'weekly') stripeInterval = 'week';
-      
-      priceData.recurring = { interval: stripeInterval };
-    }
-    
-    const stripePrice = await stripe.prices.create(priceData);
-    
-    res.json({ priceId: stripePrice.id, productId: product.id });
-  } catch (err: any) {
-    console.error("Erreur Stripe lors de la création du plan:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Endpoint to generate a payment link
-app.post("/api/stripe/payment-link", async (req, res) => {
-  try {
-    const { priceId } = req.body;
-    if (!priceId) return res.status(400).json({ error: "Missing required parameters." });
-
-    const stripe = await getStripeClientForRequest(req);
-
-    const paymentLink = await stripe.paymentLinks.create({
-      line_items: [{ price: priceId, quantity: 1 }],
-      after_completion: { type: 'hosted_confirmation' },
-    });
-
-    res.json({ link: paymentLink.url, linkId: paymentLink.id });
-  } catch (err: any) {
-    console.error("Erreur gération de lien de paiement Stripe:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Endpoint to charge an existing customer directly
-app.post("/api/stripe/charge-customer", async (req, res) => {
-  try {
-    const { customerId, amount, currency, description } = req.body;
-    if (!customerId || !Number.isFinite(Number(amount)) || Number(amount) <= 0) return res.status(400).json({ error: "Missing required parameters." });
-
-    if (!isClubManager(req)) return res.status(403).json({ error: "Droits insuffisants pour effectuer ce paiement." });
-    const stripe = await getStripeClientForRequest(req);
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100),
-      currency: currency || 'eur',
-      customer: customerId,
-      description: description || "Facturation manuelle Velatra",
-      confirm: true,
-      off_session: true,
-      automatic_payment_methods: { enabled: true, allow_redirects: 'never' }
-    });
-
-    res.json({ success: true, paymentIntentId: paymentIntent.id });
-  } catch (err: any) {
-    console.error("Erreur facturation Stripe:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Endpoint to create a Stripe Customer Portal session
-app.post("/api/stripe/portal", async (req, res) => {
-  try {
-    const { returnUrl } = req.body || {};
-    const customerId = req.profile?.stripeCustomerId;
-    if (req.profile?.role !== 'member' || !customerId) {
-       return res.status(403).json({ error: "Aucun abonnement Stripe n'est associé à ce compte." });
-    }
-    const stripe = await getStripeClientForRequest(req, true);
-    const origin = req.headers.origin || `https://${req.headers.host}`;
-    const requestedReturnUrl = returnUrl || `${origin}/profile`;
-    if (new URL(requestedReturnUrl).origin !== origin) {
-      return res.status(400).json({ error: "L'adresse de retour doit rester sur le site de Velatra." });
-    }
-    const session = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: requestedReturnUrl
-    });
-
-    res.json({ session });
-  } catch (err: any) {
-    console.error("Erreur génération de portail Stripe:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // Endpoint to send onboarding email (Contract & Payment)
 app.post("/api/send-onboarding-email", async (req, res) => {
   try {
@@ -1090,10 +902,12 @@ app.post("/api/send-onboarding-email", async (req, res) => {
     const recipients = await admin.firestore().collection('users')
       .where('clubId', '==', req.profile.clubId)
       .where('email', '==', String(email).trim().toLowerCase())
-      .limit(1).get();
-    if (recipients.empty) {
+      .limit(2).get();
+    if (recipients.size!==1 || recipients.docs[0].data().role!=='member') {
       return res.status(404).json({ error: "Aucun adhérent correspondant dans ce club." });
     }
+    await billingContext(admin.firestore(), req.auth!.uid, recipients.docs[0].data().id);
+    const recipient=recipients.docs[0].data();
     const escapeHtml = (value: unknown) => String(value || '').replace(/[&<>"']/g, (char) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[char] as string));
@@ -1104,14 +918,14 @@ app.post("/api/send-onboarding-email", async (req, res) => {
       subject: `Finalisez votre inscription chez ${clubName || 'Velatra'}`,
       html: `
         <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto; color: #18181b;">
-          <h2 style="color: #18181b;">Bonjour ${escapeHtml(memberName)},</h2>
+          <h2 style="color: #18181b;">Bonjour ${escapeHtml(recipient.name)},</h2>
           <p>Bienvenue chez <strong>${escapeHtml(clubName || 'Velatra')}</strong> ! Votre profil a été validé par votre coach.</p>
           <p>Pour finaliser votre inscription et démarrer votre accompagnement, veuillez compléter les deux étapes ci-dessous :</p>
           
           <div style="margin: 30px 0; padding: 20px; background-color: #f4f4f5; border-radius: 12px;">
-            <h3 style="margin-top: 0; color: #18181b;">1. Signature du contrat</h3>
-            <p style="color: #52525b;">Veuillez lire et signer numériquement votre contrat d'engagement :</p>
-            <a href="${escapeHtml(safeContractLink)}" style="display: inline-block; padding: 12px 24px; background-color: #10B981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px;">Signer le contrat</a>
+            <h3 style="margin-top: 0; color: #18181b;">1. Votre contrat</h3>
+            <p style="color: #52525b;">Consultez votre document contractuel. Ce lien ne constitue pas une signature électronique :</p>
+            <a href="${escapeHtml(safeContractLink)}" style="display: inline-block; padding: 12px 24px; background-color: #10B981; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px;">Consulter le contrat</a>
           </div>
 
           <div style="margin: 30px 0; padding: 20px; background-color: #f4f4f5; border-radius: 12px;">

@@ -1,3 +1,4 @@
+import { billingRequest } from '../components/billingClient';
 import { canManageClub, canShowStaffCreation, getProductCapabilities } from '../productCapabilities';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -26,6 +27,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   const [defaultDuration, setDefaultDuration] = useState(state.currentClub?.settings?.defaultProgramDuration || 7);
   const [stripeConnected, setStripeConnected] = useState(state.currentClub?.settings?.payment?.stripeConnected || false);
   const [stripeSecretKey, setStripeSecretKey] = useState('');
+  const [webhookSecret, setWebhookSecret] = useState('');
+  const [webhookConfigured, setWebhookConfigured] = useState(false);
+  const planRequestId = useRef(crypto.randomUUID());
   const [acceptedMethods, setAcceptedMethods] = useState<string[]>(state.currentClub?.settings?.payment?.acceptedMethods || ['card', 'cash']);
 
   const [planningEnabled, setPlanningEnabled] = useState(state.currentClub?.settings?.booking?.enabled ?? true);
@@ -74,8 +78,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
     if (!state.currentClub?.id) return;
     apiFetch('/api/stripe/status')
       .then(response => response.ok ? response.json() : { connected: false })
-      .then(result => setStripeConnected(Boolean(result.connected)))
-      .catch(() => setStripeConnected(Boolean(state.currentClub?.settings?.payment?.stripeConnected)));
+      .then(result => { setStripeConnected(Boolean(result.connected)); setWebhookConfigured(Boolean(result.webhookConfigured)); })
+      .catch(() => setStripeConnected(false));
   }, [state.currentClub?.id]);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -144,7 +148,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
       const response = await apiFetch('/api/stripe/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secretKey: key })
+        body: JSON.stringify({ secretKey: key, webhookSecret: webhookSecret.trim() || undefined })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Erreur lors de la connexion Stripe.");
@@ -236,80 +240,9 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   };
 
   const handleSavePlan = async () => {
-    if (!state.user?.clubId || !editingPlan?.name || !editingPlan?.price) return;
-    try {
-      const planId = editingPlan.id || Date.now().toString();
-      const planData: Plan = {
-        id: planId,
-        clubId: state.user.clubId,
-        name: editingPlan.name,
-        price: Number(editingPlan.price),
-        billingCycle: editingPlan.billingCycle || 'monthly',
-        description: editingPlan.description || '',
-        hasCommitment: editingPlan.hasCommitment || false,
-        commitmentMonths: Number(editingPlan.commitmentMonths) || 0,
-        isTTC: editingPlan.isTTC || false,
-        paymentMethods: editingPlan.paymentMethods || ['card'],
-        stripeProductId: editingPlan.stripeProductId || undefined,
-        stripePriceId: editingPlan.stripePriceId || undefined,
-        credits: Number(editingPlan.credits) || 0,
-        creditsInterval: editingPlan.creditsInterval || 'cycle',
-        sessionCredits: editingPlan.sessionCredits || {},
-        sessionCreditsIntervals: editingPlan.sessionCreditsIntervals || {},
-      };
-
-      // Create product/price in Stripe if not already done and if Stripe is connected
-      if (canEditClub && stripeConnected && !planData.stripePriceId) {
-        showToast("Création de la formule sur Stripe...", "info");
-        try {
-          const res = await apiFetch('/api/stripe/create-plan', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: planData.name,
-              price: planData.price,
-              billingCycle: planData.billingCycle,
-              description: planData.description
-            })
-          });
-          
-          if (res.ok) {
-            const stripeData = await res.json();
-            planData.stripeProductId = stripeData.productId;
-            planData.stripePriceId = stripeData.priceId;
-          } else {
-            const text = await res.text();
-            console.error("Erreur lors de la création sur Stripe (raw text):", text);
-            let errMessage = `Erreur ${res.status}`;
-            try {
-              const errData = JSON.parse(text);
-              errMessage = errData.error || errMessage;
-            } catch (e) {
-              errMessage = `Erreur ${res.status} (non-JSON): ` + text.substring(0, 100);
-            }
-            showToast(`Erreur Stripe: ${errMessage}`, "error");
-          }
-        } catch (stripeErr: any) {
-          console.error("Erreur réseau Stripe:", stripeErr);
-          showToast(`Erreur réseau: ${stripeErr.message}`, "error");
-        }
-      }
-
-      // Remove undefined fields to avoid Firestore errors
-      Object.keys(planData).forEach(key => {
-        if (planData[key as keyof Plan] === undefined) {
-          delete planData[key as keyof Plan];
-        }
-      });
-
-      await setDoc(doc(db, "plans", planId), planData);
-      showToast(editingPlan.id ? "Formule modifiée" : "Formule créée");
-      setIsEditingPlan(false);
-      setEditingPlan(null);
-    } catch (err) {
-      console.error("Erreur lors de l'enregistrement de la formule:", err);
-      showToast("Erreur lors de l'enregistrement de la formule", "error");
-    }
+    if(!editingPlan)return;
+    try { await billingRequest('/api/billing/plans',{...editingPlan,price:Number(editingPlan.price),currency:'eur',vatRate:editingPlan.vatRate??null,isTTC:editingPlan.isTTC!==false,requestId:planRequestId.current});showToast('Formule enregistrée dans Velatra. La synchronisation Stripe est une action séparée.');planRequestId.current=crypto.randomUUID();setIsEditingPlan(false);setEditingPlan(null); }
+    catch(e:any){showToast(e.message,'error');}
   };
 
   const handleDeletePlan = async (planId: string) => {
@@ -319,8 +252,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
   const confirmDeletePlan = async () => {
     if (!planToDelete) return;
     try {
-      await deleteDoc(doc(db, "plans", planToDelete));
-      showToast("Formule supprimée");
+      await billingRequest(`/api/billing/plans/${planToDelete}/archive`);
+      showToast("Formule archivée");
       setPlanToDelete(null);
     } catch (err) {
       console.error("Erreur lors de la suppression de la formule:", err);
@@ -577,6 +510,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               )}
             </div>
             
+            {stripeConnected && <div className="w-full min-w-0 rounded-xl border border-zinc-300 bg-white p-4 text-zinc-800"><p className="font-semibold">Confirmation des paiements : {webhookConfigured?'configurée':'à configurer'}</p><p className="mt-2 break-all text-sm">Endpoint Stripe : {window.location.origin}/api/stripe/webhook/{state.currentClub?.id}</p><label className="mt-3 block text-sm">Secret de signature du webhook<input type="password" className="mt-1 w-full min-h-11 rounded-xl border border-zinc-300 p-3" value={webhookSecret} onChange={e=>setWebhookSecret(e.target.value)} autoComplete="off" placeholder="whsec_…"/></label><Button className="mt-3" disabled={!webhookSecret.trim()} onClick={async()=>{try{await billingRequest('/api/stripe/webhook-config',{webhookSecret:webhookSecret.trim()});setWebhookConfigured(true);setWebhookSecret('');showToast('Secret de signature enregistré côté serveur.');}catch(e:any){showToast(e.message,'error');}}}>Enregistrer la signature</Button></div>}
             {!stripeConnected ? (
               <div className="space-y-4 w-full sm:w-auto">
                 <Input 
@@ -989,6 +923,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
           )}
         </div>
 
+        <p className="mt-2 text-sm text-zinc-700">Crédits attribués une fois à l’assignation interne ou au premier paiement Stripe confirmé. Les bases hebdomadaires et mensuelles servent au calcul initial ; aucun renouvellement automatique n’est exécuté.</p>
         {!canEditClub && stripeConnected && <p className="mb-4 text-sm text-zinc-700">Les modifications de formules restent locales à Velatra. La synchronisation Stripe est réservée au propriétaire.</p>}
         {isEditingPlan ? (
           <div className="space-y-4 bg-zinc-50 p-6 rounded-3xl border border-zinc-200">
@@ -1001,24 +936,24 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-zinc-500">Nom de la formule</label>
-                <Input placeholder="Ex: Premium Coaching" value={editingPlan?.name || ''} onChange={e => setEditingPlan({ ...editingPlan, name: e.target.value })} />
+                <label htmlFor="billing-plan-name" className="text-sm font-semibold text-zinc-700">Nom de la formule</label>
+                <Input id="billing-plan-name" placeholder="Ex: Premium Coaching" value={editingPlan?.name || ''} onChange={e => setEditingPlan({ ...editingPlan, name: e.target.value })} />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-zinc-500">Prix</label>
+                <label htmlFor="billing-plan-price" className="text-sm font-semibold text-zinc-700">Prix</label>
                 <div className="flex items-center gap-2">
-                  <Input type="number" placeholder="Ex: 99" value={editingPlan?.price || ''} onChange={e => setEditingPlan({ ...editingPlan, price: Number(e.target.value) })} className="flex-1" />
+                  <Input id="billing-plan-price" type="number" step="0.01" min="0.01" placeholder="Ex: 99" value={editingPlan?.price || ''} onChange={e => setEditingPlan({ ...editingPlan, price: Number(e.target.value) })} className="flex-1" />
                   <button 
                     onClick={() => setEditingPlan({ ...editingPlan, isTTC: !editingPlan?.isTTC })}
                     className={`px-3 py-3 rounded-xl text-xs font-bold uppercase tracking-widest border transition-colors ${editingPlan?.isTTC ? 'bg-emerald-500 text-zinc-900 border-emerald-500' : 'bg-transparent text-zinc-900 border-zinc-200 hover:border-zinc-300'}`}
                   >
                     {editingPlan?.isTTC ? 'TTC' : 'HT'}
                   </button>
-                </div>
+                </div><label className="block mt-3 text-sm font-semibold text-zinc-800">TVA (%) — laisser vide si inconnue<input className="mt-1 w-full min-h-11 rounded-xl border border-zinc-300 bg-white px-3 text-zinc-900" type="number" min="0" max="100" step="0.1" value={editingPlan?.vatRate??''} onChange={e=>setEditingPlan({...editingPlan,vatRate:e.target.value===''?null:Number(e.target.value)})}/></label>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] uppercase font-bold text-zinc-500">Cycle de facturation</label>
-                <select 
+                <label htmlFor="billing-plan-cycle" className="text-sm font-semibold text-zinc-700">Cycle de facturation</label>
+                <select id="billing-plan-cycle"
                   className="w-full bg-white border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-emerald-500"
                   value={editingPlan?.billingCycle || 'monthly'}
                   onChange={e => setEditingPlan({ ...editingPlan, billingCycle: e.target.value as any })}
@@ -1129,17 +1064,17 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {state.plans.map(plan => (
                   <div key={plan.id} className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 relative group">
-                    <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => { setEditingPlan(plan); setIsEditingPlan(true); }} className="p-2 bg-zinc-100 rounded-xl hover:bg-zinc-100 text-zinc-900 transition-colors">
+                    <div className="absolute top-4 right-4 flex gap-2">
+                      <button aria-label={`Modifier ${plan.name}`} onClick={() => { setEditingPlan(plan); setIsEditingPlan(true); }} className="p-2 bg-zinc-100 rounded-xl hover:bg-zinc-100 text-zinc-900 transition-colors">
                         <Edit2Icon size={14} />
                       </button>
-                      <button onClick={() => handleDeletePlan(plan.id)} className="p-2 bg-red-500/10 rounded-xl hover:bg-red-500/20 text-red-500 transition-colors">
+                      <button aria-label={`Archiver ${plan.name}`} disabled={plan.isActive===false} onClick={() => handleDeletePlan(plan.id)} className="p-2 bg-red-500/10 rounded-xl hover:bg-red-500/20 text-red-500 transition-colors">
                         <Trash2Icon size={14} />
                       </button>
                     </div>
-                    <h3 className="text-lg font-black text-zinc-900 uppercase tracking-widest mb-1 pr-16">{plan.name}</h3>
-                    <div className="text-2xl font-black text-emerald-500 mb-4">
-                      {plan.price}€ <span className="text-[10px] text-zinc-500 uppercase tracking-widest">{plan.isTTC ? 'TTC' : 'HT'} / {plan.billingCycle === 'monthly' ? 'mois' : plan.billingCycle === 'yearly' ? 'an' : 'fois'}</span>
+                    <h3 className="text-lg font-black text-zinc-900 uppercase tracking-widest mb-1 pr-16">{plan.name}</h3>{plan.isActive===false&&<p className="text-sm font-semibold text-zinc-800">Archivée — conservée dans l’historique</p>}
+                    <div className="text-2xl font-black text-emerald-800 mb-4">
+                      {plan.price}€ <span className="text-[10px] text-zinc-500 uppercase tracking-widest">{plan.isTTC!==false ? 'TTC' : 'HT'} / {plan.billingCycle === 'monthly' ? 'mois' : plan.billingCycle === 'yearly' ? 'an' : 'fois'}</span>
                     </div>
                     
                     <div className="space-y-2 text-xs text-zinc-900/70">
@@ -1176,52 +1111,8 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
                         {plan.description}
                       </p>
                     )}
-                    {canEditClub && (plan.stripePriceId ? (
-                      <div className="mt-4 pt-4 border-t border-zinc-200">
-                        <Button 
-                          variant="secondary" 
-                          className="w-full !py-2 !text-[10px]"
-                          onClick={async () => {
-                            if (!canEditClub) return;
-                            try {
-                              showToast("Génération du lien...", "info");
-                              const res = await apiFetch('/api/stripe/payment-link', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  priceId: plan.stripePriceId
-                                })
-                              });
-                              if (res.ok) {
-                                const data = await res.json();
-                                navigator.clipboard.writeText(data.link);
-                                showToast("Lien de paiement copié !");
-                              } else {
-                                throw new Error("Erreur");
-                              }
-                            } catch (e) {
-                              showToast("Erreur lors de la génération", "error");
-                            }
-                          }}
-                        >
-                          COPIER LE LIEN DE PAIEMENT
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="mt-4 pt-4 border-t border-zinc-200">
-                        <Button 
-                          variant="secondary" 
-                          className="w-full !py-2 !text-[10px] text-orange-500 border-orange-500/30 hover:bg-orange-500/10"
-                          onClick={() => {
-                            setEditingPlan(plan);
-                            setIsEditingPlan(true);
-                            showToast("Cliquez sur ENREGISTRER pour créer cette formule sur Stripe", "info");
-                          }}
-                        >
-                          CRÉER SUR STRIPE
-                        </Button>
-                      </div>
-                    ))}
+                    {canEditClub && plan.isActive !== false && <Button variant="secondary" disabled={!stripeConnected} className="w-full mt-4" onClick={async()=>{try{await billingRequest(`/api/billing/plans/${plan.id}/sync`);showToast('Tarif Stripe synchronisé. Les abonnements existants gardent leur tarif.');}catch(e:any){showToast(e.message,'error');}}}>{plan.stripePriceId?'Vérifier la synchronisation Stripe':'Synchroniser Stripe'}</Button>}
+                    {plan.isActive===false && <p className="mt-3 text-sm font-semibold text-zinc-700">Archivée — conservée dans l’historique</p>}
                   </div>
                 ))}
               </div>
@@ -1257,7 +1148,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
             animate={{ opacity: 1, scale: 1 }}
             className="bg-white border border-zinc-200 rounded-3xl p-6 max-w-md w-full shadow-2xl"
           >
-            <h3 className="text-xl font-black text-zinc-900 mb-2">Supprimer la formule ?</h3>
+            <h3 className="text-xl font-black text-zinc-900 mb-2">Archiver la formule ?</h3>
             <p className="text-zinc-500 mb-6">Voulez-vous vraiment supprimer cette formule ?</p>
             <div className="flex gap-3">
               <Button variant="secondary" fullWidth onClick={() => setPlanToDelete(null)}>Non, garder</Button>
