@@ -10,10 +10,36 @@
 .va-editor-days-mobile { display: block; }
 .va-editor-days-desktop { display: none; }
 .va-editor-details { border-top: 1px solid #e4e4e7; }
+.va-editor-mobile-nav, .va-editor-close-details { display: none; }
+
+@media (max-width: 767px) {
+  .va-editor-page { min-width: 0; overflow-x: clip; }
+  .va-editor-mobile-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .25rem; padding: .25rem; border: 1px solid #d4d4d8; border-radius: .75rem; background: #fff; }
+  .va-editor-mobile-nav button { min-height: 44px; min-width: 0; padding: .25rem; border-radius: .5rem; color: #3f3f46; font-size: .8rem; font-weight: 600; }
+  .va-editor-mobile-nav button[aria-current="step"] { color: white; background: #064e3b; }
+  .va-editor-mobile-nav button:disabled { opacity: .45; }
+  .va-editor-page:not([data-mobile-step="program"]) .va-editor-program-meta,
+  .va-editor-page[data-mobile-step="program"] .va-editor-workspace { display: none; }
+  .va-editor-page[data-mobile-step="day"] .va-editor-details,
+  .va-editor-page[data-mobile-step="exercise"] .va-editor-days-mobile,
+  .va-editor-page[data-mobile-step="exercise"] .va-editor-session { display: none; }
+  .va-editor-close-details { display: inline-flex; align-items: center; }
+  .va-editor-details { border-top: 0; }
+  .va-editor-header { max-width: 100vw; }
+  .va-editor-link-action { display: none; }
+  .va-editor-page input, .va-editor-page select, .va-editor-page textarea { font-size: 16px !important; }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  .va-editor-page .va-editor-workspace-grid { grid-template-columns: minmax(0, 1fr); }
+  .va-editor-page .va-editor-details { display: none; }
+  .va-editor-page[data-mobile-step="exercise"] .va-editor-details { display: block; position: fixed; z-index: 60; top: 0; right: 0; bottom: 0; width: min(440px, 90vw); overflow-y: auto; border-left: 1px solid #d4d4d8; box-shadow: -20px 0 60px #18181b33; padding-top: max(1rem, env(safe-area-inset-top)); }
+  .va-editor-page[data-mobile-step="exercise"] .va-editor-close-details { display: inline-flex; align-items: center; }
+}
 
 @container editor-workspace (min-width: 1040px) {
   .va-editor-workspace-grid {
-    grid-template-columns: 200px minmax(0, 1fr) 280px;
+    grid-template-columns: 220px minmax(0, 1fr) minmax(300px, 340px);
   }
 
   .va-editor-days-mobile { display: none; }
@@ -22,4 +48,8 @@
     border-top: 0;
     border-left: 1px solid #e4e4e7;
   }
+}
+
+@media (min-width: 1280px) {
+  .va-editor-page .va-editor-details { display: block; }
 }

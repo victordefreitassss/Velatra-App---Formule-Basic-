@@ -1126,6 +1126,10 @@ export default function App() {
           clubId={user.clubId}
           allPresets={state.presets}
           member={state.editingProg ? (state.users || []).find(u => Number(u.id) === state.editingProg!.memberId) : undefined}
+          onCreateExercise={async (exercise: Exercise) => {
+            await setDoc(doc(db, 'exercises', String(exercise.id)), exercise);
+            setState(current => ({ ...current, exercises: [...current.exercises.filter(item => item.id !== exercise.id), exercise] }));
+          }}
           onSave={async (data, action) => {
             const dataWithClub = { ...data, clubId: user.clubId };
             await setDoc(doc(db, state.editingProg ? "programs" : "presets", data.id.toString()), dataWithClub);
@@ -1140,7 +1144,8 @@ export default function App() {
             if (state.editingProg) {
               const member = (state.users || []).find(u => Number(u.id) === state.editingProg!.memberId);
               if (member && member.firebaseUid && member.planRequested) {
-                await updateDoc(doc(db, "users", member.firebaseUid), { planRequested: false });
+                try { await updateDoc(doc(db, "users", member.firebaseUid), { planRequested: false }); }
+                catch (error) { console.warn('Programme enregistré, mais la demande de plan reste à mettre à jour.', error); }
               }
               
               if (action === 'start' && member) {

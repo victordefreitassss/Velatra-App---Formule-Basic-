@@ -348,7 +348,7 @@ export const CoachingSessionView: React.FC<CoachingSessionViewProps> = ({ progra
                     {isCompleted && <CheckIcon size={14} className="text-emerald-500" />}
                   </div>
                   <h3 className="font-bold truncate pr-6">{bEx?.name || 'Exercice'}</h3>
-                  <p className="text-xs text-zinc-500 mt-1">{ex.sets} x {ex.reps}</p>
+                  <p className="text-xs text-zinc-500 mt-1">{ex.sets} x {ex.reps}{ex.targetLoad ? ` · charge cible ${ex.targetLoad}` : ''}{ex.targetRpe ? ` · RPE cible ${ex.targetRpe}` : ''}{ex.targetRir ? ` · RIR cible ${ex.targetRir}` : ''}</p>
                 </button>
                 <button
                   onClick={(e) => {
