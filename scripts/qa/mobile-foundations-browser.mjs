@@ -54,7 +54,12 @@ export const getDoc = async r => snap(r.path?.startsWith('clubs/') ? club : unde
 export const getDocFromServer = async () => snap(undefined);
 export const getDocs = async () => snap(undefined);
 export function onSnapshot(r, cb) { const value = r.path === 'users/'+uid ? profile : r.path === 'clubs/654321' ? club : undefined; const t=setTimeout(()=>cb(snap(value)), r.path==='users/'+uid?350:5);return()=>clearTimeout(t); }
-export async function apiFetch() { return new Response(JSON.stringify({assignedMemberIds:[],checkIn:null}),{status:200,headers:{'Content-Type':'application/json'}}); }
+export async function apiFetch(input) {
+  const body = String(input).endsWith('/api/followup/me')
+    ? {journey:null,assignments:[],responses:[],habits:[],entries:[],logs:[],today:new Date().toISOString().slice(0,10)}
+    : {assignedMemberIds:[],checkIn:null};
+  return new Response(JSON.stringify(body),{status:200,headers:{'Content-Type':'application/json'}});
+}
 export const getMessagingClient = async () => null;
 export const getStorageClient = async () => ({});
 const denied = () => { throw new Error('Unexpected fixture write; no production allowed'); };

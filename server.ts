@@ -18,6 +18,7 @@ import { validatePublicProspect } from "./server/prospectValidation.ts";
 import { validatePublicContact } from "./server/contactValidation.ts";
 import { calculateCheckInReward, parseDailyCheckInInput } from "./server/memberDailyCheckIn.ts";
 import { parseAIConversation } from "./server/aiConversation.ts";
+import { registerCoachingFollowup } from './server/coachingFollowup.ts';
 
 declare global {
   namespace Express {
@@ -433,6 +434,7 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
 
 // All remaining API routes require a verified session and a server-side profile.
 app.use("/api", verifyFirebaseSession, requireUserProfile);
+registerCoachingFollowup(app, admin.firestore());
 
 for (const action of ['reserve', 'cancel'] as const) {
   app.post(`/api/bookings/${action}`, async (req, res) => {

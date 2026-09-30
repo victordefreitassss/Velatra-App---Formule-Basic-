@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { AppState, User, Program, Task } from '../types';
 import { Card, StatBox, Button, Input, Badge } from './UI';
 import { RefreshCwIcon, PlusIcon, SearchIcon, Trash2Icon, PlayIcon, LayersIcon, FlameIcon, MessageCircleIcon, SparklesIcon, BarChartIcon, LockIcon, CalendarIcon, InfoIcon, ClockIcon, CheckCircleIcon, UserIcon, FileTextIcon, TargetIcon, GiftIcon, DollarSignIcon } from './Icons';
-import { db, doc, deleteDoc, updateDoc, setDoc } from '../firebase';
+import { apiFetch, db, doc, deleteDoc, updateDoc, setDoc } from '../firebase';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { motion, useReducedMotion } from 'framer-motion';
 import { countTodayUpcomingSessions } from './appShellHelpers';
@@ -211,6 +211,16 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   }, [state.logs, state.payments, state.user?.clubId]);
 
   const [showAnnual, setShowAnnual] = useState(false);
+  const [followupPriorities, setFollowupPriorities] = useState<{ memberUid: string; memberName: string; templateName: string; status: string }[]>([]);
+  useEffect(() => {
+    let live = true;
+    apiFetch('/api/followup/priorities').then(async response => {
+      if (!response.ok) throw new Error('Suivi indisponible');
+      const result = await response.json();
+      if (live) setFollowupPriorities(result.priorities || []);
+    }).catch(() => { if (live) setFollowupPriorities([]); });
+    return () => { live = false; };
+  }, [state.user?.firebaseUid]);
 
   useEffect(() => {
     // Generate automated tasks for members at risk
@@ -425,6 +435,8 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
           </div>
         </div>
       </motion.div>
+
+      {followupPriorities.length > 0 && <section className="rounded-2xl border border-emerald-200 bg-white p-4 sm:p-5" aria-label="Bilans à suivre"><h2 className="text-base font-semibold text-zinc-950">Bilans à suivre</h2><div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">{followupPriorities.map(item => <button key={`${item.memberUid}-${item.templateName}`} type="button" className="min-h-11 rounded-xl border border-zinc-200 p-3 text-left text-sm text-zinc-800 hover:bg-emerald-50 focus-visible:ring-2 focus-visible:ring-emerald-700" onClick={() => { const member = state.users.find(user => user.firebaseUid === item.memberUid); if (member) setState(previous => ({ ...previous, page: 'users', selectedMember: member })); }}><strong className="block text-zinc-950">{item.memberName}</strong>{item.templateName} · {item.status === 'late' ? 'en retard' : 'attendu'}</button>)}</div></section>}
 
       {members.length === 0 && (
         <motion.section variants={itemVariants} className="flex flex-col gap-5 rounded-3xl border border-emerald-200 bg-emerald-50/70 p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">

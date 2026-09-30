@@ -286,10 +286,15 @@ service cloud.firestore {
     }
     match /logs/{documentId} {
       allow read: if canReadMemberRecord(resource.data);
-      allow create: if canManageMemberRecord(request.resource.data) || canCreateOwnRecord(request.resource.data);
-      allow update: if (canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
-        (canCreateOwnRecord(resource.data) && canCreateOwnRecord(request.resource.data));
-      allow delete: if canManageMemberRecord(resource.data) || canCreateOwnRecord(resource.data);
+      // Feedback is written once by the authenticated server API after the real workout exists.
+      allow create: if !('memberFeedback' in request.resource.data) &&
+        (canManageMemberRecord(request.resource.data) || canCreateOwnRecord(request.resource.data));
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['memberFeedback']) &&
+        (!('memberFeedback' in resource.data) || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['rpe'])) &&
+        ((canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
+        (canCreateOwnRecord(resource.data) && canCreateOwnRecord(request.resource.data)));
+      allow delete: if !('memberFeedback' in resource.data) &&
+        (canManageMemberRecord(resource.data) || canCreateOwnRecord(resource.data));
     }
     match /bodyData/{documentId} {
       allow read: if canReadMemberRecord(resource.data);
@@ -462,6 +467,13 @@ service cloud.firestore {
     }
 
     // New collections must receive explicit access rules before clients can use them.
+    // Longitudinal follow-up is served exclusively through role-scoped API endpoints.
+    match /coachingJourneys/{documentId} { allow read, write: if false; }
+    match /coachCheckInTemplates/{documentId} { allow read, write: if false; }
+    match /coachCheckInAssignments/{documentId} { allow read, write: if false; }
+    match /coachCheckInResponses/{documentId} { allow read, write: if false; }
+    match /coachHabits/{documentId} { allow read, write: if false; }
+    match /coachHabitEntries/{documentId} { allow read, write: if false; }
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,5 +1,6 @@
 import { canManageClub, getProductCapabilities, resolveAccountType } from '../productCapabilities';
 import { AddMemberDialog } from '../components/AddMemberDialog';
+import { CoachFollowup } from '../components/CoachingFollowup';
 import { createMemberAndSendAccess, getMemberCreationCoachOptions } from '../components/memberAccess';
 import { localDateKey, createNumericId } from '../components/dataHelpers';
 
@@ -2255,6 +2256,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   {/* Assistants IA */}
                   {memberTab === 'overview' && (
                   <section className="space-y-8">
+                    {selectedProfile.firebaseUid && <CoachFollowup memberUid={selectedProfile.firebaseUid} programs={[]} section="summary" />}
                     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
                       <div className="mb-4 flex items-start justify-between gap-3">
                         <div>
@@ -2306,6 +2308,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   )}
                   {memberTab === 'followup' && (
                   <section className="va-client-360-followup space-y-6">
+                    {selectedProfile.firebaseUid && <CoachFollowup memberUid={selectedProfile.firebaseUid} programs={[]} section="followup" />}
                     {/* NOTES DE SUIVI SECTION */}
                     <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 mt-6 shadow-sm space-y-4">
                       <div className="flex items-center justify-between border-b border-zinc-200/60 pb-3">
@@ -3476,6 +3479,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 )}
 {memberTab === 'coaching' && (
                   <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    {selectedProfile.firebaseUid && <CoachFollowup memberUid={selectedProfile.firebaseUid} programs={state.programs.filter(program => program.memberId === selectedProfile.id)} section="journey" />}
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
                                         <div className="space-y-4">
                     <div className="flex items-center justify-between px-1">
