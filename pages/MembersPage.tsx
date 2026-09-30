@@ -138,8 +138,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
   const openMemberEditor = (member: User) => {
     setEditInfoData({
-      name: member.name, age: member.age, birthDate: member.birthDate || '', gender: member.gender,
-      weight: member.weight, height: member.height, objectifs: member.objectifs, notes: member.notes, avatar: member.avatar,
+      name: member.name, age: member.profileMeasurementsPending ? 0 : member.age, birthDate: member.birthDate || '', gender: member.gender,
+      weight: member.profileMeasurementsPending ? 0 : member.weight, height: member.profileMeasurementsPending ? 0 : member.height, objectifs: member.objectifs, notes: member.notes, avatar: member.avatar,
     });
     setIsEditingInfo(true);
   };
@@ -403,12 +403,17 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const handleUpdateMemberInfo = async () => {
     if (!selectedProfile || !selectedProfile.firebaseUid) return;
+    if (selectedProfile.profileMeasurementsPending && (!editInfoData.age || !editInfoData.weight || !editInfoData.height)) {
+      showToast('Renseignez âge, poids et taille avant de valider les mesures.', 'error');
+      return;
+    }
     
     try {
       const userRef = doc(db, "users", selectedProfile.firebaseUid);
-      await updateDoc(userRef, editInfoData);
+      const updates = selectedProfile.profileMeasurementsPending ? { ...editInfoData, profileMeasurementsPending: false } : editInfoData;
+      await updateDoc(userRef, updates);
       showToast("Informations mises à jour");
-      setSelectedProfile({ ...selectedProfile, ...editInfoData } as User);
+      setSelectedProfile({ ...selectedProfile, ...updates } as User);
       setIsEditingInfo(false);
     } catch (err) {
       console.error("Error updating member info:", err);
@@ -852,6 +857,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const handleGenerateReport = async () => {
     if (!selectedProfile) return;
+    if (selectedProfile.profileMeasurementsPending) { showToast('Complétez les mesures réelles avant de générer un bilan IA.', 'info'); return; }
     setIsGeneratingReport(true);
     setGeneratedReport(null);
     try {
@@ -926,6 +932,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const handleGenerateProgram = async () => {
     if (!selectedProfile) return;
+    if (selectedProfile.profileMeasurementsPending) { showToast('Complétez le profil réel avant de générer un programme IA.', 'info'); return; }
     setIsGeneratingProgram(true);
     setIsAIGeneratorModalOpen(false);
     try {
@@ -979,6 +986,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const openNutritionTargetsModal = () => {
     if (!selectedProfile) return;
+    if (selectedProfile.profileMeasurementsPending) { showToast('Complétez les mesures réelles avant de calculer les objectifs nutritionnels.', 'info'); return; }
     const mid = Number(selectedProfile.id);
     const memberBody = state.bodyData.filter(b => Number(b.memberId) === mid);
     const bodySorted = memberBody.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -1012,6 +1020,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const handleGenerateNutrition = async () => {
     if (!selectedProfile) return;
+    if (selectedProfile.profileMeasurementsPending) { showToast('Complétez les mesures réelles avant de générer un plan nutritionnel.', 'info'); return; }
     setIsAdjustingTargets(false);
     setIsGeneratingNutrition(true);
     setNutritionPlan(null);
@@ -1221,6 +1230,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const handleAssignNutritionPreset = async (preset: any) => {
     if (!selectedProfile) return;
+    if (selectedProfile.profileMeasurementsPending) { showToast('Complétez les mesures réelles avant de préparer un plan nutritionnel.', 'info'); return; }
     try {
       const mid = Number(selectedProfile.id);
       const existingPlan = state.nutritionPlans?.find(p => p.memberId === mid);
@@ -3272,7 +3282,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
                         <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Âge</div>
-                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.age} ans</div>
+                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.profileMeasurementsPending ? 'À compléter' : `${selectedProfile.age} ans`}</div>
                       </div>
                       {selectedProfile.birthDate && (
                         <div>
@@ -3282,15 +3292,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       )}
                       <div>
                         <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Sexe</div>
-                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.gender === 'M' ? 'Homme' : selectedProfile.gender === 'F' ? 'Femme' : 'Autre'}</div>
+                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.profileMeasurementsPending ? 'À compléter' : selectedProfile.gender === 'M' ? 'Homme' : selectedProfile.gender === 'F' ? 'Femme' : 'Autre'}</div>
                       </div>
                       <div>
                         <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Taille</div>
-                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.height} cm</div>
+                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.profileMeasurementsPending ? 'À compléter' : `${selectedProfile.height} cm`}</div>
                       </div>
                       <div>
                         <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Poids Initial</div>
-                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.weight} kg</div>
+                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.profileMeasurementsPending ? 'À compléter' : `${selectedProfile.weight} kg`}</div>
                       </div>
                     </div>
                     {selectedProfile.objectifs && selectedProfile.objectifs.length > 0 && (

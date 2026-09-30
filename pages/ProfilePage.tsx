@@ -33,8 +33,8 @@ export const ProfilePage: React.FC<{
   const [selectedLog, setSelectedLog] = useState<SessionLog | null>(null);
   const [formData, setFormData] = useState({
     birthDate: user.birthDate || '',
-    height: user.height || 0,
-    weight: user.weight || 0,
+    height: user.profileMeasurementsPending ? 0 : user.height || 0,
+    weight: user.profileMeasurementsPending ? 0 : user.weight || 0,
     experienceLevel: user.experienceLevel || 'Débutant',
     equipment: user.equipment || 'Salle de sport',
     email: user.email || '',
@@ -69,7 +69,7 @@ export const ProfilePage: React.FC<{
 
       // Update nutrition plan if it exists
       const plan = state.nutritionPlans?.find(p => p.memberId === Number(user.id));
-      if (plan && Number(formData.weight) !== user.weight) {
+      if (plan && Number(formData.weight) > 0 && Number(formData.weight) !== user.weight) {
         const updatedPlan = updateNutritionPlanForWeight(plan, Number(formData.weight));
         await updateDoc(doc(db, "nutritionPlans", plan.id.toString()), updatedPlan);
       }
@@ -248,7 +248,7 @@ export const ProfilePage: React.FC<{
 
               <div className="flex flex-wrap gap-2">
                 <Badge variant="blue" className="uppercase tracking-widest text-[10px]">{user.role === 'member' ? 'Adhérent' : user.role}</Badge>
-                {user.gender && (
+                {user.gender && !user.profileMeasurementsPending && (
                   <Badge variant="dark" className="uppercase tracking-widest text-[10px] bg-zinc-100 text-zinc-900 ">
                     {user.gender === 'M' ? 'Homme' : 'Femme'}
                   </Badge>
@@ -297,7 +297,7 @@ export const ProfilePage: React.FC<{
                     className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 ) : (
-                  <div className="text-lg font-medium text-zinc-900">{user.height ? `${user.height} cm` : 'Non renseigné'}</div>
+                  <div className="text-lg font-medium text-zinc-900">{user.profileMeasurementsPending ? 'À compléter' : user.height ? `${user.height} cm` : 'Non renseigné'}</div>
                 )}
               </div>
 
@@ -311,7 +311,7 @@ export const ProfilePage: React.FC<{
                     className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3 text-zinc-900 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 ) : (
-                  <div className="text-lg font-medium text-zinc-900">{user.weight ? `${user.weight} kg` : 'Non renseigné'}</div>
+                  <div className="text-lg font-medium text-zinc-900">{user.profileMeasurementsPending ? 'À compléter' : user.weight ? `${user.weight} kg` : 'Non renseigné'}</div>
                 )}
               </div>
             </div>

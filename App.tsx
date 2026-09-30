@@ -12,6 +12,7 @@ import {
 } from './constants';
 import { buildClubExercise, mergeExercises } from './components/exerciseLibraryModel';
 import { createNumericId } from './components/dataHelpers';
+import { legacyProspectNumericId } from './server/prospectIdentity';
 import { 
   apiFetch, auth, db, getMessagingClient, firebaseConfig,
   onAuthStateChanged, signOut, 
@@ -802,7 +803,7 @@ export default function App() {
         }
       });
 
-      snap.forEach(d => prospects.push({ ...d.data(), firebaseUid: d.id } as Prospect));
+      snap.forEach(d => prospects.push({ ...d.data(), id: Number.isSafeInteger(Number(d.data().id)) && Number(d.data().id) > 0 ? Number(d.data().id) : legacyProspectNumericId(d.id), firebaseUid: d.id } as Prospect));
       setState(prev => ({ ...prev, prospects }));
 
       if (!isInitialProspectsLoad && hasNewProspect && state.user?.role !== 'member' && 'Notification' in window && Notification.permission === 'granted') {
@@ -1204,7 +1205,7 @@ export default function App() {
         case 'settings': return <SettingsPage state={state} setState={setState} showToast={showToast} />;
         case 'chat': return <MessagesPage state={state} setState={setState} showToast={showToast} />;
         case 'crm_pipeline': return <ProspectFlowPage state={state} setState={setState} showToast={showToast} />;
-        case 'crm_tasks': return <TasksPage state={state} showToast={showToast} />;
+        case 'crm_tasks': return <TasksPage state={state} setState={setState} showToast={showToast} />;
         case 'crm_finances': return <FinancesPage state={state} setState={setState} showToast={showToast} />;
         case 'calendar': return <PlanningPage state={state} setState={setState} showToast={showToast} />;
         case 'nutrition': return <NutritionPage state={state} setState={setState} showToast={showToast} />;

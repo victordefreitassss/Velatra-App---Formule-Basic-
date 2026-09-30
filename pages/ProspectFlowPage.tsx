@@ -1,10 +1,14 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { AppState, Prospect, ProspectNote, User } from '../types';
-import { createMemberAccount, db, doc, updateDoc, setDoc, deleteDoc, auth, sendPasswordResetEmail, apiFetch } from '../firebase';
+import { AppState, Prospect, ProspectNote } from '../types';
+import { db, doc, updateDoc, setDoc, deleteDoc, auth, sendPasswordResetEmail, apiFetch } from '../firebase';
+import { getMemberCreationCoachOptions } from '../components/memberAccess';
+import { normalizeProspectEmail, probableProspectDuplicate, prospectActivity, prospectPriority, prospectStage } from '../components/prospectCrm';
+import { runTransaction } from 'firebase/firestore';
 import { parisLocalInstant } from '../components/planningSlots';
-import { Plus, Search, Trash2, Mail, Phone, Clock, CheckCircle, XCircle, UserPlus, Users, X, Calendar, AlertCircle, MessageSquare } from 'lucide-react';
-import { format, isToday, isPast, isSameDay, parseISO } from 'date-fns';
+import { createNumericId } from '../components/dataHelpers';
+import { Plus, Search, Mail, Phone, Clock, CheckCircle, Users, X, AlertCircle, MessageSquare } from 'lucide-react';
+import { format, isToday, isPast, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Card, Button, Input } from '../components/UI';
 
@@ -15,11 +19,11 @@ interface Props {
 }
 
 const COLUMNS = [
-  { id: 'lead', title: 'Nouveau Lead', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-zinc-500' },
+  { id: 'lead', title: 'Nouveau', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-zinc-500' },
   { id: 'contacted', title: 'Contacté', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-slate-600' },
   { id: 'call_pending', title: 'À relancer', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-amber-700' },
-  { id: 'trial', title: 'Séance d\'essai', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-emerald-700' },
-  { id: 'won', title: 'Abonné', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-green-800' },
+  { id: 'trial', title: 'Essai', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-emerald-700' },
+  { id: 'won', title: 'Gagné', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-green-800' },
   { id: 'lost', title: 'Perdu', color: 'bg-zinc-100 text-zinc-800 border-zinc-200', dot: 'bg-red-700' }
 ];
 
@@ -34,13 +38,22 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     setIsAdding(true);
     setState((previous: AppState) => ({ ...previous, pendingUiAction: undefined }));
   }, [state.pendingUiAction]);
-  const [newProspect, setNewProspect] = useState({ name: '', email: '', phone: '', status: 'lead', notes: '' });
+  useEffect(() => {
+    if (!state.pendingProspectUid) return;
+    const prospect = state.prospects.find(item => item.firebaseUid === state.pendingProspectUid);
+    if (prospect) setSelectedProspect(prospect);
+    setState(previous => ({ ...previous, pendingProspectUid: undefined }));
+  }, [state.pendingProspectUid, state.prospects]);
+  const [newProspect, setNewProspect] = useState({ name: '', email: '', phone: '', source: '', notes: '' });
+  const [allowDuplicate, setAllowDuplicate] = useState(false);
   
   const [selectedProspect, setSelectedProspect] = useState<Prospect | null>(null);
   const [newNote, setNewNote] = useState('');
   
   const [convertingProspect, setConvertingProspect] = useState<Prospect | null>(null);
-  const [convertData, setConvertData] = useState({ email: '', password: '' });
+  const [convertData, setConvertData] = useState({ email: '', coachUid: '' });
+  const [isConverting, setIsConverting] = useState(false);
+  const [accessEmailFailed, setAccessEmailFailed] = useState(false);
   
   const [schedulingReminderProspect, setSchedulingReminderProspect] = useState<Prospect | null>(null);
   const [reminderForm, setReminderForm] = useState({ date: '', time: '' });
@@ -49,6 +62,53 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   const [trialForm, setTrialForm] = useState({ date: '', startTime: '', endTime: '' });
 
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
+  const [lostProspect, setLostProspect] = useState<Prospect | null>(null);
+  const [lostReason, setLostReason] = useState('');
+  const drawerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!selectedProspect) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    requestAnimationFrame(() => drawerRef.current?.querySelector<HTMLButtonElement>('button')?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (document.querySelector('[data-crm-modal="true"]')) return;
+      if (event.key === 'Escape') setSelectedProspect(null);
+      if (event.key !== 'Tab' || !drawerRef.current) return;
+      const items = Array.from(drawerRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled])'));
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => { document.removeEventListener('keydown', onKeyDown); requestAnimationFrame(() => previousFocus?.focus()); };
+  }, [selectedProspect?.id]);
+  const modalOpen = isAdding || !!convertingProspect || !!schedulingReminderProspect || !!schedulingTrialProspect || !!lostProspect || isDeleting !== null;
+  useEffect(() => {
+    if (!modalOpen) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const modal = [...document.querySelectorAll<HTMLElement>('[data-crm-modal="true"]')].at(-1);
+    requestAnimationFrame(() => modal?.querySelector<HTMLElement>('input, textarea, select, button')?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!modal) return;
+      if (event.key === 'Escape') {
+        if (isDeleting !== null) setIsDeleting(null);
+        else if (lostProspect) setLostProspect(null);
+        else if (convertingProspect && !isConverting) setConvertingProspect(null);
+        else if (schedulingReminderProspect) setSchedulingReminderProspect(null);
+        else if (schedulingTrialProspect) setSchedulingTrialProspect(null);
+        else setIsAdding(false);
+      }
+      if (event.key !== 'Tab') return;
+      const items = Array.from(modal.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled])'));
+      if (!items.length) return;
+      if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1)?.focus(); }
+      else if (!event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0].focus(); }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => { document.removeEventListener('keydown', onKeyDown); requestAnimationFrame(() => previousFocus?.focus()); };
+  }, [modalOpen, isAdding, convertingProspect, schedulingReminderProspect, schedulingTrialProspect, lostProspect, isDeleting, isConverting]);
+  const duplicate = probableProspectDuplicate(state.prospects, newProspect.email, newProspect.phone);
+  const coachOptions = getMemberCreationCoachOptions(state.currentClub, state.user, state.users);
 
   // --- Helpers ---
   const handleDragStart = (e: React.DragEvent, prospectId: number) => {
@@ -70,10 +130,11 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   const handleStatusChange = async (prospectId: number, newStatus: string) => {
     const prospect = state.prospects.find(p => p.id === prospectId);
     if (!prospect || !prospect.firebaseUid) return;
+    if (prospect.convertedMemberUid || prospect.status === 'won') { showToast('Ce dossier gagné est à consulter dans les adhérents.', 'info'); return; }
 
     if (newStatus === 'won' && state.user?.clubId) {
       setConvertingProspect(prospect);
-      setConvertData({ email: prospect.email || '', password: '' });
+      setConvertData({ email: prospect.email || '', coachUid: '' });
       return;
     } 
 
@@ -89,8 +150,15 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
       return;
     }
 
+    if (newStatus === 'lost') { setLostProspect(prospect); setLostReason(''); return; }
+
     try {
-      await updateDoc(doc(db, "prospects", prospect.firebaseUid), { status: newStatus as any });
+      await runTransaction(db, async transaction => {
+        const reference = doc(db, 'prospects', prospect.firebaseUid!);
+        const current = await transaction.get(reference);
+        if (!current.exists() || current.data().convertedMemberUid) throw new Error('Prospect indisponible.');
+        transaction.update(reference, { status: newStatus, activityHistory: prospectActivity(current.data().activityHistory, `Étape : ${COLUMNS.find(column => column.id === newStatus)?.title || newStatus}`, auth.currentUser?.uid) });
+      });
       // Mettre à jour l'état local dans le cas du sélectionné
       if (selectedProspect && selectedProspect.id === prospectId) {
          setSelectedProspect({ ...selectedProspect, status: newStatus as any });
@@ -105,24 +173,28 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   const handleAddProspect = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!state.user?.clubId) return;
+    if (duplicate && !allowDuplicate) return;
 
-    const id = Date.now();
+    const id = createNumericId();
     const prospect: Prospect = {
       id,
       clubId: state.user.clubId,
-      name: newProspect.name,
-      email: newProspect.email,
-      phone: newProspect.phone,
+      name: newProspect.name.trim(),
+      email: normalizeProspectEmail(newProspect.email),
+      phone: newProspect.phone.trim(),
       date: new Date().toISOString(),
-      status: newProspect.status as any,
+      status: 'lead',
       answers: {},
+      activityHistory: prospectActivity([], 'Lead créé', auth.currentUser?.uid),
+      ...(newProspect.source.trim() ? { source: newProspect.source.trim().slice(0, 80) } : {}),
       notesHistory: newProspect.notes ? [{ id: Date.now().toString(), date: new Date().toISOString(), content: newProspect.notes }] : [],
     };
 
     try {
       await setDoc(doc(db, "prospects", id.toString()), prospect);
       setIsAdding(false);
-      setNewProspect({ name: '', email: '', phone: '', status: 'lead', notes: '' });
+      setNewProspect({ name: '', email: '', phone: '', source: '', notes: '' });
+      setAllowDuplicate(false);
       showToast("Prospect ajouté avec succès", "success");
     } catch (err) {
       console.error(err);
@@ -135,16 +207,22 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     if (!newNote.trim() || !prospect.firebaseUid) return;
     
     const note: ProspectNote = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       date: new Date().toISOString(),
-      content: newNote.trim()
+      content: newNote.trim().slice(0, 2000),
+      ...(auth.currentUser?.uid ? { authorUid: auth.currentUser.uid } : {}),
+      ...(state.user?.name ? { authorName: state.user.name } : {})
     };
     
-    const updatedHistory = [note, ...(prospect.notesHistory || [])];
-    
     try {
-      await updateDoc(doc(db, "prospects", prospect.firebaseUid), {
-        notesHistory: updatedHistory
+      await runTransaction(db, async transaction => {
+        const reference = doc(db, 'prospects', prospect.firebaseUid!);
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists()) throw new Error('Prospect introuvable.');
+        transaction.update(reference, {
+          notesHistory: [note, ...(snapshot.data().notesHistory || [])].slice(0, 100),
+          activityHistory: prospectActivity(snapshot.data().activityHistory, 'Note ajoutée', auth.currentUser?.uid)
+        });
       });
       setNewNote('');
     } catch(err) {
@@ -156,8 +234,13 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   const handleUpdateReminder = async (prospect: Prospect, dateStr: string) => {
     if (!prospect.firebaseUid) return;
     try {
-      await updateDoc(doc(db, "prospects", prospect.firebaseUid), {
-        nextReminderDate: dateStr
+      await runTransaction(db, async transaction => {
+        const reference = doc(db, 'prospects', prospect.firebaseUid!);
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists()) throw new Error('Prospect introuvable.');
+        transaction.update(reference, { nextReminderDate: dateStr || null,
+          status: dateStr ? 'call_pending' : 'contacted',
+          activityHistory: prospectActivity(snapshot.data().activityHistory, dateStr ? 'Relance planifiée' : 'Relance terminée', auth.currentUser?.uid) });
       });
       showToast("Date de relance mise à jour", "success");
     } catch(err) {
@@ -171,6 +254,11 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     if (!isDeleting) return;
     const prospect = state.prospects.find(p => p.id === isDeleting);
     if (!prospect || !prospect.firebaseUid) return;
+    if (prospect.convertedMemberUid || prospect.status === 'trial' || prospect.status === 'won' || prospect.status === 'lost' || prospect.notesHistory?.length || prospect.activityHistory?.length) {
+      showToast('Ce prospect possède un historique à conserver. Passez-le en Perdu si nécessaire.', 'info');
+      setIsDeleting(null);
+      return;
+    }
 
     try {
       await deleteDoc(doc(db, "prospects", prospect.firebaseUid));
@@ -184,48 +272,48 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     }
   };
 
+  const confirmLost = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!lostProspect?.firebaseUid) return;
+    try {
+      await runTransaction(db, async transaction => {
+        const reference = doc(db, 'prospects', lostProspect.firebaseUid!);
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists() || snapshot.data().convertedMemberUid) throw new Error('Prospect indisponible.');
+        transaction.update(reference, { status: 'lost', lostReason: lostReason.trim().slice(0, 300), lostAt: new Date().toISOString(), nextReminderDate: null,
+          activityHistory: prospectActivity(snapshot.data().activityHistory, 'Classé perdu', auth.currentUser?.uid) });
+      });
+      setLostProspect(null);
+      showToast('Prospect classé perdu.', 'success');
+    } catch { showToast('Impossible de classer ce prospect.', 'error'); }
+  };
+
   // --- Conversion ---
   const confirmConversion = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!convertingProspect || !convertData.email || !convertingProspect.firebaseUid) return;
-
-    showToast("Création du membre...", "info");
+    if (!convertingProspect || !convertData.email || !convertingProspect.firebaseUid || isConverting) return;
+    setIsConverting(true);
     try {
-      const randomPassword = crypto.randomUUID() + "aA1!";
-
-      const newUser: User = {
-        id: 0,
-        clubId: state.user!.clubId,
-        code: "",
-        pwd: '',
-        name: convertingProspect.name || 'Sans nom',
-        email: convertData.email,
-        phone: convertingProspect.phone || '',
-        role: 'member',
-        avatar: convertingProspect.name ? convertingProspect.name.substring(0, 2).toUpperCase() : 'U',
-        gender: 'M',
-        age: 30,
-        weight: 70,
-        height: 175,
-        objectifs: [],
-        notes: "Converti depuis Prospect. " + (convertingProspect.notesHistory?.[0]?.content || ''),
-        createdAt: new Date().toISOString(),
-        xp: 0,
-        streak: 0,
-        pointsFidelite: 0,
-        firebaseUid: ''
-      };
-      
-      const created = await createMemberAccount(newUser as unknown as Record<string, unknown>, randomPassword);
-      await updateDoc(doc(db, "prospects", convertingProspect.firebaseUid), { status: 'won' });
-      await sendPasswordResetEmail(auth, convertData.email);
-      
+      const response = await apiFetch(`/api/prospects/${encodeURIComponent(convertingProspect.firebaseUid)}/convert`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: convertData.email, ...(convertData.coachUid ? { coachUid: convertData.coachUid } : {}) })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'La conversion a échoué.');
       setConvertingProspect(null);
-      if (selectedProspect?.id === convertingProspect.id) setSelectedProspect(null);
-      showToast(`Membre créé. L'email de création de compte a été envoyé à ${convertData.email}.`, "success");
+      try {
+        if (!result.alreadyConverted) await sendPasswordResetEmail(auth, normalizeProspectEmail(convertData.email));
+        setAccessEmailFailed(false);
+        showToast(result.alreadyConverted ? 'Adhérent déjà créé : ouvrez son dossier.' : 'Adhérent créé et accès envoyé.', 'success');
+      } catch {
+        setAccessEmailFailed(true);
+        showToast("Adhérent créé. L'email d'accès n'a pas pu être envoyé.", 'error');
+      }
     } catch (err: any) {
       console.error(err);
       showToast(err.message || "Erreur lors de la conversion", "error");
+    } finally {
+      setIsConverting(false);
     }
   };
 
@@ -233,10 +321,15 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     e.preventDefault();
     if (!schedulingReminderProspect?.firebaseUid) return;
     try {
-      const isoDate = new Date(`${reminderForm.date}T${reminderForm.time}:00`).toISOString();
-      await updateDoc(doc(db, "prospects", schedulingReminderProspect.firebaseUid), { 
-          status: 'call_pending',
-          nextReminderDate: isoDate
+      const instant = parisLocalInstant(reminderForm.date, reminderForm.time);
+      if (!instant) throw new Error('Date de relance invalide.');
+      const isoDate = instant.toISOString();
+      await runTransaction(db, async transaction => {
+        const reference = doc(db, 'prospects', schedulingReminderProspect.firebaseUid!);
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists()) throw new Error('Prospect introuvable.');
+        transaction.update(reference, { status: 'call_pending', nextReminderDate: isoDate,
+          activityHistory: prospectActivity(snapshot.data().activityHistory, 'Relance planifiée', auth.currentUser?.uid) });
       });
       setSchedulingReminderProspect(null);
       showToast("Prospect déplacé et relance planifiée", "success");
@@ -264,6 +357,13 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     }
   };
 
+  const resendAccess = async (prospect: Prospect) => {
+    const member = state.users.find(user => user.firebaseUid === prospect.convertedMemberUid);
+    if (!member?.email) { showToast('Adresse du membre indisponible. Ouvrez son dossier.', 'info'); return; }
+    try { await sendPasswordResetEmail(auth, member.email); setAccessEmailFailed(false); showToast('Accès renvoyé.', 'success'); }
+    catch { showToast("L'email d'accès n'a pas pu être envoyé.", 'error'); }
+  };
+
   // --- Data aggregation ---
   const today = new Date();
   const prospectsToRemindToday = state.prospects.filter(p => {
@@ -278,10 +378,20 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   const totalWon = state.prospects.filter(p => p.status === 'won').length;
   const winRate = totalClosed > 0 ? Math.round((totalWon / totalClosed) * 100) : 0;
 
-  const filteredProspects = state.prospects.filter(p => 
-    [p.name, p.email, p.phone].some(value => value?.toLowerCase().includes(searchTerm.trim().toLowerCase()))
+  const search = searchTerm.trim().toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const filteredProspects = state.prospects.filter(p =>
+    [p.name, p.email, p.phone, p.source].some(value => value?.toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(search))
   );
-  const mobileProspects = filteredProspects.filter(prospect => mobileStage === 'all' || prospect.status === mobileStage);
+  const mobileProspects = filteredProspects.filter(prospect => mobileStage === 'all' || prospectStage(prospect) === mobileStage)
+    .sort((a, b) => prospectPriority(a) - prospectPriority(b));
+  const trialForProspect = (prospect: Prospect) => state.bookings.filter(booking => booking.type === 'trial' && Number(booking.prospectId) === Number(prospect.id) && booking.status === 'confirmed' && new Date(booking.startTime).getTime() >= Date.now())
+    .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+  const openLinkedMember = (prospect: Prospect) => {
+    const member = state.users.find(user => user.firebaseUid === prospect.convertedMemberUid || user.id === prospect.convertedMemberId);
+    if (!member) { showToast('Adhérent créé. Rechargez la liste pour ouvrir son dossier.', 'info'); return; }
+    setSelectedProspect(null);
+    setState(previous => ({ ...previous, page: 'users', selectedMember: member }));
+  };
   
   // Utiliser la donnée state persistente pour le tiroir ouvert
   const activeSelectedProspect = selectedProspect ? state.prospects.find(p => p.id === selectedProspect.id) : null;
@@ -320,7 +430,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
             </Button>
             <Button onClick={() => setIsAdding(true)} className="whitespace-nowrap" style={{ height: '40px' }}>
               <Plus className="w-4 h-4 mr-2" />
-              Nouveau Lead
+              Ajouter un prospect
             </Button>
           </div>
         </div>
@@ -377,16 +487,16 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
       </div>
 
       {/* MOBILE PIPELINE: compact list, never a miniature Kanban */}
-      <section className="xl:hidden max-w-[1600px] w-full mx-auto space-y-3" aria-label="Prospects par étape">
+      <section className="min-[1440px]:hidden max-w-[1600px] w-full mx-auto space-y-3" aria-label="Prospects par étape">
         <div className="flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Filtrer les prospects par étape">
           {[{ id: 'all', title: 'Tous' }, ...COLUMNS.map(({ id, title }) => ({ id, title }))].map(stage => {
-            const count = stage.id === 'all' ? filteredProspects.length : filteredProspects.filter(prospect => prospect.status === stage.id).length;
+            const count = stage.id === 'all' ? filteredProspects.length : filteredProspects.filter(prospect => prospectStage(prospect) === stage.id).length;
             return <button key={stage.id} type="button" aria-pressed={mobileStage === stage.id} onClick={() => setMobileStage(stage.id)} className={`shrink-0 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${mobileStage === stage.id ? 'border-emerald-800 bg-emerald-800 text-white' : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'}`}>{stage.title}<span className={`ml-2 ${mobileStage === stage.id ? 'text-emerald-100' : 'text-zinc-500'}`}>{count}</span></button>;
           })}
         </div>
         <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
           {mobileProspects.length === 0 ? <div className="p-8 text-center text-sm text-zinc-600">Aucun prospect dans cette étape.</div> : mobileProspects.map(prospect => {
-            const stage = COLUMNS.find(column => column.id === prospect.status);
+            const stage = COLUMNS.find(column => column.id === prospectStage(prospect));
             const reminderDate = prospect.nextReminderDate ? parseISO(prospect.nextReminderDate) : null;
             return <button key={prospect.id} type="button" onClick={() => setSelectedProspect(prospect)} className="flex min-h-[76px] w-full items-center gap-3 border-b border-zinc-100 px-4 py-3 text-left last:border-0 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-700">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-sm font-semibold text-zinc-700">{prospect.name.slice(0, 2).toUpperCase()}</span>
@@ -404,10 +514,10 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
       </section>
 
       {/* DESKTOP KANBAN */}
-      <div className="hidden xl:flex flex-1 mt-0 overflow-hidden min-h-[500px] max-w-[1600px] w-full mx-auto pb-4">
+      <div className="hidden min-[1440px]:flex flex-1 mt-0 overflow-hidden min-h-[500px] max-w-[1920px] w-full mx-auto pb-4">
         <div className="grid w-full grid-cols-6 gap-3 lg:gap-4 xl:h-full">
           {COLUMNS.map(col => {
-            const colProspects = filteredProspects.filter(p => p.status === col.id);
+            const colProspects = filteredProspects.filter(p => prospectStage(p) === col.id);
             return (
               <div 
                 key={col.id} 
@@ -434,7 +544,9 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                       draggable
                       onDragStart={(e) => handleDragStart(e, prospect.id)}
                       onClick={() => setSelectedProspect(prospect)}
-                      className="bg-white border text-left border-zinc-200 p-2.5 rounded-xl shadow-sm hover:shadow-md hover:border-emerald-500/50 transition-all cursor-pointer group active:cursor-grabbing"
+                      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelectedProspect(prospect); } }}
+                      role="button" tabIndex={0} aria-label={`Ouvrir ${prospect.name}`}
+                      className="bg-white border text-left border-zinc-200 p-2.5 rounded-xl shadow-sm hover:shadow-md hover:border-emerald-500/50 transition-all cursor-pointer group active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
                     >
                       <div className="flex justify-between items-start mb-1.5">
                         <span className="font-bold text-[13px] text-zinc-900 truncate pr-2 leading-tight">{prospect.name}</span>
@@ -492,7 +604,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
       {/* PROSPECT DETAILS DRAWER/MODAL */}
       {activeSelectedProspect && createPortal(
         <div className="fixed inset-0 z-[100] flex justify-end bg-zinc-900/40 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+          <div ref={drawerRef} role="dialog" aria-modal="true" aria-label={`Prospect ${activeSelectedProspect.name}`} className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
             
             {/* Header */}
             <div className="p-4 md:p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50 shrink-0">
@@ -500,14 +612,14 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                 <h2 className="text-xl font-bold text-zinc-900">{activeSelectedProspect.name}</h2>
                 <div className="flex items-center gap-2 mt-1">
                   <span className={`text-[12px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                    COLUMNS.find(c => c.id === activeSelectedProspect.status)?.color
+                    COLUMNS.find(c => c.id === prospectStage(activeSelectedProspect))?.color
                   }`}>
-                    {COLUMNS.find(c => c.id === activeSelectedProspect.status)?.title || 'Lead'}
+                    {COLUMNS.find(c => c.id === prospectStage(activeSelectedProspect))?.title || 'Nouveau'}
                   </span>
                   <span className="text-xs text-zinc-500">Ajouté le {format(parseISO(activeSelectedProspect.date), 'dd/MM/yyyy')}</span>
                 </div>
               </div>
-              <button onClick={() => setSelectedProspect(null)} className="p-2 hover:bg-zinc-200 rounded-full transition-colors">
+              <button aria-label="Fermer le dossier prospect" onClick={() => setSelectedProspect(null)} className="p-2 hover:bg-zinc-200 rounded-full transition-colors">
                 <X className="w-5 h-5 text-zinc-500" />
               </button>
             </div>
@@ -517,6 +629,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
               {/* Contact Info */}
               <section className="space-y-3">
                 <h3 className="text-sm border-b border-zinc-100 pb-2 font-bold text-zinc-900 uppercase tracking-wider">Coordonnées</h3>
+                {activeSelectedProspect.source && <p className="text-sm text-zinc-700">Source : {activeSelectedProspect.source}</p>}
                 <div className="space-y-2">
                   {activeSelectedProspect.email && (
                     <div className="flex items-center gap-3">
@@ -539,7 +652,34 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                     </div>
                   )}
                 </div>
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  {activeSelectedProspect.phone && <a href={`tel:${activeSelectedProspect.phone}`} className="min-h-11 rounded-xl bg-emerald-900 px-3 py-3 text-center text-sm font-semibold text-white focus-visible:ring-2 focus-visible:ring-emerald-600">Appeler</a>}
+                  {activeSelectedProspect.email && <a href={`mailto:${activeSelectedProspect.email}`} className="min-h-11 rounded-xl border border-zinc-300 px-3 py-3 text-center text-sm font-semibold text-zinc-900 focus-visible:ring-2 focus-visible:ring-emerald-600">Email</a>}
+                </div>
               </section>
+
+              <section className="space-y-3">
+                <h3 className="text-sm border-b border-zinc-100 pb-2 font-bold text-zinc-900 uppercase tracking-wider">État et prochaine action</h3>
+                <label htmlFor="crm-stage" className="block text-sm font-semibold text-zinc-800">Changer d’étape</label>
+                <select id="crm-stage" value={prospectStage(activeSelectedProspect)} onChange={event => handleStatusChange(activeSelectedProspect.id, event.target.value)} className="min-h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-zinc-900" disabled={!!activeSelectedProspect.convertedMemberUid}>
+                  {COLUMNS.map(column => <option key={column.id} value={column.id}>{column.title}</option>)}
+                </select>
+                <p className="text-sm text-zinc-700">Créé le {format(parseISO(activeSelectedProspect.date), 'd MMMM yyyy', { locale: fr })}</p>
+                {activeSelectedProspect.nextReminderDate && <p className="text-sm text-zinc-800">Relance : {format(parseISO(activeSelectedProspect.nextReminderDate), "d MMMM yyyy 'à' HH:mm", { locale: fr })}</p>}
+                {activeSelectedProspect.lostReason && <p className="text-sm text-zinc-700">Raison : {activeSelectedProspect.lostReason}</p>}
+                <div className="flex flex-wrap gap-2">
+                  {!activeSelectedProspect.convertedMemberUid && <Button type="button" variant="secondary" onClick={() => handleStatusChange(activeSelectedProspect.id, 'call_pending')}>Programmer une relance</Button>}
+                  {!activeSelectedProspect.convertedMemberUid && <Button type="button" variant="secondary" onClick={() => handleStatusChange(activeSelectedProspect.id, 'trial')}>Planifier un essai</Button>}
+                  {activeSelectedProspect.status === 'lost' && <Button type="button" variant="secondary" onClick={() => handleStatusChange(activeSelectedProspect.id, 'contacted')}>Réouvrir · Contacté</Button>}
+                </div>
+              </section>
+
+              {trialForProspect(activeSelectedProspect) && <section className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                <h3 className="font-bold">Prochain essai</h3>
+                <p>{format(parseISO(trialForProspect(activeSelectedProspect)!.startTime), "d MMM yyyy 'à' HH:mm", { locale: fr })} · coach {state.users.find(user => String(user.id) === trialForProspect(activeSelectedProspect)?.coachId || user.firebaseUid === trialForProspect(activeSelectedProspect)?.coachId)?.name || 'à vérifier'}</p>
+                <button type="button" className="mt-2 font-semibold underline" onClick={() => { setSelectedProspect(null); setState(previous => ({ ...previous, page: 'calendar' })); }}>Voir dans le planning</button>
+              </section>}
+              {activeSelectedProspect.convertedMemberUid && <button type="button" onClick={() => resendAccess(activeSelectedProspect)} className="min-h-11 rounded-xl border border-amber-400 bg-amber-50 px-4 text-sm font-semibold text-amber-950">{accessEmailFailed ? 'Email non envoyé · renvoyer l’accès' : 'Renvoyer l’accès'}</button>}
 
               {/* Questionnaire Formulaire */}
               {activeSelectedProspect.answers && Object.keys(activeSelectedProspect.answers).length > 0 && (
@@ -583,10 +723,11 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                     <div className="flex items-center gap-2">
                       <Input 
                         type="date" 
+                        disabled={!!activeSelectedProspect.convertedMemberUid || activeSelectedProspect.status === 'won'}
                         value={activeSelectedProspect.nextReminderDate ? activeSelectedProspect.nextReminderDate.split('T')[0] : ''}
                         onChange={(e) => {
                           const val = e.target.value;
-                          handleUpdateReminder(activeSelectedProspect, val ? new Date(val).toISOString() : '');
+                          handleUpdateReminder(activeSelectedProspect, val ? parisLocalInstant(val, '10:00')?.toISOString() || '' : '');
                         }}
                       />
                     </div>
@@ -598,6 +739,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                       <Input
                         value={newNote}
                         onChange={(e) => setNewNote(e.target.value)}
+                        maxLength={2000}
                         placeholder="Ex: Ne répond pas, rappel demain..."
                         className="flex-1"
                         onKeyDown={(e) => {
@@ -626,13 +768,17 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                     <p className="text-xs text-zinc-600 italic text-center py-4">Aucune note d'historique.</p>
                   )}
                 </div>
+                {activeSelectedProspect.activityHistory?.length ? <div className="space-y-2 border-t border-zinc-200 pt-4" aria-label="Historique commercial">
+                  <h3 className="text-sm font-bold text-zinc-900">Activité</h3>
+                  {activeSelectedProspect.activityHistory.map(item => <p key={item.id} className="text-sm text-zinc-700">{format(parseISO(item.date), 'd MMM HH:mm', { locale: fr })} · {item.label}</p>)}
+                </div> : null}
               </section>
 
             </div>
 
             {/* Footer Actions */}
             <div className="p-4 border-t border-zinc-100 bg-white grid grid-cols-2 gap-2 shrink-0">
-              {activeSelectedProspect.status !== 'won' ? (
+              {activeSelectedProspect.convertedMemberUid ? <Button type="button" onClick={() => openLinkedMember(activeSelectedProspect)} className="w-full">Ouvrir le dossier adhérent</Button> : activeSelectedProspect.status !== 'won' ? (
                 <Button 
                   variant="primary"
                   onClick={() => {
@@ -641,30 +787,28 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                   className="w-full bg-emerald-500 hover:bg-emerald-600 text-white shadow-none"
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  Gagné !
+                  Convertir
                 </Button>
               ) : (
                 <div className="flex items-center justify-center text-sm font-bold text-emerald-700 bg-emerald-50 rounded-xl">
-                  Client Abonné
+                  Gagné · dossier à vérifier
                 </div>
               )}
-              <Button 
-                variant="secondary"
-                onClick={() => setIsDeleting(activeSelectedProspect.id)}
-                className="w-full text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border-none shadow-none"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Supprimer
-              </Button>
+              {!activeSelectedProspect.convertedMemberUid && activeSelectedProspect.status !== 'lost' && <Button variant="secondary" onClick={() => handleStatusChange(activeSelectedProspect.id, 'lost')} className="w-full text-zinc-800 bg-zinc-100 hover:bg-zinc-200 border-none shadow-none">Classer perdu…</Button>}
+              {['lead', 'contacted'].includes(activeSelectedProspect.status) && !activeSelectedProspect.notesHistory?.length && !activeSelectedProspect.activityHistory?.length && <button type="button" onClick={() => setIsDeleting(activeSelectedProspect.id)} className="col-span-2 text-xs text-zinc-600 underline focus-visible:ring-2 focus-visible:ring-emerald-700">Supprimer ce prospect sans historique…</button>}
             </div>
 
           </div>
         </div>
       , document.body)}
 
+      {lostProspect && createPortal(<div data-crm-modal="true" className="fixed inset-0 z-[120] flex items-center justify-center bg-zinc-950/55 p-4"><form onSubmit={confirmLost} role="dialog" aria-modal="true" aria-label="Classer le prospect perdu" className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-xl"><h2 className="text-xl font-bold text-zinc-950">Classer {lostProspect.name} comme perdu ?</h2><label className="block text-sm font-semibold text-zinc-800">Raison facultative<textarea value={lostReason} onChange={event => setLostReason(event.target.value)} maxLength={300} className="mt-2 min-h-24 w-full rounded-xl border border-zinc-300 p-3 text-zinc-900" /></label><div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setLostProspect(null)}>Annuler</Button><Button type="submit">Confirmer</Button></div></form></div>, document.body)}
+
+      {isDeleting !== null && createPortal(<div data-crm-modal="true" className="fixed inset-0 z-[120] flex items-center justify-center bg-zinc-950/55 p-4"><div role="dialog" aria-modal="true" aria-label="Confirmer la suppression" className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-xl"><h2 className="text-xl font-bold text-zinc-950">Supprimer ce prospect ?</h2><p className="text-sm text-zinc-700">Réservé aux prospects sans historique. Cette action est définitive.</p><div className="flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setIsDeleting(null)}>Annuler</Button><Button type="button" onClick={confirmDelete}>Supprimer</Button></div></div></div>, document.body)}
+
       {/* NEW PROSPECT MODAL */}
       {isAdding && createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm p-4">
+        <div data-crm-modal="true" className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm p-4">
           <form onSubmit={handleAddProspect} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
             <h2 className="text-xl font-bold mb-4">Ajouter un Prospect</h2>
             <div className="space-y-4">
@@ -681,14 +825,8 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                 <Input type="tel" value={newProspect.phone} onChange={e => setNewProspect({...newProspect, phone: e.target.value})} />
               </div>
               <div>
-                <label className="block text-xs font-bold text-zinc-500 mb-1">Statut initial</label>
-                <select 
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-2 text-sm font-medium h-[40px] focus:outline-none focus:border-emerald-500"
-                  value={newProspect.status}
-                  onChange={e => setNewProspect({...newProspect, status: e.target.value})}
-                >
-                  {COLUMNS.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                </select>
+                <label className="block text-xs font-bold text-zinc-600 mb-1">Source (facultatif)</label>
+                <Input value={newProspect.source} onChange={e => setNewProspect({...newProspect, source: e.target.value})} placeholder="Site web, Instagram, parrainage…" maxLength={80} />
               </div>
               <div>
                 <label className="block text-xs font-bold text-zinc-500 mb-1">Note initiale (optionnelle)</label>
@@ -699,10 +837,14 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                   placeholder="Contexte du premier contact..."
                 />
               </div>
+              {duplicate && <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                Un prospect avec cet email ou ce téléphone existe déjà : <strong>{duplicate.name}</strong>.
+                <div className="mt-2 flex flex-wrap gap-3"><button type="button" className="font-semibold underline" onClick={() => { setIsAdding(false); setSelectedProspect(duplicate); }}>Ouvrir</button><label className="flex items-center gap-2"><input type="checkbox" checked={allowDuplicate} onChange={event => setAllowDuplicate(event.target.checked)} />Créer quand même</label></div>
+              </div>}
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <Button type="button" variant="secondary" onClick={() => setIsAdding(false)}>Annuler</Button>
-              <Button type="submit" variant="primary">Créer le prospect</Button>
+              <Button type="submit" variant="primary" disabled={!!duplicate && !allowDuplicate}>Créer le prospect</Button>
             </div>
           </form>
         </div>
@@ -710,7 +852,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
 
       {/* CONVERSION MODAL */}
       {convertingProspect && createPortal(
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm p-4">
+        <div data-crm-modal="true" className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm p-4">
           <form onSubmit={confirmConversion} className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl text-center">
             <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-emerald-700" />
@@ -724,13 +866,14 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
                 <label className="block text-xs font-bold text-zinc-500 mb-1">Adresse Email</label>
                 <Input value={convertData.email} onChange={e => setConvertData({...convertData, email: e.target.value})} required />
               </div>
+              {coachOptions && <div><label htmlFor="crm-convert-coach" className="block text-xs font-bold text-zinc-600 mb-1">Coach référent</label><select id="crm-convert-coach" value={convertData.coachUid} onChange={event => setConvertData({...convertData, coachUid: event.target.value})} className="min-h-11 w-full rounded-xl border border-zinc-300 bg-white px-3"><option value="">À attribuer plus tard</option>{coachOptions.map(coach => <option key={coach.firebaseUid} value={coach.firebaseUid}>{coach.name}</option>)}</select></div>}
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <Button type="button" variant="secondary" onClick={() => {
                 setConvertingProspect(null);
                 if(selectedProspect?.id === convertingProspect.id) setSelectedProspect(null);
               }}>Plus tard</Button>
-              <Button type="submit" variant="primary" className="bg-emerald-500 hover:bg-emerald-600">Créer le Membre</Button>
+              <Button type="submit" variant="primary" disabled={isConverting} className="bg-emerald-700 hover:bg-emerald-800">{isConverting ? 'Création…' : 'Créer l’adhérent'}</Button>
             </div>
           </form>
         </div>
@@ -738,7 +881,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
 
       {/* REMINDER MODAL */}
       {schedulingReminderProspect && createPortal(
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm p-4">
+        <div data-crm-modal="true" className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm p-4">
           <form onSubmit={confirmReminder} className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold">Planifier la relance</h2>
@@ -769,7 +912,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
 
       {/* TRIAL MODAL */}
       {schedulingTrialProspect && createPortal(
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm p-4">
+        <div data-crm-modal="true" className="fixed inset-0 z-[110] flex items-center justify-center bg-zinc-900/50 backdrop-blur-sm p-4">
           <form onSubmit={confirmTrial} className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-bold">Réserver la Séance d'essai</h2>

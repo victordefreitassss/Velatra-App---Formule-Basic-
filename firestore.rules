@@ -260,9 +260,20 @@ service cloud.firestore {
 
     match /prospects/{prospectId} {
       // Public discovery requests are written by the validated server endpoint.
-      allow create: if staffInClub(request.resource.data.clubId);
-      allow read, delete: if resource != null && staffInClub(resource.data.clubId);
-      allow update: if resource != null && clubUnchanged() && staffInClub(resource.data.clubId);
+      allow create: if staffInClub(request.resource.data.clubId)
+        && request.resource.data.status != 'won'
+        && !request.resource.data.keys().hasAny(['convertedMemberUid', 'convertedMemberId', 'convertedAt']);
+      allow read: if resource != null && staffInClub(resource.data.clubId);
+      allow delete: if resource != null && staffInClub(resource.data.clubId)
+        && resource.data.status in ['lead', 'contacted']
+        && resource.data.get('notesHistory', []).size() == 0
+        && resource.data.get('activityHistory', []).size() == 0
+        && !('convertedMemberUid' in resource.data);
+      allow update: if resource != null && clubUnchanged() && staffInClub(resource.data.clubId)
+        && request.resource.data.get('id', null) == resource.data.get('id', null)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['convertedMemberUid', 'convertedMemberId', 'convertedAt'])
+        && !(resource.data.status != 'won' && request.resource.data.status == 'won')
+        && !(resource.data.status == 'won' && request.resource.data.status != 'won');
     }
 
     match /programs/{documentId} {
