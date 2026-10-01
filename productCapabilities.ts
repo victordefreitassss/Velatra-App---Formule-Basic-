@@ -1,6 +1,12 @@
+import { canManageClubSettings, canManageTeam, authorizationActor } from './server/authorization.ts';
 import type { AccountType, Club, Role } from './types.ts';
 
 export type ResolvedAccountType = AccountType | 'legacy';
+
+/** Live browser experiences are deliberately unchanged until the 12A activation review. */
+export function isLiveExperienceRole(value: unknown): value is Role {
+  return ['superadmin', 'owner', 'coach', 'member'].includes(value as string);
+}
 
 export function isAccountType(value: unknown): value is AccountType {
   return value === 'solo' || value === 'studio';
@@ -42,6 +48,9 @@ export const CAPABILITY_DEFINITIONS = {
   finances: { implemented: true, roles: staff },
   analytics: { implemented: true, roles: staff },
   messages: { implemented: true, roles: everyone },
+  retention: { implemented: true, roles: staff, note: 'Existing follow-up and action surfaces; no Retain product.' },
+  tasks: { implemented: true, roles: staff },
+  studioManagement: { implemented: true, studioOnly: true, roles: managers },
   documents: { implemented: true, roles: everyone },
   aiAssistance: { implemented: true, roles: everyone, note: 'Requires server Gemini configuration; coach validates programming.' },
   clubManagement: { implemented: true, roles: managers },
@@ -96,10 +105,10 @@ export function getProductCapabilities(club: Club | null | undefined, actor: Cap
  * Preserves legacy API access. Callers must supply the verified role/club, never request.body.
  */
 export function canManageClub(actor: CapabilityActor, clubId: string | null | undefined): boolean {
-  return !!clubId && roleAllowed(CAPABILITY_DEFINITIONS.clubManagement, actor, clubId);
+  return canManageClubSettings(actor, clubId);
 }
 
 /** Compatibility with the existing beta UI flag; not a new commercial entitlement. */
 export function canShowStaffCreation(club: Club | null | undefined, actor: CapabilityActor): boolean {
-  return canManageClub(actor, club?.id) && (club?.canAddStaff === true || (actor.role === 'superadmin' && actor.trustedSuperAdmin === true));
+  return canManageTeam(authorizationActor(actor, club, actor.trustedSuperAdmin), club?.id) && (club?.canAddStaff === true || (actor.role === 'superadmin' && actor.trustedSuperAdmin === true));
 }

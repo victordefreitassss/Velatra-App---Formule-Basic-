@@ -24,6 +24,16 @@ service firebase.storage {
         'email' in request.auth.token && request.auth.token.email == 'victor.defreitas.pro@gmail.com';
     }
 
+    function isStudioManager(clubId) {
+      return profileExists() && profile().role == 'manager' && profile().clubId == clubId &&
+        firestore.exists(/databases/(default)/documents/clubs/$(clubId)) &&
+        firestore.get(/databases/(default)/documents/clubs/$(clubId)).data.get('accountType', '') == 'studio';
+    }
+
+    function operationalStaffInClub(clubId) {
+      return staffInClub(clubId) || isStudioManager(clubId);
+    }
+
     function staffInClub(clubId) {
       return profileExists() && (
         (profile().clubId == clubId && profile().role in ['owner', 'coach']) || isSuperAdmin()
@@ -44,6 +54,7 @@ service firebase.storage {
         (isSuperAdmin() && firestore.get(memberPath(memberUid)).data.role == 'member') ||
         (firestore.get(memberPath(memberUid)).data.clubId == profile().clubId &&
           (profile().role == 'owner' ||
+            (isStudioManager(profile().clubId) && memberProfile(memberUid).role in ['coach', 'member']) ||
             (profile().role == 'coach' &&
               firestore.get(memberPath(memberUid)).data.role == 'member' &&
               firestore.get(memberPath(memberUid)).data.assignedCoachUid == request.auth.uid)))
@@ -54,7 +65,7 @@ service firebase.storage {
       return profileExists() && firestore.exists(memberPath(ownerUid)) && (
         request.auth.uid == ownerUid || isSuperAdmin() ||
         (memberProfile(ownerUid).clubId == profile().clubId && (
-          profile().role == 'owner' ||
+          profile().role == 'owner' || isStudioManager(profile().clubId) ||
           (profile().role == 'coach' && (
             memberProfile(ownerUid).role in ['owner', 'coach'] ||
             (memberProfile(ownerUid).role == 'member' &&
@@ -98,19 +109,19 @@ service firebase.storage {
     match /avatars/{ownerUid}/{fileName} {
       allow read: if canReadAvatar(ownerUid);
       allow create, update: if canManageMember(ownerUid) && imageUpload(5 * 1024 * 1024);
-      allow delete: if canManageMember(ownerUid);
+      allow delete: if !isStudioManager(profile().clubId) && canManageMember(ownerUid);
     }
 
     match /users/{memberUid}/documents/{fileName} {
       allow read: if canManageMember(memberUid);
       allow create, update: if canManageMember(memberUid) && documentUpload(25 * 1024 * 1024);
-      allow delete: if canManageMember(memberUid);
+      allow delete: if !isStudioManager(profile().clubId) && canManageMember(memberUid);
     }
 
     match /contracts/{memberUid}/{fileName} {
-      allow read: if canManageMember(memberUid);
-      allow create, update: if canManageMember(memberUid) && documentUpload(25 * 1024 * 1024);
-      allow delete: if canManageMember(memberUid);
+      allow read: if !isStudioManager(profile().clubId) && canManageMember(memberUid);
+      allow create, update: if !isStudioManager(profile().clubId) && canManageMember(memberUid) && documentUpload(25 * 1024 * 1024);
+      allow delete: if !isStudioManager(profile().clubId) && canManageMember(memberUid);
     }
 
     match /clubs/{clubId}/{fileName} {
@@ -123,8 +134,8 @@ service firebase.storage {
       // There is no global video catalogue. Preserve club-scoped reads even for admins.
       allow read: if profileExists() && profile().clubId == clubId;
       allow create, update: if signedIn() && request.auth.uid == uploaderUid &&
-        staffInClub(clubId) && videoUpload(50 * 1024 * 1024);
-      allow delete: if (signedIn() && request.auth.uid == uploaderUid && staffInClub(clubId)) || ownerInClub(clubId);
+        operationalStaffInClub(clubId) && videoUpload(50 * 1024 * 1024);
+      allow delete: if (signedIn() && request.auth.uid == uploaderUid && operationalStaffInClub(clubId)) || ownerInClub(clubId);
     }
 
     match /drive/{clubId}/{uploaderUid}/{fileId}/{fileName} {
@@ -145,7 +156,7 @@ service firebase.storage {
       function canReadDriveFile() {
         return signedIn() && profileExists() && (profile().clubId == clubId || isSuperAdmin()) && (
           // Staff read before metadata is created: upload -> download URL -> Firestore.
-          staffInClub(clubId) ||
+          operationalStaffInClub(clubId) ||
           (matchingDriveFile() &&
             'sharedWith' in driveFile() && driveFile().sharedWith is list &&
             driveFile().sharedWith.hasAny([profile().id]))
@@ -154,13 +165,13 @@ service firebase.storage {
 
       function canDeleteDriveFile() {
         return signedIn() && profileExists() && (profile().clubId == clubId || isSuperAdmin()) && (
-          (request.auth.uid == uploaderUid && staffInClub(clubId)) ||
+          (request.auth.uid == uploaderUid && operationalStaffInClub(clubId)) ||
           isSuperAdmin() || ownerInClub(clubId)
         );
       }
 
       allow read: if canReadDriveFile();
-      allow create, update: if signedIn() && request.auth.uid == uploaderUid && staffInClub(clubId) &&
+      allow create, update: if signedIn() && request.auth.uid == uploaderUid && operationalStaffInClub(clubId) &&
         (documentUpload(25 * 1024 * 1024) || imageUpload(25 * 1024 * 1024) || videoUpload(25 * 1024 * 1024));
       allow delete: if canDeleteDriveFile();
     }
