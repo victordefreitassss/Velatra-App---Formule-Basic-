@@ -27,7 +27,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getMemberActivationStatus, hasAssignedProgram } from '../components/coachOnboardingHelpers';
 import { requestClubInviteDialog, trackProductEventOnce } from '../components/productEvents';
 import { canShowClient360AccountActions, getClient360AdminSections, getClient360CoachingContact, getClient360Facts, getClient360QuickActions, getClient360Sections, type Client360AdminSectionId, type Client360SectionId } from '../components/client360';
-import { createClient360LocationState, createPlanningLocationState, getClient360MemberId, getClient360Section, shouldFocusClientNote, resolveClient360Member } from '../components/dashboardNavigation';
+import { createClient360LocationState, createPlanningLocationState, getClient360MemberId, getClient360Section, getClient360AdminSection, shouldFocusClientNote, resolveClient360Member } from '../components/dashboardNavigation';
 
 const ClientConversation = React.lazy(() => import('./MessagesPage').then(module => ({ default: module.MessagesPage })));
 const ClientNutritionView = React.lazy(() => import('../components/MemberNutritionView').then(module => ({ default: module.MemberNutritionView })));
@@ -128,6 +128,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     if (member) {
       clientHistoryEntryRef.current = true;
       if (locationChanged) {
+        setAdminSection(getClient360AdminSection(location.state) === 'billing' && getClient360AdminSections(state.currentClub, state.user || {}).some(item => item.id === 'billing') ? 'billing' : 'profile');
         const section = getClient360Section(location.state);
         setMemberTab(section && getClient360Sections(state.currentClub, state.user || {}).some(item => item.id === section) ? section : 'overview');
       }
@@ -253,7 +254,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       setCoachingNotes("");
       setCoachingNoteDate(localDateKey());
       setSelectedDateForPhoto("");
-      setAdminSection('profile');
+      setAdminSection(getClient360AdminSection(location.state) === 'billing' && getClient360AdminSections(state.currentClub, state.user || {}).some(item => item.id === 'billing') ? 'billing' : 'profile');
     }
   }, [selectedProfile?.id]);
 

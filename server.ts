@@ -22,6 +22,7 @@ import { validatePublicProspect } from "./server/prospectValidation.ts";
 import { validatePublicContact } from "./server/contactValidation.ts";
 import { calculateCheckInReward, parseDailyCheckInInput } from "./server/memberDailyCheckIn.ts";
 import { parseAIConversation } from "./server/aiConversation.ts";
+import { registerPulse } from './server/pulse.ts';
 import { registerCoachingFollowup } from './server/coachingFollowup.ts';
 
 declare global {
@@ -396,6 +397,7 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
 // All remaining API routes require a verified session and a server-side profile.
 app.use("/api", verifyFirebaseSession, requireUserProfile);
 registerCoachingFollowup(app, admin.firestore());
+registerPulse(app, admin.firestore());
 registerBillingRoutes(app, admin.firestore());
 
 app.get('/api/bookings/availability', async (req, res) => {

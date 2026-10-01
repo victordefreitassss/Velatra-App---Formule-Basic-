@@ -96,6 +96,7 @@ const lazyNamed = <T extends object>(load: () => Promise<T>, exportName: keyof T
 const WorkoutView = lazyNamed(() => import('./components/WorkoutView'), 'WorkoutView');
 const CoachingSessionView = lazyNamed(() => import('./components/CoachingSessionView'), 'CoachingSessionView');
 const ProgramEditor = lazyNamed(() => import('./components/Editor'), 'ProgramEditor');
+const PulsePage = lazyNamed(() => import('./pages/PulsePage'), 'PulsePage');
 const ExperienceHome = lazyNamed(() => import('./components/ExperienceHome'), 'ExperienceHome');
 const MemberDashboard = lazyNamed(() => import('./components/MemberDashboard'), 'MemberDashboard');
 const MembersPage = lazyNamed(() => import('./pages/MembersPage'), 'MembersPage');
@@ -1241,6 +1242,7 @@ export default function App() {
       const restricted = effectiveRole === 'manager' || effectiveRole === 'coach' && state.currentClub?.accountType === 'studio';
       if (restricted && !allowedPages.includes(page) && page !== 'profile') return <ExperienceHome state={state} setState={setState} showToast={showToast} />;
       switch (page) {
+        case 'pulse': return <PulsePage state={state} setState={setState} />;
         case 'team': return <TeamPage state={state} showToast={showToast} />;
         case 'profile': return <ProfilePage state={state} setState={setState} showToast={showToast} />;
         case 'home': return <ExperienceHome state={state} setState={setState} showToast={showToast} />;

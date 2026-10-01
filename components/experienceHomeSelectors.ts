@@ -1,14 +1,15 @@
 import type { AppState, Booking, Page, Program, Task, User } from '../types';
-import { getProductCapabilities } from '../productCapabilities';
-import { resolveExperienceCapabilities, resolveProductExperience } from '../productExperience';
-import { billingMetrics, matchesPeriod } from './billingMetrics';
-import { parisDateKey } from './planningSlots';
+import { getProductCapabilities } from '../productCapabilities.ts';
+import { resolveExperienceCapabilities, resolveProductExperience } from '../productExperience.ts';
+import { billingMetrics, matchesPeriod } from './billingMetrics.ts';
+import { parisDateKey } from './planningSlots.ts';
 
 export interface FollowupPriority { memberUid: string; memberName: string; templateName: string; dueDate: string; status: 'late' | 'expected'; }
 export interface HomeDestination {
   page: Page;
   memberId?: number;
-  section?: 'coaching' | 'followup' | 'communication';
+  section?: 'coaching' | 'followup' | 'communication' | 'administrative';
+  adminSection?: 'billing';
   focusNote?: boolean;
   bookingId?: string;
   taskId?: string;

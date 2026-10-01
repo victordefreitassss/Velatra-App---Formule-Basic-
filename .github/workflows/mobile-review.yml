@@ -32,6 +32,10 @@ jobs:
         env:
           VELATRA_ROLE_QA_OUTPUT: ${{ runner.temp }}/role-format-evidence
         run: node scripts/qa/role-format-experiences-browser.mjs
+      - name: Pulse and impacted Home (isolated Firebase fixtures)
+        env:
+          VELATRA_PULSE_QA_OUTPUT: ${{ runner.temp }}/pulse-evidence
+        run: node scripts/qa/pulse-browser.mjs
       - name: Browser evidence (synthetic fixtures only)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -43,5 +47,7 @@ jobs:
             mobile-review-evidence/bundle-map.json
             ${{ runner.temp }}/role-format-evidence/results.json
             ${{ runner.temp }}/role-format-evidence/*.png
+            ${{ runner.temp }}/pulse-evidence/results.json
+            ${{ runner.temp }}/pulse-evidence/*.png
           retention-days: 7
           if-no-files-found: warn
