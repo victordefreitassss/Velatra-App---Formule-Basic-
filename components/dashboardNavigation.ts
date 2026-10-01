@@ -5,7 +5,8 @@ export type DashboardLocationState = {
   velatraPage: Page;
   planningMemberId?: number;
   client360MemberId?: number;
-  client360Section?: 'coaching' | 'followup' | 'communication';
+  client360Section?: 'coaching' | 'followup' | 'communication' | 'administrative';
+  client360AdminSection?: 'billing';
   focusNote?: boolean;
   planningBookingId?: string;
   taskId?: string;
@@ -19,10 +20,11 @@ export const createPlanningLocationState = (memberId: number): DashboardLocation
   planningMemberId: memberId,
 });
 
-export const createClient360LocationState = (memberId: number, section?: DashboardLocationState['client360Section'], focusNote?: boolean): DashboardLocationState => ({
+export const createClient360LocationState = (memberId: number, section?: DashboardLocationState['client360Section'], focusNote?: boolean, adminSection?: 'billing'): DashboardLocationState => ({
   velatraPage: 'users',
   client360MemberId: memberId,
   ...(section ? { client360Section: section } : {}),
+  ...(section === 'administrative' && adminSection === 'billing' ? { client360AdminSection: 'billing' as const } : {}),
   ...(section === 'followup' && focusNote ? { focusNote: true } : {}),
 });
 export const createPlanningBookingLocationState = (bookingId: string): DashboardLocationState => ({ velatraPage: 'calendar', planningBookingId: bookingId });
@@ -36,7 +38,7 @@ export const getPlanningBookingId = (value: unknown) => getRecordId(value, 'cale
 export const getTaskId = (value: unknown) => getRecordId(value, 'crm_tasks', 'taskId');
 export const getClient360Section = (value: unknown) => {
   const state = value as DashboardLocationState | null;
-  return state?.velatraPage === 'users' && ['coaching', 'followup', 'communication'].includes(state.client360Section || '') ? state.client360Section : undefined;
+  return state?.velatraPage === 'users' && ['coaching', 'followup', 'communication', 'administrative'].includes(state.client360Section || '') ? state.client360Section : undefined;
 };
 export const shouldFocusClientNote = (value: unknown) => getClient360Section(value) === 'followup' && (value as DashboardLocationState).focusNote === true;
 
@@ -67,3 +69,5 @@ export const resolveClient360Member = (users: User[], clubId: string | undefined
     user.role === 'member' && Number(user.id) === memberId && user.clubId === clubId && (actor?.role !== 'coach' || !!actor.firebaseUid && user.assignedCoachUid === actor.firebaseUid)
   ) || null;
 };
+
+export const getClient360AdminSection = (value: unknown) => getClient360Section(value) === 'administrative' && (value as DashboardLocationState).client360AdminSection === 'billing' ? 'billing' : undefined;

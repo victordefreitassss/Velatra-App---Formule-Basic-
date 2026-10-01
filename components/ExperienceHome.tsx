@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import type { AppState, Booking, User } from '../types';
 import { resolvePresentationStrategy, resolveProductExperience, type HomeSection, type ProductFormat } from '../productExperience';
 import { resolveExperienceCapabilities } from '../productExperience';
 import { getAllContextItems } from './appShellHelpers';
-import { createClient360LocationState, createDashboardLocationState, createPlanningBookingLocationState, createTaskLocationState, createMessageLocationState } from './dashboardNavigation';
+import { useHomeDestination } from './useHomeDestination';
+import { usePulse } from '../pulse/usePulse';
+import { PulseList } from '../pulse/PulseList';
 import { selectHomeData, selectHomeFinance, selectCurrentProgram, type FollowupPriority, type HomeDestination } from './experienceHomeSelectors';
 import { useProductFormat } from './useProductFormat';
 import { Card, Button, Input } from './UI';
@@ -56,8 +57,8 @@ export function StudioCoachHome(props: { format: ProductFormat; sections: Sectio
 
 function ResolvedHome({ state, setState, showToast }: Props) {
   const format = useProductFormat();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const open = useHomeDestination(state, setState);
+  const pulse = usePulse(state, { limit: format === 'phone' ? 5 : 8 });
   const [now, setNow] = useState(() => new Date());
   const [query, setQuery] = useState('');
   const [portfolioPage, setPortfolioPage] = useState(0);
@@ -90,18 +91,6 @@ function ResolvedHome({ state, setState, showToast }: Props) {
   const canSeeFinance = state.user?.role === 'owner' && data.caps.finances.usable;
   const finance = useMemo(() => selectHomeFinance(state, now), [state.user, state.currentClub, canSeeFinance ? state.subscriptions : null, canSeeFinance ? state.payments : null, now]);
   const allowedPages = getAllContextItems({ role: state.user?.role || 'member', club: state.currentClub }).map(item => item.id);
-  const open = (destination: HomeDestination) => {
-    if (!allowedPages.includes(destination.page)) return;
-    const member = destination.memberId ? data.members.find(item => Number(item.id) === destination.memberId) : null;
-    if (destination.memberId && !member) return;
-    const routeState = destination.bookingId ? createPlanningBookingLocationState(destination.bookingId)
-      : destination.taskId ? createTaskLocationState(destination.taskId)
-        : destination.page === 'chat' && member ? createMessageLocationState(member.id)
-          : destination.page === 'users' && member ? createClient360LocationState(member.id, destination.section, destination.focusNote)
-            : createDashboardLocationState(destination.page);
-    setState(previous => ({ ...previous, page: destination.page, selectedMember: null, memberFilter: undefined, pendingProspectUid: destination.prospectUid }));
-    navigate(`${location.pathname}${location.search}`, { state: routeState });
-  };
   const launch = (member: User) => {
     if (!data.caps.coaching.usable || state.user?.role === 'manager' || !data.members.some(item => item.id === member.id)) return;
     const program = selectCurrentProgram(data.programs, Number(member.id), now);
@@ -133,13 +122,9 @@ function ResolvedHome({ state, setState, showToast }: Props) {
     {data.nextBooking && !data.todayBookings.some(booking => booking.id === data.nextBooking!.id) && <Button variant="secondary" className="min-h-11 w-full whitespace-normal text-left" onClick={() => open({ page: 'calendar', bookingId: data.nextBooking!.id })}>Prochain rendez-vous · {bookingLabel(data.nextBooking)} · {readableDate(data.nextBooking.startTime)} à {readableTime(data.nextBooking.startTime)}</Button>}
     {!compact && data.bookings.length > data.todayBookings.length && <Empty>{data.bookings.filter(booking => new Date(booking.startTime).getTime() < now.getTime() + 7 * 86_400_000).length} rendez-vous confirmé(s) sur les 7 prochains jours.</Empty>}
   </Section>;
-  const actionCenter = <Section id="actions" title={supervisor ? 'Actions à traiter' : 'À traiter'} action={link('crm_tasks', coach ? 'Mes tâches' : 'Toutes les tâches')}>
-    {data.actions.length === 0 ? <Empty>Aucune action détectée dans les données disponibles.</Empty> : <ul className="space-y-2">{data.actions.slice(0, compact ? 5 : 8).map(action => <li key={action.id} className="min-w-0">
-      <Button variant="secondary" className="min-h-11 w-full justify-between gap-2 whitespace-normal text-left" data-home-action={action.type} onClick={() => open(action.destination)}><span className="min-w-0 break-words">{action.label}</span>{action.dueDate && <span className="shrink-0 text-xs">{readableDate(action.dueDate)}</span>}</Button>
-    </li>)}</ul>}
-    {data.actions.length > (compact ? 5 : 8) && <Empty>{data.actions.length} actions détectées. Retrouvez les autres dans les sections ci-dessous.</Empty>}
-    {followup.status === 'error' && <p role="status" className="text-sm text-zinc-700">Bilans et check-ins momentanément indisponibles. <button type="button" className="min-h-11 px-2 underline" onClick={() => setRetry(value => value + 1)}>Réessayer</button></p>}
-    {followup.status === 'loading' && <p role="status" className="text-sm text-zinc-600">Chargement des bilans et check-ins…</p>}
+  const actionCenter = <Section id="actions" title="Pulse · À traiter" action={link('pulse', 'Voir toutes les actions')}>
+    <PulseList feed={pulse} open={open} />
+    {pulse.result && <p className="text-sm text-zinc-600">{pulse.result.total} action(s) à traiter dans votre périmètre.</p>}
   </Section>;
   const facts = coach && !compact ? data.clientFacts : data.clientFacts.filter(fact => fact.needsProgram || fact.inactiveDays !== null || fact.followups.length || fact.unassigned);
   const filteredFacts = facts.filter(fact => fact.member.name.toLocaleLowerCase('fr').includes(query.toLocaleLowerCase('fr')));
