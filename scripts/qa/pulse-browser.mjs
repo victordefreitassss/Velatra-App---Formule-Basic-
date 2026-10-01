@@ -99,8 +99,8 @@ if(pathname==='/__qa/pulse'){
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin=`http://127.0.0.1:${server.address().port}`;const browser=await puppeteer.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
 const records=[],errors=[];
 const check=(label,passed,details)=>{records.push({label,passed,details});if(!passed)errors.push({label,details});};
-const clickText=async(page,text,selector='button')=>{const handle=await page.evaluateHandle((selector,label)=>[...document.querySelectorAll(selector)].find(button=>button.offsetHeight&&button.textContent?.trim()===label),selector,text);const button=handle.asElement();assert.ok(button,`Missing visible action ${text}`);await button.evaluate(element=>element.scrollIntoView({block:'center'}));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await button.click();await handle.dispose();};
-const clickSelector=async(page,selector)=>{await page.$eval(selector,element=>element.scrollIntoView({block:'center'}));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await page.click(selector);};
+const clickText=async(page,text,selector='button')=>{await page.waitForFunction((selector,label)=>[...document.querySelectorAll(selector)].some(button=>button.offsetHeight&&button.textContent?.trim()===label),{},selector,text);const handle=await page.evaluateHandle((selector,label)=>[...document.querySelectorAll(selector)].find(button=>button.offsetHeight&&button.textContent?.trim()===label),selector,text);const button=handle.asElement();assert.ok(button,`Missing visible action ${text}`);await button.evaluate(element=>element.scrollIntoView({block:'center'}));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await button.click();await handle.dispose();};
+const clickSelector=async(page,selector)=>{await page.waitForSelector(selector,{visible:true});await page.$eval(selector,element=>element.scrollIntoView({block:'center'}));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await page.click(selector);};
 async function open(role,type,width,height,actions=20){
  const page=await browser.newPage();page.setDefaultTimeout(15000);page.setDefaultNavigationTimeout(30000);await page.setViewport({width,height,deviceScaleFactor:1});
  await page.setRequestInterception(true);page.on('request',request=>request.url().startsWith(origin)?void request.continue():void request.abort());
@@ -115,7 +115,7 @@ async function inspect(page,label,surface){
  return details;
 }
 try{
- for(const[role,type,label]of[['owner','solo','Solo'],['manager','studio','Manager'],['coach','studio','Coach'],['owner','studio','StudioOwner']])for(const[width,height]of[[390,844],[820,1180],[1440,900],[1920,1080]])for(const count of[0,1,20,100]){
+ for(const[role,type,label]of(process.env.VELATRA_PULSE_QA_ACTIONS_ONLY?[]:[['owner','solo','Solo'],['manager','studio','Manager'],['coach','studio','Coach'],['owner','studio','StudioOwner']]))for(const[width,height]of[[390,844],[820,1180],[1440,900],[1920,1080]])for(const count of[0,1,20,100]){
   const page=await open(role,type,width,height,count),name=`${label}-${width}-${count}`;
   const home=await inspect(page,`${name} Home`,'[data-home-section="actions"]');
   check(`${name} bounded Home`,home.cards===Math.min(count,width<768?5:8)&&home.writes.length===0,home);
