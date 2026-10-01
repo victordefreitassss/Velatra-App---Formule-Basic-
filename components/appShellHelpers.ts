@@ -93,7 +93,7 @@ function staffItems(context: NavigationContext): ContextNavItem[] {
   const experience = experienceOf(context);
   const modern = ['SOLO_OWNER', 'STUDIO_OWNER', 'STUDIO_MANAGER', 'STUDIO_COACH'].includes(experience);
   if (!modern) return coachItems;
-  return [...coachItems, { id: 'pulse', label: 'Pulse · Actions', hub: 'plus', capability: 'tasks' } as ContextNavItem].filter(item => experience !== 'STUDIO_COACH' || !['crm_pipeline', 'crm_finances', 'team', 'settings'].includes(item.id)).map<ContextNavItem>(item => {
+  return [...coachItems, { id: 'retention', label: 'Velatra Retain', hub: 'plus', capability: 'retention' } as ContextNavItem, { id: 'pulse', label: 'Pulse · Actions', hub: 'plus', capability: 'tasks' } as ContextNavItem].filter(item => experience !== 'STUDIO_COACH' || !['crm_pipeline', 'crm_finances', 'team', 'settings'].includes(item.id)).map<ContextNavItem>(item => {
     if (item.id === 'crm_tasks') return { ...item, label: experience === 'STUDIO_COACH' ? 'Mes tâches' : 'Tâches et relances', hub: experience === 'STUDIO_MANAGER' ? 'business' : 'planning' };
     if (item.id === 'crm_pipeline') return { ...item, hub: 'crm' };
     if (item.id === 'team') return { ...item, hub: 'team' };

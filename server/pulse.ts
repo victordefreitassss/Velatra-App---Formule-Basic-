@@ -1,76 +1,50 @@
+import { assessRetention, retentionCounts } from '../retention/retentionEngine.ts';
+import { withRetentionActions } from '../retention/retentionPulse.ts';
+import type { RetentionCounts } from '../retention/retentionModel.ts';
+import { staffReader } from './staffFacts.ts';
 import { createHash } from 'node:crypto';
 import type { Express, Request, Response } from 'express';
-import type { Firestore, Query, Transaction, DocumentReference } from 'firebase-admin/firestore';
+import type { Firestore, Transaction } from 'firebase-admin/firestore';
 import type { Club, User } from '../types.ts';
-import { authorizationActor, canManageBilling, canOperateStudio } from './authorization.ts';
 import { MemberCreationError } from './createMember.ts';
-import { dueDateFor, safeId, validDay } from './followupModel.ts';
-import { resolveAccountType } from '../productCapabilities.ts';
-import { resolveExperienceCapabilities } from '../productExperience.ts';
+import { dueDateFor, parseFrequency, validDay } from './followupModel.ts';
 import { parisDateKey } from '../components/planningSlots.ts';
 import { applyPulseStates, derivePulse, pulseCategories } from '../pulse/pulseEngine.ts';
 import { snoozeUntil, type PulseAction, type PulseCategory, type PulseActionState, type PulseFollowup, type PulseInput, type SnoozePreset } from '../pulse/pulseModel.ts';
 const fail = (status: number, message: string): never => { throw new MemberCreationError(status, message); };
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
-const SOURCE_CAP = 10000;
 export const pulseStateId = (uid: string, clubId: string, key: string) => hash([uid, clubId, key]);
 
 /** Same reader for GET and transactional writes: no N queries per client. */
-export async function loadPulse(db: Firestore, uid: string, now: Date, tx?: Transaction): Promise<{ actor: User; club: Club; categories: PulseCategory[]; partialSources: string[]; actions: PulseAction[] }> {
-  if (!safeId(uid)) fail(401, 'Authentification requise.');
-  const readDoc = (ref: DocumentReference) => tx ? tx.get(ref) : ref.get();
-  const readQuery = (query: Query) => tx ? tx.get(query) : query.get();
-  const actorDoc = await readDoc(db.doc(`users/${uid}`));
-  const profile = actorDoc.data();
-  if (!profile || !safeId(profile.clubId)) fail(403, 'Accès réservé au staff.');
-  const clubDoc = await readDoc(db.doc(`clubs/${profile.clubId}`));
-  const clubData = clubDoc.data();
-  const club = clubData && { ...clubData, id: clubDoc.id } as Club;
-  const actor = { ...profile, firebaseUid: uid } as User;
-  const policy = authorizationActor(actor, club);
-  if (!club || club.isActive === false || !canOperateStudio(policy, actor.clubId) ||
-    actor.role === 'owner' && resolveAccountType(club) !== 'legacy' && club.ownerId !== uid ||
-    !resolveExperienceCapabilities(club, actor).clients.runtimeUsable) fail(403, 'Accès Pulse refusé.');
-  if (!Number.isSafeInteger(actor.id) || actor.id <= 0) fail(403, 'Profil staff invalide.');
-  const partialSources: string[] = [];
-  const sourceVersions: Record<string, string> = {};
-  async function source(name: string, extra?: [string, unknown][], cap = SOURCE_CAP) {
-    let query: Query = db.collection(name).where('clubId', '==', actor.clubId);
-    for (const [field, value] of extra || []) query = query.where(field, '==', value);
-    const snap = await readQuery(query.limit(cap + 1));
-    if (snap.size > cap) partialSources.push(name);
-    snap.docs.slice(0, cap).forEach(doc => { if (doc.updateTime) sourceVersions[`${name}/${['programs', 'logs', 'messages'].includes(name) ? doc.data().id ?? doc.id : doc.id}`] = `${doc.updateTime.seconds}:${doc.updateTime.nanoseconds}`; });
-    return snap.docs.slice(0, cap).map(doc => ({ ...doc.data(), id: ['users', 'prospects', 'programs', 'logs', 'messages'].includes(name) ? doc.data().id ?? doc.id : doc.id,
-      ...(['users', 'prospects'].includes(name) ? { firebaseUid: doc.id } : {}) })) as any[];
-  }
+export async function loadPulse(db: Firestore, uid: string, now: Date, tx?: Transaction): Promise<{ actor: User; club: Club; categories: PulseCategory[]; partialSources: string[]; actions: PulseAction[]; retentionSummary: RetentionCounts }> {
+  const { actor, club, billing, partialSources, sourceVersions, source } = await staffReader(db, uid, tx);
   const coach = actor.role === 'coach';
-  const billing = canManageBilling(policy, actor.clubId);
-  const [users, programs, logs, bookings, tasks, messages, prospects, subscriptions, payments, assignments, states] = await Promise.all([
+  const [users, programs, logs, bookings, tasks, messages, prospects, subscriptions, payments, assignments, states, sent, responses, habits, entries] = await Promise.all([
     source('users', [['role', 'member'], ...(coach ? [['assignedCoachUid', uid] as [string, unknown]] : [])], 1000),
-    source('programs'), source('logs'), source('bookings'), source('tasks'), source('messages', [['to', actor.id], ['read', false]]),
+    source('programs'), source('logs'), source('bookings'), source('tasks'), source('messages', [['to', actor.id]]),
     coach ? [] : source('prospects'), billing ? source('subscriptions') : [], billing ? source('payments') : [],
     source('coachCheckInAssignments'), source('pulseActionStates', [['actorUid', uid]], 5000),
+    source('messages', [['from', actor.id]]), source('coachCheckInResponses'), source('coachHabits'), source('coachHabitEntries'),
   ]);
   const input: PulseInput = { user: actor, currentClub: club, users, programs, logs, bookings, tasks, messages, prospects, subscriptions, payments, sourceVersions };
   const uids = new Set(users.filter(member => !coach || member.assignedCoachUid === uid).map(member => member.firebaseUid));
   const today = parisDateKey(now);
-  const due = assignments.filter(item => item.active === true && uids.has(item.memberUid) && safeId(item.id) && item.frequency && validDay(item.startDate))
+  const due = assignments.filter(item => item.active === true && uids.has(item.memberUid) && typeof item.id === 'string' && parseFrequency(item.frequency) && validDay(item.startDate))
     .map(item => ({ ...item, dueDate: item.frequency.kind === 'manual' ? item.startDate : dueDateFor(item.frequency, item.startDate, today) }))
     .filter(item => item.dueDate && item.dueDate <= today);
-  const followups: PulseFollowup[] = [];
-  for (let offset = 0; offset < due.length; offset += 250) {
-    const batch = due.slice(offset, offset + 250);
-    const refs = batch.map(item => db.doc(`coachCheckInResponses/${item.id}_${item.dueDate}`));
-    const answers = tx ? await tx.getAll(...refs) : await db.getAll(...refs);
-    batch.forEach((item, index) => { const response = answers[index].data();
-      if (!response || response.clubId !== actor.clubId || response.memberUid !== item.memberUid) followups.push({ id: item.id, memberUid: item.memberUid, templateName: item.templateName || 'Bilan', dueDate: item.dueDate });
-    });
-  }
+  const answered = new Map(responses.filter(row => row.clubId === club.id).map(row => [row.id, row.memberUid]));
+  const followups: PulseFollowup[] = due.filter(item => answered.get(`${item.id}_${item.dueDate}`) !== item.memberUid).map(item => ({ id: item.id, memberUid: item.memberUid, templateName: item.templateName || 'Bilan', dueDate: item.dueDate }));
+  const assessments = assessRetention({ actor, club, users, programs, logs, bookings, assignments, responses, habits, entries, messages: [...messages, ...sent], subscriptions, partialSources }, now);
   let actions = derivePulse(input, followups, now);
+  if (billing && !partialSources.includes('subscriptions')) {
+    const activeUids = new Set(assessments.map(item => item.memberUid));
+    actions = actions.filter(item => !item.memberUid || activeUids.has(item.memberUid) || !['CLIENT_INACTIVE', 'PROGRAM_MISSING', 'PROGRAM_ENDING', 'FOLLOWUP_LATE', 'FOLLOWUP_DUE'].includes(item.type));
+  }
   // A truncated history must not create false absence/inactivity signals.
   if (partialSources.includes('logs')) actions = actions.filter(item => item.type !== 'CLIENT_INACTIVE');
   if (partialSources.includes('programs')) actions = actions.filter(item => !['PROGRAM_MISSING', 'PROGRAM_ENDING'].includes(item.type));
-  return { actor, club, categories: pulseCategories(input), partialSources, actions: applyPulseStates(actions, states as PulseActionState[], uid, club.id, now) };
+  if (partialSources.some(name => ['coachCheckInAssignments', 'coachCheckInResponses'].includes(name))) actions = actions.filter(item => !['FOLLOWUP_DUE', 'FOLLOWUP_LATE'].includes(item.type));
+  return { actor, club, retentionSummary: retentionCounts(assessments), categories: pulseCategories(input), partialSources, actions: applyPulseStates(withRetentionActions(actions, assessments), states as PulseActionState[], uid, club.id, now) };
 }
 const route = (handler: (req: Request) => Promise<unknown>) => async (req: Request, res: Response) => {
   try {
@@ -102,7 +76,7 @@ export function registerPulse(app: Express, db: Firestore) {
     }
     const next = offset + limit;
     return { actions: actions.slice(offset, next), total: actions.length, nextCursor: next < actions.length ? Buffer.from(JSON.stringify({ offset: next, digest })).toString('base64url') : null,
-      categories: result.categories, partialSources: result.partialSources, generatedAt: now.toISOString() };
+      retentionSummary: result.retentionSummary, categories: result.categories, partialSources: result.partialSources, generatedAt: now.toISOString() };
   }));
   for (const operation of ['handled', 'snooze'] as const) {
     app.post(`/api/pulse/:actionKey/${operation}`, route(async req => {

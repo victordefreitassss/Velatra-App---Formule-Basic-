@@ -1,3 +1,4 @@
+import { RetentionDetail } from '../retention/RetentionDetail';
 import { authorizationActor, canAssignMembers } from '../server/authorization';
 import { billingRequest, downloadReceipt } from '../components/billingClient';
 import { netPayment, paymentStatusLabels, subscriptionStatusLabels } from '../components/billingMetrics';
@@ -2023,6 +2024,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
                   </section>
                   )}
+                  {memberTab === 'retention' && selectedProfile.firebaseUid && <RetentionDetail state={state} setState={setState} memberUid={selectedProfile.firebaseUid} light />}
                   {memberTab === 'followup' && (
                   <section className="va-client-360-followup space-y-6">
                     {selectedProfile.firebaseUid && <CoachFollowup memberUid={selectedProfile.firebaseUid} programs={[]} section="followup" />}

@@ -4,8 +4,9 @@ import type { Page, Role, User } from '../types';
 export type DashboardLocationState = {
   velatraPage: Page;
   planningMemberId?: number;
+  retentionMemberId?: number;
   client360MemberId?: number;
-  client360Section?: 'coaching' | 'followup' | 'communication' | 'administrative';
+  client360Section?: 'retention' | 'coaching' | 'followup' | 'communication' | 'administrative';
   client360AdminSection?: 'billing';
   focusNote?: boolean;
   planningBookingId?: string;
@@ -38,11 +39,11 @@ export const getPlanningBookingId = (value: unknown) => getRecordId(value, 'cale
 export const getTaskId = (value: unknown) => getRecordId(value, 'crm_tasks', 'taskId');
 export const getClient360Section = (value: unknown) => {
   const state = value as DashboardLocationState | null;
-  return state?.velatraPage === 'users' && ['coaching', 'followup', 'communication', 'administrative'].includes(state.client360Section || '') ? state.client360Section : undefined;
+  return state?.velatraPage === 'users' && ['retention', 'coaching', 'followup', 'communication', 'administrative'].includes(state.client360Section || '') ? state.client360Section : undefined;
 };
 export const shouldFocusClientNote = (value: unknown) => getClient360Section(value) === 'followup' && (value as DashboardLocationState).focusNote === true;
 
-const getMemberId = (locationState: unknown, page: Page, field: 'planningMemberId' | 'client360MemberId' | 'conversationMemberId'): number | null => {
+const getMemberId = (locationState: unknown, page: Page, field: 'retentionMemberId' | 'planningMemberId' | 'client360MemberId' | 'conversationMemberId'): number | null => {
   if (!locationState || typeof locationState !== 'object') return null;
   const state = locationState as Partial<DashboardLocationState>;
   const memberId = state[field];
@@ -71,3 +72,6 @@ export const resolveClient360Member = (users: User[], clubId: string | undefined
 };
 
 export const getClient360AdminSection = (value: unknown) => getClient360Section(value) === 'administrative' && (value as DashboardLocationState).client360AdminSection === 'billing' ? 'billing' : undefined;
+
+export const getRetentionMemberId = (value: unknown) => getMemberId(value, 'retention', 'retentionMemberId');
+export const createRetentionLocationState = (memberId: number): DashboardLocationState => ({ velatraPage: 'retention', retentionMemberId: memberId });
