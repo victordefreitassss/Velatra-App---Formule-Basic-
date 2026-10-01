@@ -126,6 +126,7 @@ export function isLiveProfileAllowed(profile: { role?: unknown; clubId?: unknown
 export function canLoadLiveCollection(name: string, club: Club | null | undefined, actor: CapabilityActor): boolean {
   if (actor.role === 'manager') return !!club && actor.clubId === club.id && resolveAccountType(club) === 'studio' &&
     !['plans', 'subscriptions', 'payments', 'invoices', 'expenses', 'fixedCosts', 'crmClients', 'crmFormulas', 'manualStats', 'pendingProspects', 'supplementOrders'].includes(name);
-  if (actor.role === 'coach' && resolveAccountType(club) === 'studio' && ['expenses', 'fixedCosts', 'manualStats'].includes(name)) return false;
+  if (actor.role === 'coach' && resolveAccountType(club) === 'studio' &&
+    ['plans', 'subscriptions', 'payments', 'invoices', 'expenses', 'fixedCosts', 'crmClients', 'crmFormulas', 'manualStats', 'pendingProspects', 'supplementOrders', 'commissionPayments', 'newsletters'].includes(name)) return false;
   return true;
 }

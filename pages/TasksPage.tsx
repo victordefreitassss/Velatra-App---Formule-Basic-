@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, differenceInCalendarDays, format, isBefore, isToday, parseISO, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { runTransaction } from 'firebase/firestore';
-import type { AppState, Prospect } from '../types';
+import type { AppState, Prospect, Task } from '../types';
 import { auth, db, doc } from '../firebase';
 import { prospectActivity } from '../components/prospectCrm';
 import { parisLocalInstant } from '../components/planningSlots';
+
+import { useLocation } from 'react-router-dom';
+import { selectOperationalTasks } from '../components/experienceHomeSelectors';
+import { getTaskId } from '../components/dashboardNavigation';
+import { getAllContextItems } from '../components/appShellHelpers';
 
 interface Props {
   state: AppState;
@@ -31,8 +36,37 @@ export const TasksPage: React.FC<Props> = ({ state, setState, showToast }) => {
   const [customDate, setCustomDate] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
   const now = new Date();
-  const visible = state.prospects.filter(prospect => groupOf(prospect, now) === selectedGroup)
+  const location = useLocation();
+  const taskRefs = useRef(new Map<string, HTMLElement>());
+  const [busyTask, setBusyTask] = useState<string | null>(null);
+  const tasks = useMemo(() => selectOperationalTasks(state, true), [state.user, state.currentClub, state.users, state.tasks]);
+  const focusedTask = getTaskId(location.state);
+  useEffect(() => {
+    const target = focusedTask ? taskRefs.current.get(focusedTask) : null;
+    target?.scrollIntoView({ block: 'center' });
+    target?.querySelector<HTMLButtonElement>('button')?.focus();
+  }, [location.key, focusedTask, tasks]);
+  const hasCrm = getAllContextItems({ role: state.user?.role || 'member', club: state.currentClub }).some(item => item.id === 'crm_pipeline');
+  const prospects = hasCrm ? state.prospects.filter(item => item.clubId === state.user?.clubId) : [];
+  const visible = prospects.filter(prospect => groupOf(prospect, now) === selectedGroup)
     .sort((a, b) => (a.nextReminderDate || a.date).localeCompare(b.nextReminderDate || b.date));
+
+  const toggleTask = async (task: Task) => {
+    if (busyTask || !tasks.some(item => item.id === task.id)) return;
+    setBusyTask(task.id);
+    try {
+      await runTransaction(db, async transaction => {
+        const reference = doc(db, 'tasks', task.id);
+        const snapshot = await transaction.get(reference);
+        if (!snapshot.exists()) throw new Error('Tâche indisponible.');
+        const current = { ...snapshot.data(), id: task.id } as Task;
+        if (!selectOperationalTasks({ ...state, tasks: [current] }, true).length) throw new Error('Tâche indisponible.');
+        transaction.update(reference, { status: current.status === 'done' ? 'todo' : 'done' });
+      });
+      showToast?.(task.status === 'done' ? 'Tâche réouverte.' : 'Tâche terminée.', 'success');
+    } catch { showToast?.('Impossible de modifier cette tâche.', 'error'); }
+    finally { setBusyTask(null); }
+  };
 
   const updateReminder = async (prospect: Prospect, nextReminderDate: string | null) => {
     if (!prospect.firebaseUid || busyId === prospect.id || prospect.status === 'won' || prospect.status === 'lost') return;
@@ -55,11 +89,23 @@ export const TasksPage: React.FC<Props> = ({ state, setState, showToast }) => {
 
   return <main className="mx-auto w-full max-w-6xl space-y-5 p-4 pb-24 md:p-6 lg:p-8">
     <header className="rounded-3xl border border-zinc-200 bg-white p-5 md:p-7">
-      <h1 className="font-display text-3xl font-bold text-zinc-950">Tâches et relances</h1>
-      <p className="mt-1 text-sm text-zinc-700">Les prochaines actions de vos prospects, à partir de leur date de relance.</p>
+      <h1 className="font-display text-3xl font-bold text-zinc-950">{hasCrm ? 'Tâches et relances' : 'Mes tâches'}</h1>
+      <p className="mt-1 text-sm text-zinc-700">Vos tâches opérationnelles{hasCrm ? ' et les prochaines relances prospects.' : ' affectées.'}</p>
     </header>
+    <section aria-labelledby="operational-tasks" className="space-y-3">
+      <h2 id="operational-tasks" className="text-lg font-semibold">{state.user?.role === 'coach' ? 'Mes tâches affectées' : 'Tâches du Studio'}</h2>
+      {tasks.length === 0 && <p className="rounded-2xl border bg-white p-5 text-zinc-700">Aucune tâche opérationnelle.</p>}
+      <div className="grid gap-3 lg:grid-cols-2">{tasks.map(task => <article key={task.id} ref={element => { if (element) taskRefs.current.set(task.id, element); else taskRefs.current.delete(task.id); }} data-operational-task={task.id} className={`min-w-0 rounded-2xl border bg-white p-5 ${focusedTask === task.id ? 'border-emerald-700' : 'border-zinc-200'}`}>
+        <h3 className="break-words font-semibold">{task.title}</h3>
+        {task.description && <p className="mt-2 break-words text-sm text-zinc-700">{task.description}</p>}
+        <p className="mt-2 text-sm text-zinc-600">{task.status === 'done' ? 'Terminée' : 'À faire'}{task.dueDate ? ` · Échéance ${task.dueDate.slice(0, 10)}` : ''}</p>
+        <button type="button" disabled={busyTask === task.id} onClick={() => toggleTask(task)} className="mt-3 min-h-11 rounded-xl border border-zinc-300 px-4 text-sm font-semibold">{task.status === 'done' ? 'Réouvrir la tâche' : 'Terminer la tâche'}</button>
+        {task.relatedMemberId && <button type="button" className="ml-2 mt-3 min-h-11 rounded-xl border border-zinc-300 px-4 text-sm font-semibold" onClick={() => { const member = state.users.find(item => Number(item.id) === Number(task.relatedMemberId) && item.clubId === state.user?.clubId && (state.user?.role !== 'coach' || !!state.user.firebaseUid && item.assignedCoachUid === state.user.firebaseUid)); if (member) setState(previous => ({ ...previous, page: 'users', selectedMember: member })); }}>Ouvrir le client</button>}
+      </article>)}</div>
+    </section>
+    {hasCrm && <>
     <nav className="flex max-w-full gap-2 overflow-x-auto pb-2" aria-label="Catégorie des relances">
-      {groups.map(group => <button key={group.id} type="button" aria-pressed={selectedGroup === group.id} onClick={() => setSelectedGroup(group.id)} className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-emerald-700 ${selectedGroup === group.id ? 'border-emerald-900 bg-emerald-900 text-white' : 'border-zinc-300 bg-white text-zinc-800'}`}>{group.label} <span className="ml-1 opacity-80">{state.prospects.filter(prospect => groupOf(prospect, now) === group.id).length}</span></button>)}
+      {groups.map(group => <button key={group.id} type="button" aria-pressed={selectedGroup === group.id} onClick={() => setSelectedGroup(group.id)} className={`min-h-11 shrink-0 rounded-full border px-4 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-emerald-700 ${selectedGroup === group.id ? 'border-emerald-900 bg-emerald-900 text-white' : 'border-zinc-300 bg-white text-zinc-800'}`}>{group.label} <span className="ml-1 opacity-80">{prospects.filter(prospect => groupOf(prospect, now) === group.id).length}</span></button>)}
     </nav>
     {visible.length === 0 ? <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-center text-zinc-700">Aucune relance dans cette catégorie.</div> :
       <div className="grid gap-3 lg:grid-cols-2">{visible.map(prospect => {
@@ -82,5 +128,6 @@ export const TasksPage: React.FC<Props> = ({ state, setState, showToast }) => {
           {customDateFor === prospect.id && <div className="mt-3 flex flex-wrap items-end gap-2"><label className="text-sm font-semibold text-zinc-800">Nouvelle date<input type="date" value={customDate} onChange={event => setCustomDate(event.target.value)} className="mt-1 block min-h-11 rounded-xl border border-zinc-300 px-3" /></label><button type="button" disabled={!customDate || busyId === prospect.id} onClick={() => { const instant = parisLocalInstant(customDate, '10:00'); if (instant) updateReminder(prospect, instant.toISOString()); else showToast?.('Date invalide.', 'error'); }} className="min-h-11 rounded-xl bg-emerald-900 px-4 text-sm font-semibold text-white">Enregistrer</button></div>}
         </article>;
       })}</div>}
+    </>}
   </main>;
 };

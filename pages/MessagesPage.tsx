@@ -5,9 +5,12 @@ import { Card, Button, Input, Textarea } from '../components/UI';
 import { MessageCircleIcon, PlusIcon, ChevronLeftIcon, FileIcon, DownloadIcon } from '../components/Icons';
 import { apiFetch, db, doc, setDoc, addDoc, collection, updateDoc } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
+import { getConversationMemberId } from '../components/dashboardNavigation';
 import { useMemberConversationViewport } from '../components/useMemberConversationViewport';
 
 export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast: any, embedded?: boolean, initialMemberId?: number }> = ({ state, setState, showToast, embedded, initialMemberId }) => {
+  const location = useLocation();
   const [text, setText] = useState("");
   const [fileData, setFileData] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -53,17 +56,26 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
     return () => { active = false; };
   }, [user.role, user.firebaseUid]);
 
+  const scopedContacts = state.users.filter(contact => contact.role === 'member' && contact.clubId === user.clubId &&
+    (user.role !== 'coach' || !!user.firebaseUid && contact.assignedCoachUid === user.firebaseUid));
+  useEffect(() => {
+    if (embedded || user.role === 'member') return;
+    const memberId = getConversationMemberId(location.state);
+    if (memberId && scopedContacts.some(contact => Number(contact.id) === memberId)) setSelectedDest(memberId);
+    else setSelectedDest(null);
+  }, [location.key, user.firebaseUid]);
+
   const contacts = (user.role === 'coach' || user.role === 'owner' || user.role === 'manager')
     ? state.users.filter(u => u.role === 'member' && u.clubId === user.clubId &&
-      (user.role === 'owner' || user.role === 'manager' || u.assignedCoachUid === user.firebaseUid) &&
+      (user.role === 'owner' || user.role === 'manager' || !!user.firebaseUid && u.assignedCoachUid === user.firebaseUid) &&
       (!embedded || !initialMemberId || Number(u.id) === initialMemberId) && u.name.toLowerCase().includes(searchContact.toLowerCase()))
     : memberCoach ? [memberCoach] : [];
-  const selectedContactAvailable = !embedded || !initialMemberId || contacts.some(contact => Number(contact.id) === Number(selectedDest));
+  const selectedContactAvailable = user.role === 'member' ? !!memberCoach && Number(memberCoach.id) === selectedDest : scopedContacts.some(contact => Number(contact.id) === selectedDest);
 
   const conversationRef = useMemberConversationViewport(user.role === 'member' && !embedded && !memberCoachLoading && !!memberCoach);
   const thread = selectedContactAvailable ? state.messages.filter(m =>
-    (m.from === user.id && m.to === selectedDest) || 
-    (m.from === selectedDest && m.to === user.id)
+    m.clubId === user.clubId && ((m.from === user.id && m.to === selectedDest) ||
+    (m.from === selectedDest && m.to === user.id))
   ).sort((a,b)=>a.date.localeCompare(b.date)) : [];
 
   useEffect(() => {

@@ -15,25 +15,25 @@ const context = (role: Role, accountType?: 'solo' | 'studio', planningEnabled = 
 const ids = (ctx: NavigationContext) => getAllContextItems(ctx).map(item => item.id);
 const hubs = (ctx: NavigationContext) => getPrimaryHubsForRole(ctx).map(item => item.label);
 
-test('Solo owner and Studio owner have the same five coach spaces with Planning primary', () => {
+test('Solo and Studio owners keep their operational and Owner surfaces with five phone roots', () => {
   for (const type of ['solo', 'studio'] as const) {
     const ctx = context('owner', type);
-    assert.deepEqual(hubs(ctx), ['Accueil', 'Clients', 'Coaching', 'Planning', 'Business']);
+    assert.deepEqual(hubs({ ...ctx, format: 'phone' }), type === 'solo' ? ['Accueil', 'Clients', 'Coaching', 'Planning', 'Plus'] : ['Accueil', 'Clients', 'Planning', 'CRM', 'Plus']);
     assert.equal(getAppHubForPage('calendar', ctx), 'planning');
     assert.equal(getHubDefaultPage('planning', ctx), 'calendar');
-    assert.deepEqual(getContextItemsForHub('clients', ctx).map(item => item.id), ['users', 'chat']);
+    assert.deepEqual(getContextItemsForHub('clients', ctx).map(item => item.id), ['users']);
     assert.ok(ids(ctx).includes('exercises'));
     assert.ok(ids(ctx).includes('crm_finances'));
     assert.ok(!ids(ctx).includes('marketing'));
     assert.ok(!getPrimaryHubsForRole(ctx).some(item => item.id === 'plus'));
-    assert.ok(getPrimaryHubsForRole(ctx).length <= 5);
+    assert.ok(getPrimaryHubsForRole({ ...ctx, format: 'phone' }).length <= 5);
   }
 });
 
 test('Studio coach sees operational spaces and no owner-only creation or administration action', () => {
   const ctx = context('coach', 'studio');
-  assert.deepEqual(hubs(ctx), ['Accueil', 'Clients', 'Coaching', 'Planning', 'Business']);
-  assert.deepEqual(getCreateActions(ctx).map(action => action.id), ['add-member', 'add-preset', 'add-prospect', 'invite-member']);
+  assert.deepEqual(hubs(ctx), ['Accueil', 'Clients', 'Coaching', 'Planning', 'Messages']);
+  assert.deepEqual(getCreateActions(ctx).map(action => action.id), ['add-preset']);
   assert.ok(!ids(ctx).includes('marketing'));
   assert.ok(!ids(ctx).includes('cashRegister'));
   assert.ok(getMobileMoreGroups(ctx).some(group => group.hub === 'plus'));
@@ -109,11 +109,12 @@ test('Historical state.page values still map to their hub after moving out of th
   const ctx = context('owner', 'studio');
   for (const page of ['presets', 'exercises', 'drive', 'history', 'nutrition'])
     assert.equal(getAppHubForPage(page, ctx), 'coaching');
-  for (const page of ['crm_pipeline', 'crm_finances', 'crm_tasks', 'marketing'])
-    assert.equal(getAppHubForPage(page, ctx), 'business');
+  assert.equal(getAppHubForPage('crm_pipeline', ctx), 'crm');
+  assert.equal(getAppHubForPage('crm_tasks', ctx), 'planning');
+  for (const page of ['crm_finances', 'marketing']) assert.equal(getAppHubForPage(page, ctx), 'business');
   for (const page of ['settings', 'guide', 'about'])
     assert.equal(getAppHubForPage(page, ctx), 'plus');
-  assert.equal(getMobileTabForPage('crm_finances', ctx), 'crm_pipeline');
+  assert.equal(getMobileTabForPage('crm_finances', ctx), 'plus');
 });
 
 test('Superadmin retains its own console and no coach creation menu', () => {

@@ -33,7 +33,7 @@ test('Manager runtime/navigation uses entitlements and keeps operational routes 
     const pages = getAllContextItems(context).map(item => item.id);
     for (const page of ['users', 'crm_pipeline', 'calendar', 'team', 'profile']) assert.ok(pages.includes(page), page);
     for (const page of ['crm_finances', 'settings', 'coaching']) assert.ok(!pages.includes(page), page);
-    assert.deepEqual(getPrimaryHubsForRole(context).map(item => item.id), ['home', 'clients', 'coaching', 'planning', 'business']);
+    assert.deepEqual(getPrimaryHubsForRole(context).map(item => item.id), ['home', 'clients', 'crm', 'planning', 'team', 'business']);
   }
   assert.equal(resolveExperienceCapabilities({ ...club, saasPlanId: 'unknown' }, manager).clients.runtimeUsable, false);
   assert.deepEqual(getAllContextItems({ role: 'manager', club: { ...club, accountType: 'solo' } }), []);

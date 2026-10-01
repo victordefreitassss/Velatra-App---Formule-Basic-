@@ -27,7 +27,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getMemberActivationStatus, hasAssignedProgram } from '../components/coachOnboardingHelpers';
 import { requestClubInviteDialog, trackProductEventOnce } from '../components/productEvents';
 import { canShowClient360AccountActions, getClient360AdminSections, getClient360CoachingContact, getClient360Facts, getClient360QuickActions, getClient360Sections, type Client360AdminSectionId, type Client360SectionId } from '../components/client360';
-import { createClient360LocationState, createPlanningLocationState, getClient360MemberId, resolveClient360Member } from '../components/dashboardNavigation';
+import { createClient360LocationState, createPlanningLocationState, getClient360MemberId, getClient360Section, shouldFocusClientNote, resolveClient360Member } from '../components/dashboardNavigation';
 
 const ClientConversation = React.lazy(() => import('./MessagesPage').then(module => ({ default: module.MessagesPage })));
 const ClientNutritionView = React.lazy(() => import('../components/MemberNutritionView').then(module => ({ default: module.MemberNutritionView })));
@@ -85,7 +85,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   useEffect(() => {
     if (selectedProfile) {
-      setMemberTab('overview');
+      const requestedSection = getClient360Section(location.state);
+      const allowed = getClient360Sections(state.currentClub, state.user || {});
+      setMemberTab(requestedSection && allowed.some(section => section.id === requestedSection) ? requestedSection : 'overview');
       setCoachAssignment(selectedProfile.assignedCoachUid || '');
       requestAnimationFrame(() => closeButtonRef.current?.focus());
     }
@@ -122,12 +124,23 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       return;
     }
     if (closingHistoryRef.current) return;
-    const member = resolveClient360Member(state.users, state.user?.clubId, location.state);
+    const member = resolveClient360Member(state.users, state.user?.clubId, location.state, state.user);
     if (member) {
       clientHistoryEntryRef.current = true;
+      if (locationChanged) {
+        const section = getClient360Section(location.state);
+        setMemberTab(section && getClient360Sections(state.currentClub, state.user || {}).some(item => item.id === section) ? section : 'overview');
+      }
       setSelectedProfile(previous => Number(previous?.id) === memberId ? previous : member);
     }
   }, [location.key, state.users]);
+
+  useEffect(() => {
+    if (selectedProfile && memberTab === 'followup' && shouldFocusClientNote(location.state)) {
+      const frame = requestAnimationFrame(() => notesRef.current?.focus());
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [selectedProfile?.id, location.key, memberTab]);
 
   const closeProfile = () => {
     const hadHistoryEntry = clientHistoryEntryRef.current;
@@ -339,7 +352,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const members = state.users.filter(u => {
-    if (u.role !== 'member') return false;
+    if (u.role !== 'member' || u.clubId !== state.user?.clubId ||
+      (state.user?.role === 'coach' && (!state.user.firebaseUid || u.assignedCoachUid !== state.user.firebaseUid))) return false;
     const searchTerm = search.trim().toLowerCase();
     if (searchTerm && ![u.name, u.email, u.phone].some(value => value?.toLowerCase().includes(searchTerm))) return false;
     

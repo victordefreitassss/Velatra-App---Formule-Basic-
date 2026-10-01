@@ -90,16 +90,28 @@ export function resolveExperienceCapabilities(club: Club | null | undefined, act
 }
 
 export type ProductFormat = 'phone' | 'tablet' | 'desktop' | 'largeDesktop';
+export type HomeSection = 'agenda' | 'actions' | 'clients' | 'sales' | 'business' | 'coaching' | 'messages' | 'tasks' | 'team' | 'shortcuts';
 export function resolveProductFormat(width: number): ProductFormat {
   if (!Number.isFinite(width) || width < 0) return 'desktop';
   return width < 768 ? 'phone' : width < 1024 ? 'tablet' : width < 1600 ? 'desktop' : 'largeDesktop';
 }
 export function resolvePresentationStrategy(experience: ProductExperience, format: ProductFormat) {
   const field = format === 'phone';
+  const sections: HomeSection[] = experience === 'SOLO_OWNER'
+    ? field ? ['agenda', 'actions', 'messages', 'clients', 'sales', 'shortcuts', 'business']
+      : ['actions', 'clients', 'sales', 'business', 'agenda', 'coaching', 'messages', 'shortcuts']
+    : experience === 'STUDIO_COACH'
+      ? field ? ['agenda', 'actions', 'messages', 'tasks', 'clients', 'shortcuts']
+        : format === 'tablet' ? ['agenda', 'clients', 'actions', 'coaching', 'messages', 'tasks', 'shortcuts']
+          : ['clients', 'actions', 'agenda', 'coaching', 'messages', 'tasks', 'shortcuts']
+      : experience === 'STUDIO_MANAGER' || experience === 'STUDIO_OWNER'
+        ? [...(field ? ['actions', 'agenda', 'team', 'sales', 'clients', 'shortcuts'] : ['agenda', 'actions', 'clients', 'sales', 'team', 'shortcuts']) as HomeSection[],
+          ...(experience === 'STUDIO_OWNER' ? ['business'] as HomeSection[] : [])]
+        : [];
   const priorities = experience === 'MEMBER' ? ['session', 'progress', 'nutrition']
     : experience === 'SUPERADMIN' ? ['platform']
     : field ? ['nextAction', 'nextClient', 'messages', 'nextSession', 'notes', 'checkIns', 'planning', 'urgentTasks']
     : ['clientPortfolio', 'programBuilder', 'progressAnalysis', 'weeklyPlanning', 'crm', 'retention',
       ...(experience === 'SOLO_OWNER' || experience === 'STUDIO_OWNER' || experience === 'STUDIO_MANAGER' ? ['business'] : [])];
-  return { format, density: field ? 'compact' : format === 'tablet' ? 'comfortable' : 'expanded', priorities } as const;
+  return { format, density: field ? 'compact' : format === 'tablet' ? 'comfortable' : 'expanded', priorities: sections.length ? sections : priorities, sections } as const;
 }

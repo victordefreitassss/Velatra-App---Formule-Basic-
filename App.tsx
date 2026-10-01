@@ -96,7 +96,7 @@ const lazyNamed = <T extends object>(load: () => Promise<T>, exportName: keyof T
 const WorkoutView = lazyNamed(() => import('./components/WorkoutView'), 'WorkoutView');
 const CoachingSessionView = lazyNamed(() => import('./components/CoachingSessionView'), 'CoachingSessionView');
 const ProgramEditor = lazyNamed(() => import('./components/Editor'), 'ProgramEditor');
-const CoachDashboard = lazyNamed(() => import('./components/CoachDashboard'), 'CoachDashboard');
+const ExperienceHome = lazyNamed(() => import('./components/ExperienceHome'), 'ExperienceHome');
 const MemberDashboard = lazyNamed(() => import('./components/MemberDashboard'), 'MemberDashboard');
 const MembersPage = lazyNamed(() => import('./pages/MembersPage'), 'MembersPage');
 const CoachingPage = lazyNamed(() => import('./pages/CoachingPage'), 'CoachingPage');
@@ -829,7 +829,9 @@ export default function App() {
     });
 
     let isInitialProspectsLoad = true;
-    const unsubProspects = skipForMembers('prospects') ? () => {} : onSnapshot(query(collection(db, "prospects"), where("clubId", "==", clubId)), (snap) => {
+    const unsubProspects = skipForMembers('prospects') ? () => {} : onSnapshot(isCoach && state.currentClub?.accountType === 'studio'
+      ? query(collection(db, "prospects"), where("clubId", "==", clubId), where("assignedCoachUid", "==", state.user.firebaseUid))
+      : query(collection(db, "prospects"), where("clubId", "==", clubId)), (snap) => {
       const prospects: Prospect[] = [];
       let hasNewProspect = false;
 
@@ -858,7 +860,9 @@ export default function App() {
     });
 
     let isInitialTasksLoad = true;
-    const unsubTasks = skipForMembers('tasks') ? () => {} : onSnapshot(query(collection(db, "tasks"), where("clubId", "==", clubId)), (snap) => {
+    const unsubTasks = skipForMembers('tasks') ? () => {} : onSnapshot(isCoach && state.currentClub?.accountType === 'studio'
+      ? query(collection(db, "tasks"), where("clubId", "==", clubId), where("assignedTo", "==", String(state.user.id)))
+      : query(collection(db, "tasks"), where("clubId", "==", clubId)), (snap) => {
       const tasks: Task[] = [];
       let hasNewTask = false;
       let newTaskTitle = "";
@@ -913,7 +917,7 @@ export default function App() {
       isInitialBookingsLoad = false;
     });
 
-    const unsubPlans = state.user.role === 'manager' && skipForMembers('plans') ? () => {} : onSnapshot(query(collection(db, "plans"), where("clubId", "==", clubId)), (snap) => {
+    const unsubPlans = !isMember && skipForMembers('plans') ? () => {} : onSnapshot(query(collection(db, "plans"), where("clubId", "==", clubId)), (snap) => {
       const plans: Plan[] = [];
       snap.forEach(d => plans.push(d.data() as Plan));
       setState(prev => ({ ...prev, plans }));
@@ -1235,11 +1239,11 @@ export default function App() {
       const nav = { role: effectiveRole, club: state.currentClub, trustedSuperAdmin: isSuperAdmin };
       const allowedPages = getAllContextItems(nav).map(item => item.id);
       const restricted = effectiveRole === 'manager' || effectiveRole === 'coach' && state.currentClub?.accountType === 'studio';
-      if (restricted && !allowedPages.includes(page) && page !== 'profile') return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
+      if (restricted && !allowedPages.includes(page) && page !== 'profile') return <ExperienceHome state={state} setState={setState} showToast={showToast} />;
       switch (page) {
         case 'team': return <TeamPage state={state} showToast={showToast} />;
         case 'profile': return <ProfilePage state={state} setState={setState} showToast={showToast} />;
-        case 'home': return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
+        case 'home': return <ExperienceHome state={state} setState={setState} showToast={showToast} />;
         case 'users': return <MembersPage state={state} setState={setState} showToast={showToast} />;
         case 'coaching': return <CoachingPage state={state} setState={setState} showToast={showToast} />;
         case 'presets': return <PresetsPage state={state} setState={setState} showToast={showToast} />;
@@ -1256,7 +1260,7 @@ export default function App() {
         case 'drive': return <DrivePage state={state} setState={setState} />;
         case 'marketing': return <MarketingPage state={state} setState={setState} />;
         case 'guide': return <GuidePage onNavigate={(p) => setState(s => ({ ...s, page: p }))} />;
-        default: return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
+        default: return <ExperienceHome state={state} setState={setState} showToast={showToast} />;
       }
     }
     
