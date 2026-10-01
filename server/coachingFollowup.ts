@@ -1,3 +1,4 @@
+import { authorizationActor, canOperateStudio, canAssignMembers } from './authorization.ts';
 import { randomUUID } from 'node:crypto';
 import type { Express, Request, Response } from 'express';
 import type { Firestore, Transaction } from 'firebase-admin/firestore';
@@ -8,7 +9,7 @@ import { resolveAccountType } from '../productCapabilities.ts';
 const fail = (status: number, message: string): never => { throw new MemberCreationError(status, message); };
 const id = () => randomUUID().replaceAll('-', '');
 const rows = (snap: FirebaseFirestore.QuerySnapshot): any[] => snap.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-type Actor = { uid: string; role: string; clubId: string; memberId?: number; assignedCoachUid?: string };
+type Actor = { uid: string; role: string; clubId: string; tenantOperations?: boolean; memberId?: number; assignedCoachUid?: string };
 
 async function scope(db: Firestore, uid: string, memberUid: string, write = false) {
   if (!safeId(uid) || !safeId(memberUid)) fail(400, 'Identifiant invalide.');
@@ -19,21 +20,20 @@ async function scope(db: Firestore, uid: string, memberUid: string, write = fals
     if (write || uid !== memberUid) fail(403, 'Accès au suivi refusé.');
   } else if (actor.role === 'coach') {
     if (member.assignedCoachUid !== uid) fail(403, 'Cet adhérent ne vous est pas affecté.');
-  } else if (actor.role === 'owner') {
+  } else {
     const club = (await db.doc(`clubs/${actor.clubId}`).get()).data();
-    if (!club || (resolveAccountType(club) !== 'legacy' && club.ownerId !== uid)) fail(403, 'Accès au suivi refusé.');
-  } else fail(403, 'Accès au suivi refusé.');
+    if (!club || !canOperateStudio(authorizationActor(actor, club), actor.clubId) || actor.role === 'owner' && resolveAccountType(club) !== 'legacy' && club.ownerId !== uid) fail(403, 'Accès au suivi refusé.');
+  }
   return { actor, member, memberUid, clubId: actor.clubId };
 }
 
 async function staff(db: Firestore, uid: string) {
   const actor = (await db.doc(`users/${uid}`).get()).data() as Actor | undefined;
-  if (!actor?.clubId || !['owner', 'coach'].includes(actor.role)) fail(403, 'Accès réservé au coach.');
-  if (actor.role === 'owner') {
-    const club = (await db.doc(`clubs/${actor.clubId}`).get()).data();
-    if (!club || (resolveAccountType(club) !== 'legacy' && club.ownerId !== uid)) fail(403, 'Accès refusé.');
-  }
-  return { ...actor, uid };
+  if (!actor?.clubId) fail(403, 'Accès réservé au staff.');
+  const club = (await db.doc(`clubs/${actor.clubId}`).get()).data();
+  const policy = authorizationActor(actor, club);
+  if (!canOperateStudio(policy, actor.clubId) || actor.role === 'owner' && (!club || resolveAccountType(club) !== 'legacy' && club.ownerId !== uid)) fail(403, 'Accès refusé.');
+  return { ...actor, uid, tenantOperations: canAssignMembers(policy, actor.clubId) };
 }
 
 async function currentStaffMember(tx: Transaction, db: Firestore, uid: string, memberUid: string, clubId: string) {
@@ -41,11 +41,9 @@ async function currentStaffMember(tx: Transaction, db: Firestore, uid: string, m
   const actor = actorDoc.data(), member = memberDoc.data();
   if (!actor || !member || member.role !== 'member' || actor.clubId !== clubId || member.clubId !== clubId) fail(403, 'Vos droits ont changé.');
   if (actor.role === 'coach' && member.assignedCoachUid !== uid) fail(403, 'Cet adhérent ne vous est plus affecté.');
-  if (actor.role === 'owner') {
-    const club = (await tx.get(db.doc(`clubs/${clubId}`))).data();
-    if (!club || resolveAccountType(club) !== 'legacy' && club.ownerId !== uid) fail(403, 'Vos droits ont changé.');
-  }
-  if (!['owner', 'coach'].includes(actor.role)) fail(403, 'Vos droits ont changé.');
+  const currentClub = (await tx.get(db.doc(`clubs/${clubId}`))).data();
+  if (!canOperateStudio(authorizationActor(actor, currentClub), clubId) ||
+      actor.role === 'owner' && (!currentClub || resolveAccountType(currentClub) !== 'legacy' && currentClub.ownerId !== uid)) fail(403, 'Vos droits ont changé.');
   return member;
 }
 
@@ -115,7 +113,7 @@ export function registerCoachingFollowup(app: Express, db: Firestore) {
     const candidates = rows(snap).filter((item: any) => item.active && safeId(item.memberUid));
     const members = candidates.length ? await database.getAll(...candidates.map((item: any) => database.doc(`users/${item.memberUid}`))) : [];
     const allowed = candidates.filter((item: any, index: number) => members[index].data()?.role === 'member' && members[index].data()?.clubId === actor.clubId &&
-      (actor.role === 'owner' || members[index].data()?.assignedCoachUid === req.auth.uid));
+      (actor.tenantOperations || members[index].data()?.assignedCoachUid === req.auth.uid));
     const due = allowed.map((item: any) => ({ ...item, dueDate: item.frequency.kind === 'manual' ? item.startDate : dueDateFor(item.frequency, item.startDate, today) })).filter((item: any) => item.dueDate && item.dueDate <= today);
     const received = due.length ? await database.getAll(...due.map((item: any) => database.doc(`coachCheckInResponses/${item.id}_${item.dueDate}`))) : [];
     const priorities = due.filter((item: any, index: number) => !received[index].exists).slice(0, 4).map((item: any) => ({ memberUid: item.memberUid,
@@ -144,7 +142,7 @@ export function registerCoachingFollowup(app: Express, db: Firestore) {
   app.get('/api/followup/templates', route(async (req, _res, database) => {
     const actor = await staff(database, req.auth.uid);
     const snap = await database.collection('coachCheckInTemplates').where('clubId', '==', actor.clubId).limit(100).get();
-    return { templates: rows(snap).filter((item: any) => actor.role === 'owner' || item.createdBy === actor.uid) };
+    return { templates: rows(snap).filter((item: any) => actor.tenantOperations || item.createdBy === actor.uid) };
   }, db));
   app.post('/api/followup/templates', route(async (req, _res, database) => {
     const actor = await staff(database, req.auth.uid);

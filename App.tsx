@@ -1,4 +1,4 @@
-import { readClubDocument } from './productCapabilities';
+import { readClubDocument, isLiveExperienceRole } from './productCapabilities';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -424,7 +424,14 @@ export default function App() {
         unsubUserDoc = onSnapshot(userDocRef, async (userDoc) => {
           setProfileResolved(true);
           if (userDoc.exists()) {
-            const userData = userDoc.data() as User;
+            const profileData = userDoc.data();
+            if (!isLiveExperienceRole(profileData.role)) {
+              setState({ ...INITIAL_STATE, exercises: [...INIT_EXERCISES] });
+              setLoading(false);
+              await signOut(auth);
+              return;
+            }
+            const userData = profileData as User;
             
             const cachedUser = { ...userData, id: Number(userData.id), firebaseUid: firebaseUser.uid };
             setState(prev => ({ ...prev, user: cachedUser, onboardingDataReady: sameUserDataScope(prev.user, cachedUser) ? prev.onboardingDataReady : false }));

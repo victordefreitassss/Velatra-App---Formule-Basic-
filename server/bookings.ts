@@ -1,3 +1,4 @@
+import { authorizationActor, canOperateStudio, canAssignMembers } from './authorization.ts';
 import { createHash } from 'node:crypto';
 import { FieldValue, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { MemberCreationError as BookingError } from './createMember.ts';
@@ -50,7 +51,7 @@ function validateSlot(settings: any, coach: FirebaseFirestore.DocumentSnapshot, 
 
 function assertAccess(profile: any, member: any, memberUid: string, coachUid: string, club: any) {
   if (!profile || !member || profile.clubId !== member.clubId || member.role !== 'member') fail(403, 'Vos droits ont changé. Rechargez votre espace.');
-  if (profile.role === 'owner') return;
+  if (canAssignMembers(authorizationActor(profile, club), member.clubId)) return;
   if (profile.role === 'coach' && member.assignedCoachUid === profile.firebaseUid && coachUid === profile.firebaseUid) return;
   if (profile.role === 'member' && memberUid === profile.firebaseUid &&
     (member.assignedCoachUid ? coachUid === member.assignedCoachUid : club?.accountType !== 'studio' && coachUid === club?.ownerId)) return;
@@ -155,10 +156,10 @@ export async function cancelBooking(db: Firestore, uid: string, id: string) {
     const memberRef = booking.memberUid ? db.doc(`users/${booking.memberUid}`) : null;
     const memberDoc = memberRef ? await tx.get(memberRef) : null;
     const member = memberDoc?.data();
-    if (!(profile.role === 'owner' || profile.role === 'coach' && (member?.assignedCoachUid === uid || !booking.memberUid && booking.assignedCoachUid === uid || booking.type === 'trial' && [uid, String(profile.id)].includes(String(booking.coachId))) || profile.role === 'member' && (booking.memberUid === uid || !booking.memberUid && Number(booking.memberId) === Number(profile.id)))) fail(403, 'Vous ne pouvez pas annuler cette réservation.');
+    const club = await tx.get(db.doc(`clubs/${profile.clubId}`));
+    if (!(canAssignMembers(authorizationActor(profile, club.data()), booking.clubId) || profile.role === 'coach' && (member?.assignedCoachUid === uid || !booking.memberUid && booking.assignedCoachUid === uid || booking.type === 'trial' && [uid, String(profile.id)].includes(String(booking.coachId))) || profile.role === 'member' && (booking.memberUid === uid || !booking.memberUid && Number(booking.memberId) === Number(profile.id)))) fail(403, 'Vous ne pouvez pas annuler cette réservation.');
     if (booking.status === 'cancelled') return { success: true, refunded: false };
     if (booking.status !== 'confirmed') fail(409, 'Cette séance ne peut plus être annulée.');
-    const club = await tx.get(db.doc(`clubs/${profile.clubId}`));
     if (profile.role === 'member' && (new Date(booking.startTime).getTime() - Date.now()) / 3600000 < (club.data()?.settings?.booking?.minCancellationHours || 0)) fail(409, 'Le délai d’annulation est dépassé. Contactez votre coach.');
     const refund = booking.creditDebited === true && Boolean(memberRef);
     if (refund) {
@@ -180,7 +181,8 @@ export async function rescheduleBooking(db: Firestore, uid: string, input: any) 
   const [initialProfile, initialBooking] = await Promise.all([profileRef.get(), bookingRef.get()]);
   const profile = initialProfile.data(), booking = initialBooking.data();
   if (!profile?.clubId || !booking || booking.clubId !== profile.clubId || booking.type !== 'coaching') fail(403, 'Cette séance ne peut pas être déplacée.');
-  if (!['owner', 'coach'].includes(profile.role)) fail(403, 'Seul un coach peut déplacer cette séance.');
+  const initialClub = (await db.doc(`clubs/${profile.clubId}`).get()).data();
+  if (!canOperateStudio(authorizationActor(profile, initialClub), booking.clubId)) fail(403, 'Droits insuffisants pour déplacer cette séance.');
   const roster = await db.collection('users').where('clubId', '==', profile.clubId).get();
   const member = booking.memberUid ? roster.docs.find(doc => doc.id === booking.memberUid) : roster.docs.find(doc => doc.data().role === 'member' && Number(doc.data().id) === Number(booking.memberId));
   if (!member || member.data().role !== 'member') fail(409, 'Le profil de cet adhérent doit être vérifié.');
@@ -253,30 +255,38 @@ export async function createTrialBooking(db: Firestore, uid: string, input: any)
   if (typeof prospectUid !== 'string' || !/^[^/]{1,180}$/.test(prospectUid)) fail(400, 'Prospect invalide.');
   const profileRef = db.doc(`users/${uid}`), prospectRef = db.doc(`prospects/${prospectUid}`);
   const initial = (await profileRef.get()).data();
-  if (!initial?.clubId || !['owner', 'coach'].includes(initial.role)) fail(403, 'Vous ne pouvez pas planifier cette séance.');
+  if (!initial?.clubId) fail(403, 'Vous ne pouvez pas planifier cette séance.');
+  const initialClub = (await db.doc(`clubs/${initial.clubId}`).get()).data();
+  if (!canOperateStudio(authorizationActor(initial, initialClub), initial.clubId)) fail(403, 'Vous ne pouvez pas planifier cette séance.');
+  // Managers schedule a real coach; they never become the coaching provider themselves.
+  const coachUid = initial.role === 'manager' ? input?.coachUid : uid;
+  if (typeof coachUid !== 'string' || !/^[^/]{1,128}$/.test(coachUid)) fail(400, 'Choisissez un coach.');
+  const coachRef = db.doc(`users/${coachUid}`);
   const local = parisDayParts(start);
-  const locks = [coachDayLock(db, initial.clubId, uid, local.key), db.doc(`bookingLocks/${initial.clubId}_prospect_${prospectUid}_${local.key}`)];
-  const id = createHash('sha256').update(`trial:${initial.clubId}:${prospectUid}:${uid}:${start.toISOString()}`).digest('hex');
+  const locks = [coachDayLock(db, initial.clubId, coachUid, local.key), db.doc(`bookingLocks/${initial.clubId}_prospect_${prospectUid}_${local.key}`)];
+  const id = createHash('sha256').update(`trial:${initial.clubId}:${prospectUid}:${coachUid}:${start.toISOString()}`).digest('hex');
   const bookingRef = db.doc(`bookings/${id}`);
   return db.runTransaction(async tx => {
-    const [profileDoc, prospectDoc, previous, active, ...lockDocs] = await Promise.all([
-      tx.get(profileRef), tx.get(prospectRef), tx.get(bookingRef),
+    const [profileDoc, prospectDoc, coachDoc, clubDoc, previous, active, ...lockDocs] = await Promise.all([
+      tx.get(profileRef), tx.get(prospectRef), tx.get(coachRef), tx.get(db.doc(`clubs/${initial.clubId}`)), tx.get(bookingRef),
       tx.get(db.collection('bookings').where('clubId', '==', initial.clubId).where('status', '==', 'confirmed')),
       ...locks.map(ref => tx.get(ref))
     ]);
-    const profile = profileDoc.data(), prospect = prospectDoc.data();
-    if (profile?.clubId !== initial.clubId || !['owner', 'coach'].includes(profile.role) || prospect?.clubId !== initial.clubId) fail(403, 'Ce prospect ne fait pas partie de votre espace.');
+    const profile = profileDoc.data(), prospect = prospectDoc.data(), coach = coachDoc.data();
+    if (profile?.clubId !== initial.clubId || profile.role !== initial.role || !canOperateStudio(authorizationActor(profile, clubDoc.data()), initial.clubId) || prospect?.clubId !== initial.clubId)
+      fail(403, 'Ce prospect ne fait pas partie de votre espace.');
+    if (!coach || coach.clubId !== initial.clubId || !['owner', 'coach'].includes(coach.role)) fail(403, 'Coach indisponible dans votre espace.');
     const prospectId = Number.isSafeInteger(Number(prospect.id)) && Number(prospect.id) > 0 ? Number(prospect.id) : legacyProspectNumericId(prospectUid);
     if (prospect.convertedMemberUid || prospect.status === 'won') fail(409, 'Ce prospect est déjà devenu adhérent.');
     if (previous.exists) {
       const old = previous.data()!;
-      if (old.clubId !== initial.clubId || Number(old.prospectId) !== prospectId || ![uid, String(profile.id)].includes(String(old.coachId)) || old.startTime !== start.toISOString() || old.endTime !== end.toISOString() || old.type !== 'trial') fail(409, 'Cette réservation doit être vérifiée.');
+      if (old.clubId !== initial.clubId || Number(old.prospectId) !== prospectId || ![coachUid, String(coach.id)].includes(String(old.coachId)) || old.startTime !== start.toISOString() || old.endTime !== end.toISOString() || old.type !== 'trial') fail(409, 'Cette réservation doit être vérifiée.');
       if (old.status === 'confirmed') return { success: true, id, alreadyBooked: true };
     }
     const conflicts = active.docs.map(doc => doc.data()).filter(booking => new Date(booking.startTime) < end && new Date(booking.endTime) > start);
-    if (conflicts.some(booking => Number(booking.prospectId) === prospectId || [uid, String(profile.id)].includes(String(booking.coachId)))) fail(409, 'Ce créneau est déjà occupé.');
+    if (conflicts.some(booking => Number(booking.prospectId) === prospectId || [coachUid, String(coach.id)].includes(String(booking.coachId)))) fail(409, 'Ce créneau est déjà occupé.');
     bumpLocks(tx, lockDocs);
-    tx.set(bookingRef, { id, clubId: initial.clubId, coachId: String(profile.id), prospectId, startTime: start.toISOString(), endTime: end.toISOString(), status: 'confirmed', type: 'trial' });
+    tx.set(bookingRef, { id, clubId: initial.clubId, coachId: String(coach.id), prospectId, startTime: start.toISOString(), endTime: end.toISOString(), status: 'confirmed', type: 'trial' });
     tx.update(prospectRef, { id: prospectId, status: 'trial', activityHistory: [{ id, date: new Date().toISOString(), label: 'Essai programmé', authorUid: uid }, ...(Array.isArray(prospect.activityHistory) ? prospect.activityHistory : [])].slice(0, 80) });
     return { success: true, id };
   });

@@ -1,3 +1,4 @@
+import { authorizationActor, canOperateStudio, canAssignMembers } from './authorization.ts';
 import { randomBytes, randomInt } from 'node:crypto';
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
@@ -12,19 +13,20 @@ export class MemberCreationError extends Error {
 export async function createManagedMember(auth: Auth, db: Firestore, requesterUid: string, body: any) {
   const requesterRef = db.collection('users').doc(requesterUid);
   const requester = (await requesterRef.get()).data();
-  if (!requester || !['owner', 'coach'].includes(requester.role) || !requester.clubId) {
+  if (!requester?.clubId) {
     throw new MemberCreationError(403, 'Seuls les coachs et propriétaires peuvent ajouter un adhérent.');
   }
   const clubRef = db.collection('clubs').doc(requester.clubId);
   const club = (await clubRef.get()).data();
   if (!club) throw new MemberCreationError(404, 'Votre club est introuvable.');
   const accountType = resolveAccountType(club);
+  if (!canOperateStudio(authorizationActor(requester, club), requester.clubId)) throw new MemberCreationError(403, 'Accès refusé.');
   if (requester.role === 'owner' && accountType !== 'legacy' && club.ownerId !== requesterUid) {
     throw new MemberCreationError(403, 'Le propriétaire du club ne correspond pas à ce compte.');
   }
   const requestedCoachUid = body?.coachUid;
   if (requestedCoachUid != null && requestedCoachUid !== '' &&
-    (requester.role !== 'owner' || accountType !== 'studio' || typeof requestedCoachUid !== 'string' ||
+    (!canAssignMembers(authorizationActor(requester, club), requester.clubId) || accountType !== 'studio' || typeof requestedCoachUid !== 'string' ||
       requestedCoachUid.length > 128 || requestedCoachUid.includes('/'))) {
     throw new MemberCreationError(400, 'Le coach référent demandé est invalide.');
   }
@@ -75,7 +77,7 @@ export async function createManagedMember(auth: Auth, db: Firestore, requesterUi
       if (latestRequester?.role !== requester.role || latestRequester?.clubId !== requester.clubId) {
         throw new MemberCreationError(403, 'Vos droits ont changé. Rechargez votre espace.');
       }
-      if (!latestClub || resolveAccountType(latestClub) !== accountType ||
+      if (!latestClub || !canOperateStudio(authorizationActor(latestRequester, latestClub), requester.clubId) || resolveAccountType(latestClub) !== accountType ||
         (requester.role === 'owner' && accountType !== 'legacy' && latestClub.ownerId !== requesterUid)) {
         throw new MemberCreationError(409, 'La configuration du club a changé. Réessayez.');
       }

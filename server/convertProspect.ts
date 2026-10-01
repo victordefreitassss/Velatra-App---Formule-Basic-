@@ -1,3 +1,4 @@
+import { authorizationActor, canOperateStudio } from './authorization.ts';
 import { createHash } from 'node:crypto';
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
@@ -23,7 +24,9 @@ export async function convertProspect(auth: Auth, db: Firestore, requesterUid: s
       tx.get(requesterRef), tx.get(prospectRef), tx.get(claimRef)
     ]);
     const requester = requesterSnap.data(), prospect = prospectSnap.data(), claim = claimSnap.data();
-    if (!requester?.clubId || !['owner', 'coach'].includes(requester.role)) throw new MemberCreationError(403, 'Accès refusé.');
+    if (!requester?.clubId) throw new MemberCreationError(403, 'Accès refusé.');
+    const club = (await tx.get(db.doc(`clubs/${requester.clubId}`))).data();
+    if (!canOperateStudio(authorizationActor(requester, club), requester.clubId)) throw new MemberCreationError(403, 'Accès refusé.');
     if (!prospect) throw new MemberCreationError(404, 'Prospect introuvable.');
     if (prospect.clubId !== requester.clubId) throw new MemberCreationError(403, 'Ce prospect ne fait pas partie de votre espace.');
     if (prospect.convertedMemberUid) return { converted: prospect.convertedMemberUid as string, prospect, requester };
@@ -77,7 +80,8 @@ export async function convertProspect(auth: Auth, db: Firestore, requesterUid: s
       tx.get(requesterRef), tx.get(prospectRef), tx.get(claimRef), tx.get(db.collection('users').doc(created.uid))
     ]);
     const requester = requesterSnap.data(), prospect = prospectSnap.data(), claim = claimSnap.data(), member = memberSnap.data();
-    if (requester?.clubId !== initial.requester.clubId || !['owner', 'coach'].includes(requester.role) ||
+    const club = (await tx.get(db.doc(`clubs/${initial.requester.clubId}`))).data();
+    if (requester?.clubId !== initial.requester.clubId || !canOperateStudio(authorizationActor(requester, club), initial.requester.clubId) ||
       prospect?.clubId !== requester.clubId || claim?.requestId !== requestId || claim?.requesterUid !== requesterUid ||
       member?.clubId !== requester.clubId || member?.creationRequestId !== requestId) {
       throw new MemberCreationError(409, 'La conversion a été créée mais son lien CRM reste à confirmer. Réessayez.');

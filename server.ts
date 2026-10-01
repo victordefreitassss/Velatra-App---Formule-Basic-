@@ -1,5 +1,6 @@
+import { createStaffAccount } from './server/teamManagement.ts';
 import { registerClub, ClubRegistrationError } from './server/clubRegistration.ts';
-import { canManageClub } from './productCapabilities.ts';
+import { authorizationActor, canReadStripeStatus, canAssignMembers, canManageStripe, canPerformDestructiveClubActions, canDeleteUser } from './server/authorization.ts';
 import { completeWorkout } from './server/completeWorkout.ts';
 import { registerBillingWebhooks } from './server/stripePayments.ts';
 import { billingContext, registerBillingRoutes } from './server/billing.ts';
@@ -28,6 +29,7 @@ declare global {
     interface Request {
       auth?: any;
       profile?: any;
+      authorizationActor?: ReturnType<typeof authorizationActor>;
     }
   }
 }
@@ -199,6 +201,10 @@ const requireUserProfile = async (req: any, res: any, next: any) => {
       return res.status(403).json({ error: "Profil utilisateur introuvable." });
     }
     req.profile = userSnapshot.data();
+    const club = req.profile?.role === 'manager' && req.profile.clubId
+      ? (await admin.firestore().doc(`clubs/${req.profile.clubId}`).get()).data() : undefined;
+    req.authorizationActor = authorizationActor(req.profile, club,
+      req.auth.email_verified === true && req.auth.email === 'victor.defreitas.pro@gmail.com');
     return next();
   } catch (error) {
     return res.status(500).json({ error: "Impossible de charger le profil utilisateur." });
@@ -667,9 +673,8 @@ app.get('/api/coach/assigned-members', async (req: any, res: any) => {
 });
 
 app.post('/api/assign-member-coach', async (req: any, res: any) => {
-  const trustedSuperAdmin = req.profile?.role === 'superadmin' && req.auth?.email_verified === true && req.auth?.email === 'victor.defreitas.pro@gmail.com';
-  if (!canManageClub({ ...req.profile, trustedSuperAdmin }, req.profile?.clubId)) {
-    return res.status(403).json({ error: "Seul le propriétaire du club peut affecter un adhérent." });
+  if (!canAssignMembers(req.authorizationActor, req.profile?.clubId)) {
+    return res.status(403).json({ error: "Droits insuffisants pour affecter un adhérent." });
   }
   const memberUid = typeof req.body?.memberUid === 'string' ? req.body.memberUid : '';
   const coachUid = req.body?.coachUid === null ? null : (typeof req.body?.coachUid === 'string' ? req.body.coachUid : '');
@@ -693,9 +698,13 @@ app.post('/api/assign-member-coach', async (req: any, res: any) => {
     }
     const oldCoachRef = oldCoachUid ? db.collection('users').doc(oldCoachUid) : null;
     await db.runTransaction(async transaction => {
-      const refs = [memberRef, ...(oldCoachRef ? [oldCoachRef] : []), ...(nextCoachRef && nextCoachRef.path !== oldCoachRef?.path ? [nextCoachRef] : [])];
+      const callerRef = db.doc(`users/${req.auth.uid}`);
+      const clubRef = db.doc(`clubs/${req.profile.clubId}`);
+      const refs = [callerRef, clubRef, memberRef, ...(oldCoachRef ? [oldCoachRef] : []), ...(nextCoachRef && nextCoachRef.path !== oldCoachRef?.path ? [nextCoachRef] : [])];
       const snapshots = await Promise.all(refs.map(ref => transaction.get(ref)));
       const dataByPath = new Map(refs.map((ref, index) => [ref.path, snapshots[index].data()]));
+      const currentActor = authorizationActor(dataByPath.get(callerRef.path), dataByPath.get(clubRef.path), isTrustedSuperAdmin(req));
+      if (!canAssignMembers(currentActor, req.profile.clubId)) throw new Error('ASSIGNMENT_ACCESS_CHANGED');
       const latestMember = dataByPath.get(memberRef.path);
       const latestCoachUid = typeof latestMember?.assignedCoachUid === 'string' ? latestMember.assignedCoachUid : null;
       if (!latestMember || latestMember.role !== 'member' || latestMember.clubId !== req.profile.clubId || latestCoachUid !== oldCoachUid) {
@@ -728,9 +737,10 @@ app.post('/api/assign-member-coach', async (req: any, res: any) => {
 });
 
 const isTrustedSuperAdmin = (req: any) => req.auth?.email_verified === true && req.auth?.email === 'victor.defreitas.pro@gmail.com';
-const isClubManager = (req: any) => canManageClub({ ...req.profile, trustedSuperAdmin: isTrustedSuperAdmin(req) }, req.profile?.clubId);
+const canAccessStripe = (req: any) => canManageStripe(req.authorizationActor, req.profile?.clubId);
 
 app.get('/api/stripe/status', async (req: any, res: any) => {
+  if (!canReadStripeStatus(req.authorizationActor, req.profile?.clubId)) return res.status(403).json({ error: 'La configuration Stripe est réservée au propriétaire.' });
   try {
     const profile = req.profile;
     const clubId = profile?.clubId;
@@ -739,7 +749,7 @@ app.get('/api/stripe/status', async (req: any, res: any) => {
     const secretRef = db.collection('stripeSecrets').doc(clubId);
     const secureSecret = await secretRef.get();
     let connected = secureSecret.exists && !!secureSecret.data()?.secretKey;
-    if (!connected && isClubManager(req)) {
+    if (!connected && canAccessStripe(req)) {
       const clubRef = db.collection('clubs').doc(clubId);
       const clubSnapshot = await clubRef.get();
       const legacyKey = clubSnapshot.data()?.settings?.payment?.stripeSecretKey;
@@ -762,10 +772,10 @@ app.post('/api/stripe/connect', async (req: any, res: any) => {
     const profile = req.profile;
     const secretKey = String(req.body?.secretKey || '').trim();
     const webhookSecret = String(req.body?.webhookSecret || '').trim();
-    if (webhookSecret && !/^whsec_[a-zA-Z0-9]+$/.test(webhookSecret)) return res.status(400).json({ error: 'Secret webhook invalide.' });
-    if (!isClubManager(req) || !profile.clubId) {
+    if (!canAccessStripe(req) || !profile.clubId) {
       return res.status(403).json({ error: "Seul le propriétaire du club peut connecter Stripe." });
     }
+    if (webhookSecret && !/^whsec_[a-zA-Z0-9]+$/.test(webhookSecret)) return res.status(400).json({ error: 'Secret webhook invalide.' });
     if (!/^(sk|rk)_(test|live)_/.test(secretKey)) {
       return res.status(400).json({ error: "La clé Stripe semble invalide." });
     }
@@ -792,7 +802,7 @@ app.post('/api/stripe/connect', async (req: any, res: any) => {
 app.delete('/api/stripe/connect', async (req: any, res: any) => {
   try {
     const profile = req.profile;
-    if (!isClubManager(req) || !profile.clubId) {
+    if (!canAccessStripe(req) || !profile.clubId) {
       return res.status(403).json({ error: "Seul le propriétaire du club peut déconnecter Stripe." });
     }
     const db = admin.firestore();
@@ -807,73 +817,17 @@ app.delete('/api/stripe/connect', async (req: any, res: any) => {
   }
 });
 
-// Endpoint to create a staff member (coach) without logging out the current user
-app.post("/api/create-staff", async (req, res) => {
+// Team operations are distinct from owner-only settings, Stripe and destruction.
+app.post('/api/create-staff', async (req, res) => {
   try {
-    if (!admin.apps.length) {
-      return res.status(500).json({ error: "Firebase Admin is not configured" });
-    }
-
-    const { email, password, name, clubId } = req.body;
-    
-    if (!email || !password || !name || !clubId) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const db = admin.firestore();
-
-    // Authorize the verified Firebase identity, never a UID supplied by the caller.
-    const requestorData = req.profile;
-    const trustedSuperAdmin = isTrustedSuperAdmin(req);
-    if (!canManageClub({ ...requestorData, trustedSuperAdmin }, clubId)) {
-      return res.status(403).json({ error: "Seul le propriétaire du club peut ajouter un coach." });
-    }
-    if (!trustedSuperAdmin && requestorData?.clubId !== clubId) {
-      return res.status(403).json({ error: "Unauthorized: Club mismatch" });
-    }
-
-    // Create user in Auth
-    const userRecord = await admin.auth().createUser({
-      email,
-      password,
-      displayName: name,
-    });
-
-    // Create user in Firestore
-    await db.collection("users").doc(userRecord.uid).set({
-      id: Date.now(),
-      clubId: clubId,
-      code: email.split("@")[0].substring(0, 8),
-      pwd: "", // Standard procedure, hide actual pwd
-      name: name,
-      email: email,
-      role: "coach",
-      avatar: name.substring(0, 2).toUpperCase(),
-      createdAt: new Date().toISOString(),
-      firebaseUid: userRecord.uid,
-      assignedMemberIds: [],
-      assignmentIndexVersion: 1,
-      // Minimal defaults:
-      gender: "M",
-      age: 25,
-      weight: 70,
-      height: 175,
-      xp: 0,
-      streak: 0,
-      pointsFidelite: 0,
-      objectifs: [],
-      notes: ""
-    });
-
-    res.json({ success: true, uid: userRecord.uid });
-
-  } catch (err: any) {
-    console.error("Error creating staff:", err);
-    res.status(500).json({ error: err.message });
+    return res.json(await createStaffAccount(admin.auth(), admin.firestore(), req.auth.uid, req.body, isTrustedSuperAdmin(req)));
+  } catch (error: any) {
+    if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
+    console.error('Staff creation failed', { code: error?.code || 'unknown' });
+    return res.status(500).json({ error: 'La création du coach a échoué.' });
   }
 });
 
-// Endpoint to send onboarding email (Contract & Payment)
 app.post("/api/send-onboarding-email", async (req, res) => {
   try {
     const { email, memberName, paymentLink, contractLink, clubName } = req.body;
@@ -978,7 +932,7 @@ app.post("/api/delete-user", async (req, res) => {
     }
 
     const caller = req.profile;
-    if (caller?.role !== 'owner' && !(caller?.role === 'superadmin' && isTrustedSuperAdmin(req))) {
+    if (!canPerformDestructiveClubActions(req.authorizationActor, caller?.clubId)) {
       return res.status(403).json({ error: "Droits insuffisants pour supprimer un compte." });
     }
 
@@ -992,11 +946,8 @@ app.post("/api/delete-user", async (req, res) => {
 
     const targetDoc = await admin.firestore().collection('users').doc(targetRecord.uid).get();
     const targetProfile = targetDoc.data();
-    if (!targetDoc.exists || (!isTrustedSuperAdmin(req) && targetProfile?.clubId !== caller?.clubId)) {
+    if (!targetDoc.exists || !canDeleteUser(req.authorizationActor, targetProfile)) {
       return res.status(403).json({ error: "Ce compte ne fait pas partie de votre club." });
-    }
-    if (targetProfile?.role === 'owner' && !isTrustedSuperAdmin(req)) {
-      return res.status(403).json({ error: "Seul un super administrateur peut supprimer le propriétaire du club." });
     }
 
     await admin.auth().deleteUser(targetRecord.uid);

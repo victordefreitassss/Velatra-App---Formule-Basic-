@@ -1,3 +1,4 @@
+import { authorizationActor, canManageBilling, canUseBilling } from './authorization.ts';
 import type { Firestore, DocumentReference } from "firebase-admin/firestore";
 import type { Express } from "express";
 import Stripe from "stripe";
@@ -58,10 +59,10 @@ export async function billingContext(
   db: Firestore,
   uid: string,
   memberId?: any,
-  managersOnly = false,
+  sensitiveBilling = false,
 ) {
   const user = (await db.doc(`users/${cleanId(uid)}`).get()).data();
-  if (!user || !["owner", "coach"].includes(user.role) || !user.clubId)
+  if (!user?.clubId || !canUseBilling(authorizationActor(user), user.clubId))
     fail(403, "Droits insuffisants.");
   const club = (await db.doc(`clubs/${cleanId(user.clubId)}`).get()).data();
   if (
@@ -69,7 +70,7 @@ export async function billingContext(
     (user.role === "owner" &&
       resolveAccountType(club) !== "legacy" &&
       club.ownerId !== uid) ||
-    (managersOnly && user.role !== "owner")
+    (sensitiveBilling && !canManageBilling(authorizationActor(user, club), user.clubId))
   )
     fail(403, "Droits insuffisants.");
   if (memberId == null)
@@ -441,12 +442,12 @@ async function paymentContext(
   db: Firestore,
   uid: string,
   id: string,
-  manager = false,
+  sensitiveBilling = false,
 ) {
   const ref = db.doc(`payments/${cleanId(id)}`),
     p = (await ref.get()).data();
   if (!p) fail(404, "Paiement introuvable.");
-  const ctx = await billingContext(db, uid, p.memberId, manager);
+  const ctx = await billingContext(db, uid, p.memberId, sensitiveBilling);
   if (p.clubId !== ctx.clubId) fail(403, "Paiement inaccessible.");
   return { ...ctx, p, ref };
 }

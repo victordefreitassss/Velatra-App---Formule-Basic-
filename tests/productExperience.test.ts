@@ -62,11 +62,11 @@ test('commercial entitlements and role permission are separate', () => {
   assert.equal(resolveEntitlement('teamManagement', club('solo', 'studio')), false);
   assert.equal(resolveEntitlement('accessControl', tenant), false);
 });
-test('manager target operations exclude Stripe, finances, owner settings and assignment mutations; runtime stays disabled', () => {
+test('manager target operations exclude Stripe, finances, owner settings; runtime stays disabled', () => {
   const tenant = club('studio', 'studio');
-  for (const feature of ['clients', 'crm', 'planning', 'retention', 'analytics', 'teamManagement'] as const)
+  for (const feature of ['clients', 'crm', 'planning', 'retention', 'analytics', 'teamManagement', 'coachAssignments'] as const)
     assert.equal(resolveExperienceCapabilities(tenant, actor('manager'))[feature].targetUsable, true);
-  for (const feature of ['stripeConnection', 'finances', 'clubManagement', 'bookingSettings', 'coachAssignments'] as const)
+  for (const feature of ['stripeConnection', 'finances', 'clubManagement', 'bookingSettings'] as const)
     assert.equal(resolveRolePermission(feature, tenant, actor('manager')), 'none');
   for (const capability of Object.values(resolveExperienceCapabilities(tenant, actor('manager')))) assert.equal(capability.runtimeUsable, false);
   assert.equal(canManageClub({ role: 'manager' } as never, tenant.id), false);

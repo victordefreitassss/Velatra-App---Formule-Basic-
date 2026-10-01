@@ -46,9 +46,9 @@ export function resolveProductExperience(club: Club | null | undefined, actor: P
 
 /** Target permission scope. Record identity and assignment still require server/rules checks. */
 export type PermissionScope = 'none' | 'self' | 'assigned' | 'tenant' | 'platform';
-const ownerOnly: readonly Capability[] = ['clubManagement', 'bookingSettings', 'stripeConnection', 'coachAssignments'];
+const ownerOnly: readonly Capability[] = ['clubManagement', 'bookingSettings', 'stripeConnection'];
 const operational: readonly Capability[] = ['clients', 'coaching', 'programs', 'exercises', 'nutrition', 'progress', 'planning', 'messages', 'documents', 'aiAssistance', 'tasks'];
-const managerFeatures: readonly Capability[] = [...operational, 'crm', 'retention', 'analytics', 'teamManagement', 'sharedPlanning', 'multipleCoaches', 'groupClasses', 'studioManagement'];
+const managerFeatures: readonly Capability[] = [...operational, 'crm', 'retention', 'analytics', 'teamManagement', 'sharedPlanning', 'multipleCoaches', 'groupClasses', 'studioManagement', 'coachAssignments'];
 export function resolveRolePermission(feature: Capability, club: Club | null | undefined, actor: ProductActor): PermissionScope {
   const experience = resolveProductExperience(club, actor);
   if (experience === 'UNSUPPORTED') return 'none';
