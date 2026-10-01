@@ -1,3 +1,5 @@
+import { getAllContextItems } from './appShellHelpers';
+import { getProductCapabilities } from '../productCapabilities';
 import { createAutomaticTaskOnce } from './automaticTasks';
 import { localDateKey, createNumericId } from './dataHelpers';
 
@@ -372,6 +374,9 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     return days;
   }, [state.logs, state.user?.clubId]);
 
+  const actor = { role: state.user?.role, clubId: state.user?.clubId };
+  const canSeeFinance = getProductCapabilities(state.currentClub, actor).finances.usable;
+  const allowedPages = getAllContextItems({ role: state.user?.role || 'member', club: state.currentClub }).map(item => item.id);
   const hasFirstValue = hasAssignedProgram(members, state.programs || []);
   const dashboardStage = getCoachDashboardStage({
     role: state.user?.role || '',
@@ -380,7 +385,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     firstValueReached: hasFirstValue,
   });
 
-  if ((state.user?.role === 'coach' || state.user?.role === 'owner') && state.onboardingDataReady === false) {
+  if ((state.user?.role === 'coach' || state.user?.role === 'owner' || state.user?.role === 'manager') && state.onboardingDataReady === false) {
     return <div className="mx-auto flex min-h-48 w-full max-w-5xl items-center justify-center rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600" role="status">Chargement de votre espace coach…</div>;
   }
 
@@ -395,7 +400,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     { id: 'tasks', page: 'crm_tasks', label: 'Tâches à terminer', count: tasksToday.length, icon: CheckCircleIcon },
     { id: 'programs', page: 'users', label: 'Programmes demandés', count: planRequests.length, icon: FileTextIcon },
     { id: 'prospects', page: 'crm_pipeline', label: 'Prospects à relancer', count: prospectsToFollowUp.length, icon: TargetIcon },
-  ].filter(item => item.count > 0).slice(0, 4);
+  ].filter(item => item.count > 0 && allowedPages.includes(item.page)).slice(0, 4);
 
   return (
     <motion.div 
@@ -410,7 +415,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
               <img src="/brand/velatra-mark.png" alt="" className="h-7 w-7 shrink-0 object-contain" />
-              <span className="text-xs font-semibold tracking-wide text-emerald-100">Espace coach · Vue d’ensemble</span>
+              <span className="text-xs font-semibold tracking-wide text-emerald-100">{state.user?.role === 'manager' ? 'Espace Manager' : 'Espace coach'} · Vue d’ensemble</span>
             </div>
             <div>
               <h1 className="text-3xl md:text-4xl font-display font-semibold tracking-tight leading-tight mb-2">
@@ -484,7 +489,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
           { icon: FileTextIcon, label: "Programmes", page: "presets" },
           { icon: BarChartIcon, label: "Finances", page: "crm_finances" },
           { icon: TargetIcon, label: "Prospects", page: "crm_pipeline" }
-        ].map((btn, idx) => (
+        ].filter(btn => allowedPages.includes(btn.page)).map((btn, idx) => (
           <motion.button
             key={idx}
             whileHover={reduceMotion ? undefined : { y: -2 }}
@@ -598,7 +603,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
               </div>
 
               {/* 3. CHIFFRE D'AFFAIRES (CA) CLIQUEZ POUR SWITCHER CE MOIS/CETTE ANNÉE/CETTE SEMAINE */}
-              <div 
+              {canSeeFinance && <><div
                 onClick={() => setCaPeriod(prev => prev === 'month' ? 'year' : prev === 'year' ? 'week' : 'month')}
                 className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-sm  hover:border-emerald-500/30 cursor-pointer transition-all relative group"
               >
@@ -618,7 +623,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 <div className="text-[12px] font-semibold tracking-normal text-zinc-600 mb-2">Abonnement moyen</div>
                 <div className="text-3xl font-display font-semibold text-zinc-900">{arpu.toFixed(0)}€</div>
                 <div className="text-[12px] text-zinc-500 font-bold tracking-normal mt-1.5">Valeur par athlète</div>
-              </div>
+              </div></>}
             </div>
           </motion.section>
 
@@ -693,7 +698,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
             </div>
             
             <div className="space-y-3">
-              {failedSubs.map(sub => {
+              {(canSeeFinance ? failedSubs : []).map(sub => {
                 const member = members.find(m => Number(m.id) === sub.memberId);
                 if (!member) return null;
                 return (
@@ -711,7 +716,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
                 );
               })}
 
-              {endingSubs.map(sub => {
+              {(canSeeFinance ? endingSubs : []).map(sub => {
                 const member = members.find(m => Number(m.id) === sub.memberId);
                 if (!member) return null;
                 const targetDate = sub.endDate || sub.commitmentEndDate;

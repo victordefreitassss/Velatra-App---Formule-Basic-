@@ -201,8 +201,10 @@ const requireUserProfile = async (req: any, res: any, next: any) => {
       return res.status(403).json({ error: "Profil utilisateur introuvable." });
     }
     req.profile = userSnapshot.data();
+    if (req.profile?.isSuspended === true) return res.status(403).json({ error: 'Compte suspendu.' });
     const club = req.profile?.role === 'manager' && req.profile.clubId
       ? (await admin.firestore().doc(`clubs/${req.profile.clubId}`).get()).data() : undefined;
+    if (req.profile?.role === 'manager' && club?.accountType !== 'studio') return res.status(403).json({ error: 'Manager nécessite un Studio explicite.' });
     req.authorizationActor = authorizationActor(req.profile, club,
       req.auth.email_verified === true && req.auth.email === 'victor.defreitas.pro@gmail.com');
     return next();
@@ -825,6 +827,14 @@ app.post('/api/create-staff', async (req, res) => {
     if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
     console.error('Staff creation failed', { code: error?.code || 'unknown' });
     return res.status(500).json({ error: 'La création du coach a échoué.' });
+  }
+});
+
+app.post('/api/create-manager', async (req, res) => {
+  try { return res.json(await createStaffAccount(admin.auth(), admin.firestore(), req.auth.uid, req.body, false, 'manager')); }
+  catch (error: any) {
+    if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
+    return res.status(500).json({ error: 'La création du Manager a échoué.' });
   }
 });
 

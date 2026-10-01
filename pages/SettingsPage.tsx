@@ -1,3 +1,4 @@
+import { TeamPage } from './TeamPage';
 import { billingRequest } from '../components/billingClient';
 import { canManageClub, canShowStaffCreation, getProductCapabilities } from '../productCapabilities';
 import React, { useState, useEffect, useRef } from 'react';
@@ -164,48 +165,6 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
 
   const [isDisconnectModalOpen, setIsDisconnectModalOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState<string | null>(null);
-
-  const [newStaffEmail, setNewStaffEmail] = useState("");
-  const [newStaffName, setNewStaffName] = useState("");
-  const [newStaffPassword, setNewStaffPassword] = useState("");
-  const [isAddingStaff, setIsAddingStaff] = useState(false);
-
-  const handleAddStaff = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!canAddStaff) return;
-    if (!newStaffEmail || !newStaffName || !newStaffPassword || !state.user?.clubId) {
-       showToast("Veuillez remplir tous les champs", "error");
-       return;
-    }
-    setIsAddingStaff(true);
-    try {
-      const res = await apiFetch("/api/create-staff", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: newStaffEmail,
-          password: newStaffPassword,
-          name: newStaffName,
-          clubId: state.user.clubId,
-          requestorUid: state.user.firebaseUid
-        })
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        showToast("Erreur lors de l'ajout: " + text, "error");
-      } else {
-        showToast("Staff ajouté avec succès !", "success");
-        setNewStaffEmail("");
-        setNewStaffName("");
-        setNewStaffPassword("");
-      }
-    } catch (err: any) {
-      showToast("Erreur réseau: " + err.message, "error");
-    } finally {
-      setIsAddingStaff(false);
-    }
-  };
 
   const handleDisconnectStripe = async () => {
     if (!canEditClub) return;
@@ -391,65 +350,7 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         </div>
       </Card>
 
-      {canEditClub && teamAvailable && <Card className="p-8 border-zinc-200 bg-white">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500">
-            <TargetIcon size={24} />
-          </div>
-          <h2 className="text-xl font-black uppercase">Gestion du Staff</h2>
-        </div>
-
-        <div className="space-y-6 max-w-md">
-          {canAddStaff ? (
-            <>
-              <p className="text-xs text-zinc-500 mb-4">Ajoutez un coach/membre du staff à votre club. Il ou elle se connectera en tant que coach pour gérer uniquement les adhérents qui lui sont affectés.</p>
-              <form onSubmit={handleAddStaff} className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900/70 tracking-widest ml-1">Nom du Coach</label>
-                  <Input 
-                    type="text" 
-                    placeholder="Ex: Emma" 
-                    value={newStaffName} 
-                    onChange={(e) => setNewStaffName(e.target.value)} 
-                    required 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900/70 tracking-widest ml-1">Email</label>
-                  <Input 
-                    type="email" 
-                    placeholder="emma@monclub.com" 
-                    value={newStaffEmail} 
-                    onChange={(e) => setNewStaffEmail(e.target.value)} 
-                    required 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase text-zinc-500 text-zinc-900/70 tracking-widest ml-1">Mot de passe temporaire</label>
-                  <Input 
-                    type="password" 
-                    placeholder="••••••••" 
-                    value={newStaffPassword} 
-                    onChange={(e) => setNewStaffPassword(e.target.value)} 
-                    required 
-                    minLength={6}
-                  />
-                </div>
-                <Button type="submit" disabled={isAddingStaff} className="w-full !py-4 mt-2">
-                  <PlusIcon size={18} className="mr-2" />
-                  {isAddingStaff ? "AJOUT EN COURS..." : "AJOUTER LE STAFF"}
-                </Button>
-              </form>
-            </>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-zinc-600">
-                {canEditClub ? 'L’ajout de comptes d’équipe n’est pas activé dans cet espace bêta.' : 'La création de comptes coach est réservée au propriétaire du club.'}
-              </p>
-            </div>
-          )}
-        </div>
-      </Card>}
+      {canEditClub && teamAvailable && <TeamPage state={state} showToast={showToast} />}
 
       <fieldset disabled={!canEditClub} aria-label="Réglages administratifs du club" className="m-0 min-w-0 space-y-8 border-0 p-0">
       <Card className="p-8 border-zinc-200 bg-white">

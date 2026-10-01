@@ -199,6 +199,7 @@ interface ProgramEditorProps {
   allPresets?: Preset[]; 
   member?: any;
   readOnly?: boolean;
+  canStartSession?: boolean;
   onCreateExercise?: (draft: ExerciseDraft) => Promise<Exercise>;
 }
 
@@ -212,6 +213,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
   allPresets = [],
   member,
   readOnly = false,
+  canStartSession = true,
   onCreateExercise
 }) => {
   const isEditingProgram = !!program;
@@ -543,7 +545,7 @@ export const ProgramEditor: React.FC<ProgramEditorProps> = ({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
-          {!readOnly && (isSingleSession ? (
+          {!readOnly && (isSingleSession && canStartSession ? (
             <Button type="button" disabled={isSaving} onClick={() => handleSave('start')} variant="primary" className="!h-11 !min-h-11 !rounded-lg !px-3 !text-xs !font-semibold !normal-case !tracking-normal !bg-emerald-500 hover:!bg-emerald-600 !text-zinc-950">
               <Play size={14} className="mr-1.5 inline fill-zinc-950" /> Démarrer
             </Button>

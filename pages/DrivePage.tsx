@@ -44,7 +44,7 @@ export const DrivePage: React.FC<{ state: AppState; setState?: React.Dispatch<Re
     ? state.driveFolders.find(f => f.id === currentFolderId)
     : null;
 
-  const isCoach = state.user?.role === 'coach' || state.user?.role === 'owner' || state.user?.role === 'superadmin';
+  const isCoach = state.user?.role === 'manager' || state.user?.role === 'coach' || state.user?.role === 'owner' || state.user?.role === 'superadmin';
 
   const folders = isCoach ? state.driveFolders.filter(f => f.parentId === currentFolderId) : [];
   const files = state.driveFiles.filter(f => {
@@ -396,7 +396,7 @@ export const DrivePage: React.FC<{ state: AppState; setState?: React.Dispatch<Re
                       </a>
                       {isCoach && (
                         <>
-                          <button 
+                          {(state.user?.role !== 'manager' || file.uploadedBy === state.user.id) && <button
                             onClick={() => {
                               setShareModalFile(file);
                               setSelectedClients(file.sharedWith || []);
@@ -405,14 +405,14 @@ export const DrivePage: React.FC<{ state: AppState; setState?: React.Dispatch<Re
                             title="Partager"
                           >
                             <ShareIcon size={18} />
-                          </button>
-                          <button 
+                          </button>}
+                          {(state.user?.role !== 'manager' || file.uploadedBy === state.user.id) && <button
                             onClick={() => handleDeleteFile(file)}
                             className="p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
                             title="Supprimer"
                           >
                             <Trash2Icon size={18} />
-                          </button>
+                          </button>}
                         </>
                       )}
                     </div>

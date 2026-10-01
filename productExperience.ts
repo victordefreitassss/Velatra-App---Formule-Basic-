@@ -47,7 +47,7 @@ export function resolveProductExperience(club: Club | null | undefined, actor: P
 /** Target permission scope. Record identity and assignment still require server/rules checks. */
 export type PermissionScope = 'none' | 'self' | 'assigned' | 'tenant' | 'platform';
 const ownerOnly: readonly Capability[] = ['clubManagement', 'bookingSettings', 'stripeConnection'];
-const operational: readonly Capability[] = ['clients', 'coaching', 'programs', 'exercises', 'nutrition', 'progress', 'planning', 'messages', 'documents', 'aiAssistance', 'tasks'];
+const operational: readonly Capability[] = ['clients', 'coaching', 'programs', 'exercises', 'nutrition', 'progress', 'planning', 'messages', 'documents', 'tasks'];
 const managerFeatures: readonly Capability[] = [...operational, 'crm', 'retention', 'analytics', 'teamManagement', 'sharedPlanning', 'multipleCoaches', 'groupClasses', 'studioManagement', 'coachAssignments'];
 export function resolveRolePermission(feature: Capability, club: Club | null | undefined, actor: ProductActor): PermissionScope {
   const experience = resolveProductExperience(club, actor);
@@ -55,7 +55,7 @@ export function resolveRolePermission(feature: Capability, club: Club | null | u
   if (experience === 'SUPERADMIN') return 'platform';
   if (experience === 'MEMBER') return (CAPABILITY_DEFINITIONS[feature].roles as readonly string[]).includes('member') ? 'self' : 'none';
   if (experience === 'STUDIO_MANAGER') return !ownerOnly.includes(feature) && managerFeatures.includes(feature) ? 'tenant' : 'none';
-  if (experience === 'STUDIO_COACH') return operational.includes(feature) ? 'assigned' : 'none';
+  if (experience === 'STUDIO_COACH') return (operational.includes(feature) || feature === 'aiAssistance') ? 'assigned' : 'none';
   return (CAPABILITY_DEFINITIONS[feature].roles as readonly string[]).includes(actor.role || '') ? 'tenant' : 'none';
 }
 export function resolveEntitlement(feature: Capability, club: Club | null | undefined): boolean | null {
@@ -72,11 +72,11 @@ export interface ExperienceCapability {
   scope: PermissionScope;
   /** Target product access, never a substitute for deployed authorization. */
   targetUsable: boolean;
-  /** Existing authenticated manager accounts are intentionally not activated. */
+  /** Runtime permission plus entitlement; API and rules still enforce every action. */
   runtimeUsable: boolean;
 }
 export function resolveExperienceCapabilities(club: Club | null | undefined, actor: ProductActor): Record<Capability, ExperienceCapability> {
-  const legacy = getProductCapabilities(club, { ...actor, role: actor.role === 'manager' ? undefined : actor.role });
+  const legacy = getProductCapabilities(club, actor);
   return Object.fromEntries((Object.keys(CAPABILITY_DEFINITIONS) as Capability[]).map(feature => {
     const entitlement = resolveEntitlement(feature, club);
     const scope = resolveRolePermission(feature, club, actor);
@@ -84,7 +84,7 @@ export function resolveExperienceCapabilities(club: Club | null | undefined, act
       (entitlement === null ? legacy[feature].enabled : entitlement);
     // No SaaS plan is provisioned by this mission. Explicit plans remain preview-only
     // until server and deployed rules enforce commercial inclusion and target scopes.
-    const runtimeUsable = actor.role !== 'manager' && resolveSaasPlan(club).kind === 'legacy' && legacy[feature].usable;
+    const runtimeUsable = actor.role === 'manager' ? targetUsable && legacy[feature].roleAllowed : resolveSaasPlan(club).kind === 'legacy' && legacy[feature].usable;
     return [feature, { entitlement, scope, targetUsable, runtimeUsable }];
   })) as Record<Capability, ExperienceCapability>;
 }

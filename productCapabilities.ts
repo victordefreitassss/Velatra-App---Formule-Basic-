@@ -3,9 +3,9 @@ import type { AccountType, Club, Role } from './types.ts';
 
 export type ResolvedAccountType = AccountType | 'legacy';
 
-/** Live browser experiences are deliberately unchanged until the 12A activation review. */
+/** Known authenticated roles; Manager additionally requires a verified Studio club. */
 export function isLiveExperienceRole(value: unknown): value is Role {
-  return ['superadmin', 'owner', 'coach', 'member'].includes(value as string);
+  return ['superadmin', 'owner', 'manager', 'coach', 'member'].includes(value as string);
 }
 
 export function isAccountType(value: unknown): value is AccountType {
@@ -23,9 +23,10 @@ export function readClubDocument(id: string, data: Record<string, unknown>): Clu
   return club as unknown as Club;
 }
 
-const staff: readonly Role[] = ['owner', 'coach', 'superadmin'];
+const staff: readonly Role[] = ['owner', 'manager', 'coach', 'superadmin'];
 const everyone: readonly Role[] = [...staff, 'member'];
 const managers: readonly Role[] = ['owner', 'superadmin'];
+const teamRoles: readonly Role[] = [...managers, 'manager'];
 type Definition = {
   implemented: boolean;
   studioOnly?: boolean;
@@ -50,15 +51,15 @@ export const CAPABILITY_DEFINITIONS = {
   messages: { implemented: true, roles: everyone },
   retention: { implemented: true, roles: staff, note: 'Existing follow-up and action surfaces; no Retain product.' },
   tasks: { implemented: true, roles: staff },
-  studioManagement: { implemented: true, studioOnly: true, roles: managers },
+  studioManagement: { implemented: true, studioOnly: true, roles: teamRoles },
   documents: { implemented: true, roles: everyone },
   aiAssistance: { implemented: true, roles: everyone, note: 'Requires server Gemini configuration; coach validates programming.' },
   clubManagement: { implemented: true, roles: managers },
   bookingSettings: { implemented: true, roles: managers },
   stripeConnection: { implemented: true, roles: managers },
-  teamManagement: { implemented: true, studioOnly: true, activation: 'staff', roles: managers, note: 'Staff creation, not configurable permissions.' },
+  teamManagement: { implemented: true, studioOnly: true, activation: 'staff', roles: teamRoles, note: 'Staff creation, not configurable permissions.' },
   multipleCoaches: { implemented: true, studioOnly: true, activation: 'staff', roles: everyone },
-  coachAssignments: { implemented: true, studioOnly: true, roles: managers },
+  coachAssignments: { implemented: true, studioOnly: true, roles: teamRoles },
   sharedPlanning: { implemented: true, studioOnly: true, roles: everyone },
   groupClasses: { implemented: true, studioOnly: true, roles: everyone, note: 'Booking capacity maxParticipants only, not a full class management suite.' },
   advancedPermissions: { implemented: false, studioOnly: true, roles: managers },
@@ -95,8 +96,10 @@ export function getProductCapabilities(club: Club | null | undefined, actor: Cap
     const available = !definition.implemented ? false : !definition.studioOnly ? true
       : accountType === 'legacy' ? null : accountType === 'studio';
     const enabled = !!club && definition.implemented && available !== false &&
-      (definition.activation !== 'staff' || club.canAddStaff === true);
-    const allowed = roleAllowed(definition, actor, club?.id);
+      (definition.activation !== 'staff' || accountType === 'studio' || club.canAddStaff === true);
+    const restrictedCoach = actor.role === 'coach' && accountType === 'studio' && ['finances', 'analytics', 'clubManagement', 'bookingSettings', 'stripeConnection', 'teamManagement', 'coachAssignments'].includes(key);
+    const restrictedManager = actor.role === 'manager' && (accountType !== 'studio' || ['billing', 'finances', 'clubManagement', 'bookingSettings', 'stripeConnection', 'aiAssistance'].includes(key));
+    const allowed = !restrictedCoach && !restrictedManager && roleAllowed(definition, actor, club?.id);
     return [key, { implemented: definition.implemented, available, enabled, roleAllowed: allowed, usable: enabled && allowed }];
   })) as Record<Capability, CapabilityState>;
 }
@@ -110,5 +113,19 @@ export function canManageClub(actor: CapabilityActor, clubId: string | null | un
 
 /** Compatibility with the existing beta UI flag; not a new commercial entitlement. */
 export function canShowStaffCreation(club: Club | null | undefined, actor: CapabilityActor): boolean {
-  return canManageTeam(authorizationActor(actor, club, actor.trustedSuperAdmin), club?.id) && (club?.canAddStaff === true || (actor.role === 'superadmin' && actor.trustedSuperAdmin === true));
+  return canManageTeam(authorizationActor(actor, club, actor.trustedSuperAdmin), club?.id) && (resolveAccountType(club) === 'studio' || club?.canAddStaff === true || (actor.role === 'superadmin' && actor.trustedSuperAdmin === true));
+}
+
+/** Validate the profile before mounting tenant listeners. Legacy roles retain their semantics. */
+export function isLiveProfileAllowed(profile: { role?: unknown; clubId?: unknown; isSuspended?: unknown }, club: Club | null | undefined): boolean {
+  return isLiveExperienceRole(profile.role) && profile.isSuspended !== true &&
+    (profile.role !== 'manager' || !!club && profile.clubId === club.id && resolveAccountType(club) === 'studio');
+}
+
+/** Never attach forbidden global/financial listeners and never retain their previous contents. */
+export function canLoadLiveCollection(name: string, club: Club | null | undefined, actor: CapabilityActor): boolean {
+  if (actor.role === 'manager') return !!club && actor.clubId === club.id && resolveAccountType(club) === 'studio' &&
+    !['plans', 'subscriptions', 'payments', 'invoices', 'expenses', 'fixedCosts', 'crmClients', 'crmFormulas', 'manualStats', 'pendingProspects', 'supplementOrders'].includes(name);
+  if (actor.role === 'coach' && resolveAccountType(club) === 'studio' && ['expenses', 'fixedCosts', 'manualStats'].includes(name)) return false;
+  return true;
 }

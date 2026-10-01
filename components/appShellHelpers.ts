@@ -45,6 +45,7 @@ const coachItems: ContextNavItem[] = [
   { id: 'history', label: 'Historique', hub: 'coaching', capability: 'progress' },
   { id: 'calendar', label: 'Calendrier et réservations', hub: 'planning', capability: 'planning' },
   { id: 'crm_pipeline', label: 'Prospects', hub: 'business', capability: 'crm' },
+  { id: 'team', label: 'Équipe', hub: 'business', capability: 'teamManagement' },
   { id: 'crm_tasks', label: 'Tâches et relances', hub: 'business', capability: 'crm' },
   { id: 'crm_finances', label: 'Finances', hub: 'business', capability: 'finances' },
   { id: 'about', label: 'Fiche du club', hub: 'plus' },
@@ -90,12 +91,13 @@ const isStaffExperience = (context: NavigationContext) => {
   });
   // Keep historical routes while club data loads and for old unsupported combinations.
   if (experience === 'UNSUPPORTED') return context.role === 'owner' || context.role === 'coach';
-  return ['SOLO_OWNER', 'STUDIO_OWNER', 'STUDIO_COACH', 'LEGACY_OWNER', 'LEGACY_COACH'].includes(experience);
+  return ['SOLO_OWNER', 'STUDIO_OWNER', 'STUDIO_MANAGER', 'STUDIO_COACH', 'LEGACY_OWNER', 'LEGACY_COACH'].includes(experience);
 };
 function canNavigate(capability: Capability | undefined, context: NavigationContext): boolean {
   if (!capability) return true;
   const club = context.club;
   if (!club) return false;
+  if (context.role === 'manager') return resolveExperienceCapabilities(club, { role: context.role, clubId: club.id })[capability].runtimeUsable;
   const state = getProductCapabilities(club, {
     role: context.role, clubId: club.id, trustedSuperAdmin: context.trustedSuperAdmin,
   })[capability];
@@ -104,7 +106,10 @@ function canNavigate(capability: Capability | undefined, context: NavigationCont
 }
 export function getAllContextItems(context: NavigationContext): ContextNavItem[] {
   if (context.role === 'superadmin') return [{ id: 'admin', label: 'Tableau de bord', hub: 'admin' }];
-  const items = isStaffExperience(context) ? coachItems : memberItems;
+  if (context.role === 'manager' && resolveProductExperience(context.club, { role: context.role, clubId: context.club?.id }) !== 'STUDIO_MANAGER') return [];
+  const restricted = context.role === 'manager' || context.role === 'coach' && context.club?.accountType === 'studio';
+  const items = (isStaffExperience(context) ? coachItems : memberItems).filter(item => !(restricted && item.id === 'settings') && !(context.role === 'manager' && item.id === 'coaching'));
+  if (restricted) items.push({ id: 'profile', label: 'Mon profil', hub: 'plus' });
   const home: ContextNavItem = { id: 'home', label: 'Accueil', hub: 'home' };
   return [home, ...items.filter(item =>
     (context.planningEnabled !== false || item.id !== 'planning') && canNavigate(item.capability, context),
@@ -127,6 +132,7 @@ export function getHubDefaultPage(hub: AppHub, context: NavigationContext): stri
 }
 export function getPrimaryHubsForRole(context: NavigationContext): PrimaryHubItem[] {
   if (context.role === 'superadmin') return [{ id: 'admin', label: 'Admin', page: 'admin' }];
+  if (context.role === 'manager' && !isStaffExperience(context)) return [];
   return (isStaffExperience(context) ? coachHubs : memberHubs).map(hub => ({
     id: hub.id, label: hub.label,
     page: hub.id === 'home' || hub.id === 'plus' ? hub.page : getHubDefaultPage(hub.id, context),
@@ -197,7 +203,7 @@ export function resolveExperienceNavigation(context: Omit<NavigationContext, 'ro
   const operational = experience === 'STUDIO_COACH';
   const source = member ? memberItems : coachItems;
   const items: ContextNavItem[] = [{ id: 'home', label: 'Accueil', hub: 'home' }, ...source.filter(item =>
-    (item.id !== 'settings' || caps.clubManagement.targetUsable) &&
+    (item.id !== 'settings' || caps.clubManagement.targetUsable) && (item.id !== 'coaching' || experience !== 'STUDIO_MANAGER') &&
     (context.planningEnabled !== false || item.id !== 'planning') &&
     (!item.capability || caps[item.capability].targetUsable),
   ).map(item => operational && item.id === 'crm_tasks' ? { ...item, hub: 'planning' as AppHub } : { ...item })];

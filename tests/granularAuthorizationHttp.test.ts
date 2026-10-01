@@ -131,3 +131,45 @@ it('Manager plans and moves member sessions and CRM trials for real coaches, nev
   assert.equal(created.status, 200);
   assert.equal((await db().doc(`bookings/${(await created.json()).id}`).get()).data()?.coachId, String(people.coach.id));
 });
+it('Owner provisions a real Studio Manager who logs in and operates the tenant; payload cannot elevate role', async () => {
+  const input = staffInput({ role: 'superadmin', trustedSuperAdmin: true });
+  const response = await api('/api/create-manager', 'owner', 'POST', input);
+  assert.equal(response.status, 200);
+  const { uid } = await response.json();
+  const profile = (await db().doc(`users/${uid}`).get()).data()!;
+  assert.equal(profile.role, 'manager'); assert.equal(profile.clubId, clubId);
+  assert.equal(profile.isSuspended, false); assert.deepEqual(profile.assignedMemberIds, []);
+  const login = await fetch(`http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=local-emulator`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: input.email, password, returnSecureToken: true }) });
+  assert.equal(login.status, 200);
+  people.createdManager = { uid, id: profile.id, token: (await login.json()).idToken };
+  assert.equal((await api(`/api/followup/clients/${people.member.uid}`, 'createdManager')).status, 200);
+  assert.equal((await api('/api/create-staff', 'createdManager', 'POST', staffInput())).status, 200);
+  assert.equal((await api('/api/stripe/status', 'createdManager')).status, 403);
+  for (const name of ['manager', 'createdManager', 'coach', 'member', 'soloManager']) assert.equal((await api('/api/create-manager', name, 'POST', staffInput({ role: 'owner' }))).status, 403);
+  assert.equal((await api('/api/create-manager', 'owner', 'POST', staffInput({ clubId: other }))).status, 403);
+  for (const accountType of ['solo', undefined]) {
+    await db().doc(`clubs/${clubId}`).set({ ownerId: people.owner.uid, ...(accountType ? { accountType } : {}) });
+    assert.equal((await api('/api/create-manager', 'owner', 'POST', staffInput())).status, 403);
+  }
+  await db().doc(`clubs/${clubId}`).set({ ownerId: people.owner.uid, accountType: 'studio' });
+});
+it('Suspension revokes existing HTTP sessions and reactivation restores operations', async () => {
+  for (const name of ['owner', 'manager', 'coach', 'member']) {
+    await db().doc(`users/${people[name].uid}`).update({ isSuspended: true });
+    assert.equal((await api(`/api/followup/clients/${people.member.uid}`, name)).status, 403);
+    await db().doc(`users/${people[name].uid}`).update({ isSuspended: false });
+  }
+  assert.equal((await api(`/api/followup/clients/${people.member.uid}`, 'manager')).status, 200);
+});
+it('Manager provisioning compensates Auth if Studio Owner identity changes before transaction', async () => {
+  let createdUid = '';
+  const fakeAuth = { createUser: async (input: any) => {
+    const account = await getAuth().createUser(input); createdUid = account.uid;
+    await db().doc(`clubs/${clubId}`).update({ ownerId: 'changed-owner' });
+    return account;
+  }, deleteUser: (uid: string) => getAuth().deleteUser(uid) };
+  await assert.rejects(createStaffAccount(fakeAuth as any, db(), people.owner.uid, staffInput(), false, 'manager'), (error: any) => error.status === 403);
+  assert.equal((await db().doc(`users/${createdUid}`).get()).exists, false);
+  await assert.rejects(getAuth().getUser(createdUid), (error: any) => error.code === 'auth/user-not-found');
+  await db().doc(`clubs/${clubId}`).update({ ownerId: people.owner.uid });
+});

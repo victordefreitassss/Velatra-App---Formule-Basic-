@@ -60,6 +60,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
 
   const [schedulingTrialProspect, setSchedulingTrialProspect] = useState<Prospect | null>(null);
   const [trialForm, setTrialForm] = useState({ date: '', startTime: '', endTime: '' });
+  const [trialCoachUid, setTrialCoachUid] = useState('');
 
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
   const [lostProspect, setLostProspect] = useState<Prospect | null>(null);
@@ -347,7 +348,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
       const end = parisLocalInstant(trialForm.date, trialForm.endTime);
       if (!start || !end) throw new Error('Horaire invalide en heure de Paris.');
       const response = await apiFetch('/api/bookings/trial', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prospectUid: schedulingTrialProspect.firebaseUid, startTime: start.toISOString(), endTime: end.toISOString() }) });
+        body: JSON.stringify({ prospectUid: schedulingTrialProspect.firebaseUid, ...(state.user?.role === 'manager' ? { coachUid: trialCoachUid } : {}), startTime: start.toISOString(), endTime: end.toISOString() }) });
       if (!response.ok) throw new Error((await response.json()).error || 'Impossible de planifier cette séance.');
       setSchedulingTrialProspect(null);
       showToast("Séance d'essai planifiée sur le planning !", "success");
@@ -926,6 +927,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-zinc-500 mb-1">Date</label>
+                {state.user?.role === 'manager' && <label className="block">Coach de la séance<select aria-label="Coach de la séance d'essai" value={trialCoachUid} onChange={event => setTrialCoachUid(event.target.value)} required className="min-h-11 w-full rounded-xl border border-zinc-300 bg-white p-3"><option value="">Choisir un Coach</option>{(coachOptions || []).map(coach => <option key={coach.firebaseUid} value={coach.firebaseUid}>{coach.name}</option>)}</select></label>}
                 <Input type="date" value={trialForm.date} onChange={e => setTrialForm({...trialForm, date: e.target.value})} required />
               </div>
               <div className="grid grid-cols-2 gap-3">

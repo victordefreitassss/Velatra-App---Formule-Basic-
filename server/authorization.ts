@@ -4,15 +4,16 @@ export interface AuthorizationActor {
   clubId?: unknown;
   accountType?: unknown;
   trustedSuperAdmin?: boolean;
+  isSuspended?: unknown;
 }
 export const authorizationActor = (profile: any, club?: any, trustedSuperAdmin = false): AuthorizationActor => ({
-  role: profile?.role, clubId: profile?.clubId, accountType: club?.accountType, trustedSuperAdmin,
+  role: profile?.role, clubId: profile?.clubId, accountType: club?.accountType, trustedSuperAdmin, isSuspended: profile?.isSuspended,
 });
-const platformAdmin = (actor: AuthorizationActor) => actor.role === 'superadmin' && actor.trustedSuperAdmin === true;
+const platformAdmin = (actor: AuthorizationActor) => actor.role === 'superadmin' && actor.trustedSuperAdmin === true && actor.isSuspended !== true;
 const validClub = (clubId: unknown) => typeof clubId === 'string' && clubId.length > 0;
-const sameClub = (actor: AuthorizationActor, clubId: unknown) => typeof clubId === 'string' && clubId.length > 0 && actor.clubId === clubId;
+const sameClub = (actor: AuthorizationActor, clubId: unknown) => typeof clubId === 'string' && clubId.length > 0 && actor.clubId === clubId && actor.isSuspended !== true;
 const owner = (actor: AuthorizationActor, clubId: unknown) => sameClub(actor, clubId) && actor.role === 'owner';
-const manager = (actor: AuthorizationActor, clubId: unknown) => sameClub(actor, clubId) && actor.role === 'manager' && actor.accountType === 'studio';
+const manager = (actor: AuthorizationActor, clubId: unknown) => sameClub(actor, clubId) && actor.role === 'manager' && actor.accountType === 'studio' && actor.isSuspended !== true;
 export const canManageTeam = (actor: AuthorizationActor, clubId: unknown) => validClub(clubId) && (platformAdmin(actor) || owner(actor, clubId) || manager(actor, clubId));
 export const canAssignMembers = (actor: AuthorizationActor, clubId: unknown) => canManageTeam(actor, clubId);
 export const canManageClubSettings = (actor: AuthorizationActor, clubId: unknown) => validClub(clubId) && (platformAdmin(actor) || owner(actor, clubId));
@@ -30,3 +31,6 @@ export const canChangeUserRole = (actor: AuthorizationActor, clubId: unknown) =>
 
 export const canUseBilling = (actor: AuthorizationActor, clubId: unknown) => sameClub(actor, clubId) && (actor.role === 'owner' || actor.role === 'coach');
 export const canReadStripeStatus = (actor: AuthorizationActor, clubId: unknown) => canManageStripe(actor, clubId) || sameClub(actor, clubId) && (actor.role === 'coach' || actor.role === 'member');
+
+/** Provisioning Manager is restricted to the Studio Owner, not the platform/Manager console. */
+export const canProvisionManager = (actor: AuthorizationActor, clubId: unknown) => owner(actor, clubId) && actor.accountType === 'studio' && actor.isSuspended !== true;

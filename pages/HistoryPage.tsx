@@ -12,7 +12,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'programs' | 'sessions'>('sessions');
   
-  const allArchives = (user.role === 'coach' || user.role === 'owner') 
+  const allArchives = (user.role === 'coach' || user.role === 'owner' || user.role === 'manager')
     ? state.archivedPrograms 
     : state.archivedPrograms.filter(p => p.memberId === Number(user.id));
 
@@ -176,7 +176,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
                           <div className="flex items-center gap-1.5">
                             <CalendarIcon size={12} /> FINI LE : {new Date((prog as any).endDate || Date.now()).toLocaleDateString()}
                           </div>
-                          {(user.role === 'coach' || user.role === 'owner') && (
+                          {(user.role === 'coach' || user.role === 'owner' || user.role === 'manager') && (
                             <div className="flex items-center gap-1.5">
                               <span className="text-emerald-500">•</span> ATHLÈTE : {(prog as any).memberName || member?.name || 'Inconnu'}
                             </div>
@@ -226,7 +226,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
                             <div className="flex items-center gap-1.5">
                               <CalendarIcon size={12} /> {new Date(booking.startTime).toLocaleDateString()} {new Date(booking.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                             </div>
-                            {(user.role === 'coach' || user.role === 'owner') ? (
+                            {(user.role === 'coach' || user.role === 'owner' || user.role === 'manager') ? (
                               <div className="flex items-center gap-1.5">
                                 <span className="text-emerald-500">•</span> <UserIcon size={12} /> ATHLÈTE : {booking.type === 'trial' ? 'Prospect' : (member?.name || 'Inconnu')}
                               </div>
@@ -267,7 +267,7 @@ export const HistoryPage: React.FC<{ state: AppState; setState: any }> = ({ stat
                             <div className="flex items-center gap-1.5">
                               <CalendarIcon size={12} /> {logDate.toLocaleDateString()}
                             </div>
-                            {(user.role === 'coach' || user.role === 'owner') && (
+                            {(user.role === 'coach' || user.role === 'owner' || user.role === 'manager') && (
                               <div className="flex items-center gap-1.5">
                                 <span className="text-emerald-500">•</span> <UserIcon size={12} /> ATHLÈTE : {member?.name || 'Inconnu'}
                               </div>

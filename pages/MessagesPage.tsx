@@ -53,9 +53,9 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
     return () => { active = false; };
   }, [user.role, user.firebaseUid]);
 
-  const contacts = (user.role === 'coach' || user.role === 'owner') 
+  const contacts = (user.role === 'coach' || user.role === 'owner' || user.role === 'manager')
     ? state.users.filter(u => u.role === 'member' && u.clubId === user.clubId &&
-      (user.role === 'owner' || u.assignedCoachUid === user.firebaseUid) &&
+      (user.role === 'owner' || user.role === 'manager' || u.assignedCoachUid === user.firebaseUid) &&
       (!embedded || !initialMemberId || Number(u.id) === initialMemberId) && u.name.toLowerCase().includes(searchContact.toLowerCase()))
     : memberCoach ? [memberCoach] : [];
   const selectedContactAvailable = !embedded || !initialMemberId || contacts.some(contact => Number(contact.id) === Number(selectedDest));
@@ -178,7 +178,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
     return <div role="status" className="rounded-xl border border-zinc-200 bg-zinc-50 p-5 text-sm text-zinc-700">Conversation indisponible pour cet adhérent.</div>;
   }
 
-  if ((user.role === 'coach' || user.role === 'owner') && !selectedDest) {
+  if ((user.role === 'coach' || user.role === 'owner' || user.role === 'manager') && !selectedDest) {
     return (
       <motion.div 
         variants={containerVariants}
@@ -267,7 +267,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
       className={`flex flex-col ${user.role === 'member' ? 'va-member-chat' : ''} ${embedded ? 'va-member-chat-embedded h-full' : 'va-message-thread'}`}
     >
       <header className="shrink-0 flex items-center gap-4 mb-6 pb-4 border-b border-zinc-200/50 bg-zinc-50 backdrop-blur-md p-4 rounded-2xl">
-        {(user.role === 'coach' || user.role === 'owner') && (
+        {(user.role === 'coach' || user.role === 'owner' || user.role === 'manager') && (
           <motion.button 
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}

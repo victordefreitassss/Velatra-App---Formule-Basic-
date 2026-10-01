@@ -11,11 +11,11 @@ service cloud.firestore {
     }
 
     function profileExists() {
-      return signedIn() && exists(userPath());
+      return signedIn() && exists(userPath()) && get(userPath()).data.get('isSuspended', false) != true;
     }
 
     function profile() {
-      return profileExists() ? get(userPath()).data : null;
+      return get(userPath()).data;
     }
 
     function isSuperAdminEmail() {
@@ -68,6 +68,11 @@ service cloud.firestore {
 
     function staffInClub(clubId) {
       return isStaff() && (isSuperAdmin() || isSuperAdminEmail() || isSameClub(clubId));
+    }
+
+    function canAccessGlobalFinances(clubId) {
+      return staffInClub(clubId) && (profile().role != 'coach' ||
+        !exists(clubDocumentPath(clubId)) || get(clubDocumentPath(clubId)).data.get('accountType', '') != 'studio');
     }
 
     function isSelf(userId) {
@@ -211,8 +216,8 @@ service cloud.firestore {
       // All profiles, including public member sign-ups, are created by the
       // server so clients cannot choose their own legacy numeric member ID.
       allow create: if false;
-      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['stripeCustomerId', 'stripeCustomerClubId', 'credits', 'sessionCredits', 'paymentStatus']) && ((
-        isSelf(userId) &&
+      allow update: if (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['coachingNotesHistory']) || (request.resource.data.coachingNotesHistory is list && request.resource.data.coachingNotesHistory.size() <= 200)) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['stripeCustomerId', 'stripeCustomerClubId', 'credits', 'sessionCredits', 'paymentStatus']) && ((
+        isSelf(userId) && profileExists() &&
         request.resource.data.role == resource.data.role &&
         request.resource.data.clubId == resource.data.clubId &&
         request.resource.data.firebaseUid == request.auth.uid &&
@@ -228,7 +233,7 @@ service cloud.firestore {
         request.resource.data.clubId == resource.data.clubId &&
         request.resource.data.firebaseUid == resource.data.firebaseUid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'avatar', 'gender', 'age', 'weight', 'height', 'objectifs', 'notes',
+          'name', 'avatar', 'gender', 'age', 'weight', 'height', 'objectifs', 'notes', 'coachingNotesHistory',
           'experienceLevel', 'trainingDays', 'sessionDuration', 'equipment', 'injuries',
           'blessures', 'birthDate', 'phone', 'address', 'measurements', 'status',
           'isSuspended', 'planRequested', 'onboardingCompleted', 'documents', 'updatedAt'
@@ -239,7 +244,7 @@ service cloud.firestore {
           request.resource.data.clubId == resource.data.clubId &&
           request.resource.data.firebaseUid == resource.data.firebaseUid &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'name', 'avatar', 'gender', 'age', 'weight', 'height', 'objectifs', 'notes',
+            'name', 'avatar', 'gender', 'age', 'weight', 'height', 'objectifs', 'notes', 'coachingNotesHistory',
             'experienceLevel', 'trainingDays', 'sessionDuration', 'equipment', 'injuries',
             'blessures', 'birthDate', 'phone', 'address', 'measurements', 'status',
             'isSuspended', 'credits', 'sessionCredits', 'paymentStatus', 'planRequested',
@@ -253,7 +258,7 @@ service cloud.firestore {
         request.resource.data.firebaseUid == resource.data.firebaseUid &&
         request.resource.data.assignedCoachUid == resource.data.assignedCoachUid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'avatar', 'gender', 'age', 'weight', 'height', 'objectifs', 'notes',
+          'name', 'avatar', 'gender', 'age', 'weight', 'height', 'objectifs', 'notes', 'coachingNotesHistory',
           'experienceLevel', 'trainingDays', 'sessionDuration', 'equipment', 'injuries',
           'blessures', 'birthDate', 'phone', 'address', 'measurements', 'status',
           'onboardingCompleted', 'planRequested', 'updatedAt'
@@ -463,18 +468,18 @@ service cloud.firestore {
       allow create: if operationalStaffInClub(request.resource.data.clubId);
     }
     match /expenses/{documentId} {
-      allow read, delete: if resource != null && staffInClub(resource.data.clubId);
-      allow update: if resource != null && clubUnchanged() && staffInClub(resource.data.clubId);
-      allow create: if staffInClub(request.resource.data.clubId);
+      allow read, delete: if resource != null && canAccessGlobalFinances(resource.data.clubId);
+      allow update: if resource != null && clubUnchanged() && canAccessGlobalFinances(resource.data.clubId);
+      allow create: if canAccessGlobalFinances(request.resource.data.clubId);
     }
     match /invoices/{documentId} {
       allow read: if canReadFinancialRecord(resource.data);
       allow write: if false;
     }
     match /fixedCosts/{documentId} {
-      allow read, delete: if resource != null && staffInClub(resource.data.clubId);
-      allow update: if resource != null && clubUnchanged() && staffInClub(resource.data.clubId);
-      allow create: if staffInClub(request.resource.data.clubId);
+      allow read, delete: if resource != null && canAccessGlobalFinances(resource.data.clubId);
+      allow update: if resource != null && clubUnchanged() && canAccessGlobalFinances(resource.data.clubId);
+      allow create: if canAccessGlobalFinances(request.resource.data.clubId);
     }
     match /crmClients/{documentId} {
       allow read, delete: if resource != null && staffInClub(resource.data.clubId);
@@ -487,9 +492,9 @@ service cloud.firestore {
       allow create: if staffInClub(request.resource.data.clubId);
     }
     match /manualStats/{documentId} {
-      allow read, delete: if resource != null && staffInClub(resource.data.clubId);
-      allow update: if resource != null && clubUnchanged() && staffInClub(resource.data.clubId);
-      allow create: if staffInClub(request.resource.data.clubId);
+      allow read, delete: if resource != null && canAccessGlobalFinances(resource.data.clubId);
+      allow update: if resource != null && clubUnchanged() && canAccessGlobalFinances(resource.data.clubId);
+      allow create: if canAccessGlobalFinances(request.resource.data.clubId);
     }
     match /pendingProspects/{documentId} {
       allow read, delete: if resource != null && staffInClub(resource.data.clubId);

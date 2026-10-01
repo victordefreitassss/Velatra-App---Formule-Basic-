@@ -62,13 +62,14 @@ test('commercial entitlements and role permission are separate', () => {
   assert.equal(resolveEntitlement('teamManagement', club('solo', 'studio')), false);
   assert.equal(resolveEntitlement('accessControl', tenant), false);
 });
-test('manager target operations exclude Stripe, finances, owner settings; runtime stays disabled', () => {
+test('manager target operations exclude Stripe, finances, owner settings; runtime is active', () => {
   const tenant = club('studio', 'studio');
   for (const feature of ['clients', 'crm', 'planning', 'retention', 'analytics', 'teamManagement', 'coachAssignments'] as const)
     assert.equal(resolveExperienceCapabilities(tenant, actor('manager'))[feature].targetUsable, true);
   for (const feature of ['stripeConnection', 'finances', 'clubManagement', 'bookingSettings'] as const)
     assert.equal(resolveRolePermission(feature, tenant, actor('manager')), 'none');
-  for (const capability of Object.values(resolveExperienceCapabilities(tenant, actor('manager')))) assert.equal(capability.runtimeUsable, false);
+  assert.equal(resolveExperienceCapabilities(tenant, actor('manager')).clients.runtimeUsable, true);
+  assert.equal(resolveExperienceCapabilities(tenant, actor('manager')).finances.runtimeUsable, false);
   assert.equal(canManageClub({ role: 'manager' } as never, tenant.id), false);
 });
 test('known offers are preview only; legacy runtime capability stays compatible', () => {
@@ -76,7 +77,7 @@ test('known offers are preview only; legacy runtime capability stays compatible'
   assert.equal(known.clients.targetUsable, true);
   assert.equal(known.clients.runtimeUsable, false);
   const legacy = resolveExperienceCapabilities(club('studio'), actor('coach'));
-  assert.equal(legacy.finances.runtimeUsable, true);
+  assert.equal(legacy.finances.runtimeUsable, false);
   assert.equal(legacy.finances.targetUsable, false);
   assert.equal(Object.keys(known).length, Object.keys(CAPABILITY_DEFINITIONS).length);
 });
@@ -99,10 +100,10 @@ test('target navigation: unified Solo, business-first Studio, operational coach,
   assert.deepEqual(resolveExperienceNavigation({ role: 'owner', club: club('studio'), actorClubId: 'other' }).items, []);
   assert.deepEqual(resolveExperienceNavigation({ role: 'superadmin', club: null, trustedSuperAdmin: true }).hubs.map(hub => hub.id), ['admin']);
 });
-test('live navigation remains compatible and manager has no provisioning path', () => {
+test('live navigation preserves Owner surfaces and restricts Studio Coach finance', () => {
   for (const role of ['owner', 'coach'] as const) {
     const context = { role, club: club('studio') };
     assert.deepEqual(getPrimaryHubsForRole(context).map(hub => hub.id), ['home', 'clients', 'coaching', 'planning', 'business']);
-    assert.ok(getAllContextItems(context).some(item => item.id === 'crm_finances'));
+    assert.equal(getAllContextItems(context).some(item => item.id === 'crm_finances'), role === 'owner');
   }
 });

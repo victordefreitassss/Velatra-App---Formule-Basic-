@@ -32,7 +32,7 @@ export const getPlanningMemberId = (locationState: unknown): number | null => ge
 export const getClient360MemberId = (locationState: unknown): number | null => getMemberId(locationState, 'users', 'client360MemberId');
 
 export const resolvePlanningMember = (users: User[], actor: { role?: Role; clubId?: string } | null, locationState: unknown): User | null => {
-  if (!actor?.clubId || !['owner', 'coach', 'superadmin'].includes(actor.role || '')) return null;
+  if (!actor?.clubId || !['owner', 'manager', 'coach', 'superadmin'].includes(actor.role || '')) return null;
   const memberId = getPlanningMemberId(locationState);
   return memberId === null ? null : users.find(user =>
     user.role === 'member' && Number(user.id) === memberId && user.clubId === actor.clubId
