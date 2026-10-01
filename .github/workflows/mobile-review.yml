@@ -28,6 +28,10 @@ jobs:
         run: npm ci
       - name: Isolated component browser tests (not physical iPhone tests)
         run: node scripts/qa/mobile-foundations-browser.mjs
+      - name: Role and format functional experiences (isolated Firebase fixtures)
+        env:
+          VELATRA_ROLE_QA_OUTPUT: ${{ runner.temp }}/role-format-evidence
+        run: node scripts/qa/role-format-experiences-browser.mjs
       - name: Browser evidence (synthetic fixtures only)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -37,5 +41,7 @@ jobs:
             mobile-review-evidence/results.json
             mobile-review-evidence/*.png
             mobile-review-evidence/bundle-map.json
+            ${{ runner.temp }}/role-format-evidence/results.json
+            ${{ runner.temp }}/role-format-evidence/*.png
           retention-days: 7
           if-no-files-found: warn

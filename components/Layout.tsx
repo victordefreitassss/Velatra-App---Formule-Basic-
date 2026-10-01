@@ -20,6 +20,7 @@ import './app-shell.css';
 import './visual-polish.css';
 import './member-mobile.css';
 import { AppPageContent } from './AppPageContent';
+import { useProductFormat } from './useProductFormat';
 
 interface LayoutProps {
   user: User;
@@ -53,6 +54,9 @@ const hubIcon: Record<string, React.FC<any>> = {
   coaching: DumbbellIcon,
   planning: CalendarIcon,
   business: DollarSignIcon,
+  crm: TargetIcon,
+  team: UsersIcon,
+  messages: MessageCircleIcon,
   plus: MenuIcon,
   sessions: DumbbellIcon,
   progression: BarChartIcon,
@@ -80,11 +84,13 @@ export const Layout: React.FC<LayoutProps> = ({
 
   const isSuperAdmin = user.role === 'superadmin';
   const effectiveRole = isSuperAdmin ? adminPerspective : user.role;
+  const productFormat = useProductFormat();
   const navContext: NavigationContext = {
     role: effectiveRole as Role,
     club: club || (user.clubId ? { id: user.clubId } as Club : null),
     trustedSuperAdmin: isSuperAdmin && auth.currentUser?.emailVerified === true,
     planningEnabled,
+    format: productFormat,
   };
   const activeHub = getAppHubForPage(activePage, navContext);
   const primaryHubs = getPrimaryHubsForRole(navContext);
@@ -101,12 +107,12 @@ export const Layout: React.FC<LayoutProps> = ({
       { id: 'admin', label: 'Accueil', icon: ShieldIcon },
       { id: 'plus', label: 'Plus', icon: MenuIcon },
     ];
-    return primaryHubs.map(hub => ({
+    return getPrimaryHubsForRole({ ...navContext, format: 'phone' }).map(hub => ({
       id: hub.id === 'plus' ? 'plus' : hub.page,
       label: hub.label,
       icon: hubIcon[hub.id] || MenuIcon,
     }));
-  }, [effectiveRole, primaryHubs.map(hub => hub.page).join('|')]);
+  }, [effectiveRole, club, planningEnabled]);
 
   const roleLabel = effectiveRole === 'superadmin' ? 'Console de gestion' : effectiveRole === 'manager' ? 'Espace Manager' : (effectiveRole === 'coach' || effectiveRole === 'owner' ? 'Espace coach' : 'Espace adhérent');
 
@@ -129,7 +135,7 @@ export const Layout: React.FC<LayoutProps> = ({
   const [mobileSlideDirection, setMobileSlideDirection] = React.useState(1);
   const [isVirtualKeyboardOpen, setIsVirtualKeyboardOpen] = React.useState(false);
   const reduceMotion = useReducedMotion();
-  const activeMobileTabId = showPlusSheet && effectiveRole === 'member' ? 'plus' : getMobileTabForPage(activePage, navContext);
+  const activeMobileTabId = showPlusSheet && mobileTabs.some(tab => tab.id === 'plus') ? 'plus' : getMobileTabForPage(activePage, navContext);
 
   React.useEffect(() => {
     const updateKeyboardState = () => {
@@ -618,7 +624,7 @@ export const Layout: React.FC<LayoutProps> = ({
                 {isSelected && <motion.span key={`pill-${item.id}`} layoutId="va-mobile-active-pill" className="va-mobile-active-pill" style={{ transformOrigin: mobileSlideDirection > 0 ? 'left center' : 'right center' }} initial={reduceMotion ? false : { scaleX: .86, opacity: .92 }} animate={reduceMotion ? { scaleX: 1, opacity: 1 } : { scaleX: [1, 1.12, .97, 1], opacity: 1 }} transition={reduceMotion ? { duration: .01 } : { scaleX: { duration: .42, times: [0, .35, .72, 1], ease: [.2, .8, .2, 1] }, layout: { type: 'spring', stiffness: 420, damping: 34, mass: .7 } }} />}
                 <Icon size={19} strokeWidth={isSelected ? 2.3 : 1.9} />
                 <span>{item.label}</span>
-                {((!isMore && item.id === 'users') || (isMore && effectiveRole === 'member')) && unreadMessagesCount > 0 && <span className="va-mobile-unread-dot" aria-label={`${unreadMessagesCount} messages non lus`} />}
+                {((!isMore && (item.id === 'users' || item.id === 'chat')) || (isMore && effectiveRole === 'member')) && unreadMessagesCount > 0 && <span className="va-mobile-unread-dot" aria-label={`${unreadMessagesCount} messages non lus`} />}
               </motion.button>
             );
           })}

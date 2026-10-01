@@ -15,7 +15,7 @@ const lucas = 901;
 const soloOwner = { id: 10, role: 'owner', clubId: 'solo', firebaseUid: 'solo-owner' } as User;
 const studioOwner = { id: 20, role: 'owner', clubId: 'studio', firebaseUid: 'studio-owner' } as User;
 const studioCoach = { id: 21, role: 'coach', clubId: 'studio', firebaseUid: 'studio-coach' } as User;
-const member = { id: lucas, role: 'member', clubId: 'studio', firebaseUid: 'lucas', name: 'Lucas' } as User;
+const member = { id: lucas, role: 'member', clubId: 'studio', firebaseUid: 'lucas', assignedCoachUid: 'studio-coach', name: 'Lucas' } as User;
 
 it('Client 360 → Planifier carries only Lucas’s numeric ID on the Planning history entry', () => {
   const planning = createPlanningLocationState(lucas);

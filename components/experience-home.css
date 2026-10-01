@@ -1,0 +1,6 @@
+/* Composition only: keep the existing cards, palette and controls. */
+.va-experience-home { min-width: 0; }
+.va-content .va-experience-home button.va-button { min-height: 44px; max-width: 100%; }
+.va-experience-home :is(article, li, dd, h3) { overflow-wrap: anywhere; }
+.va-experience-large-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, .85fr); gap: 1.25rem; align-items: start; }
+.va-experience-large-grid > aside { position: sticky; top: 1.25rem; }

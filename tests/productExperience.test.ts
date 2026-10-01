@@ -87,11 +87,11 @@ test('format thresholds and field vs preparation priorities', () => {
   assert.ok(resolvePresentationStrategy('SOLO_OWNER', 'desktop').priorities.includes('business'));
   assert.ok(!resolvePresentationStrategy('STUDIO_COACH', 'desktop').priorities.includes('business'));
 });
-test('target navigation: unified Solo, business-first Studio, operational coach, unchanged five Member roots', () => {
+test('target navigation: unified Solo, organization-first Studio, operational coach, unchanged five Member roots', () => {
   const nav = (role: ProductRole, type: 'solo' | 'studio') => resolveExperienceNavigation({ role, club: club(type, type === 'solo' ? 'coach' : 'studio') });
   const solo = nav('owner', 'solo');
   for (const id of ['users', 'coaching', 'presets', 'calendar', 'crm_pipeline', 'crm_finances', 'chat']) assert.ok(solo.items.some(item => item.id === id));
-  for (const role of ['owner', 'manager'] as const) assert.equal(nav(role, 'studio').hubs[1].id, 'business');
+  for (const role of ['owner', 'manager'] as const) assert.equal(nav(role, 'studio').hubs[1].id, 'clients');
   const coach = nav('coach', 'studio');
   for (const id of ['crm_finances', 'crm_pipeline', 'settings']) assert.ok(!coach.items.some(item => item.id === id));
   assert.ok(coach.items.some(item => item.id === 'crm_tasks' && item.hub === 'planning'));
@@ -103,7 +103,7 @@ test('target navigation: unified Solo, business-first Studio, operational coach,
 test('live navigation preserves Owner surfaces and restricts Studio Coach finance', () => {
   for (const role of ['owner', 'coach'] as const) {
     const context = { role, club: club('studio') };
-    assert.deepEqual(getPrimaryHubsForRole(context).map(hub => hub.id), ['home', 'clients', 'coaching', 'planning', 'business']);
+    assert.deepEqual(getPrimaryHubsForRole(context).map(hub => hub.id), role === 'owner' ? ['home', 'clients', 'crm', 'planning', 'team', 'business', 'coaching', 'messages'] : ['home', 'clients', 'coaching', 'planning', 'messages']);
     assert.equal(getAllContextItems(context).some(item => item.id === 'crm_finances'), role === 'owner');
   }
 });

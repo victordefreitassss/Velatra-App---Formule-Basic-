@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { AppState, Booking } from '../types';
@@ -9,7 +9,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { trackProductEventOnce } from '../components/productEvents';
 import { addParisDays, attachBookingsToSlots, generatePlanningSlots, parisDateKey, parisWeekKeys, shiftPlanningWeek } from '../components/planningSlots';
 import { getProductCapabilities } from '../productCapabilities';
-import { createClient360LocationState, resolvePlanningMember } from '../components/dashboardNavigation';
+import { createClient360LocationState, getPlanningBookingId, resolvePlanningMember } from '../components/dashboardNavigation';
+
+import { useProductFormat } from '../components/useProductFormat';
+import { selectHomeBookings } from '../components/experienceHomeSelectors';
 
 const containerVariants: import('framer-motion').Variants = {
   hidden: { opacity: 0 },
@@ -28,6 +31,8 @@ const itemVariants: import('framer-motion').Variants = {
 
 export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
   const location = useLocation();
+  const productFormat = useProductFormat();
+  const consumedBookingContext = useRef<string | null>(null);
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
@@ -55,8 +60,18 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
     role: state.user?.role, clubId: state.user?.clubId,
   }).sharedPlanning.usable;
   useEffect(() => {
-    if (window.matchMedia('(min-width: 1024px)').matches) setView('week');
+    if (productFormat === 'desktop' || productFormat === 'largeDesktop') setView('week');
   }, []);
+  useEffect(() => {
+    if (!isCoach || consumedBookingContext.current === location.key) return;
+    const id = getPlanningBookingId(location.state);
+    if (!id) return;
+    const booking = selectHomeBookings(state).find(item => item.id === id);
+    if (!booking) return;
+    consumedBookingContext.current = location.key;
+    setSelectedDate(new Date(booking.startTime));
+    setSelectedDetail(booking);
+  }, [location.key, state.bookings, state.users, state.user]);
   useEffect(() => {
     if (!isBookingModalOpen && !selectedDetail && !confirmCancelBookingId) return;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;

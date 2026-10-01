@@ -37,7 +37,8 @@ interface CoachDashboardProps {
 
 export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState, onToggleTimer, showToast }) => {
   const reduceMotion = useReducedMotion();
-  const members = (state.users || []).filter(u => u.role === 'member' && u.clubId === state.user?.clubId);
+  const canSeeFinance = getProductCapabilities(state.currentClub, { role: state.user?.role, clubId: state.user?.clubId }).finances.usable;
+  const members = (state.users || []).filter(u => u.role === 'member' && u.clubId === state.user?.clubId && (state.user?.role !== 'coach' || !!state.user.firebaseUid && u.assignedCoachUid === state.user.firebaseUid));
 
   // 1. Actions Urgentes
   const planRequests = members.filter(u => u.planRequested);
@@ -77,9 +78,9 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
 
     return !hasRecentDoneTask;
   });
-  const failedSubs = (state.subscriptions || []).filter(s => (s.status === 'past_due' || s.status === 'unpaid') && s.clubId === state.user?.clubId);
+  const failedSubs = (canSeeFinance ? state.subscriptions || [] : []).filter(s => (s.status === 'past_due' || s.status === 'unpaid') && s.clubId === state.user?.clubId);
 
-  const endingSubs = (state.subscriptions || []).filter(s => {
+  const endingSubs = (canSeeFinance ? state.subscriptions || [] : []).filter(s => {
     if (s.clubId !== state.user?.clubId || s.status !== 'active') return false;
     const targetDate = s.endDate || s.commitmentEndDate;
     if (!targetDate) return false;
@@ -120,7 +121,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
   });
 
   // 5. Votre activité
-  const activeSubscriptions = (state.subscriptions || []).filter(s => s.status === 'active' && s.clubId === state.user?.clubId);
+  const activeSubscriptions = (canSeeFinance ? state.subscriptions || [] : []).filter(s => s.status === 'active' && s.clubId === state.user?.clubId);
   const mrr = activeSubscriptions.reduce((acc, sub) => {
     if (sub.billingCycle === 'monthly') return acc + (sub.price || 0);
     if (sub.billingCycle === 'yearly') return acc + ((sub.price || 0) / 12);
@@ -168,7 +169,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
 
     const clubId = state.user?.clubId;
     const clubLogs = (state.logs || []).filter(l => l.clubId === clubId);
-    const clubPayments = (state.payments || []).filter(p => p.status === 'paid' && p.clubId === clubId);
+    const clubPayments = (canSeeFinance ? state.payments || [] : []).filter(p => p.status === 'paid' && p.clubId === clubId);
 
     const sThisWeek = clubLogs.filter(l => {
       const d = new Date(l.date).getTime();
@@ -210,7 +211,7 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
       revenueThisYear: rThisYear,
       revenueThisWeek: rThisWeek
     };
-  }, [state.logs, state.payments, state.user?.clubId]);
+  }, [state.logs, canSeeFinance ? state.payments : null, state.user?.clubId, canSeeFinance]);
 
   const [showAnnual, setShowAnnual] = useState(false);
   const [followupPriorities, setFollowupPriorities] = useState<{ memberUid: string; memberName: string; templateName: string; status: string }[]>([]);
@@ -374,8 +375,6 @@ export const CoachDashboard: React.FC<CoachDashboardProps> = ({ state, setState,
     return days;
   }, [state.logs, state.user?.clubId]);
 
-  const actor = { role: state.user?.role, clubId: state.user?.clubId };
-  const canSeeFinance = getProductCapabilities(state.currentClub, actor).finances.usable;
   const allowedPages = getAllContextItems({ role: state.user?.role || 'member', club: state.currentClub }).map(item => item.id);
   const hasFirstValue = hasAssignedProgram(members, state.programs || []);
   const dashboardStage = getCoachDashboardStage({
