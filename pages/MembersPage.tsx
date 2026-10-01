@@ -1,3 +1,4 @@
+import { authorizationActor, canAssignMembers } from '../server/authorization';
 import { billingRequest, downloadReceipt } from '../components/billingClient';
 import { netPayment, paymentStatusLabels, subscriptionStatusLabels } from '../components/billingMetrics';
 import { canManageClub, getProductCapabilities, resolveAccountType } from '../productCapabilities';
@@ -439,7 +440,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const clientSections = getClient360Sections(state.currentClub, assignmentActor);
   const adminSections = getClient360AdminSections(state.currentClub, assignmentActor);
   const quickActions = getClient360QuickActions(clientSections);
-  const canAssignCoach = canManageClub(assignmentActor, state.currentClub?.id) &&
+  const canUseAI = getProductCapabilities(state.currentClub, assignmentActor).aiAssistance.usable;
+  const canAssignCoach = canAssignMembers(authorizationActor(assignmentActor, state.currentClub, assignmentActor.trustedSuperAdmin), state.currentClub?.id) &&
     getProductCapabilities(state.currentClub, assignmentActor).coachAssignments.usable;
   const handleAssignCoach = async () => {
     if (!canAssignCoach) return;
@@ -629,6 +631,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       const newProg: Program = {
         id: createNumericId(),
         clubId: member.clubId,
+        ...(member.assignedCoachUid ? { assignedCoachUid: member.assignedCoachUid } : {}),
         memberId: Number(member.id),
         name: `Plan - ${member.name.split(' ')[0]}`,
         presetId: null,
@@ -1169,14 +1172,17 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       const mid = Number(selectedProfile.id);
       const existingProg = state.programs.find(p => Number(p.memberId) === mid && !p.isPlannedSession);
       if (existingProg) {
-        await deleteDoc(doc(db, "programs", existingProg.id.toString()));
+        if (state.user?.role === 'manager') {
+          const archiveId = createNumericId();
+          await setDoc(doc(db, 'archivedPrograms', String(archiveId)), { ...existingProg, id: archiveId, endDate: localDateKey(), status: 'replaced' });
+        } else await deleteDoc(doc(db, "programs", existingProg.id.toString()));
       }
-      
-      const newProgId = createNumericId();
+      const newProgId = state.user?.role === 'manager' && existingProg ? existingProg.id : createNumericId();
       const newProgram: Program = {
         id: newProgId,
         clubId: selectedProfile.clubId,
         memberId: mid,
+        ...(selectedProfile.assignedCoachUid ? { assignedCoachUid: selectedProfile.assignedCoachUid } : {}),
         name: preset.name,
         presetId: preset.id,
         nbDays: preset.nbDays,
@@ -1531,7 +1537,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         firebaseUid: ''
       };
 
-      const studioCoachUid = state.user.role === 'owner' && resolveAccountType(state.currentClub) === 'studio'
+      const studioCoachUid = ['owner', 'manager'].includes(state.user.role) && resolveAccountType(state.currentClub) === 'studio'
         ? newMemberData.coachUid || null : null;
       const { created, emailStatus } = await createMemberAndSendAccess(
         () => createMemberAccount(newUser as unknown as Record<string, unknown>, undefined, studioCoachUid),
@@ -1556,7 +1562,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const [isStripeConnected,setIsStripeConnected] = useState(false);
-  useEffect(()=>{let alive=true;apiFetch('/api/stripe/status').then(r=>r.ok?r.json():{}).then((r:any)=>{if(alive)setIsStripeConnected(r.connected===true);}).catch(()=>{});return()=>{alive=false;};},[state.user?.clubId]);
+  useEffect(()=>{let alive=true;if(state.user?.role==='manager')return;apiFetch('/api/stripe/status').then(r=>r.ok?r.json():{}).then((r:any)=>{if(alive)setIsStripeConnected(r.connected===true);}).catch(()=>{});return()=>{alive=false;};},[state.user?.clubId]);
 
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
 
@@ -1961,7 +1967,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         </div>
                         {selectedProfile.status === 'paused' ? (
                           <span className="rounded-full bg-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-800">En pause</span>
-                        ) : <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-900">{subscriptionStatusLabels[stats.subscription.status]}</span>}
+                        ) : <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-900">{stats.subscription ? subscriptionStatusLabels[stats.subscription.status] : 'Actif'}</span>}
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
@@ -1978,11 +1984,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                           <p className="mt-1 text-sm font-semibold text-zinc-900">{lastActivity ? new Date(lastActivity.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Aucune séance enregistrée'}</p>
                           {lastActivity && <p className="mt-1 text-xs text-zinc-700">{lastActivity.dayName || 'Séance'}</p>}
                         </div>
-                        <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
+                        {adminSections.some(section => section.id === 'billing') && <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
                           <p className="text-xs font-medium text-zinc-700">Abonnement</p>
                           <p className="mt-1 text-sm font-semibold text-zinc-900">{stats.subscription?.planName || 'Aucun abonnement actif'}</p>
                           {stats.subscription && <p className="mt-1 text-xs text-zinc-700">{stats.subscription.price.toFixed(2)} € · {stats.subscription.billingCycle === 'yearly' ? 'annuel' : stats.subscription.billingCycle === 'monthly' ? 'mensuel' : 'paiement unique'}</p>}
-                        </div>
+                        </div>}
                         <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
                           <p className="text-xs font-medium text-zinc-700">Coach référent</p>
                           <p className="mt-1 text-sm font-semibold text-zinc-900">{assignedCoach?.name || (resolveAccountType(state.currentClub) === 'studio' ? 'Coach à attribuer' : 'Référent indisponible')}</p>
@@ -2484,9 +2490,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                   <a href={doc.url} target="_blank" rel="noopener noreferrer" className="p-2 text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-colors">
                                     <EyeIcon size={18} />
                                   </a>
-                                  <button onClick={() => handleDeleteOfficialDocument(doc.id)} className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-colors">
+                                  {state.user?.role !== 'manager' && <button onClick={() => handleDeleteOfficialDocument(doc.id)} className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-colors">
                                     <Trash2Icon size={18} />
-                                  </button>
+                                  </button>}
                                 </div>
                               </div>
                             ))
@@ -2547,9 +2553,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                   <a href={file.url} target="_blank" rel="noopener noreferrer" className="p-2 text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-xl transition-colors">
                                     <EyeIcon size={18} />
                                   </a>
-                                  <button onClick={() => setConfirmDeleteFileId(file.id)} className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-colors">
+                                  {(state.user?.role !== 'manager' || file.uploadedBy === state.user.id) && <button onClick={() => setConfirmDeleteFileId(file.id)} className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-colors">
                                     <Trash2Icon size={18} />
-                                  </button>
+                                  </button>}
                                 </div>
                               </div>
                             ))
@@ -2564,7 +2570,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   )}
 
                   {/* FINANCES & FACTURATION */}
-                  {memberTab === 'administrative' && adminSection === 'billing' && (
+                  {state.user?.role !== 'manager' && memberTab === 'administrative' && adminSection === 'billing' && (
 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
     <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
@@ -3282,7 +3288,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                               </div>
                             </button>
 
-                            <button
+                            {canUseAI && <button
                               type="button"
                               onClick={() => {
                                 openAIGeneratorModal();
@@ -3296,7 +3302,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                 <div className="text-[9px] font-black uppercase text-zinc-900 tracking-wider">Générer via IA</div>
                                 <div className="text-[7px] text-zinc-400 font-bold uppercase mt-0.5">Moteur Velatra AI</div>
                               </div>
-                            </button>
+                            </button>}
 
                             <button
                               type="button"
@@ -3353,7 +3359,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             <span className="text-[7px] text-zinc-400 font-extrabold uppercase mt-0.5">Créer</span>
                           </button>
 
-                          <button 
+                          {canUseAI && <button
                             type="button"
                             onClick={openAIGeneratorModal} 
                             disabled={isGeneratingProgram} 
@@ -3362,7 +3368,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             <SparklesIcon size={14} className="text-emerald-500 mb-1.5 group-hover:scale-110 transition-transform" />
                             <span className="text-[8px] font-black uppercase tracking-wider text-emerald-600 leading-tight">Moteur IA</span>
                             <span className="text-[7px] text-emerald-400 font-extrabold uppercase mt-0.5">Générer</span>
-                          </button>
+                          </button>}
 
                           <button 
                             type="button"
@@ -3442,7 +3448,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </section>
                   )}
 
-                  {memberTab === 'coaching' && (
+                  {memberTab === 'coaching' && getProductCapabilities(state.currentClub, state.user).aiAssistance.usable && (
                   <section className="space-y-8">
                     <details className="va-member-assistance"><summary className="va-assistance-heading flex items-center gap-3">
                        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900"><BotIcon size={21} /></div>

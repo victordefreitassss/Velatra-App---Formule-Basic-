@@ -45,7 +45,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   const [liveResult, setLiveResult] = useState('');
   const [confirmCancelBookingId, setConfirmCancelBookingId] = useState<string | null>(null);
 
-  const isCoach = state.user?.role === 'coach' || state.user?.role === 'owner';
+  const isCoach = state.user?.role === 'coach' || state.user?.role === 'owner' || state.user?.role === 'manager';
   const contextualMember = isCoach ? resolvePlanningMember(state.users, state.user, location.state) : null;
 
   useEffect(() => {

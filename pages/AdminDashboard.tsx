@@ -74,7 +74,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
   const [editUserName, setEditUserName] = useState('');
   const [editUserEmail, setEditUserEmail] = useState('');
   const [editUserPhone, setEditUserPhone] = useState('');
-  const [editUserRole, setEditUserRole] = useState<'superadmin' | 'owner' | 'coach' | 'member'>('member');
+  const [editUserRole, setEditUserRole] = useState<'superadmin' | 'owner' | 'manager' | 'coach' | 'member'>('member');
   const [editUserClubId, setEditUserClubId] = useState('');
 
   // Broadcasting states
@@ -492,6 +492,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
       if (userFilterRole !== 'Tous') {
         if (userFilterRole === 'Super Admin' && user.role !== 'superadmin') return false;
         if (userFilterRole === 'Owner' && user.role !== 'owner') return false;
+        if (userFilterRole === 'Manager' && user.role !== 'manager') return false;
         if (userFilterRole === 'Coach' && user.role !== 'coach') return false;
         if (userFilterRole === 'Athlete' && user.role !== 'member') return false;
       }
@@ -1147,7 +1148,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
                     <option value="Tous">Tous</option>
                     <option value="Super Admin">Super Admin</option>
                     <option value="Owner">Club Owner</option>
-                    <option value="Coach">Coach / Staff</option>
+                    <option value="Manager">Manager</option><option value="Coach">Coach / Staff</option>
                     <option value="Athlete">Athlète Élite</option>
                   </select>
                 </div>
@@ -1196,7 +1197,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
                       const roleLabels: Record<string, string> = {
                         superadmin: 'Super Admin',
                         owner: 'Owner Club',
-                        coach: 'Coach Principal',
+                        manager: 'Manager Studio', coach: 'Coach',
                         member: 'Athlète Élite'
                       };
 
@@ -1658,6 +1659,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
                     <option value="member">Athlète Élite</option>
                     <option value="coach">Coach / Staff</option>
                     <option value="owner">Club Owner</option>
+                    {editUserRole === "manager" && <option value="manager" disabled>Manager Studio</option>}
                     <option value="superadmin">Super Admin</option>
                   </select>
                 </div>

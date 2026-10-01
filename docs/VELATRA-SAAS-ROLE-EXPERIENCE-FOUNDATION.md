@@ -1,12 +1,12 @@
 # Velatra — fondation 12A et autorisation granulaire 12A.1
 
-## État actuel — 12A.1
+## État actuel — 12A.3
 
-La préparation des autorisations backend Manager est implémentée sur `feat/saas-role-experience-foundation`, à partir du HEAD `417584d32142b5d36b37ebd6765b8ff88d97f327`. Commit d’implémentation 12A.1 : `9bab6d1`. Les nouvelles permissions sont contrôlées par opération dans les API, Firestore et Storage ; les privilèges sensibles restent séparés. PR unique : https://github.com/victordefreitassss/Velatra-App---Formule-Basic-/pull/28.
+Manager est un rôle authentifié actif, réservé aux clubs portant explicitement `accountType: studio`. L’Owner Studio le crée dans l’équipe ; le Manager utilise les routes opérationnelles existantes sans les pouvoirs sensibles Owner. Branche : `feat/studio-manager-activation`, depuis `1af25e0604e8a58fe0ad3902b0f82e693e3f0c2b`.
 
-Manager reste dormant dans l'interface : `Role`/`User.role` conservent les quatre rôles historiques, aucun provisioning Manager n'est ajouté, `runtimeUsable` reste false et un profil non supporté est déconnecté avant les listeners live. Aucun plan SaaS n'est attribué. Les règles modifiées nécessitent un déploiement séparé après review. Aucun merge ni déploiement n'a été effectué.
+12A / 12A.1 sont mergées et 12A.2 a publié leurs règles. Les sections d’audit et de livraison précédentes ci-dessous sont conservées comme historique. Leurs mentions « Manager dormant » décrivent cet ancien état ; la section **12A.3 MANAGER ACTIVATION** en fin de document décrit l’implémentation actuelle. Aucun audit général n’a été recommencé.
 
-Les sections d'audit ci-dessous sont conservées comme historique de 12A ; aucun nouvel audit général n'a été entrepris. La section 12A.1 en fin de document décrit les changements actuels.
+Les ajustements de règles 12A.3 nécessitent une release Firebase distincte après review. Cette mission ne merge et ne déploie pas.
 
 ## Livraison initiale 12A — historique
 
@@ -191,3 +191,55 @@ Migrations : aucune. Secrets/connexion Stripe de production : non modifiés. Mer
 ### Reprise 12A
 
 Le blocage backend de granularité des droits est traité. Après review et livraison coordonnée du serveur/des règles, la politique permet l'introduction technique d'un Manager Studio sans pouvoirs sensibles Owner. Restent nécessaires : provisioning Manager sécurisé, extension cohérente du rôle live, listeners/routes/navigation et activation UI contrôlée, restrictions cibles Studio Coach avec maintien explicite de la compatibilité legacy, validation/provisioning du catalogue SaaS. Aucun de ces éléments n'est activé par 12A.1.
+
+## 12A.3 MANAGER ACTIVATION
+
+### Provisioning et sessions
+
+Le modèle live est `superadmin | owner | manager | coach | member` ; `ProductRole` partage ce modèle. `POST /api/create-manager` réutilise `createStaffAccount`, avec un rôle sélectionné par la route. Seul l’Owner du Studio identifié par `club.ownerId` peut appeler cette route. `POST /api/create-staff` continue à créer uniquement un Coach : Owner, Manager Studio et exceptions Superadmin existantes. Les champs rôle/identité/privilèges envoyés par le navigateur ne sont jamais copiés. Une transaction revérifie le profil, la suspension, le club et son Owner après création Auth ; en cas de révocation, le compte Auth sans profil est supprimé par compensation.
+
+Le profil Manager charge d’abord le club canonique, puis reste connecté uniquement dans un Studio explicite et du même tenant. Manager + Solo, club absent, club legacy et compte suspendu ferment la session avant les listeners du tenant. Les lectures async obsolètes ne peuvent restaurer une ancienne session. Une mutation ultérieure du type de club ferme aussi l’expérience Manager. Les autres rôles attendent leur club avant les listeners pour éviter une souscription financière Coach pendant le chargement.
+
+La suspension/réactivation équipe utilise `isSuspended`, sans mutation du rôle, du club ou de l’identité. Owner gère les Coachs/Managers ; Manager gère les Coachs, jamais l’Owner, un autre Manager ni lui-même. La suspension révoque les accès API et les accès Firestore/Storage protégés avec les tokens existants ; la lecture de son propre profil reste possible pour constater la suspension.
+
+### Politique et navigation
+
+| Expérience | Comportement effectif |
+| --- | --- |
+| Solo Owner | Expérience unifiée CRM, clients, coaching, planning, business, finances et messages conservée. Aucun Manager Solo. |
+| Studio Owner | Pouvoirs Owner conservés, création Coach/Manager, équipe et affectations. Stripe/billing sensibles restent Owner. |
+| Studio Manager | Portefeuille Studio, Client 360, programmes, CRM, planning global, suivi et équipe. Création Coach, suspension Coach et affectation. Aucun Stripe, billing sensible, configuration organisation, mutation Owner, promotion de rôle ou suppression de comptes/organisation. |
+| Studio Coach | Clients et données affectés, opérations coach conservées. Finances globales, analytics financiers, paramètres sensibles, Stripe/configuration et gestion globale équipe retirés des destinations et des raccourcis. |
+| Member | Cinq racines inchangées : Accueil, Séances, Progression, Nutrition, Plus. |
+| Superadmin | Console séparée conservée, filtre/étiquette Manager Studio, pas de nouveau flow d’attribution arbitraire Manager dans l’éditeur plateforme. |
+| Legacy | Aucun type déduit de plan/nom/canAddStaff. Rôles/routes historiques et flag équipe conservés ; Manager refusé sans Studio explicite. |
+
+Les hubs Manager réutilisent Accueil / Clients / Coaching / Planning / Business. Coaching contient programmes/nutrition/documents, sans la séance personnelle Coach. CRM et Équipe sont de vraies destinations Business ; le profil personnel remplace les paramètres organisation. Recherche, destinations secondaires/mobile et actions de création partagent les capacités filtrées. Le guard des routes refuse aussi les destinations sensibles demandées directement.
+
+`STUDIO_MANAGER.runtimeUsable` utilise compte, rôle, permissions et entitlements connus, avec compatibilité explicite du Studio sans offre SaaS attribuée ; une offre inconnue ferme les fonctions concernées. Aucun prix/quota commercial, paiement SaaS, upgrade, downgrade ou migration n’est ajouté. Les autres expériences conservent la compatibilité de la fondation 12A.
+
+### Clients, CRM, planning et responsabilités
+
+Manager charge les utilisateurs et données opérationnelles de son Studio. Client 360 conserve programmes, progression, notes, suivi, planning, profil, documents et contact Coach canonique. La facturation et le résumé d’abonnement sont retirés. Un dossier sans abonnement ne plante plus. Les historiques de notes staff sont bornés à 200 entrées et ne sont pas éditables par le Member.
+
+L’affectation utilise le service 12A.1 : le tenant et l’historique restent conservés, seuls les pointeurs Coach et leurs index changent. Les nouveaux programmes reprennent le Coach affecté, jamais automatiquement le Manager. Le remplacement d’un modèle par Manager archive le programme précédent puis met à jour le programme existant sans suppression. Les purges automatiques de programmes, feed et nutrition ne sont pas lancées dans une session Manager. Le démarrage d’une séance personnelle et les assistants IA dont le serveur n’autorise pas Manager restent exclus.
+
+CRM réutilise pipeline, création de prospect, tâches/relances, essais et conversion existants. Le formulaire d’essai Manager impose le choix d’un vrai Coach ; le serveur vérifie ce Coach. Le planning réutilise les opérations globales déjà sécurisées, avec sélection d’adhérent et retour Client 360. Les permissions Coach/Member et la capacité des créneaux restent contrôlées serveur.
+
+Équipe utilise un composant partagé entre la route Équipe et les paramètres Owner ; l’ancien moteur Auth/UI n’est pas dupliqué. Documents utilise la vue staff existante ; Manager peut gérer ses propres fichiers Drive, pas supprimer/partager ceux d’un autre collaborateur. Les actions de suppression de documents administratifs sont masquées pour Manager.
+
+### Protections et règles à livrer séparément
+
+Les listeners Manager n’attachent jamais plans, subscriptions, payments, invoices, expenses, fixedCosts, manualStats ni les collections financières CRM héritées. Les anciens tableaux sont vidés. Dashboard/Client 360/raccourcis masquent les surfaces financières. Aucun appel Stripe/status n’est lancé par Manager. Les refus API/Rules 12A.1 restent la frontière de sécurité, y compris après manipulation du navigateur.
+
+Les seules lacunes de règles corrigées par l’activation sont : révocation effective d’un profil suspendu, notes Client 360 staff, refus des collections financières globales expenses/fixedCosts/manualStats pour Studio Coach. Coach legacy reste compatible. Le helper `profile()` lit directement le document après les guards pour conserver le budget d’évaluation des règles (cas messages/feedback/Manager régressés puis validés sur émulateur).
+
+**FIRESTORE RULES CHANGED = YES**. **STORAGE RULES CHANGED = YES**. **DEPLOYMENT REQUIRED = YES**. Aucun déploiement Firebase effectué. La release des nouvelles règles Firestore (deux bases) et Storage doit être coordonnée avec le code après review ; 12A.2 ne contient pas ces ajustements 12A.3.
+
+### Validation et limites avant 12B
+
+12 nouveaux tests couvrent activation/profil/entitlements/listeners/navigation, compatibilité Solo/legacy, provisioning Auth + login réel + compensation transactionnelle, suspension, queries tenant, notes et finances Studio Coach. Les tests existants d’affectation/historique, CRM/planning, Stripe/billing, inter-clubs, élévation de rôle, Coach, Member et Superadmin sont conservés. Développement : 47 tests purs ciblés et 43 tests HTTP/Rules ciblés sur les émulateurs locaux passent.
+
+QA navigateur isolée : `scripts/qa/studio-manager-activation-browser.mjs`, profils et snapshots Firebase simulés, API d’autorisation testées séparément avec Auth réel sur émulateur. Formats 390×844, 820×1180, 1440×1000 : connexion/tenant/listeners, Accueil, Client 360 sans billing, programmes, planning, CRM, Équipe/formulaires Owner et Manager, documents, paramètres Coach refusés, invalidité Solo/legacy. Aucun accès ou write production. Validation complète finale unique : `npm run lint` PASS, `npm run build` PASS (avertissements Vite de taille de chunks conservés), `npm run test:emulators` PASS — 342 tests applicatifs + 5 gardes CI, 0 échec — et `git diff --check` PASS. QA responsive : 44 contrôles, 0 échec.
+
+Restent pour 12B les vrais accueils opérationnels Solo/Manager/Coach et les différences phone/desktop. Pas de redesign, de Sales V2, de SaaS Admin complet, de nouveaux rôles, de tarification/quota commercial ou d’invitation e-mail dédiée. Provisioning actuel : compte créé avec identifiants, pas de nouvel e-mail envoyé. Une validation sur Studio de recette après livraison coordonnée code/règles restera nécessaire ; la QA de cette mission ne prétend pas tester la production.

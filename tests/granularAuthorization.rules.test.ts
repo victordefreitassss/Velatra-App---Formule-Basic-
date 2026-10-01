@@ -2,7 +2,7 @@ import { before, after, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { initializeTestEnvironment, assertFails, assertSucceeds, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, getDoc, setDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs, collection, query, where } from 'firebase/firestore';
 import { ref, uploadBytes, getBytes, deleteObject } from 'firebase/storage';
 let env: RulesTestEnvironment;
 const tenant = 'authz-studio';
@@ -76,4 +76,45 @@ it('Storage supports Manager member documents and own Drive assets but protects 
   const ownerAvatar = ref(storage('owner'), 'avatars/authz-owner/owner-kept.png');
   await assertSucceeds(uploadBytes(ownerAvatar, content, { contentType: 'image/png' }));
   await assertFails(deleteObject(ref(manager, ownerAvatar.fullPath)));
+});
+it('Manager live queries load the tenant, collaborators and clients without cross-tenant exposure', async () => {
+  await assertSucceeds(getDoc(doc(db(), `clubs/${tenant}`)));
+  const users = await assertSucceeds(getDocs(query(collection(db(), 'users'), where('clubId', '==', tenant))));
+  assert.ok(users.docs.some(user => user.data().role === 'member'));
+  assert.ok(users.docs.some(user => user.data().role === 'owner'));
+  await assertFails(getDocs(query(collection(db(), 'users'), where('clubId', '==', 'authz-other'))));
+  await assertSucceeds(getDocs(query(collection(db(), 'programs'), where('clubId', '==', tenant))));
+  await assertSucceeds(getDocs(query(collection(db(), 'prospects'), where('clubId', '==', tenant))));
+  await assertSucceeds(getDocs(query(collection(db(), 'tasks'), where('clubId', '==', tenant))));
+});
+it('Client360 staff note history is bounded and cannot be forged by a Member', async () => {
+  const coachingNotesHistory = [{ id: 'note', date: '2026-10-01', content: 'Follow-up' }];
+  await assertSucceeds(updateDoc(doc(db(), 'users/authz-member'), { coachingNotesHistory }));
+  await assertFails(updateDoc(doc(db(), 'users/authz-member'), { coachingNotesHistory: Array(201).fill(coachingNotesHistory[0]) }));
+  await assertFails(updateDoc(doc(db('member'), 'users/authz-member'), { coachingNotesHistory: [] }));
+});
+it('Owner suspends/reactivates Manager, Manager manages Coach suspension only, existing data tokens lose access', async () => {
+  for (const role of ['manager', 'coach', 'member']) {
+    await assertSucceeds(updateDoc(doc(db('owner'), `users/authz-${role}`), { isSuspended: true }));
+    await assertFails(getDoc(doc(db(role), `clubs/${tenant}`)));
+    await assertFails(updateDoc(doc(db(role), `users/authz-${role}`), { name: 'Suspended edit' }));
+    await assertFails(uploadBytes(ref(storage(role), `avatars/authz-${role}/suspended.png`), new Uint8Array([1]), { contentType: 'image/png' }));
+    await assertSucceeds(updateDoc(doc(db('owner'), `users/authz-${role}`), { isSuspended: false }));
+  }
+  await assertSucceeds(updateDoc(doc(db(), 'users/authz-coach'), { isSuspended: true }));
+  await assertSucceeds(updateDoc(doc(db(), 'users/authz-coach'), { isSuspended: false }));
+  await assertFails(updateDoc(doc(db(), 'users/authz-owner'), { isSuspended: true }));
+  await assertFails(updateDoc(doc(db(), 'users/authz-manager'), { isSuspended: true }));
+  await assertSucceeds(getDoc(doc(db(), `clubs/${tenant}`)));
+});
+it('Studio Coach cannot query global financial collections; legacy Coach permissions stay compatible', async () => {
+  await fixture('clubs/authz-legacy', { ownerId: 'legacy-owner' });
+  await fixture('users/authz-legacy-coach', { ...profile('coach', 8190, 'authz-legacy'), firebaseUid: 'authz-legacy-coach' });
+  for (const name of ['expenses', 'fixedCosts', 'manualStats']) {
+    await fixture(`${name}/authz-studio-finance`, { clubId: tenant });
+    await fixture(`${name}/authz-legacy-finance`, { clubId: 'authz-legacy' });
+    await assertFails(getDocs(query(collection(db('coach'), name), where('clubId', '==', tenant))));
+    await assertFails(setDoc(doc(db('coach'), `${name}/authz-forged`), { clubId: tenant }));
+    await assertSucceeds(getDocs(query(collection(db('legacy-coach'), name), where('clubId', '==', 'authz-legacy'))));
+  }
 });

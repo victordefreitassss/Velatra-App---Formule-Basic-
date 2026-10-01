@@ -37,8 +37,8 @@ test('verified Superadmin preserves platform exceptions without gaining Billing 
   assert.equal(canDeleteUser(actor('owner'), { role: 'owner', clubId: 'a' }), false);
 });
 
-test('Manager remains absent from browser experience activation, including untyped profile reads', () => {
-  assert.equal(isLiveExperienceRole('manager'), false);
+test('Manager is a live role; Studio validation is a separate profile boundary', () => {
+  assert.equal(isLiveExperienceRole('manager'), true);
   assert.equal(isLiveExperienceRole('unknown'), false);
   for (const role of ['owner', 'coach', 'member', 'superadmin']) assert.equal(isLiveExperienceRole(role), true);
 });

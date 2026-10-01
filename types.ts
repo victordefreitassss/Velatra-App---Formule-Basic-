@@ -1,7 +1,7 @@
 
-export type Role = "superadmin" | "owner" | "coach" | "member";
-/** Target domain role. Manager provisioning remains disabled until server/rules support it. */
-export type ProductRole = Role | 'manager';
+export type Role = "superadmin" | "owner" | "manager" | "coach" | "member";
+/** Product and authenticated roles share the same explicit live model. */
+export type ProductRole = Role;
 export type SaasPlanId = string;
 export type AccountType = 'solo' | 'studio';
 export type Gender = "F" | "M";
@@ -525,7 +525,7 @@ export interface Newsletter {
   author: string;
 }
 
-export type Page = "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "community" | "coaching" | "notifications" | "guide" | "evolution";
+export type Page = "team" | "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "community" | "coaching" | "notifications" | "guide" | "evolution";
 
 export type ActivityLevel = "Sédentaire" | "Légèrement actif" | "Modérément actif" | "Très actif" | "Extrêmement actif";
 

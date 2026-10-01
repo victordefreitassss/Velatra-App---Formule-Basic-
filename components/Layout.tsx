@@ -108,7 +108,7 @@ export const Layout: React.FC<LayoutProps> = ({
     }));
   }, [effectiveRole, primaryHubs.map(hub => hub.page).join('|')]);
 
-  const roleLabel = effectiveRole === 'superadmin' ? 'Console de gestion' : (effectiveRole === 'coach' || effectiveRole === 'owner' ? 'Espace coach' : 'Espace adhérent');
+  const roleLabel = effectiveRole === 'superadmin' ? 'Console de gestion' : effectiveRole === 'manager' ? 'Espace Manager' : (effectiveRole === 'coach' || effectiveRole === 'owner' ? 'Espace coach' : 'Espace adhérent');
 
   const [showTimer, setShowTimer] = React.useState(false);
   const [showPlusSheet, setShowPlusSheet] = React.useState(false);
@@ -266,13 +266,13 @@ export const Layout: React.FC<LayoutProps> = ({
     return activeAnnouncements.filter(ann => {
       if (closedAnnouncements.includes(ann.id)) return false;
       if (ann.target === 'all') return true;
-      if (ann.target === 'coaches' && (effectiveRole === 'coach' || effectiveRole === 'owner')) return true;
+      if (ann.target === 'coaches' && (effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'manager')) return true;
       if (ann.target === 'members' && effectiveRole === 'member') return true;
       return false;
     });
   }, [activeAnnouncements, closedAnnouncements, effectiveRole]);
 
-  const isCoach = effectiveRole === 'coach' || effectiveRole === 'owner';
+  const isCoach = effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'manager';
 
 
   React.useEffect(() => {
@@ -356,7 +356,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
   React.useEffect(() => {
     const handleOpenInvite = () => {
-      if (user.role === 'coach' || user.role === 'owner') openInviteDialog();
+      if (user.role === 'coach' || user.role === 'owner' || user.role === 'manager') openInviteDialog();
     };
     window.addEventListener('velatra:open-club-invite', handleOpenInvite);
     return () => window.removeEventListener('velatra:open-club-invite', handleOpenInvite);
@@ -373,7 +373,7 @@ export const Layout: React.FC<LayoutProps> = ({
     }
   };
 
-  const profilePage = effectiveRole === 'member' ? 'profile' : effectiveRole === 'superadmin' ? 'admin' : 'settings';
+  const profilePage = effectiveRole === 'member' ? 'profile' : effectiveRole === 'superadmin' ? 'admin' : effectiveRole === 'manager' || effectiveRole === 'coach' && club?.accountType === 'studio' ? 'profile' : 'settings';
   const profileLabel = effectiveRole === 'member' ? 'Mon profil et mes objectifs' : effectiveRole === 'superadmin' ? 'Administration' : 'Paramètres du compte';
 
   return (

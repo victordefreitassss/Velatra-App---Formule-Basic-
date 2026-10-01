@@ -1,4 +1,6 @@
-import { readClubDocument, isLiveExperienceRole } from './productCapabilities';
+import { TeamPage } from './pages/TeamPage';
+import { getAllContextItems } from './components/appShellHelpers';
+import { readClubDocument, isLiveExperienceRole, isLiveProfileAllowed, canLoadLiveCollection } from './productCapabilities';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -406,8 +408,12 @@ export default function App() {
 
   useEffect(() => {
     let unsubUserDoc: () => void;
+    let sessionVersion = 0;
+    let profileVersion = 0;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      const session = ++sessionVersion;
+      ++profileVersion;
       if (unsubUserDoc) { unsubUserDoc(); unsubUserDoc = undefined; }
       setAuthResolved(true);
       setProfileResolved(!firebaseUser);
@@ -422,10 +428,24 @@ export default function App() {
         
         // Listen to the user document so it updates automatically when created during registration
         unsubUserDoc = onSnapshot(userDocRef, async (userDoc) => {
+          const version = ++profileVersion;
+          const isCurrent = () => session === sessionVersion && version === profileVersion && auth.currentUser?.uid === firebaseUser.uid;
           setProfileResolved(true);
           if (userDoc.exists()) {
             const profileData = userDoc.data();
-            if (!isLiveExperienceRole(profileData.role)) {
+            let managerClub = null;
+            try {
+              if (profileData.role === 'manager' && profileData.clubId) managerClub = await getDoc(doc(db, 'clubs', profileData.clubId));
+            } catch {
+              if (!isCurrent()) return;
+              setState({ ...INITIAL_STATE, exercises: [...INIT_EXERCISES] });
+              setLoading(false);
+              await signOut(auth);
+              return;
+            }
+            if (!isCurrent()) return;
+            const verifiedClub = managerClub?.exists() ? readClubDocument(profileData.clubId, managerClub.data()) : null;
+            if (!isLiveProfileAllowed(profileData, verifiedClub)) {
               setState({ ...INITIAL_STATE, exercises: [...INIT_EXERCISES] });
               setLoading(false);
               await signOut(auth);
@@ -434,7 +454,7 @@ export default function App() {
             const userData = profileData as User;
             
             const cachedUser = { ...userData, id: Number(userData.id), firebaseUid: firebaseUser.uid };
-            setState(prev => ({ ...prev, user: cachedUser, onboardingDataReady: sameUserDataScope(prev.user, cachedUser) ? prev.onboardingDataReady : false }));
+            setState(prev => ({ ...prev, user: cachedUser, ...(cachedUser.role === 'manager' ? { currentClub: verifiedClub } : {}), onboardingDataReady: sameUserDataScope(prev.user, cachedUser) ? prev.onboardingDataReady : false }));
 
             // Move any old Stripe key out of the club document before loading client-readable settings.
             if (cachedUser.role === 'owner' || cachedUser.role === 'superadmin') {
@@ -448,6 +468,7 @@ export default function App() {
             // Fetch Club Data
             if (userData.clubId) {
               const clubDoc = await getDoc(doc(db, "clubs", userData.clubId));
+              if (!isCurrent()) return;
               if (clubDoc.exists()) {
                 const clubData = readClubDocument(userData.clubId, clubDoc.data());
                 setState(prev => ({ ...prev, currentClub: clubData }));
@@ -466,6 +487,7 @@ export default function App() {
       }
     });
     return () => {
+      ++sessionVersion; ++profileVersion;
       unsubscribe();
       if (unsubUserDoc) unsubUserDoc();
     };
@@ -501,10 +523,11 @@ export default function App() {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
+    if (state.currentClub?.id !== state.user.clubId || !isLiveProfileAllowed(state.user, state.currentClub)) return;
     const clubId = state.user.clubId;
     const isMember = state.user.role === 'member';
     const isCoach = state.user.role === 'coach';
-    const needsCoachDashboardReadiness = state.user.role === 'coach' || state.user.role === 'owner';
+    const needsCoachDashboardReadiness = ['owner', 'manager', 'coach'].includes(state.user.role);
     const readyOnboardingSources = new Set<string>();
     const markOnboardingSourceReady = (source: string) => {
       if (!needsCoachDashboardReadiness) return;
@@ -519,6 +542,7 @@ export default function App() {
     const ownId = Number(state.user.id);
     const assignedMemberIds = [...new Set((state.user.assignedMemberIds || []).map(Number).filter(Number.isFinite))];
     const memberRecordQueries = (collectionName: string, ownerField = 'memberId') => {
+      if (!canLoadLiveCollection(collectionName, state.currentClub, state.user!)) return [];
       if (isMember) return [query(collection(db, collectionName), where('clubId', '==', clubId), where(ownerField, '==', ownId))];
       if (isCoach) {
         return state.user?.firebaseUid
@@ -548,7 +572,7 @@ export default function App() {
       return () => subscriptions.forEach(unsubscribe => unsubscribe());
     };
     const skipForMembers = (key: string) => {
-      if (!isMember) return false;
+      if (!isMember && canLoadLiveCollection(key, state.currentClub, state.user!)) return false;
       setState(prev => ({ ...prev, [key]: [] }));
       return true;
     };
@@ -556,6 +580,11 @@ export default function App() {
     const unsubClub = onSnapshot(doc(db, "clubs", clubId), (docSnap) => {
       if (docSnap.exists()) {
         const clubData = readClubDocument(clubId, docSnap.data());
+        if (!isLiveProfileAllowed(state.user!, clubData)) {
+          setState({ ...INITIAL_STATE, exercises: [...INIT_EXERCISES] });
+          void signOut(auth);
+          return;
+        }
         setState(prev => ({
           ...prev,
           currentClub: clubData,
@@ -618,7 +647,7 @@ export default function App() {
           const startDate = new Date(data.startDate);
           const endDate = new Date(startDate.getTime() + data.durationWeeks * 7 * 24 * 60 * 60 * 1000);
           
-          if (now > endDate && !isMember) {
+          if (now > endDate && !isMember && state.user?.role !== 'manager') {
             // Archiver automatiquement le programme expiré
             const archiveRef = doc(db, "archivedPrograms", data.id.toString());
             setDoc(archiveRef, { 
@@ -773,7 +802,7 @@ export default function App() {
         
         if (now - itemTime > fourDaysInMs) {
           // Supprimer automatiquement les activités de plus de 4 jours
-          deleteDoc(doc(db, "feed", d.id)).catch(console.error);
+          if (state.user?.role !== 'manager') deleteDoc(doc(db, "feed", d.id)).catch(console.error);
         } else {
           feed.push(item);
         }
@@ -884,7 +913,7 @@ export default function App() {
       isInitialBookingsLoad = false;
     });
 
-    const unsubPlans = onSnapshot(query(collection(db, "plans"), where("clubId", "==", clubId)), (snap) => {
+    const unsubPlans = state.user.role === 'manager' && skipForMembers('plans') ? () => {} : onSnapshot(query(collection(db, "plans"), where("clubId", "==", clubId)), (snap) => {
       const plans: Plan[] = [];
       snap.forEach(d => plans.push(d.data() as Plan));
       setState(prev => ({ ...prev, plans }));
@@ -933,7 +962,7 @@ export default function App() {
         
         if (now - itemTime > thirtyDaysInMs) {
           // Supprimer automatiquement les logs de plus de 30 jours
-          deleteDoc(doc(db, "nutritionLogs", d.id)).catch(console.error);
+          if (state.user?.role !== 'manager') deleteDoc(doc(db, "nutritionLogs", d.id)).catch(console.error);
         } else {
           nutritionLogs.push({
             ...item,
@@ -1087,7 +1116,7 @@ export default function App() {
       unsubTasks(); unsubBookings(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubFixedCosts(); unsubNutritionPlans(); unsubNutritionLogs();
       unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects(); unsubDriveFiles(); unsubDriveFolders(); unsubNotifications(); unsubProgressPhotos();
     };
-  }, [state.user?.clubId, state.user?.role, state.user?.firebaseUid, state.user?.assignedMemberIds?.join(','), authResolved]);
+  }, [state.user?.clubId, state.user?.role, state.user?.firebaseUid, state.user?.assignedMemberIds?.join(','), authResolved, state.currentClub?.id, state.currentClub?.accountType]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setState(prev => ({ ...prev, toast: { message, type } }));
@@ -1123,6 +1152,7 @@ export default function App() {
       return (
         <ProgramEditor 
           program={state.editingProg}
+          canStartSession={user.role !== 'manager'}
           preset={state.editingPreset}
           exercises={state.exercises}
           clubId={user.clubId}
@@ -1140,7 +1170,8 @@ export default function App() {
             return exercise;
           }}
           onSave={async (data, action) => {
-            const dataWithClub = { ...data, clubId: user.clubId };
+            const member = state.editingProg ? state.users.find(item => Number(item.id) === Number(data.memberId) && item.clubId === user.clubId) : null;
+            const dataWithClub = { ...data, clubId: user.clubId, ...(member?.assignedCoachUid ? { assignedCoachUid: member.assignedCoachUid } : {}) };
             await setDoc(doc(db, state.editingProg ? "programs" : "presets", data.id.toString()), dataWithClub);
             if (state.editingProg) {
               const isNewProgram = !(state.programs || []).some(program => Number(program.id) === Number(data.id));
@@ -1157,7 +1188,7 @@ export default function App() {
                 catch (error) { console.warn('Programme enregistré, mais la demande de plan reste à mettre à jour.', error); }
               }
               
-              if (action === 'start' && member) {
+              if (action === 'start' && member && user.role !== 'manager') {
                 setState(s => ({ ...s, editingProg: null, editingPreset: null, workout: data, workoutMember: member, workoutIsProgramSession: false }));
                 showToast("Séance démarrée");
                 return;
@@ -1180,7 +1211,7 @@ export default function App() {
     const isSuperAdmin = user.role === 'superadmin';
     const effectiveRole = isSuperAdmin ? adminPerspective : user.role;
 
-    if (effectiveRole === 'superadmin' || effectiveRole === 'coach' || effectiveRole === 'owner') {
+    if (effectiveRole === 'superadmin' || effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'manager') {
       if (effectiveRole !== 'superadmin' && state.currentClub?.isActive === false) {
         return (
           <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center">
@@ -1201,7 +1232,13 @@ export default function App() {
         return <AdminDashboard showToast={showToast} actorEmail={user.email} />;
       }
 
+      const nav = { role: effectiveRole, club: state.currentClub, trustedSuperAdmin: isSuperAdmin };
+      const allowedPages = getAllContextItems(nav).map(item => item.id);
+      const restricted = effectiveRole === 'manager' || effectiveRole === 'coach' && state.currentClub?.accountType === 'studio';
+      if (restricted && !allowedPages.includes(page) && page !== 'profile') return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
       switch (page) {
+        case 'team': return <TeamPage state={state} showToast={showToast} />;
+        case 'profile': return <ProfilePage state={state} setState={setState} showToast={showToast} />;
         case 'home': return <CoachDashboard state={state} setState={setState} onExport={() => {}} onToggleTimer={() => {}} showToast={showToast} />;
         case 'users': return <MembersPage state={state} setState={setState} showToast={showToast} />;
         case 'coaching': return <CoachingPage state={state} setState={setState} showToast={showToast} />;
@@ -1280,7 +1317,7 @@ export default function App() {
     };
     void initializePush();
     return () => { cancelled = true; unsubscribe?.(); };
-  }, [state.user?.id, authResolved]);
+  }, [state.user?.id, authResolved, state.currentClub?.id, state.currentClub?.accountType]);
 
   useEffect(() => {
     if (state.user && (state.tasks || []).length > 0 && !hasNotifiedTasks.current && 'Notification' in window && Notification.permission === 'granted') {
@@ -1494,7 +1531,7 @@ export default function App() {
               {state.toast && <Toast message={state.toast.message} type={state.toast.type} />}
               {state.workout && state.workoutMember && (
                 <React.Suspense fallback={<SessionLoading onCancel={() => setState(s => ({ ...s, workout: null, workoutMember: null, workoutIsProgramSession: undefined }))} />}>
-                {(effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'superadmin') ? (
+                {(effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'manager' || effectiveRole === 'superadmin') ? (
                   <CoachingSessionView 
                     program={state.workout} 
                     member={state.workoutMember} 

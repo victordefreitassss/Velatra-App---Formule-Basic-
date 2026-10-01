@@ -2,7 +2,7 @@ import type { Club, User } from '../types';
 import { resolveAccountType } from '../productCapabilities';
 
 export function getMemberCreationCoachOptions(club: Club | null, actor: User | null, users: User[]): User[] | null {
-  if (!club || !actor || actor.role !== 'owner' || actor.clubId !== club.id || resolveAccountType(club) !== 'studio') return null;
+  if (!club || !actor || !['owner', 'manager'].includes(actor.role) || actor.clubId !== club.id || resolveAccountType(club) !== 'studio') return null;
   return users.filter(user => user.role === 'coach' && user.clubId === club.id && !!user.firebaseUid);
 }
 
