@@ -14,7 +14,7 @@ it('loads the compiled API graph and responds over HTTP without TypeScript sourc
     assert.equal(config.error, undefined);
     const { options, errors } = ts.parseJsonConfigFileContent(config.config, ts.sys, root);
     assert.equal(errors.length, 0);
-    const sources = ['server.ts', 'productCapabilities.ts', 'productExperience.ts', 'components/experienceHomeSelectors.ts', 'components/planningSlots.ts', 'pulse/pulseEngine.ts', 'pulse/pulseModel.ts', 'components/billingMetrics.ts', 'api/[...path].ts', ...readdirSync(path.join(root, 'server')).filter(name => name.endsWith('.ts')).map(name => `server/${name}`)];
+    const sources = ['server.ts', 'productCapabilities.ts', 'productExperience.ts', 'components/experienceHomeSelectors.ts', 'components/planningSlots.ts', 'retention/retentionModel.ts', 'retention/retentionEngine.ts', 'retention/retentionPulse.ts', 'pulse/pulseEngine.ts', 'pulse/pulseModel.ts', 'components/billingMetrics.ts', 'api/[...path].ts', ...readdirSync(path.join(root, 'server')).filter(name => name.endsWith('.ts')).map(name => `server/${name}`)];
     for (const source of sources) {
       const compiled = ts.transpileModule(readFileSync(path.join(root, source), 'utf8'), {
         compilerOptions: { ...options, noEmit: false }, fileName: source

@@ -10,7 +10,7 @@ const member = (id = 1, patch: Partial<User> = {}) => ({ id, clubId: club.id, ro
 const fixture = (patch: Partial<PulseInput> = {}): PulseInput => ({ user: actor, currentClub: club, users: [member()], programs: [], logs: [], tasks: [], bookings: [], messages: [], prospects: [], subscriptions: [], payments: [], ...patch });
 const program = (patch: Partial<Program> = {}) => ({ id: 1, clubId: club.id, memberId: 1, startDate: '2026-09-10T12:00:00Z', durationWeeks: 4, days: [{ name: 'A', exercises: [{ exerciseId: 1 }] }], ...patch } as unknown as Program);
 const followup = (dueDate: string) => ({ id: 'assignment', memberUid: 'm-1', templateName: 'Bilan', dueDate });
-const samples: Record<PulseType, Partial<PulseInput>> = {
+const samples: Record<Exclude<PulseType, 'RETENTION_ATTENTION'>, Partial<PulseInput>> = {
   CLIENT_INACTIVE: { users: [member(1, { lastWorkoutDate: '2026-09-22T12:00:00Z' })] },
   PROGRAM_MISSING: {}, PROGRAM_ENDING: { programs: [program()] }, FOLLOWUP_DUE: {}, FOLLOWUP_LATE: {},
   MESSAGE_UNREAD: { messages: [{ id: 1, clubId: club.id, from: 1, to: 10, read: false, date: now.toISOString() }] as any },

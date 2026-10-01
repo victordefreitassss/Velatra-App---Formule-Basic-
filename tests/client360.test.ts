@@ -6,7 +6,7 @@ import type { AppState, Club, User } from '../types.ts';
 
 const club = (accountType?: 'solo' | 'studio') => ({ id: 'club-1', accountType, canAddStaff: true } as Club);
 const actor = (role: 'owner' | 'coach' | 'member') => ({ role, clubId: 'club-1' });
-const expected = ['overview', 'coaching', 'progress', 'followup', 'nutrition', 'calendar', 'administrative', 'communication'];
+const expected = ['overview', 'coaching', 'progress', 'followup', 'retention', 'nutrition', 'calendar', 'administrative', 'communication'];
 
 for (const [role, accountType] of [['owner', 'solo'], ['owner', 'studio'], ['coach', 'studio'], ['owner', undefined]] as const) {
   it(`exposes a complete Client 360 for ${role} / ${accountType || 'legacy'}`, () => {

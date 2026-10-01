@@ -141,6 +141,6 @@ it('500-client server aggregation uses a fixed number of tenant queries, no per-
   const wrap = (query: any): any => new Proxy(query, { get(target, property) { if (property === 'get') return async () => { queries++; return target.get(); }; if (['where', 'limit'].includes(String(property))) return (...args: any[]) => wrap(target[property](...args)); return Reflect.get(target, property, target); } });
   const database = new Proxy(db(), { get(target, property) { if (property === 'collection') return (name: string) => wrap(target.collection(name)); const value = Reflect.get(target, property, target); return typeof value === 'function' ? value.bind(target) : value; } });
   const result = await loadPulse(database, people.owner.uid, new Date());
-  assert.equal(queries, 11); assert.ok(result.actions.length >= 500); assert.deepEqual(result.partialSources, []);
+  assert.equal(queries, 15); assert.ok(result.actions.length >= 500); assert.deepEqual(result.partialSources, []);
   const page = await api('/api/pulse?limit=5', 'owner'); assert.equal(page.body.actions.length, 5); assert.ok(page.body.total >= 500); assert.ok(page.body.nextCursor);
 });

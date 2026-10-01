@@ -36,6 +36,10 @@ jobs:
         env:
           VELATRA_PULSE_QA_OUTPUT: ${{ runner.temp }}/pulse-evidence
         run: node scripts/qa/pulse-browser.mjs
+      - name: Retain with Pulse and Home (isolated Firebase fixtures)
+        env:
+          VELATRA_RETAIN_QA_OUTPUT: ${{ runner.temp }}/retain-evidence
+        run: node scripts/qa/retain-browser.mjs
       - name: Browser evidence (synthetic fixtures only)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -49,5 +53,7 @@ jobs:
             ${{ runner.temp }}/role-format-evidence/*.png
             ${{ runner.temp }}/pulse-evidence/results.json
             ${{ runner.temp }}/pulse-evidence/*.png
+            ${{ runner.temp }}/retain-evidence/results.json
+            ${{ runner.temp }}/retain-evidence/*.png
           retention-days: 7
           if-no-files-found: warn

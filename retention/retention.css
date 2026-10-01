@@ -1,0 +1,8 @@
+.va-retain :is(button.va-button, select, input, summary) { min-height: 44px; max-width: 100%; }
+.va-retain :is(button, select, input, textarea, summary):focus-visible { outline: 2px solid #065f46; outline-offset: 2px; }
+.va-retain :is(p, h2, h3, li) { overflow-wrap: anywhere; }
+.va-retain [data-retain-state="critical"] { color: #991b1b; }
+.va-retain [data-retain-state="attention"] { color: #92400e; }
+.va-retain [data-retain-state="watch"] { color: #854d0e; }
+.va-retain [data-retain-state="stable"] { color: #065f46; }
+@media (min-width: 1100px) { .va-retain-list [data-retain-card] { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(200px, 2fr) auto; align-items: center; gap: 16px; } }

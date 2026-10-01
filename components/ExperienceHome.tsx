@@ -123,6 +123,7 @@ function ResolvedHome({ state, setState, showToast }: Props) {
     {!compact && data.bookings.length > data.todayBookings.length && <Empty>{data.bookings.filter(booking => new Date(booking.startTime).getTime() < now.getTime() + 7 * 86_400_000).length} rendez-vous confirmé(s) sur les 7 prochains jours.</Empty>}
   </Section>;
   const actionCenter = <Section id="actions" title="Pulse · À traiter" action={link('pulse', 'Voir toutes les actions')}>
+    {pulse.result?.retentionSummary && <div data-home-retain className="rounded-lg bg-emerald-50 p-3 space-y-2"><p className="text-sm">{pulse.result.retentionSummary.critical + pulse.result.retentionSummary.attention} {state.user?.role === 'coach' ? 'de vos clients nécessitent une action' : state.user?.role === 'manager' ? 'clients à traiter dans le Studio' : 'clients nécessitent votre attention'}</p><LinkButton onClick={() => open({ page: 'retention' })}>Ouvrir Velatra Retain</LinkButton></div>}
     <PulseList feed={pulse} open={open} />
     {pulse.result && <p className="text-sm text-zinc-600">{pulse.result.total} action(s) à traiter dans votre périmètre.</p>}
   </Section>;

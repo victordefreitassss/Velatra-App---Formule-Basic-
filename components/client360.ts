@@ -1,7 +1,7 @@
 import type { AppState, Booking, Club, Program, Role, Subscription, User } from '../types';
 import { canManageClub, getProductCapabilities, resolveAccountType, type Capability } from '../productCapabilities';
 
-export type Client360SectionId = 'overview' | 'coaching' | 'progress' | 'followup' | 'nutrition' | 'calendar' | 'administrative' | 'communication';
+export type Client360SectionId = 'retention' | 'overview' | 'coaching' | 'progress' | 'followup' | 'nutrition' | 'calendar' | 'administrative' | 'communication';
 export type Client360AdminSectionId = 'profile' | 'billing' | 'documents';
 export interface Client360Section {
   id: Client360SectionId;
@@ -14,6 +14,7 @@ const sections: readonly Client360Section[] = [
   { id: 'coaching', label: 'Coaching', capability: 'programs' },
   { id: 'progress', label: 'Progression', capability: 'progress' },
   { id: 'followup', label: 'Suivi', capability: 'clients' },
+  { id: 'retention', label: 'Rétention', capability: 'retention' },
   { id: 'nutrition', label: 'Nutrition', capability: 'nutrition' },
   { id: 'calendar', label: 'Calendrier', capability: 'planning' },
   { id: 'administrative', label: 'Administratif', capability: 'clients' },

@@ -49,7 +49,7 @@ export const CAPABILITY_DEFINITIONS = {
   finances: { implemented: true, roles: staff },
   analytics: { implemented: true, roles: staff },
   messages: { implemented: true, roles: everyone },
-  retention: { implemented: true, roles: staff, note: 'Existing follow-up and action surfaces; no Retain product.' },
+  retention: { implemented: true, roles: staff, note: 'Velatra Retain: deterministic staff portfolio and interventions.' },
   tasks: { implemented: true, roles: staff },
   studioManagement: { implemented: true, studioOnly: true, roles: teamRoles },
   documents: { implemented: true, roles: everyone },
