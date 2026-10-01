@@ -15,7 +15,7 @@ La route logique reste `/dashboard` : le rôle, l’`accountType` explicite et l
 | Member | Accueil, séances, progression, nutrition, Plus conservés | Expérience existante conservée |
 | Superadmin | Console existante conservée | Console existante conservée |
 
-Le resolver central définit Phone `<768`, Tablet `768–1023`, Desktop `1024–1599`, Large Desktop `≥1600` px. La tablette dispose de sections de préparation, du portefeuille Coach complet, de Client 360, du planning, des programmes, et du CRM/équipe selon le rôle ; le shell compact reste actif jusqu’à 1024 px. Large Desktop répartit le travail dans une zone principale et l’agenda/messages/raccourcis dans une colonne latérale, au lieu d’étirer les cartes.
+Le resolver central définit Phone `<768`, Tablet `768–1023`, Desktop `1024–1599`, Large Desktop `≥1600` px. La tablette dispose de sections de préparation, du portefeuille Coach complet, de Client 360, du planning, des programmes, et du CRM/équipe selon le rôle ; le rail existant apparaît dès 768 px et les menus de section restent compacts jusqu’à 1024 px. Large Desktop répartit le travail dans une zone principale et l’agenda/messages/raccourcis dans une colonne latérale, au lieu d’étirer les cartes.
 
 ## Navigation
 
