@@ -7,7 +7,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { initializeApp as clientApp, deleteApp } from 'firebase/app';
 import { getAuth as clientAuth, connectAuthEmulator, signInWithEmailAndPassword } from 'firebase/auth';
-import { getStorage as clientStorage, connectStorageEmulator, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getStorage as clientStorage, connectStorageEmulator, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { assertTestEmulators } from '../scripts/assert-test-emulators.mjs';
 import { describeDriveObject, revokeDriveObject } from '../scripts/migrations/revoke-drive-tokens.ts';
 const tenant = `drive-${randomUUID()}`, other = tenant+'-other', password='Drive-emulator-only!';
@@ -35,11 +35,11 @@ before(async()=>{
   id='private-'+randomUUID();path=`drive/${tenant}/${users.coach.uid}/${id}/guide.pdf`;
 });
 after(async()=>{await Promise.all(Object.values(users).map(u=>deleteApp(u.app!)));if(server)await new Promise<void>(r=>server.close(()=>r()));});
-it('resumable-compatible SDK staging -> private publication removes the upload-response public URL',async()=>{
+it('resumable SDK staging -> private publication removes the upload-response public URL',async()=>{
   const storage=clientStorage(users.coach.app!);connectStorageEmulator(storage,'127.0.0.1',9199);
   const stagedPath=path.replace('drive/','driveUploads/');
   const oldToken='emulator-stage-token-'+randomUUID();
-  await uploadBytes(ref(storage,stagedPath),bytes,{contentType:'application/pdf',customMetadata:{firebaseStorageDownloadTokens:oldToken}});
+  await uploadBytesResumable(ref(storage,stagedPath),bytes,{contentType:'application/pdf',customMetadata:{firebaseStorageDownloadTokens:oldToken}});
   await assert.rejects(getDownloadURL(ref(storage,stagedPath)));
   oldStageUrl=`http://${process.env.FIREBASE_STORAGE_EMULATOR_HOST}/v0/b/${bucket().name}/o/${encodeURIComponent(stagedPath)}?alt=media&token=${oldToken}`;
   assert.equal((await fetch(oldStageUrl)).status,200,'exploit: bearer token alone bypasses authenticated Rules');
