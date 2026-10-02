@@ -1,3 +1,4 @@
+import { wrapReactRouterRouting } from './monitoring/sentry';
 import { TeamPage } from './pages/TeamPage';
 import { getAllContextItems } from './components/appShellHelpers';
 import { readClubDocument, isLiveExperienceRole, isLiveProfileAllowed, canLoadLiveCollection } from './productCapabilities';
@@ -87,7 +88,8 @@ import { Toast } from './components/Toast';
 import { Onboarding } from './components/Onboarding';
 
 // Routing & Marketing Pages
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Routes as RouterRoutes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+const Routes = wrapReactRouterRouting(RouterRoutes);
 import LandingLayout from './components/LandingLayout';
 
 const lazyNamed = <T extends object>(load: () => Promise<T>, exportName: keyof T) =>
@@ -204,12 +206,17 @@ const INITIAL_STATE: AppState = {
 };
 
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { setMonitoringContext } from './monitoring/sentry';
 import { trackProductEventOnce } from './components/productEvents';
 import { sameUserDataScope } from './components/dataHelpers';
 import { createDashboardLocationState } from './components/dashboardNavigation';
 
 export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
+  useEffect(() => {
+    setMonitoringContext(state.user?.role, state.currentClub?.accountType);
+    return () => setMonitoringContext();
+  }, [state.user?.role, state.currentClub?.accountType]);
   const [loading, setLoading] = useState(true);
   const [connectionTested, setConnectionTested] = useState(false);
   const [gcpBillingError, setGcpBillingError] = useState<string | null>(null);
