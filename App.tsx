@@ -1251,7 +1251,7 @@ export default function App() {
         case 'onboarding': return <OnboardingPage state={state} setState={setState} />;
         case 'retention': return <RetentionPage state={state} setState={setState} />;
         case 'pulse': return <PulsePage state={state} setState={setState} />;
-        case 'team': return <TeamPage state={state} showToast={showToast} />;
+        case 'team': return <TeamPage state={state} setState={setState} showToast={showToast} />;
         case 'profile': return <ProfilePage state={state} setState={setState} showToast={showToast} />;
         case 'home': return <ExperienceHome state={state} setState={setState} showToast={showToast} />;
         case 'users': return <MembersPage state={state} setState={setState} showToast={showToast} />;

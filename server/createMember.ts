@@ -4,6 +4,7 @@ import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
 import { validateMemberRegistration } from './memberRegistration.ts';
 import { resolveAccountType } from '../productCapabilities.ts';
+import { assertTeamAssignment } from './teamWorkspace.ts';
 
 export class MemberCreationError extends Error {
   status: number;
@@ -84,6 +85,10 @@ export async function createManagedMember(auth: Auth, db: Firestore, requesterUi
       const latestCoach = coachRef?.path === requesterRef.path ? latestRequester : coachRef ? (await transaction.get(coachRef)).data() : null;
       if (coachRef && (latestCoach?.role !== 'coach' || latestCoach.clubId !== requester.clubId)) {
         throw new MemberCreationError(409, 'Le coach référent a changé. Réessayez.');
+      }
+      if (accountType === 'studio' && coachRef && latestCoach) {
+        if (latestClub.isActive === false) throw new MemberCreationError(403, 'Ce Studio est inactif.');
+        await assertTeamAssignment(transaction, db, requester.clubId, coachUid!, latestCoach);
       }
       let id = 0;
       for (let attempt = 0; attempt < 8; attempt++) {

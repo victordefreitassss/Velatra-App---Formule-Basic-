@@ -1,0 +1,41 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { coachWorkload, teamMetrics, type TeamCoach } from '../team/teamModel.ts';
+import { nextTeamAvailability, teamSettings } from '../server/teamWorkspace.ts';
+import { getAllContextItems } from '../components/appShellHelpers.ts';
+import { getProductCapabilities } from '../productCapabilities.ts';
+import { resolveRolePermission } from '../productExperience.ts';
+import type { Club } from '../types.ts';
+const coach=(clients=0,capacity:number|null=null,extras:Partial<TeamCoach>={}):TeamCoach=>({uid:'coach',id:1,name:'Coach',avatar:'C',status:'active',isSuspended:false,settings:{capacity,available:true,specialties:[],weeklyAvailability:[],revision:0},assignedClients:clients,nextAvailability:null,...extras});
+test('capacity planning treats missing, zero, full and overloaded capacities without NaN or Infinity',()=>{
+  assert.equal(coachWorkload(coach(3)).state,'unknown');assert.equal(coachWorkload(coach(3)).canReceive,false);
+  assert.equal(coachWorkload(coach(0,0)).state,'full');assert.equal(coachWorkload(coach(2,0)).state,'overloaded');
+  assert.equal(coachWorkload(coach(17,20)).state,'near');assert.equal(coachWorkload(coach(20,20)).state,'full');
+  assert.equal(coachWorkload(coach(24,20)).ratio,1.2);
+  assert.equal(coachWorkload(coach(1,20,{isSuspended:true})).canReceive,false);
+  assert.equal(coachWorkload(coach(1,20,{status:'paused'})).state,'unavailable');
+  assert.equal(coachWorkload(coach(1,20,{settings:{...coach().settings,capacity:20,available:false}})).state,'unavailable');
+  assert.equal(teamMetrics([],[]).average,null);
+});
+test('legacy and malformed operational settings never invent capacity or an available slot',()=>{
+  assert.deepEqual(teamSettings(undefined),{capacity:null,available:true,specialties:[],weeklyAvailability:[],revision:0});
+  for(const capacity of [-1,NaN,Infinity,1.5,'25',1001])assert.equal(teamSettings({capacity}).capacity,null);
+  assert.equal(nextTeamAvailability(teamSettings(undefined)),null);
+  assert.deepEqual(teamSettings({weeklyAvailability:[null]}).weeklyAvailability,[]);
+  const settings=teamSettings({weeklyAvailability:[{day:1,start:'09:00',end:'17:00'}]});
+  assert.equal(nextTeamAvailability(settings,new Date('2026-10-05T06:00:00Z')),'2026-10-05 09:00 (Europe/Paris)');
+  assert.equal(nextTeamAvailability(settings,new Date('2026-10-05T08:00:00Z')),'2026-10-05 10:00 (Europe/Paris)');
+  assert.equal(nextTeamAvailability(settings,new Date('2026-10-05T16:00:00Z')),'2026-10-12 09:00 (Europe/Paris)');
+});
+test('Studio Coach has a self workspace without gaining management; Member and Solo stay excluded',()=>{
+  const club={id:'studio',accountType:'studio'} as Club;
+  const actor={clubId:club.id,role:'coach' as const};
+  assert.equal(getProductCapabilities(club,actor).teamManagement.usable,false);
+  assert.equal(getProductCapabilities(club,actor).teamSelf.usable,true);
+  assert.equal(resolveRolePermission('teamSelf',club,actor),'self');
+  const entry=getAllContextItems({role:'coach',club}).find(item=>item.id==='team');
+  assert.equal(entry?.label,'Ma charge et mes disponibilités');assert.equal(entry?.capability,'teamSelf');
+  assert.ok(!getAllContextItems({role:'member',club}).some(item=>item.id==='team'));
+  assert.equal(getProductCapabilities({...club,accountType:'solo'},actor).teamSelf.usable,false);
+  assert.equal(getProductCapabilities({...club,accountType:undefined},actor).teamSelf.usable,false);
+});

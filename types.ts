@@ -132,6 +132,8 @@ export interface User {
   firebaseUid?: string;
   assignedCoachUid?: string;
   assignedMemberIds?: number[];
+  /** Server-owned operational settings; existing profiles need no migration. */
+  teamSettings?: import('./team/teamModel').CoachTeamSettings;
   isSuspended?: boolean;
   status?: 'active' | 'paused';
   integrations?: {

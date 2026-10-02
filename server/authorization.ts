@@ -16,6 +16,8 @@ const owner = (actor: AuthorizationActor, clubId: unknown) => sameClub(actor, cl
 const manager = (actor: AuthorizationActor, clubId: unknown) => sameClub(actor, clubId) && actor.role === 'manager' && actor.accountType === 'studio' && actor.isSuspended !== true;
 export const canManageTeam = (actor: AuthorizationActor, clubId: unknown) => validClub(clubId) && (platformAdmin(actor) || owner(actor, clubId) || manager(actor, clubId));
 export const canAssignMembers = (actor: AuthorizationActor, clubId: unknown) => canManageTeam(actor, clubId);
+/** Reading one's own workload never grants team management authority. */
+export const canViewOwnTeam = (actor: AuthorizationActor, clubId: unknown) => sameClub(actor, clubId) && actor.role === 'coach' && actor.accountType === 'studio';
 export const canManageClubSettings = (actor: AuthorizationActor, clubId: unknown) => validClub(clubId) && (platformAdmin(actor) || owner(actor, clubId));
 export const canManageStripe = (actor: AuthorizationActor, clubId: unknown) => canManageClubSettings(actor, clubId);
 /** Sensitive billing keeps its historical owner-only policy (no new Superadmin access). */
