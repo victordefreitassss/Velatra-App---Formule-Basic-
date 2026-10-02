@@ -57,7 +57,8 @@ export const CAPABILITY_DEFINITIONS = {
   clubManagement: { implemented: true, roles: managers },
   bookingSettings: { implemented: true, roles: managers },
   stripeConnection: { implemented: true, roles: managers },
-  teamManagement: { implemented: true, studioOnly: true, activation: 'staff', roles: teamRoles, note: 'Staff creation, not configurable permissions.' },
+  teamManagement: { implemented: true, studioOnly: true, activation: 'staff', roles: teamRoles, note: 'Studio workload, availability and existing coach assignments.' },
+  teamSelf: { implemented: true, studioOnly: true, roles: ['coach'], note: 'Own workload and availability only; no management permission.' },
   multipleCoaches: { implemented: true, studioOnly: true, activation: 'staff', roles: everyone },
   coachAssignments: { implemented: true, studioOnly: true, roles: teamRoles },
   sharedPlanning: { implemented: true, studioOnly: true, roles: everyone },
@@ -99,7 +100,7 @@ export function getProductCapabilities(club: Club | null | undefined, actor: Cap
       (definition.activation !== 'staff' || accountType === 'studio' || club.canAddStaff === true);
     const restrictedCoach = actor.role === 'coach' && accountType === 'studio' && ['finances', 'analytics', 'clubManagement', 'bookingSettings', 'stripeConnection', 'teamManagement', 'coachAssignments'].includes(key);
     const restrictedManager = actor.role === 'manager' && (accountType !== 'studio' || ['billing', 'finances', 'clubManagement', 'bookingSettings', 'stripeConnection', 'aiAssistance'].includes(key));
-    const allowed = !restrictedCoach && !restrictedManager && roleAllowed(definition, actor, club?.id);
+    const allowed = (key !== 'teamSelf' || accountType === 'studio') && !restrictedCoach && !restrictedManager && roleAllowed(definition, actor, club?.id);
     return [key, { implemented: definition.implemented, available, enabled, roleAllowed: allowed, usable: enabled && allowed }];
   })) as Record<Capability, CapabilityState>;
 }

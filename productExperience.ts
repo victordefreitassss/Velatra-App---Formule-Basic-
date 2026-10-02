@@ -55,7 +55,7 @@ export function resolveRolePermission(feature: Capability, club: Club | null | u
   if (experience === 'SUPERADMIN') return 'platform';
   if (experience === 'MEMBER') return (CAPABILITY_DEFINITIONS[feature].roles as readonly string[]).includes('member') ? 'self' : 'none';
   if (experience === 'STUDIO_MANAGER') return !ownerOnly.includes(feature) && managerFeatures.includes(feature) ? 'tenant' : 'none';
-  if (experience === 'STUDIO_COACH') return (operational.includes(feature) || feature === 'aiAssistance') ? 'assigned' : 'none';
+  if (experience === 'STUDIO_COACH') return feature === 'teamSelf' ? 'self' : (operational.includes(feature) || feature === 'aiAssistance') ? 'assigned' : 'none';
   return (CAPABILITY_DEFINITIONS[feature].roles as readonly string[]).includes(actor.role || '') ? 'tenant' : 'none';
 }
 export function resolveEntitlement(feature: Capability, club: Club | null | undefined): boolean | null {

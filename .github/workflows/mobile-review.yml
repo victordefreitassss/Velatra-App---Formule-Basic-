@@ -59,6 +59,10 @@ jobs:
         env:
           VELATRA_NOTIFICATIONS_QA_OUTPUT: ${{ runner.temp }}/notifications-evidence
         run: node scripts/qa/notifications-browser.mjs
+      - name: Studio Team, self Coach workload and assignment confirmation (synthetic fixtures)
+        env:
+          VELATRA_TEAM_QA_OUTPUT: ${{ runner.temp }}/team-evidence
+        run: node scripts/qa/team-browser.mjs
       - name: Browser evidence (synthetic fixtures only)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -82,5 +86,7 @@ jobs:
             ${{ runner.temp }}/account-migration-evidence/*.png
             ${{ runner.temp }}/notifications-evidence/results.json
             ${{ runner.temp }}/notifications-evidence/*.png
+            ${{ runner.temp }}/team-evidence/results.json
+            ${{ runner.temp }}/team-evidence/*.png
           retention-days: 7
           if-no-files-found: warn

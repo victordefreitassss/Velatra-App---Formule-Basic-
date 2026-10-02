@@ -4,8 +4,14 @@ import { Card, Button, Input } from '../components/UI';
 import { apiFetch, auth, db, doc, updateDoc } from '../firebase';
 import { canShowStaffCreation } from '../productCapabilities';
 import { authorizationActor, canManageTeam, canProvisionManager } from '../server/authorization';
+import { TeamWorkspace } from '../team/TeamWorkspace';
 
-export function TeamPage({ state, showToast }: { state: AppState; showToast: (message: string, type?: 'success' | 'error') => void }) {
+type TeamPageProps = { state: AppState; setState?: React.Dispatch<React.SetStateAction<AppState>>; showToast: (message: string, type?: 'success' | 'error') => void };
+export function TeamPage({state,setState=()=>{},showToast}:TeamPageProps) {
+  if(state.currentClub?.accountType==='studio')return <TeamWorkspace state={state} setState={setState} showToast={showToast} staffPanel={<StaffAdministration state={state} showToast={showToast} embedded/>}/>;
+  return <StaffAdministration state={state} showToast={showToast}/>;
+}
+function StaffAdministration({ state, showToast, embedded=false }: TeamPageProps & {embedded?:boolean}) {
   const actor = authorizationActor(state.user, state.currentClub, auth.currentUser?.emailVerified === true && auth.currentUser?.email === 'victor.defreitas.pro@gmail.com');
   const allowed = canManageTeam(actor, state.currentClub?.id);
   const canCreateManager = canProvisionManager(actor, state.currentClub?.id);
@@ -15,7 +21,7 @@ export function TeamPage({ state, showToast }: { state: AppState; showToast: (me
   const [password, setPassword] = useState('');
   const [staffRole, setStaffRole] = useState<'coach' | 'manager'>('coach');
   const [busy, setBusy] = useState(false);
-  const collaborators = state.users.filter(user => user.clubId === state.currentClub?.id && ['owner', 'manager', 'coach'].includes(user.role));
+  const collaborators = state.users.filter(user => user.clubId === state.currentClub?.id && (embedded ? ['owner','manager'] : ['owner', 'manager', 'coach']).includes(user.role));
   async function create(event: React.FormEvent) {
     event.preventDefault();
     if (!allowed || !canCreate || !state.currentClub || busy) return;
@@ -40,9 +46,9 @@ export function TeamPage({ state, showToast }: { state: AppState; showToast: (me
   }
   if (!allowed) return <p role="alert">Cet espace équipe n’est pas accessible.</p>;
   return <div className="space-y-6 pb-20">
-    <h1 className="text-2xl font-semibold">Équipe du Studio</h1>
+    {!embedded && <h1 className="text-2xl font-semibold">Équipe du Studio</h1>}
     <Card className="space-y-4 p-5">
-      <h2 className="text-lg font-semibold">Collaborateurs</h2>
+      <h2 className="text-lg font-semibold">{embedded?'Direction et accès':'Collaborateurs'}</h2>
       <ul className="space-y-3">{collaborators.map(user => <li key={user.firebaseUid || user.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-3">
         <span className="min-w-0 break-words"><strong>{user.name}</strong> · {user.role === 'owner' ? 'Owner' : user.role === 'manager' ? 'Manager' : 'Coach'}{user.isSuspended && ' · Suspendu'}</span>
         {user.role !== 'owner' && user.firebaseUid !== state.user?.firebaseUid && (state.user?.role === 'owner' || user.role === 'coach') && <Button variant="secondary" onClick={() => toggleSuspension(user)}>{user.isSuspended ? 'Réactiver' : 'Suspendre'}</Button>}

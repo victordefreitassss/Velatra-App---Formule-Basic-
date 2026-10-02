@@ -3,6 +3,7 @@ import { registerMessages } from './server/messages.ts';
 import { registerSales } from './server/sales.ts';
 import { salesEvent } from './server/salesEvents.ts';
 import { createStaffAccount } from './server/teamManagement.ts';
+import { registerTeamWorkspace, assertTeamAssignment } from './server/teamWorkspace.ts';
 import { registerClub, ClubRegistrationError } from './server/clubRegistration.ts';
 import { authorizationActor, canReadStripeStatus, canAssignMembers, canManageStripe, canPerformDestructiveClubActions, canDeleteUser } from './server/authorization.ts';
 import { completeWorkout } from './server/completeWorkout.ts';
@@ -415,6 +416,7 @@ registerPulse(app, admin.firestore());
 registerSales(app, admin.firestore());
 registerRetention(app, admin.firestore());
 registerOnboarding(app, admin.firestore());
+registerTeamWorkspace(app, admin.firestore());
 registerBillingRoutes(app, admin.firestore());
 
 app.get('/api/bookings/availability', async (req, res) => {
@@ -726,6 +728,9 @@ app.post('/api/assign-member-coach', async (req: any, res: any) => {
       return res.status(404).json({ error: "Cet adhérent n'appartient pas à votre club." });
     }
     const oldCoachUid = typeof memberSnapshot.data()?.assignedCoachUid === 'string' ? memberSnapshot.data()!.assignedCoachUid : null;
+    if ('expectedCoachUid' in req.body && req.body.expectedCoachUid !== oldCoachUid) {
+      return res.status(409).json({ error: "L'affectation a changé. Actualisez avant de confirmer." });
+    }
     if (nextCoachRef) {
       const nextCoach = await nextCoachRef.get();
       if (!nextCoach.exists || nextCoach.data()?.role !== 'coach' || nextCoach.data()?.clubId !== req.profile.clubId) {
@@ -745,6 +750,14 @@ app.post('/api/assign-member-coach', async (req: any, res: any) => {
       const latestCoachUid = typeof latestMember?.assignedCoachUid === 'string' ? latestMember.assignedCoachUid : null;
       if (!latestMember || latestMember.role !== 'member' || latestMember.clubId !== req.profile.clubId || latestCoachUid !== oldCoachUid) {
         throw new Error('MEMBER_ASSIGNMENT_CHANGED');
+      }
+      if (nextCoachRef) {
+        const nextCoach = dataByPath.get(nextCoachRef.path);
+        if (!nextCoach || nextCoach.role !== 'coach' || nextCoach.clubId !== req.profile.clubId) throw new Error('COACH_ASSIGNMENT_INVALID');
+        if (dataByPath.get(clubRef.path)?.isActive === false) throw new MemberCreationError(403, 'Ce Studio est inactif.');
+        if (dataByPath.get(clubRef.path)?.accountType === 'studio' && oldCoachUid !== coachUid) {
+          await assertTeamAssignment(transaction, db, req.profile.clubId, coachUid!, nextCoach);
+        }
       }
       if (oldCoachRef && oldCoachRef.path !== nextCoachRef?.path) {
         const oldCoach = dataByPath.get(oldCoachRef.path);
@@ -767,6 +780,7 @@ app.post('/api/assign-member-coach', async (req: any, res: any) => {
     const migratedRecords = await syncMemberRecordCoachUid(db, req.profile.clubId, [memberId], coachUid);
     return res.json({ success: true, assignedCoachUid: coachUid, migratedRecords });
   } catch (error: any) {
+    if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
     console.error('Member coach assignment failed:', { code: error?.code || 'unknown' });
     return res.status(409).json({ error: "L'affectation n'a pas pu être modifiée. Actualisez puis réessayez." });
   }
