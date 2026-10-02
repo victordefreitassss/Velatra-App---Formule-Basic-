@@ -55,7 +55,7 @@ it('GET is read-only, Coach portfolio/personal task only, Manager no sensitive f
   assert.ok(coach.every(item => !item.memberId || item.memberId === people.member.id));
   assert.ok(coach.every(item => item.category !== 'business' && item.category !== 'crm'));
   assert.equal(coach.filter(item => item.category === 'tasks').length, 1);
-  assert.ok(manager.some(item => item.type === 'CLIENT_UNASSIGNED')); assert.ok(manager.every(item => item.category !== 'business'));
+  assert.ok(manager.some(item => item.type === 'ONBOARDING_ACTION' && item.memberUid === people.unassigned.uid)); assert.ok(manager.every(item => item.category !== 'business'));
   assert.ok(owner.some(item => item.type === 'PAYMENT_ATTENTION'));
   assert.equal((await db().collection('pulseActionStates').where('clubId', '==', club).get()).size, 0);
   assert.deepEqual((await db().collection('users').where('clubId', '==', club).get()).docs.map(doc => doc.data()), beforeUsers);
@@ -69,7 +69,7 @@ it('Coach/Manager loader never queries sensitive collections', async () => {
   for (const name of ['coach', 'manager']) assert.ok((await loadPulse(database, people[name].uid, new Date())).actions.every(item => item.category !== 'business'));
 });
 it('Handled writes state only, isolates two actors and rejects forged authority/body', async () => {
-  const action = (await actions('coach')).find(item => item.type === 'PROGRAM_MISSING');
+  const action = (await actions('coach')).find(item => item.type === 'ONBOARDING_ACTION');
   const before = (await db().doc(`users/${people.member.uid}`).get()).data();
   for (const patch of [{ actorUid: people.owner.uid }, { clubId: otherClub }, { role: 'owner' }]) assert.equal((await mutate(action, 'coach', 'handled', patch)).status, 400);
   assert.equal((await mutate(action)).status, 200);
@@ -81,10 +81,10 @@ it('Handled writes state only, isolates two actors and rejects forged authority/
   assert.deepEqual(Object.keys(saved).sort(), ['actorUid', 'clubId', 'createdAt', 'key', 'sourceFingerprint', 'status', 'updatedAt'].sort());
 });
 it('Unassigned client reopens after assignment/removal even with identical business fields', async () => {
-  const action = (await actions('manager')).find(item => item.type === 'CLIENT_UNASSIGNED');
+  const action = (await actions('manager')).find(item => item.type === 'ONBOARDING_ACTION' && item.memberUid === people.unassigned.uid);
   assert.equal((await mutate(action, 'manager')).status, 200);
   const ref = db().doc(`users/${people.unassigned.uid}`), original = (await ref.get()).data()!;
-  await ref.update({ assignedCoachUid: people.coach.uid }); assert.ok(!(await actions('manager')).some(item => item.key === action.key));
+  await ref.update({ assignedCoachUid: people.coach.uid }); const progressed = (await actions('manager')).find(item => item.key === action.key); assert.ok(progressed); assert.notEqual(progressed.sourceFingerprint, action.sourceFingerprint);
   await ref.set(original); const fresh = (await actions('manager')).find(item => item.key === action.key);
   assert.ok(fresh); assert.notEqual(fresh.sourceFingerprint, action.sourceFingerprint);
 });
@@ -124,7 +124,7 @@ it('Source mutation rejects stale fingerprint and business completion auto-resol
   assert.ok(!(await actions('coach')).some(item => item.category === 'followup'));
 });
 it('Authority is reread after token acquisition: reassignment, suspension, owner and Manager revocation', async () => {
-  const own = (await actions()).find(item => item.type === 'PROGRAM_MISSING' && item.memberId === people.member.id);
+  const own = (await actions()).find(item => item.type === 'ONBOARDING_ACTION' && item.memberId === people.member.id);
   await db().doc(`users/${people.member.uid}`).update({ assignedCoachUid: people.coachB.uid }); assert.equal((await mutate(own)).status, 404);
   await db().doc(`users/${people.coach.uid}`).update({ isSuspended: true }); assert.equal((await api('/api/pulse', 'coach')).status, 403);
   await db().doc(`clubs/${club}`).update({ ownerId: people.other.uid }); assert.equal((await api('/api/pulse', 'owner')).status, 403);
@@ -141,6 +141,6 @@ it('500-client server aggregation uses a fixed number of tenant queries, no per-
   const wrap = (query: any): any => new Proxy(query, { get(target, property) { if (property === 'get') return async () => { queries++; return target.get(); }; if (['where', 'limit'].includes(String(property))) return (...args: any[]) => wrap(target[property](...args)); return Reflect.get(target, property, target); } });
   const database = new Proxy(db(), { get(target, property) { if (property === 'collection') return (name: string) => wrap(target.collection(name)); const value = Reflect.get(target, property, target); return typeof value === 'function' ? value.bind(target) : value; } });
   const result = await loadPulse(database, people.owner.uid, new Date());
-  assert.equal(queries, 15); assert.ok(result.actions.length >= 500); assert.deepEqual(result.partialSources, []);
+  assert.equal(queries, 16); assert.ok(result.actions.length >= 500); assert.deepEqual(result.partialSources, []);
   const page = await api('/api/pulse?limit=5', 'owner'); assert.equal(page.body.actions.length, 5); assert.ok(page.body.total >= 500); assert.ok(page.body.nextCursor);
 });

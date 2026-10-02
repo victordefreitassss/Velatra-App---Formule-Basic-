@@ -5,10 +5,12 @@ export type DashboardLocationState = {
   velatraPage: Page;
   planningMemberId?: number;
   retentionMemberId?: number;
+  onboardingMemberId?: number;
   client360MemberId?: number;
-  client360Section?: 'retention' | 'coaching' | 'followup' | 'communication' | 'administrative';
+  client360Section?: 'onboarding' | 'retention' | 'coaching' | 'followup' | 'communication' | 'administrative';
   client360AdminSection?: 'billing';
   focusNote?: boolean;
+  focusCoachAssignment?: boolean;
   planningBookingId?: string;
   taskId?: string;
   conversationMemberId?: number;
@@ -39,11 +41,11 @@ export const getPlanningBookingId = (value: unknown) => getRecordId(value, 'cale
 export const getTaskId = (value: unknown) => getRecordId(value, 'crm_tasks', 'taskId');
 export const getClient360Section = (value: unknown) => {
   const state = value as DashboardLocationState | null;
-  return state?.velatraPage === 'users' && ['retention', 'coaching', 'followup', 'communication', 'administrative'].includes(state.client360Section || '') ? state.client360Section : undefined;
+  return state?.velatraPage === 'users' && ['onboarding', 'retention', 'coaching', 'followup', 'communication', 'administrative'].includes(state.client360Section || '') ? state.client360Section : undefined;
 };
 export const shouldFocusClientNote = (value: unknown) => getClient360Section(value) === 'followup' && (value as DashboardLocationState).focusNote === true;
 
-const getMemberId = (locationState: unknown, page: Page, field: 'retentionMemberId' | 'planningMemberId' | 'client360MemberId' | 'conversationMemberId'): number | null => {
+const getMemberId = (locationState: unknown, page: Page, field: 'onboardingMemberId' | 'retentionMemberId' | 'planningMemberId' | 'client360MemberId' | 'conversationMemberId'): number | null => {
   if (!locationState || typeof locationState !== 'object') return null;
   const state = locationState as Partial<DashboardLocationState>;
   const memberId = state[field];
@@ -75,3 +77,6 @@ export const getClient360AdminSection = (value: unknown) => getClient360Section(
 
 export const getRetentionMemberId = (value: unknown) => getMemberId(value, 'retention', 'retentionMemberId');
 export const createRetentionLocationState = (memberId: number): DashboardLocationState => ({ velatraPage: 'retention', retentionMemberId: memberId });
+
+export const getOnboardingMemberId = (value: unknown) => getMemberId(value, 'onboarding', 'onboardingMemberId');
+export const createOnboardingLocationState = (memberId: number): DashboardLocationState => ({ velatraPage: 'onboarding', onboardingMemberId: memberId });

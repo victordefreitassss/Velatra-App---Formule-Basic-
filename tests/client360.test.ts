@@ -11,7 +11,7 @@ const expected = ['overview', 'coaching', 'progress', 'followup', 'retention', '
 for (const [role, accountType] of [['owner', 'solo'], ['owner', 'studio'], ['coach', 'studio'], ['owner', undefined]] as const) {
   it(`exposes a complete Client 360 for ${role} / ${accountType || 'legacy'}`, () => {
     const sections = getClient360Sections(club(accountType), actor(role));
-    assert.deepEqual(sections.map(section => section.id), expected);
+    assert.deepEqual(sections.map(section => section.id), accountType ? [expected[0], 'onboarding', ...expected.slice(1)] : expected);
     assert.equal(sections[0].id, 'overview');
     assert.deepEqual(getClient360QuickActions(sections), ['message', 'program', 'plan', 'note']);
     assert.deepEqual(getClient360AdminSections(club(accountType), actor(role)).map(section => section.id), ['profile', 'billing', 'documents']);

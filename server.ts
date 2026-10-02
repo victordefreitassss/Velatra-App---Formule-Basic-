@@ -24,6 +24,7 @@ import { validatePublicProspect } from "./server/prospectValidation.ts";
 import { validatePublicContact } from "./server/contactValidation.ts";
 import { calculateCheckInReward, parseDailyCheckInInput } from "./server/memberDailyCheckIn.ts";
 import { parseAIConversation } from "./server/aiConversation.ts";
+import { registerOnboarding } from './server/onboarding.ts';
 import { registerRetention } from './server/retention.ts';
 import { registerPulse } from './server/pulse.ts';
 import { registerCoachingFollowup } from './server/coachingFollowup.ts';
@@ -408,6 +409,7 @@ registerCoachingFollowup(app, admin.firestore());
 registerPulse(app, admin.firestore());
 registerSales(app, admin.firestore());
 registerRetention(app, admin.firestore());
+registerOnboarding(app, admin.firestore());
 registerBillingRoutes(app, admin.firestore());
 
 app.get('/api/bookings/availability', async (req, res) => {

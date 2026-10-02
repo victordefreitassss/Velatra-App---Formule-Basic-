@@ -15,7 +15,7 @@ concurrency:
 jobs:
   mobile-browser:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -44,6 +44,10 @@ jobs:
         env:
           VELATRA_SALES_QA_OUTPUT: ${{ runner.temp }}/sales-evidence
         run: node scripts/qa/sales-browser.mjs
+      - name: Post-sale onboarding with Home, Client360 and Pulse (synthetic fixtures)
+        env:
+          VELATRA_ONBOARDING_QA_OUTPUT: ${{ runner.temp }}/onboarding-evidence
+        run: node scripts/qa/onboarding-browser.mjs
       - name: Legacy account migration activates modern experiences (synthetic fixtures)
         env:
           VELATRA_ACCOUNT_MIGRATION_QA: 'true'
@@ -66,6 +70,8 @@ jobs:
             ${{ runner.temp }}/retain-evidence/*.png
             ${{ runner.temp }}/sales-evidence/results.json
             ${{ runner.temp }}/sales-evidence/*.png
+            ${{ runner.temp }}/onboarding-evidence/results.json
+            ${{ runner.temp }}/onboarding-evidence/*.png
             ${{ runner.temp }}/account-migration-evidence/results.json
             ${{ runner.temp }}/account-migration-evidence/*.png
           retention-days: 7

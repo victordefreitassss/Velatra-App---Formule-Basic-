@@ -31,6 +31,7 @@ export interface Club {
   canAddStaff?: boolean;
   coaches?: CoachInfo[];
   settings?: {
+    onboarding?: { requireInitialAssessment: boolean; initialAssessmentTemplateId?: string };
     defaultProgramDuration?: number;
     finances?: {
       monthlyGoal?: number;
@@ -102,6 +103,7 @@ export interface User {
   credits?: number;
   sessionCredits?: Record<string, number>;
   onboardingCompleted?: boolean;
+  sourceProspectUid?: string;
   /** Converted CRM members retain technical legacy defaults until real measures are supplied. */
   profileMeasurementsPending?: boolean;
   paymentStatus?: 'active' | 'suspended';
@@ -525,7 +527,7 @@ export interface Newsletter {
   author: string;
 }
 
-export type Page = "retention" | "pulse" | "team" | "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "community" | "coaching" | "notifications" | "guide" | "evolution";
+export type Page = "onboarding" | "retention" | "pulse" | "team" | "home" | "users" | "presets" | "performances" | "charts" | "exercises" | "history" | "gift" | "about" | "settings" | "database" | "calendar" | "planning" | "trophy" | "workout" | "messages" | "feed" | "supplements" | "loyalty" | "prospects" | "marketing" | "ai_coach" | "crm_pipeline" | "crm_finances" | "crm_tasks" | "nutrition" | "admin" | "chat" | "profile" | "drive" | "community" | "coaching" | "notifications" | "guide" | "evolution";
 
 export type ActivityLevel = "Sédentaire" | "Légèrement actif" | "Modérément actif" | "Très actif" | "Extrêmement actif";
 

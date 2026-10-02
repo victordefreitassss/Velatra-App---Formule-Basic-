@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { User, Club, Subscription, Plan, Gender, Goal } from '../types';
 import { Button, Input, Card } from './UI';
 import { CheckIcon, ArrowRightIcon, ArrowLeftIcon, FileTextIcon, CreditCardIcon } from './Icons';
-import { db, doc, updateDoc } from '../firebase';
+import { apiFetch, db, doc, updateDoc } from '../firebase';
 import SignatureCanvas from 'react-signature-canvas';
 import { GOALS } from '../constants';
 
@@ -21,10 +21,10 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
   const [injuries, setInjuries] = useState(user.injuries || '');
 
   const [profile, setProfile] = useState({
-    age: user.age?.toString() || '',
+    age: user.profileMeasurementsPending ? '' : user.age?.toString() || '',
     gender: user.gender || 'M',
-    weight: user.weight?.toString() || '',
-    height: user.height?.toString() || '',
+    weight: user.profileMeasurementsPending ? '' : user.weight?.toString() || '',
+    height: user.profileMeasurementsPending ? '' : user.height?.toString() || '',
     phone: user.phone || ''
   });
 
@@ -88,6 +88,10 @@ export const Onboarding: React.FC<OnboardingProps> = ({ user, club, subscription
           injuries: injuries, // sync both fields for consistency
           onboardingCompleted: true
         });
+      }
+      if (user.profileMeasurementsPending) {
+        const response = await apiFetch('/api/onboarding/profile-confirmation', { method: 'POST' });
+        if (!response.ok) throw Error('Profile confirmation failed');
       }
       onComplete();
     } catch (err) {

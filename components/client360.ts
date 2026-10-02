@@ -1,7 +1,7 @@
 import type { AppState, Booking, Club, Program, Role, Subscription, User } from '../types';
 import { canManageClub, getProductCapabilities, resolveAccountType, type Capability } from '../productCapabilities';
 
-export type Client360SectionId = 'retention' | 'overview' | 'coaching' | 'progress' | 'followup' | 'nutrition' | 'calendar' | 'administrative' | 'communication';
+export type Client360SectionId = 'onboarding' | 'retention' | 'overview' | 'coaching' | 'progress' | 'followup' | 'nutrition' | 'calendar' | 'administrative' | 'communication';
 export type Client360AdminSectionId = 'profile' | 'billing' | 'documents';
 export interface Client360Section {
   id: Client360SectionId;
@@ -11,6 +11,7 @@ export interface Client360Section {
 
 const sections: readonly Client360Section[] = [
   { id: 'overview', label: 'Vue d’ensemble' },
+  { id: 'onboarding', label: 'Onboarding', capability: 'clients' },
   { id: 'coaching', label: 'Coaching', capability: 'programs' },
   { id: 'progress', label: 'Progression', capability: 'progress' },
   { id: 'followup', label: 'Suivi', capability: 'clients' },
@@ -30,7 +31,7 @@ const adminSections: readonly { id: Client360AdminSectionId; label: string; capa
 export function getClient360Sections(club: Club | null, actor: { role?: Role; clubId?: string; trustedSuperAdmin?: boolean }): Client360Section[] {
   const capabilities = getProductCapabilities(club, actor);
   if (!capabilities.clients.usable) return [];
-  return sections.filter(section => !section.capability || capabilities[section.capability].usable);
+  return sections.filter(section => (section.id !== 'onboarding' || ['owner', 'manager', 'coach'].includes(actor.role || '') && ['solo', 'studio'].includes(club?.accountType || '')) && (!section.capability || capabilities[section.capability].usable));
 }
 
 export function getClient360AdminSections(club: Club | null, actor: { role?: Role; clubId?: string; trustedSuperAdmin?: boolean }) {

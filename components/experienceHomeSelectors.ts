@@ -8,9 +8,10 @@ export interface FollowupPriority { memberUid: string; memberName: string; templ
 export interface HomeDestination {
   page: Page;
   memberId?: number;
-  section?: 'retention' | 'coaching' | 'followup' | 'communication' | 'administrative';
+  section?: 'onboarding' | 'retention' | 'coaching' | 'followup' | 'communication' | 'administrative';
   adminSection?: 'billing';
   focusNote?: boolean;
+  focusCoachAssignment?: boolean;
   bookingId?: string;
   taskId?: string;
   prospectUid?: string;

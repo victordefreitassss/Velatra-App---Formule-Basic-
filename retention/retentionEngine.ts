@@ -53,7 +53,7 @@ export function assessRetention(facts: RetentionFacts, now = new Date()): Retent
     if (cancels.length >= 2) add({ type: 'BOOKING_CANCELLATIONS', family: 'PLANNING', severity: cancels.length >= 3 ? 'attention' : 'watch', title: 'Annulations répétées', evidence: `${cancels.length} réservations annulées sur 30 jours (date de séance)`, value: cancels.length, window: '30 jours', source: 'bookings.status', factKey: cancels.map(row => [row.id, row.startTime]).sort().join('|') });
     (bookings.get(id) || []).filter(row => row.status === 'cancelled' && retentionDay(row.startTime) && retentionDay(row.startTime)! >= from && past(row.startTime)).forEach(row => timeline.push({ date: retentionDay(row.startTime)!, kind: 'cancellation', label: 'Réservation annulée' }));
     const answers = new Map((responses.get(uid) || []).map(row => [row.id, row]));
-    (assignments.get(uid) || []).filter(row => row.active === true && validDay(row.startDate) && parseFrequency(row.frequency)).forEach(assignment => {
+    (assignments.get(uid) || []).filter(row => row.purpose !== 'onboarding' && row.active === true && validDay(row.startDate) && parseFrequency(row.frequency)).forEach(assignment => {
       const due = new Set<string>();
       for (let n = 55; n >= 0; n--) { const day = shiftDay(today, -n), date = assignment.frequency.kind === 'manual' ? assignment.startDate <= day ? assignment.startDate : null : dueDateFor(assignment.frequency, assignment.startDate, day); if (date && date < today) due.add(date); }
       const ordered = [...due].sort().reverse(); let missed = 0;

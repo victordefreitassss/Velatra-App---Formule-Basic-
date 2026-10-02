@@ -1,3 +1,5 @@
+import { useNavigate } from 'react-router-dom';
+import { createOnboardingLocationState, createClient360LocationState } from '../components/dashboardNavigation';
 import { SalesSurface, ProspectSalesDetail, salesRequest } from '../components/SalesSurface';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -264,6 +266,9 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     } catch { showToast('Impossible de classer ce prospect.', 'error'); }
   };
 
+  const navigate = useNavigate();
+  const [convertedClient, setConvertedClient] = useState<{ uid: string; memberId: number } | null>(null);
+  const openConverted = (onboarding: boolean) => { if (!convertedClient) return; setState((prev: AppState) => ({ ...prev, page: onboarding ? 'onboarding' : 'users', selectedMember: null })); navigate('/dashboard', { state: onboarding ? createOnboardingLocationState(convertedClient.memberId) : createClient360LocationState(convertedClient.memberId) }); };
   // --- Conversion ---
   const confirmConversion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,6 +282,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'La conversion a échoué.');
       setConvertingProspect(null);
+      setConvertedClient({ uid: result.uid, memberId: result.memberId });
       try {
         if (!result.alreadyConverted) await sendPasswordResetEmail(auth, normalizeProspectEmail(convertData.email));
         setAccessEmailFailed(false);
@@ -365,6 +371,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6 lg:space-y-8 page-transition xl:min-h-screen w-full flex flex-col">
+      {convertedClient && <div role="status" data-sales-onboarding className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2"><p>Client créé · son onboarding est disponible.</p><div className="flex flex-wrap gap-2"><Button onClick={() => openConverted(true)}>Voir l’onboarding</Button><Button variant="secondary" onClick={() => openConverted(false)}>Voir le client</Button></div></div>}
       <nav aria-label="Vues CRM" className="flex flex-wrap gap-2">{([['pipeline', 'Pipeline'], ['trials', 'Essais'], ['performance', 'Performance']] as const).map(([tab, label]) => <button key={tab} type="button" aria-pressed={salesTab === tab} className="min-h-[44px] rounded-xl border border-zinc-300 px-4 py-2 font-semibold" onClick={() => setSalesTab(tab)}>{label}</button>)}</nav>
       {salesTab !== 'pipeline' && <SalesSurface tab={salesTab} state={state} setState={setState} onProspect={uid => { setSalesTab('pipeline'); const p = state.prospects.find(p => p.firebaseUid === uid); if (p) setSelectedProspect(p); }} />}
       <div hidden={salesTab !== 'pipeline'}>
@@ -747,6 +754,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
 
             {/* Footer Actions */}
             <div className="p-4 border-t border-zinc-100 bg-white grid grid-cols-2 gap-2 shrink-0">
+              {activeSelectedProspect.convertedMemberUid && <Button type="button" variant="secondary" onClick={() => { const member = state.users.find(u => u.firebaseUid === activeSelectedProspect.convertedMemberUid); if (member) { setState((prev: AppState) => ({ ...prev, page: 'onboarding' })); navigate('/dashboard', { state: createOnboardingLocationState(member.id) }); } }}>Voir l’onboarding</Button>}
               {activeSelectedProspect.convertedMemberUid ? <Button type="button" onClick={() => openLinkedMember(activeSelectedProspect)} className="w-full">Ouvrir le dossier adhérent</Button> : activeSelectedProspect.status !== 'won' ? (
                 <Button 
                   variant="primary"
