@@ -1,0 +1,4 @@
+.va-content .va-onboarding button, .va-onboarding button, .va-onboarding input, .va-onboarding select { min-height: 44px; }
+.va-onboarding input, .va-onboarding select { display: block; border: 1px solid #d4d4d8; border-radius: 8px; padding: 8px; max-width: 100%; background: white; color: #18181b; }
+.va-onboarding-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,300px),1fr)); gap: 12px; }
+.va-onboarding-list > li { margin-top: 0 !important; }

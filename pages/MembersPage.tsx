@@ -1,3 +1,4 @@
+import { OnboardingDetail } from '../onboarding/OnboardingDetail';
 import { RetentionDetail } from '../retention/RetentionDetail';
 import { authorizationActor, canAssignMembers } from '../server/authorization';
 import { billingRequest, downloadReceipt } from '../components/billingClient';
@@ -459,6 +460,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const canUseAI = getProductCapabilities(state.currentClub, assignmentActor).aiAssistance.usable;
   const canAssignCoach = canAssignMembers(authorizationActor(assignmentActor, state.currentClub, assignmentActor.trustedSuperAdmin), state.currentClub?.id) &&
     getProductCapabilities(state.currentClub, assignmentActor).coachAssignments.usable;
+  const assignmentEntry = useRef<string | null>(null);
+  useEffect(() => { if (selectedProfile && canAssignCoach && (location.state as any)?.focusCoachAssignment === true && assignmentEntry.current !== location.key) { assignmentEntry.current = location.key; openMemberEditor(selectedProfile); } }, [selectedProfile, canAssignCoach, location.key]);
   const handleAssignCoach = async () => {
     if (!canAssignCoach) return;
     if (!selectedProfile?.firebaseUid) return;
@@ -2024,10 +2027,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
                   </section>
                   )}
+                  {memberTab === 'onboarding' && selectedProfile.firebaseUid && <OnboardingDetail state={state} setState={setState} memberUid={selectedProfile.firebaseUid} />}
                   {memberTab === 'retention' && selectedProfile.firebaseUid && <RetentionDetail state={state} setState={setState} memberUid={selectedProfile.firebaseUid} light />}
                   {memberTab === 'followup' && (
                   <section className="va-client-360-followup space-y-6">
-                    {selectedProfile.firebaseUid && <CoachFollowup memberUid={selectedProfile.firebaseUid} programs={[]} section="followup" />}
+                    {selectedProfile.firebaseUid && <CoachFollowup memberUid={selectedProfile.firebaseUid} programs={[]} section="followup" actorRole={state.user?.role} />}
                     {/* NOTES DE SUIVI SECTION */}
                     <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 mt-6 shadow-sm space-y-4">
                       <div className="flex items-center justify-between border-b border-zinc-200/60 pb-3">
@@ -3907,7 +3911,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       onChange={event => setCoachAssignment(event.target.value)}
                     >
                       <option value="">Aucun coach affecté</option>
-                      {state.users.filter(user => user.role === 'coach').map(coach => (
+                      {state.users.filter(user => user.role === 'coach' && user.clubId === state.currentClub?.id && !user.isSuspended && user.status !== 'paused').map(coach => (
                         <option key={coach.firebaseUid} value={coach.firebaseUid}>{coach.name}</option>
                       ))}
                     </select>

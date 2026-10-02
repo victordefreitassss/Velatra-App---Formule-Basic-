@@ -199,6 +199,8 @@ export function registerCoachingFollowup(app: Express, db: Firestore) {
     const memberUid = String(req.params.memberUid), access = await scope(database, req.auth.uid, memberUid, true);
     const body = req.body || {}, frequency = parseFrequency(body.frequency);
     if (!safeId(body.templateId) || !frequency || !validDay(body.startDate) || body.phaseId && !safeId(body.phaseId)) fail(400, 'Assignation invalide.');
+    if (body.purpose === 'onboarding' && !['once', 'manual'].includes(frequency.kind)) fail(400, 'Le bilan initial doit être ponctuel.');
+    if (body.purpose !== undefined && body.purpose !== 'onboarding') fail(400, 'Usage du bilan invalide.');
     const template = (await database.doc(`coachCheckInTemplates/${body.templateId}`).get()).data();
     if (!template?.active || template.clubId !== access.clubId || access.actor.role === 'coach' && template.createdBy !== req.auth.uid) fail(403, 'Modèle indisponible.');
     if (body.phaseId) {
@@ -209,11 +211,13 @@ export function registerCoachingFollowup(app: Express, db: Firestore) {
     const ref = database.collection('coachCheckInAssignments').doc(id());
     const value = { id: ref.id, clubId: access.clubId, memberUid, memberId: access.member.id, assignedCoachUid: access.member.assignedCoachUid || null,
       templateId: body.templateId, templateName: template.name, questions: template.questions, frequency, startDate: body.startDate,
+      ...(body.purpose === 'onboarding' ? { purpose: 'onboarding' } : {}),
       phaseId: body.phaseId || null, active: true, createdBy: req.auth.uid, createdAt: new Date().toISOString() };
     await database.runTransaction(async tx => {
       await currentStaffMember(tx, database, req.auth.uid, memberUid, access.clubId);
       const currentTemplate = (await tx.get(database.doc(`coachCheckInTemplates/${body.templateId}`))).data();
       if (!currentTemplate?.active || currentTemplate.clubId !== access.clubId || access.actor.role === 'coach' && currentTemplate.createdBy !== req.auth.uid) fail(409, 'Ce modèle a changé.');
+      if (body.purpose === 'onboarding') { const policy = (await tx.get(database.doc(`clubs/${access.clubId}`))).data()?.settings?.onboarding; if (!policy?.requireInitialAssessment || policy.initialAssessmentTemplateId !== body.templateId) fail(409, 'Ce modèle ne correspond pas au bilan initial configuré.'); }
       tx.create(ref, value);
     });
     return { assignment: value };

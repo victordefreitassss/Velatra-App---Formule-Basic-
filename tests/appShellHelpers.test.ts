@@ -21,7 +21,7 @@ test('Solo and Studio owners keep their operational and Owner surfaces with five
     assert.deepEqual(hubs({ ...ctx, format: 'phone' }), type === 'solo' ? ['Accueil', 'Clients', 'Coaching', 'Planning', 'Plus'] : ['Accueil', 'Clients', 'Planning', 'CRM', 'Plus']);
     assert.equal(getAppHubForPage('calendar', ctx), 'planning');
     assert.equal(getHubDefaultPage('planning', ctx), 'calendar');
-    assert.deepEqual(getContextItemsForHub('clients', ctx).map(item => item.id), ['users']);
+    assert.deepEqual(getContextItemsForHub('clients', ctx).map(item => item.id), ['users', 'onboarding']);
     assert.ok(ids(ctx).includes('exercises'));
     assert.ok(ids(ctx).includes('crm_finances'));
     assert.ok(!ids(ctx).includes('marketing'));

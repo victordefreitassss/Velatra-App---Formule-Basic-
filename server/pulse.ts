@@ -1,3 +1,5 @@
+import { assessOnboarding } from '../onboarding/onboardingEngine.ts';
+import { withOnboardingActions } from '../onboarding/onboardingPulse.ts';
 import { withSalesActions } from '../sales/salesPulse.ts';
 import { assessRetention, retentionCounts } from '../retention/retentionEngine.ts';
 import { withRetentionActions } from '../retention/retentionPulse.ts';
@@ -17,15 +19,15 @@ const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(valu
 export const pulseStateId = (uid: string, clubId: string, key: string) => hash([uid, clubId, key]);
 
 /** Same reader for GET and transactional writes: no N queries per client. */
-export async function loadPulse(db: Firestore, uid: string, now: Date, tx?: Transaction): Promise<{ actor: User; club: Club; categories: PulseCategory[]; partialSources: string[]; actions: PulseAction[]; retentionSummary: RetentionCounts }> {
+export async function loadPulse(db: Firestore, uid: string, now: Date, tx?: Transaction): Promise<{ actor: User; club: Club; categories: PulseCategory[]; partialSources: string[]; actions: PulseAction[]; retentionSummary: RetentionCounts; onboardingSummary: number }> {
   const { actor, club, billing, partialSources, sourceVersions, source } = await staffReader(db, uid, tx);
   const coach = actor.role === 'coach';
-  const [roster, programs, logs, bookings, tasks, messages, prospects, subscriptions, payments, assignments, states, sent, responses, habits, entries] = await Promise.all([
-    source('users', coach ? [] : [['role', 'member']], coach ? 2000 : 1000),
+  const [roster, programs, logs, bookings, tasks, messages, prospects, subscriptions, payments, assignments, states, sent, responses, habits, entries, templates] = await Promise.all([
+    source('users', undefined, 2000),
     source('programs'), source('logs'), source('bookings'), source('tasks'), source('messages', [['to', actor.id]]),
     source('prospects'), billing ? source('subscriptions') : [], billing ? source('payments') : [],
     source('coachCheckInAssignments'), source('pulseActionStates', [['actorUid', uid]], 5000),
-    source('messages', [['from', actor.id]]), source('coachCheckInResponses'), source('coachHabits'), source('coachHabitEntries'),
+    source('messages', [['from', actor.id]]), source('coachCheckInResponses'), source('coachHabits'), source('coachHabitEntries'), source('coachCheckInTemplates'),
   ]);
   const users = roster.filter(person => person.role === 'member' && (!coach || person.assignedCoachUid === uid));
   const input: PulseInput = { user: actor, currentClub: club, users, programs, logs, bookings, tasks, messages, prospects, subscriptions, payments, sourceVersions };
@@ -46,7 +48,9 @@ export async function loadPulse(db: Firestore, uid: string, now: Date, tx?: Tran
   if (partialSources.includes('logs')) actions = actions.filter(item => item.type !== 'CLIENT_INACTIVE');
   if (partialSources.includes('programs')) actions = actions.filter(item => !['PROGRAM_MISSING', 'PROGRAM_ENDING'].includes(item.type));
   if (partialSources.some(name => ['coachCheckInAssignments', 'coachCheckInResponses'].includes(name))) actions = actions.filter(item => !['FOLLOWUP_DUE', 'FOLLOWUP_LATE'].includes(item.type));
-  return { actor, club, retentionSummary: retentionCounts(assessments), categories: pulseCategories(input), partialSources, actions: applyPulseStates(withRetentionActions(withSalesActions(actions, input, now, partialSources, roster), assessments), states as PulseActionState[], uid, club.id, now) };
+  const onboarding = assessOnboarding({ actor, club, users: roster, programs, logs, bookings, prospects, assignments, responses, templates, partialSources }, now);
+  const initialIds = new Set(assignments.filter(a => a.purpose === 'onboarding').map(a => a.id));
+  return { actor, club, onboardingSummary: onboarding.filter(a => a.needsAttention && !a.partial).length, retentionSummary: retentionCounts(assessments), categories: pulseCategories(input), partialSources, actions: applyPulseStates(withOnboardingActions(withRetentionActions(withSalesActions(actions, input, now, partialSources, roster), assessments), onboarding, initialIds, sourceVersions, assessments), states as PulseActionState[], uid, club.id, now) };
 }
 const route = (handler: (req: Request) => Promise<unknown>) => async (req: Request, res: Response) => {
   try {
@@ -78,7 +82,7 @@ export function registerPulse(app: Express, db: Firestore) {
     }
     const next = offset + limit;
     return { actions: actions.slice(offset, next), total: actions.length, nextCursor: next < actions.length ? Buffer.from(JSON.stringify({ offset: next, digest })).toString('base64url') : null,
-      retentionSummary: result.retentionSummary, categories: result.categories, partialSources: result.partialSources, generatedAt: now.toISOString() };
+      onboardingSummary: result.onboardingSummary, retentionSummary: result.retentionSummary, categories: result.categories, partialSources: result.partialSources, generatedAt: now.toISOString() };
   }));
   for (const operation of ['handled', 'snooze'] as const) {
     app.post(`/api/pulse/:actionKey/${operation}`, route(async req => {

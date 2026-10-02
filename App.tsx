@@ -96,6 +96,7 @@ const lazyNamed = <T extends object>(load: () => Promise<T>, exportName: keyof T
 const WorkoutView = lazyNamed(() => import('./components/WorkoutView'), 'WorkoutView');
 const CoachingSessionView = lazyNamed(() => import('./components/CoachingSessionView'), 'CoachingSessionView');
 const ProgramEditor = lazyNamed(() => import('./components/Editor'), 'ProgramEditor');
+const OnboardingPage = lazyNamed(() => import('./pages/OnboardingPage'), 'OnboardingPage');
 const RetentionPage = lazyNamed(() => import('./pages/RetentionPage'), 'RetentionPage');
 const PulsePage = lazyNamed(() => import('./pages/PulsePage'), 'PulsePage');
 const ExperienceHome = lazyNamed(() => import('./components/ExperienceHome'), 'ExperienceHome');
@@ -1243,6 +1244,7 @@ export default function App() {
       const restricted = effectiveRole === 'manager' || effectiveRole === 'coach' && state.currentClub?.accountType === 'studio';
       if (restricted && !allowedPages.includes(page) && page !== 'profile') return <ExperienceHome state={state} setState={setState} showToast={showToast} />;
       switch (page) {
+        case 'onboarding': return <OnboardingPage state={state} setState={setState} />;
         case 'retention': return <RetentionPage state={state} setState={setState} />;
         case 'pulse': return <PulsePage state={state} setState={setState} />;
         case 'team': return <TeamPage state={state} showToast={showToast} />;
@@ -1493,14 +1495,14 @@ export default function App() {
       {/* Private Dashboard Route */}
       <Route path="/dashboard" element={
         !state.user ? <Navigate to="/login" replace /> : (
-          (state.user.role === 'member' && !state.user.onboardingCompleted) ? (
+          (state.user.role === 'member' && (!state.user.onboardingCompleted || state.user.profileMeasurementsPending)) ? (
             <div className="min-h-screen flex flex-col bg-[#ffffff]">
               {renderFirebaseConnectionIssue()}
               {renderBillingBanner()}
               {renderOfflineBanner()}
               <div className="flex-1 animate-fadeIn">
                 <Onboarding user={state.user} club={state.currentClub} subscriptions={state.subscriptions} plans={state.plans} onComplete={() => {
-                  setState(prev => prev.user ? { ...prev, user: { ...prev.user, onboardingCompleted: true } } : prev);
+                  setState(prev => prev.user ? { ...prev, user: { ...prev.user, onboardingCompleted: true, profileMeasurementsPending: false } } : prev);
                 }} />
               </div>
             </div>

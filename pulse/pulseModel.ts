@@ -1,7 +1,7 @@
 import type { AppState } from '../types';
 import type { HomeDestination } from '../components/experienceHomeSelectors';
 import { addParisDays, parisDateKey, parisLocalInstant } from '../components/planningSlots.ts';
-export type PulseType = 'TRIAL_ATTENDANCE_MISSING' | 'TRIAL_NO_SHOW_FOLLOWUP' | 'RETENTION_ATTENTION' | 'CLIENT_INACTIVE' | 'PROGRAM_MISSING' | 'PROGRAM_ENDING' | 'FOLLOWUP_DUE' | 'FOLLOWUP_LATE' | 'MESSAGE_UNREAD' | 'TASK_OVERDUE' | 'TASK_TODAY' | 'TASK_UPCOMING' | 'PROSPECT_REMINDER_OVERDUE' | 'PROSPECT_REMINDER_TODAY' | 'TRIAL_UPCOMING' | 'CLIENT_UNASSIGNED' | 'PAYMENT_ATTENTION' | 'SUBSCRIPTION_ENDING';
+export type PulseType = 'ONBOARDING_ACTION' | 'TRIAL_ATTENDANCE_MISSING' | 'TRIAL_NO_SHOW_FOLLOWUP' | 'RETENTION_ATTENTION' | 'CLIENT_INACTIVE' | 'PROGRAM_MISSING' | 'PROGRAM_ENDING' | 'FOLLOWUP_DUE' | 'FOLLOWUP_LATE' | 'MESSAGE_UNREAD' | 'TASK_OVERDUE' | 'TASK_TODAY' | 'TASK_UPCOMING' | 'PROSPECT_REMINDER_OVERDUE' | 'PROSPECT_REMINDER_TODAY' | 'TRIAL_UPCOMING' | 'CLIENT_UNASSIGNED' | 'PAYMENT_ATTENTION' | 'SUBSCRIPTION_ENDING';
 export type PulseCategory = 'clients' | 'coaching' | 'followup' | 'messages' | 'tasks' | 'crm' | 'planning' | 'business';
 export type PulsePriority = 'urgent' | 'high' | 'normal';
 export type PulseGroup = 'overdue' | 'today' | 'upcoming';
@@ -17,7 +17,7 @@ export interface PulseAction {
 export interface PulseFollowup { id: string; memberUid: string; templateName: string; dueDate: string; }
 export type PulseInput = Pick<AppState, 'user' | 'currentClub' | 'users' | 'programs' | 'logs' | 'bookings' | 'tasks' | 'messages' | 'prospects' | 'subscriptions' | 'payments'> & { sourceVersions?: Record<string, string> };
 export interface PulseActionState { actorUid: string; clubId: string; key: string; sourceFingerprint: string; status: 'handled' | 'snoozed'; snoozedUntil?: string; createdAt: string; updatedAt: string; }
-export interface PulseResult { retentionSummary?: import('../retention/retentionModel').RetentionCounts; actions: PulseAction[]; total: number; nextCursor: string | null; categories: PulseCategory[]; partialSources: string[]; generatedAt: string; }
+export interface PulseResult { onboardingSummary?: number; retentionSummary?: import('../retention/retentionModel').RetentionCounts; actions: PulseAction[]; total: number; nextCursor: string | null; categories: PulseCategory[]; partialSources: string[]; generatedAt: string; }
 export const pulseCategoryLabels: Record<PulseCategory, string> = { clients: 'Clients', coaching: 'Coaching', followup: 'Suivi', messages: 'Messages', tasks: 'Tâches', crm: 'CRM', planning: 'Planning', business: 'Business' };
 export const pulsePriorityLabels: Record<PulsePriority, string> = { urgent: 'Urgent', high: 'Prioritaire', normal: 'Normal' };
 export const snoozeLabels: Record<SnoozePreset, string> = { laterToday: 'Plus tard aujourd’hui', tomorrow: 'Demain', threeDays: 'Dans 3 jours', sevenDays: 'Dans 7 jours' };
