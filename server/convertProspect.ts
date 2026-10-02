@@ -1,3 +1,5 @@
+import { salesActivity, salesEvent } from './salesEvents.ts';
+import { lastShowedCoach, salesJoins } from '../sales/salesModel.ts';
 import { authorizationActor, canOperateStudio } from './authorization.ts';
 import { createHash } from 'node:crypto';
 import type { Auth } from 'firebase-admin/auth';
@@ -87,7 +89,22 @@ export async function convertProspect(auth: Auth, db: Firestore, requesterUid: s
       throw new MemberCreationError(409, 'La conversion a été créée mais son lien CRM reste à confirmer. Réessayez.');
     }
     if (prospect.convertedMemberUid && prospect.convertedMemberUid !== created.uid) throw new MemberCreationError(409, 'Ce prospect est déjà lié à un autre adhérent.');
-    tx.update(prospectRef, { status: 'won', convertedMemberUid: created.uid, convertedMemberId: created.memberId, convertedAt: prospect.convertedAt || now, nextReminderDate: null });
+    const [trialDocs, coachDocs] = await Promise.all([
+      tx.get(db.collection('bookings').where('clubId', '==', requester.clubId).where('type', '==', 'trial').limit(10001)),
+      tx.get(db.collection('users').where('clubId', '==', requester.clubId).limit(2001))
+    ]);
+    const trials = trialDocs.docs.map(d => ({ ...d.data(), id: d.id })) as any[];
+    const coaches = coachDocs.docs.map(d => ({ ...d.data(), firebaseUid: d.id })) as any[];
+    const joins = salesJoins({ clubId: requester.clubId, studio: club?.accountType === 'studio', prospects: [{ ...prospect, firebaseUid: prospectUid } as any], bookings: trials, coaches, events: [] });
+    const numericMatches = Number.isSafeInteger(prospect.id) ? await tx.get(db.collection('prospects').where('clubId', '==', requester.clubId).where('id', '==', prospect.id).limit(2)) : null;
+    const uniqueLegacy = numericMatches?.size === 1 && numericMatches.docs[0].id === prospectUid;
+    const related = trials.filter(b => b.prospectUid ? b.prospectUid === prospectUid : uniqueLegacy && Number(b.prospectId) === Number(prospect.id));
+    const trialCoachUid = trialDocs.size <= 10000 && coachDocs.size <= 2000 ? lastShowedCoach(related, prospect.convertedAt || now, joins.coach) : null;
+    const event = salesEvent(db, `converted:${prospectUid}`, 'CONVERTED', prospectUid, prospect, prospect.convertedAt || now, requesterUid, trialCoachUid ? { coachUid: trialCoachUid } : {});
+    const previousEvent = await tx.get(event.ref);
+    if (!previousEvent.exists) tx.create(event.ref, event.data);
+    tx.update(prospectRef, { status: 'won', convertedMemberUid: created.uid, convertedMemberId: created.memberId, convertedAt: prospect.convertedAt || now, nextReminderDate: null,
+      activityHistory: salesActivity(prospect, 'Converti en adhérent', requesterUid, now, event.ref.id) });
     tx.update(db.collection('users').doc(created.uid), { sourceProspectUid: prospectUid, profileMeasurementsPending: true });
     tx.delete(claimRef);
   });

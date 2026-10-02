@@ -49,7 +49,8 @@ it('Manager cannot access Stripe, billing, club settings, role/plan authority or
 });
 it('Manager reads and writes operational CRM and coaching data in the Studio, never another tenant', async () => {
   await assertSucceeds(setDoc(doc(db(), 'tasks/authz-task'), { clubId: tenant, title: 'Task' }));
-  await assertSucceeds(setDoc(doc(db(), 'prospects/authz-prospect'), { clubId: tenant, status: 'lead' }));
+  await fixture('prospects/authz-prospect', { clubId: tenant, status: 'lead' });
+  await assertFails(setDoc(doc(db(), 'prospects/authz-forged'), { clubId: tenant, status: 'lead' }));
   await assertSucceeds(setDoc(doc(db(), 'programs/authz-program'), { clubId: tenant, memberId: 8104 }));
   await assertSucceeds(getDoc(doc(db(), 'programs/authz-program')));
   await assertSucceeds(updateDoc(doc(db(), 'programs/authz-program'), { name: 'Progression' }));
