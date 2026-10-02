@@ -15,7 +15,7 @@ before(async () => {
     for (const document of previous.docs) await document.ref.delete();
   }
   await db.doc('tasks/workout-reminder').set({ clubId: '876544', relatedMemberId: 8001, title: 'Relance : QA', status: 'todo' });
-  await db.doc('clubs/876544').set({ settings: {} });
+  await db.doc('clubs/876544').set({ isActive: true, settings: {} });
   await db.doc('users/workout-member').set({ id: 8001, name: 'QA', role: 'member', clubId: '876544', xp: 0, assignedCoachUid: 'workout-coach' });
   await db.doc('users/workout-coach').set({ id: 8002, role: 'coach', clubId: '876544' });
   await db.doc('users/workout-outsider').set({ id: 8003, role: 'owner', clubId: '999999' });

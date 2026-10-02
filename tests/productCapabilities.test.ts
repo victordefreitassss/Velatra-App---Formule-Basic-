@@ -4,7 +4,7 @@ import { CAPABILITY_DEFINITIONS, canManageClub, canShowStaffCreation, getProduct
 import { parseRegistrationAccountType } from '../server/clubRegistration.ts';
 import type { Club, Role } from '../types.ts';
 
-const club = (accountType?: 'solo' | 'studio') => ({ id: 'test-club', accountType, canAddStaff: true } as Club);
+const club = (accountType?: 'solo' | 'studio') => ({ id: 'test-club', isActive: true, accountType, canAddStaff: true } as Club);
 
 for (const [role, type] of [
   ['owner', 'solo'], ['owner', 'studio'], ['coach', 'studio'], ['member', 'solo'], ['member', 'studio'],

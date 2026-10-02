@@ -93,7 +93,7 @@ it('Authoritative reassignment and suspension/Manager plan revocation rechecked 
 });
 it('Solo Owner portfolio and Owner cancellation exclusion, Manager finance stays opaque', async () => {
   await db().doc(`clubs/${club}`).update({ accountType: 'solo' }); assert.equal((await api('/api/retention', 'owner')).body.total, 3); assert.equal((await api('/api/retention', 'manager')).status, 403);
-  await db().doc(`clubs/${club}`).update({ accountType: 'studio' }); await db().doc(`subscriptions/${club}-cancelled`).set({ clubId: club, memberId: people.memberB.id, status: 'cancelled' }); assert.equal((await api('/api/retention', 'owner')).body.total, 2); assert.equal((await api('/api/retention', 'manager')).body.total, 3);
+  await db().doc(`clubs/${club}`).update({ accountType: 'studio' }); await db().doc(`subscriptions/${club}-cancelled`).set({ isActive: true, clubId: club, memberId: people.memberB.id, status: 'cancelled' }); assert.equal((await api('/api/retention', 'owner')).body.total, 2); assert.equal((await api('/api/retention', 'manager')).body.total, 3);
 });
 it('500-client Retain uses 12 tenant queries Owner / 11 Manager, 2 authority docs, no member query loop', async () => {
   for (let offset = 0; offset < 500; offset += 250) { const batch = db().batch(); for (let i = offset; i < offset + 250; i++) batch.set(db().doc(`users/${club}-volume-${i}`), { clubId: club, role: 'member', id: 20000 + i, name: `Client ${i}`, createdAt: shiftDay(dayKey(), -60), status: 'active' }); await batch.commit(); }

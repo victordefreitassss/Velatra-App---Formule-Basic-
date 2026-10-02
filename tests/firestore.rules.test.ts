@@ -32,9 +32,9 @@ before(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
-    await setDoc(doc(db, 'clubs', 'club-a'), { id: 'club-a', ownerId: 'owner', accountType: 'studio', name: 'Fixture Studio' });
-    await setDoc(doc(db, 'clubs', 'solo-club'), { id: 'solo-club', ownerId: 'solo-owner', accountType: 'solo', name: 'Fixture Solo' });
-    await setDoc(doc(db, 'clubs', 'legacy-club'), { id: 'legacy-club', ownerId: 'legacy-owner', name: 'Legacy' });
+    await setDoc(doc(db, 'clubs', 'club-a'), { isActive: true, id: 'club-a', ownerId: 'owner', accountType: 'studio', name: 'Fixture Studio' });
+    await setDoc(doc(db, 'clubs', 'solo-club'), { isActive: true, id: 'solo-club', ownerId: 'solo-owner', accountType: 'solo', name: 'Fixture Solo' });
+    await setDoc(doc(db, 'clubs', 'legacy-club'), { isActive: true, id: 'legacy-club', ownerId: 'legacy-owner', name: 'Legacy' });
     for (const [uid, profile] of Object.entries(profiles)) await setDoc(doc(db, 'users', uid.replace('coachA', 'coach-a').replace('coachB', 'coach-b').replace('memberA', 'member-a').replace('memberB', 'member-b').replace('otherClubMember', 'other-member').replace('soloOwner', 'solo-owner').replace('soloMember', 'solo-member').replace('unassignedStudioMember', 'unassigned-studio-member')), profile);
     await setDoc(doc(db, 'programs', 'program-a'), { clubId: 'club-a', memberId: 101, assignedCoachUid: 'coach-a', plan: 'A' });
     await setDoc(doc(db, 'programs', 'program-b'), { clubId: 'club-a', memberId: 202, assignedCoachUid: 'coach-b', plan: 'B' });

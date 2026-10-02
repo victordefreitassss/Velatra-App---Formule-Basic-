@@ -1,3 +1,4 @@
+import { isOrganizationActive } from './organizationAccess.ts';
 import { canManageClubSettings, canManageTeam, authorizationActor } from './server/authorization.ts';
 import type { AccountType, Club, Role } from './types.ts';
 
@@ -95,8 +96,8 @@ export function getProductCapabilities(club: Club | null | undefined, actor: Cap
     const definition: Definition = value;
     const available = !definition.implemented ? false : !definition.studioOnly ? true
       : accountType === 'legacy' ? null : accountType === 'studio';
-    const enabled = !!club && definition.implemented && available !== false &&
-      (definition.activation !== 'staff' || accountType === 'studio' || club.canAddStaff === true);
+    const enabled = isOrganizationActive(club) && definition.implemented && available !== false &&
+      (definition.activation !== 'staff' || accountType === 'studio' || club?.canAddStaff === true);
     const restrictedCoach = actor.role === 'coach' && accountType === 'studio' && ['finances', 'analytics', 'clubManagement', 'bookingSettings', 'stripeConnection', 'teamManagement', 'coachAssignments'].includes(key);
     const restrictedManager = actor.role === 'manager' && (accountType !== 'studio' || ['billing', 'finances', 'clubManagement', 'bookingSettings', 'stripeConnection', 'aiAssistance'].includes(key));
     const allowed = !restrictedCoach && !restrictedManager && roleAllowed(definition, actor, club?.id);
@@ -113,7 +114,7 @@ export function canManageClub(actor: CapabilityActor, clubId: string | null | un
 
 /** Compatibility with the existing beta UI flag; not a new commercial entitlement. */
 export function canShowStaffCreation(club: Club | null | undefined, actor: CapabilityActor): boolean {
-  return canManageTeam(authorizationActor(actor, club, actor.trustedSuperAdmin), club?.id) && (resolveAccountType(club) === 'studio' || club?.canAddStaff === true || (actor.role === 'superadmin' && actor.trustedSuperAdmin === true));
+  return (isOrganizationActive(club) || actor.role === 'superadmin' && actor.trustedSuperAdmin === true) && canManageTeam(authorizationActor(actor, club, actor.trustedSuperAdmin), club?.id) && (resolveAccountType(club) === 'studio' || club?.canAddStaff === true || (actor.role === 'superadmin' && actor.trustedSuperAdmin === true));
 }
 
 /** Validate the profile before mounting tenant listeners. Legacy roles retain their semantics. */
@@ -124,6 +125,7 @@ export function isLiveProfileAllowed(profile: { role?: unknown; clubId?: unknown
 
 /** Never attach forbidden global/financial listeners and never retain their previous contents. */
 export function canLoadLiveCollection(name: string, club: Club | null | undefined, actor: CapabilityActor): boolean {
+  if (!isOrganizationActive(club) && !(actor.role === 'superadmin' && actor.trustedSuperAdmin === true)) return false;
   if (actor.role === 'manager') return !!club && actor.clubId === club.id && resolveAccountType(club) === 'studio' &&
     !['plans', 'subscriptions', 'payments', 'invoices', 'expenses', 'fixedCosts', 'crmClients', 'crmFormulas', 'manualStats', 'pendingProspects', 'supplementOrders'].includes(name);
   if (actor.role === 'coach' && resolveAccountType(club) === 'studio' &&

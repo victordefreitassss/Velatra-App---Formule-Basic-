@@ -1,3 +1,4 @@
+import { isOrganizationActive } from '../organizationAccess.ts';
 import type { Auth } from 'firebase-admin/auth';
 import type { Firestore } from 'firebase-admin/firestore';
 import { authorizationActor, canManageTeam, canProvisionManager } from './authorization.ts';
@@ -12,7 +13,8 @@ export async function createStaffAccount(auth: Auth, db: Firestore, uid: string,
   const callerRef = db.doc(`users/${uid}`), clubRef = db.doc(`clubs/${clubId}`);
   const check = (profile: any, club: any) => {
     const actor = authorizationActor(profile, club, trustedSuperAdmin);
-    if (!club || profile?.isSuspended === true || !canManageTeam(actor, clubId) ||
+    if ((!isOrganizationActive(club) && !(trustedSuperAdmin && profile?.role === 'superadmin')) || profile?.isSuspended === true || !canManageTeam(actor, clubId) ||
+        (!(trustedSuperAdmin && profile?.role === 'superadmin') && club.accountType !== 'studio' && club.canAddStaff !== true) ||
         (staffRole === 'manager' && (!canProvisionManager(actor, clubId) || club.ownerId !== uid)))
       throw new MemberCreationError(403, 'Droits insuffisants pour créer ce collaborateur.');
   };

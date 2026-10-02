@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { 
   collection, getDocs, doc, updateDoc, deleteDoc, query, where, addDoc, serverTimestamp, orderBy, limit 
 } from 'firebase/firestore';
-import { db, getStorageClient } from '../firebase';
+import { apiFetch, db, getStorageClient } from '../firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Club, User } from '../types';
 import { Card } from '../components/UI';
@@ -238,11 +238,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
     return simData;
   }, [clubs, currentMRR, simAcquisitionRate, simClassicRate, simPremiumRate]);
 
+  const updateSaasState = async (clubId: string, command: Record<string, unknown>) => {
+    const response = await apiFetch(`/api/admin/clubs/${encodeURIComponent(clubId)}/saas`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(command),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'La commande SaaS a échoué.');
+    return result.updates as Partial<Club>;
+  };
+
   // Update cloud status/plan helpers
   const updatePlan = async (clubId: string, newPlan: 'basic' | 'classic' | 'premium') => {
     try {
       const clubName = clubs.find(c => c.id === clubId)?.name || 'Club inconnu';
-      await updateDoc(doc(db, 'clubs', clubId), { plan: newPlan });
+      await updateSaasState(clubId, { plan: newPlan });
       setClubs(clubs.map(c => c.id === clubId ? { ...c, plan: newPlan } : c));
       showToast(`Formule mise à jour : ${newPlan}`, "success");
       logAdminAction("CLUB_PLAN_UPDATE", `Modification de la formule du club "${clubName}" passée à: ${newPlan.toUpperCase()}`);
@@ -256,7 +265,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
     try {
       const clubName = clubs.find(c => c.id === clubId)?.name || 'Club inconnu';
       const newStatus = currentStatus === undefined ? false : !currentStatus;
-      await updateDoc(doc(db, 'clubs', clubId), { isActive: newStatus });
+      await updateSaasState(clubId, { isActive: newStatus });
       setClubs(clubs.map(c => c.id === clubId ? { ...c, isActive: newStatus } : c));
       showToast(`Compte ${newStatus ? 'réactivé' : 'suspendu'}`, "success");
       logAdminAction("CLUB_TOGGLE_ACTIVE", `Statut du club "${clubName}" mis à: ${newStatus ? 'ACTIF' : 'SUSPENDU'}`);
@@ -318,19 +327,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
       const updatedClubs = [...clubs];
       let changesCount = 0;
       for (const club of updatedClubs) {
-        if (!club.plan || club.isActive === undefined) {
-          const updates: any = {};
-          if (!club.plan) updates.plan = 'basic';
-          if (club.isActive === undefined) updates.isActive = true;
-          
-          await updateDoc(doc(db, 'clubs', club.id), updates);
-          club.plan = club.plan || 'basic';
-          club.isActive = club.isActive ?? true;
+        if (!club.plan || typeof club.isActive !== 'boolean') {
+          const updates = await updateSaasState(club.id, { initializeLegacy: true });
+          Object.assign(club, updates);
           changesCount++;
         }
       }
       setClubs(updatedClubs);
-      showToast("Tous les clubs obsolètes ont été réinitialisés !", "success");
+      showToast("Initialisation terminée. Les activations absentes restent bloquées jusqu’à votre validation.", "success");
       logAdminAction("CLUBS_SANITY_CHECK", `Lancement d'une passe de conformité : ${changesCount} clubs corrigés.`);
     } catch (error) {
       console.error("Error initializing clubs:", error);
@@ -469,8 +473,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
                         (owners[club.id]?.email || '').toLowerCase().includes(clubSearchTerm.toLowerCase());
       if (!slugMatch) return false;
             
-      if (clubFilterStatus === 'Actifs' && club.isActive === false) return false;
-      if (clubFilterStatus === 'Inactifs' && club.isActive !== false) return false;
+      if (clubFilterStatus === 'Actifs' && club.isActive !== true) return false;
+      if (clubFilterStatus === 'Inactifs' && club.isActive === true) return false;
       if (clubFilterStatus === 'Basic' && club.plan !== 'basic') return false;
       if (clubFilterStatus === 'Classic' && club.plan !== 'classic') return false;
       if (clubFilterStatus === 'Premium' && club.plan !== 'premium') return false;
@@ -746,7 +750,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
             <motion.div variants={containerVariants} className="grid grid-cols-1 gap-4">
               {filteredClubs.map(club => {
                 const owner = owners[club.id];
-                const isActive = club.isActive !== false;
+                const isActive = club.isActive === true;
                 const clubMembersCount = allUsers.filter(u => u.clubId === club.id && u.role === 'member').length;
                 const clubCoachesCount = allUsers.filter(u => u.clubId === club.id && (u.role === 'coach' || u.role === 'owner')).length;
                 
@@ -843,7 +847,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
                             onClick={async () => {
                               const newStatus = !club.canAddStaff;
                               try {
-                                await updateDoc(doc(db, 'clubs', club.id), { canAddStaff: newStatus });
+                                await updateSaasState(club.id, { canAddStaff: newStatus });
                                 setClubs(clubs.map(c => c.id === club.id ? { ...c, canAddStaff: newStatus } : c));
                                 showToast(`Ajout de staff ${newStatus ? 'activé' : 'désactivé'} pour ce club`, "success");
                                 logAdminAction("CLUB_STAFF_RULE_UPDATE", `Le club "${club.name}" a maintenant le recrutement d'entraîneurs configuré sur: ${newStatus ? 'AUTORISÉ' : 'DÉSAUTORISÉ'}`);

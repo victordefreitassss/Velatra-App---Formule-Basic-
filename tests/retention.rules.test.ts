@@ -7,7 +7,7 @@ before(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-velatra', firestore: { rules: await readFile('firestore.rules', 'utf8') } });
   await env.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
-    await setDoc(doc(db, 'clubs/retain-rules'), { accountType: 'studio', ownerId: 'retain-rules-owner' });
+    await setDoc(doc(db, 'clubs/retain-rules'), { isActive: true, accountType: 'studio', ownerId: 'retain-rules-owner' });
     for (const role of ['owner', 'manager', 'coach', 'member', 'superadmin']) await setDoc(doc(db, `users/retain-rules-${role}`), { id: 9800, role, clubId: 'retain-rules', firebaseUid: `retain-rules-${role}` });
     await setDoc(doc(db, 'retentionInterventions/fixture'), { actorUid: 'retain-rules-owner', clubId: 'retain-rules', memberUid: 'member', kind: 'called', note: '', createdAt: '2026-10-01' });
   });

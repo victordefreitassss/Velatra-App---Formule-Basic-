@@ -28,9 +28,9 @@ before(async () => {
   await new Promise<void>(resolve => server.once('listening', resolve));
   base = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
   for (const [name, role, tenant, id] of [['owner', 'owner', clubId, 8401], ['manager', 'manager', clubId, 8402], ['coach', 'coach', clubId, 8403], ['member', 'member', clubId, 8404], ['otherMember', 'member', other, 8410], ['soloManager', 'manager', solo, 8411]] as const) await person(name, role, tenant, id);
-  await db().doc(`clubs/${clubId}`).set({ id: clubId, accountType: 'studio', ownerId: people.owner.uid });
-  await db().doc(`clubs/${solo}`).set({ accountType: 'solo' });
-  await db().doc(`clubs/${other}`).set({ accountType: 'studio' });
+  await db().doc(`clubs/${clubId}`).set({ isActive: true, id: clubId, accountType: 'studio', ownerId: people.owner.uid });
+  await db().doc(`clubs/${solo}`).set({ isActive: true, accountType: 'solo' });
+  await db().doc(`clubs/${other}`).set({ isActive: true, accountType: 'studio' });
 });
 after(async () => new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())));
 it('Owner and Manager create coaches only; payload roles and identity claims never grant privileges', async () => {
@@ -148,10 +148,10 @@ it('Owner provisions a real Studio Manager who logs in and operates the tenant; 
   for (const name of ['manager', 'createdManager', 'coach', 'member', 'soloManager']) assert.equal((await api('/api/create-manager', name, 'POST', staffInput({ role: 'owner' }))).status, 403);
   assert.equal((await api('/api/create-manager', 'owner', 'POST', staffInput({ clubId: other }))).status, 403);
   for (const accountType of ['solo', undefined]) {
-    await db().doc(`clubs/${clubId}`).set({ ownerId: people.owner.uid, ...(accountType ? { accountType } : {}) });
+    await db().doc(`clubs/${clubId}`).set({ isActive: true, ownerId: people.owner.uid, ...(accountType ? { accountType } : {}) });
     assert.equal((await api('/api/create-manager', 'owner', 'POST', staffInput())).status, 403);
   }
-  await db().doc(`clubs/${clubId}`).set({ ownerId: people.owner.uid, accountType: 'studio' });
+  await db().doc(`clubs/${clubId}`).set({ isActive: true, ownerId: people.owner.uid, accountType: 'studio' });
 });
 it('Suspension revokes existing HTTP sessions and reactivation restores operations', async () => {
   for (const name of ['owner', 'manager', 'coach', 'member']) {

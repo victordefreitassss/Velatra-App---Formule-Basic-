@@ -6,7 +6,7 @@ import { resolveExperienceCapabilities } from '../productExperience.ts';
 import { getAllContextItems, getPrimaryHubsForRole } from '../components/appShellHelpers.ts';
 import { getClient360AdminSections, getClient360CoachingContact } from '../components/client360.ts';
 import { authorizationActor, canProvisionManager, canManageTeam } from '../server/authorization.ts';
-const club = { id: 'studio', accountType: 'studio', ownerId: 'owner', canAddStaff: false } as Club;
+const club = { id: 'studio', isActive: true, accountType: 'studio', ownerId: 'owner', canAddStaff: false } as Club;
 const manager = { role: 'manager', clubId: club.id, firebaseUid: 'manager' } as User;
 
 test('Manager profile requires an explicit authoritative Studio, matching tenant and active account', () => {

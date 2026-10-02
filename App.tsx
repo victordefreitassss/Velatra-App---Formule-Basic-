@@ -1,3 +1,4 @@
+import { isOrganizationActive } from './organizationAccess.ts';
 import { useNotificationBadge, usePushDeviceSync, disableCurrentPush, notificationRequest, notificationsChanged } from './notifications/client';
 import { safeNotificationDestination, type NotificationDestination } from './notifications/model';
 import { wrapReactRouterRouting } from './monitoring/sentry';
@@ -603,7 +604,8 @@ export default function App() {
           return;
         }
         setState(prev => ({
-          ...prev,
+          ...(!isOrganizationActive(clubData) && prev.user?.role !== 'superadmin'
+            ? { ...INITIAL_STATE, user: prev.user, exercises: [...INIT_EXERCISES] } : prev),
           currentClub: clubData,
           coaches: clubData.coaches || [],
           aboutInfo: {
@@ -616,9 +618,13 @@ export default function App() {
             mapsLink: clubData.mapsLink || ""
           }
         }));
+      } else {
+        setState(prev => ({ ...INITIAL_STATE, user: prev.user, exercises: [...INIT_EXERCISES] }));
       }
       markOnboardingSourceReady('club');
     });
+
+    if (!isOrganizationActive(state.currentClub) && state.user.role !== 'superadmin') return () => unsubClub();
 
     const unsubUsers = isMember ? (() => {
       setState(prev => ({ ...prev, users: prev.user ? [prev.user] : [] }));
@@ -1101,7 +1107,7 @@ export default function App() {
       unsubTasks(); unsubBookings(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubFixedCosts(); unsubNutritionPlans(); unsubNutritionLogs();
       unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects(); unsubDriveFiles(); unsubDriveFolders(); unsubProgressPhotos();
     };
-  }, [state.user?.clubId, state.user?.role, state.user?.firebaseUid, state.user?.assignedMemberIds?.join(','), authResolved, state.currentClub?.id, state.currentClub?.accountType]);
+  }, [state.user?.clubId, state.user?.role, state.user?.firebaseUid, state.user?.assignedMemberIds?.join(','), authResolved, state.currentClub?.id, state.currentClub?.accountType, state.currentClub?.isActive]);
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
     setState(prev => ({ ...prev, toast: { message, type } }));
@@ -1222,8 +1228,7 @@ export default function App() {
     const isSuperAdmin = user.role === 'superadmin';
     const effectiveRole = isSuperAdmin ? adminPerspective : user.role;
 
-    if (effectiveRole === 'superadmin' || effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'manager') {
-      if (effectiveRole !== 'superadmin' && state.currentClub?.isActive === false) {
+    if (effectiveRole !== 'superadmin' && !isOrganizationActive(state.currentClub)) {
         return (
           <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center">
             <div className="w-24 h-24 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
@@ -1237,8 +1242,9 @@ export default function App() {
             </p>
           </div>
         );
-      }
+    }
 
+    if (effectiveRole === 'superadmin' || effectiveRole === 'coach' || effectiveRole === 'owner' || effectiveRole === 'manager') {
       if (effectiveRole === 'superadmin') {
         return <AdminDashboard showToast={showToast} actorEmail={user.email} />;
       }

@@ -97,7 +97,6 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         settings: {
           defaultProgramDuration: defaultDuration,
           payment: {
-            stripeConnected,
             acceptedMethods,
             autoCollection: true
           },
@@ -181,7 +180,6 @@ export const SettingsPage: React.FC<{ state: AppState, setState: any, showToast:
         await setDoc(doc(db, "clubs", state.user.clubId), {
           settings: {
             payment: {
-              stripeConnected: false,
               acceptedMethods: newMethods
             }
           }

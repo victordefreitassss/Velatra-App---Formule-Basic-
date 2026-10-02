@@ -39,6 +39,9 @@ const scoped=r=>{const value=getValue(r);return Array.isArray(value)?value.filte
 export const getDoc=async r=>snap(getValue(r));export const getDocFromServer=getDoc;export const getDocs=async r=>snap(scoped(r));
 export function onAuthStateChanged(_auth,cb){const timer=setTimeout(()=>{auth.currentUser=user;cb(user);},20);return()=>clearTimeout(timer);}
 const subscriptions=[];
+window.__qaSetOrganizationActivation=value=>{if(value===undefined)delete club.isActive;else club.isActive=value;for(const entry of [...subscriptions])if(entry.r.path==='clubs/context-club')entry.cb(snap({...club}));};
+window.__qaActiveTenantListeners=()=>subscriptions.filter(entry=>entry.r.path!=='clubs/context-club'&&entry.r.path!=='users/'+uid).map(entry=>entry.r.path);
+
 export function onSnapshot(r,cb){window.__qaListeners.push({path:r.path,args:r.args});const entry={r,cb};subscriptions.push(entry);const timer=setTimeout(()=>cb(snap(scoped(r))),20);return()=>{clearTimeout(timer);const i=subscriptions.indexOf(entry);if(i>=0)subscriptions.splice(i,1);};}
 export async function signOut(){auth.currentUser=null;window.__qaSignouts++;}export const signInWithEmailAndPassword=async()=>({user});
 const noticeRows=[{id:'1'.repeat(64),category:'MESSAGE',title:'Notification message',destination:{velatraPage:'chat',conversationMemberId:901}},{id:'2'.repeat(64),category:'PLANNING',title:'Notification séance',destination:{velatraPage:'calendar',planningBookingId:'booking-1'}},{id:'3'.repeat(64),category:'FOLLOWUP',title:'Notification bilan',destination:role==='member'?{velatraPage:'coaching',followupAssignmentId:'member-bilan'}:{velatraPage:'users',client360MemberId:901,client360Section:'followup'}}].map(n=>({...n,createdAt:new Date().toISOString(),readAt:null,body:'Texte générique'}));
@@ -149,6 +152,25 @@ try{
     await openNotice('Notification message');await page.waitForFunction(()=>document.body.innerText.includes('Bonjour Coach'));check('Member notification opens assigned conversation in actual App',true);
     await openNotice('Notification séance');await page.waitForSelector('[data-planning-dialog="active"]');check('Member notification opens owned booking without staff actions',await page.$eval('[data-planning-dialog="active"]',el=>!el.textContent.includes('Ouvrir le client')&&!el.textContent.includes('Déplacer')));
     await page.goBack();await page.waitForSelector('[aria-label="Centre de notifications"]');await openNotice('Notification bilan');await page.waitForFunction(()=>document.querySelector('form')?.textContent.includes('Question membre'));check('Member notification opens actual questionnaire in App',true);await page.close();
+  }
+  // Live server status changes must revoke the actual App surfaces and cached
+  // tenant data without losing the status listener needed for reactivation.
+  for (const role of ['owner','manager','coach','member']) {
+    const page=await browser.newPage();page.setDefaultTimeout(10000);await page.setViewport({width:390,height:844});
+    await page.setRequestInterception(true);page.on('request',r=>r.url().startsWith(origin)?void r.continue():void r.abort());
+    page.on('pageerror',e=>errors.push({label:role+' suspension runtime',details:e.message}));
+    await page.goto(origin+'/dashboard?role='+role+'&accountType=studio&clients=1',{waitUntil:'networkidle0'});
+    await page.waitForFunction(()=>window.__qaGetState?.().currentClub?.isActive===true&&window.__qaActiveTenantListeners().length>0);
+    for (const value of [false, undefined, 'true']) {
+      await page.evaluate(value=>window.__qaSetOrganizationActivation(value),value);
+      await page.waitForFunction(()=>document.body.innerText.includes('Compte Suspendu')&&window.__qaActiveTenantListeners().length===0);
+      const state=await page.evaluate(()=>({role:window.__qaGetState().user?.role,signouts:window.__qaSignouts,
+        retained:['users','programs','logs','messages','tasks','subscriptions','payments'].filter(key=>window.__qaGetState()[key].length)}));
+      check(role+' suspended/malformed activation blocks App and clears tenant data',state.role===role&&state.signouts===0&&state.retained.length===0,state);
+      await page.evaluate(()=>window.__qaSetOrganizationActivation(true));
+      await page.waitForFunction(()=>!document.body.innerText.includes('Compte Suspendu')&&window.__qaActiveTenantListeners().length>0);
+    }
+    check(role+' authorized reactivation restores live App',true);await page.close();
   }
 }catch(error){const pages=await browser.pages();for(const page of pages){if(page.url().startsWith(origin)){console.log(JSON.stringify(await page.evaluate(()=>({state:history.state,body:document.body.innerText.slice(0,1600),tab:document.querySelector('#client-360-section')?.value,active:document.activeElement?.tagName,notes:document.querySelectorAll('textarea').length})),null,2));await page.screenshot({path:path.join(evidence,'scenario-failure.png')});}}errors.push({label:'Browser scenario',details:error.stack});}
 finally{await browser.close();await new Promise(resolve=>server.close(resolve));await writeFile(path.join(evidence,'results.json'),JSON.stringify({checks:records,failures:errors,environment:'RootApp with isolated Firebase fixture; all external requests blocked; no production data'},null,2));}

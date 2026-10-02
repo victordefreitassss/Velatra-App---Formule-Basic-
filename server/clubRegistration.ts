@@ -40,6 +40,7 @@ export async function registerClub(db: Firestore, identity: { uid: string; email
       if ((await transaction.get(clubRef)).exists) continue;
       transaction.create(clubRef, {
         id, accountType, name: clubName, ownerId: identity.uid, email: identity.email || '',
+        plan: 'basic', isActive: true, canAddStaff: false,
         phone: '', address: '', horaires: '', createdAt: now,
         description: accountType === 'solo' ? `Espace de coaching de ${clubName}` : `Bienvenue chez ${clubName}`,
       });

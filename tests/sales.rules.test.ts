@@ -6,7 +6,7 @@ let env: RulesTestEnvironment;
 before(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-velatra', firestore: { rules: await readFile('firestore.rules', 'utf8') } });
   await env.withSecurityRulesDisabled(async context => {
-    const db = context.firestore(); await setDoc(doc(db, 'clubs/sales-rules'), { accountType: 'studio', ownerId: 'sales-rules-owner' });
+    const db = context.firestore(); await setDoc(doc(db, 'clubs/sales-rules'), { isActive: true, accountType: 'studio', ownerId: 'sales-rules-owner' });
     for (const role of ['owner', 'manager', 'coach', 'member', 'superadmin']) await setDoc(doc(db, `users/sales-rules-${role}`), { id: 9900, role, clubId: 'sales-rules', firebaseUid: `sales-rules-${role}` });
     await setDoc(doc(db, 'prospects/sales-protected'), { id: 99, clubId: 'sales-rules', status: 'lead', date: '2026-10-01', salesVersion: 2, activityHistory: [] });
     await setDoc(doc(db, 'salesEvents/sales-protected'), { clubId: 'sales-rules', prospectUid: 'sales-protected', eventType: 'LEAD_CREATED', at: '2026-10-01' });

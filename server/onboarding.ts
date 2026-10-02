@@ -1,3 +1,4 @@
+import { isOrganizationActive } from '../organizationAccess.ts';
 import { createHash } from 'node:crypto';
 import type { Express, Request, Response } from 'express';
 import type { Firestore } from 'firebase-admin/firestore';
@@ -44,7 +45,7 @@ export function registerOnboarding(app: Express, db: Firestore) {
       const ref = db.doc(`users/${req.auth.uid}`), member = (await tx.get(ref)).data();
       if (!member || member.role !== 'member' || member.isSuspended || !safeId(member.clubId)) fail(403, 'Accès membre requis.');
       const club = (await tx.get(db.doc(`clubs/${member.clubId}`))).data();
-      if (!club || club.isActive === false) fail(403, 'Espace indisponible.');
+      if (!club || !isOrganizationActive(club)) fail(403, 'Espace indisponible.');
       if (member.onboardingCompleted !== true || !Number.isInteger(member.age) || member.age < 13 || member.age > 110 || !Number.isFinite(member.weight) || member.weight < 20 || member.weight > 500 || !Number.isFinite(member.height) || member.height < 80 || member.height > 260 || !Number.isInteger(member.trainingDays) || member.trainingDays < 1 || member.trainingDays > 7 || !Number.isFinite(member.sessionDuration) || member.sessionDuration < 15 || member.sessionDuration > 240) fail(409, 'Terminez le questionnaire avec vos informations réelles.');
       if (member.profileMeasurementsPending === true) tx.update(ref, { profileMeasurementsPending: false });
       return { success: true };

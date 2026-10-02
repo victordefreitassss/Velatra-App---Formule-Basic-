@@ -9,7 +9,7 @@ import {
 } from '../components/appShellHelpers';
 
 const club = (accountType?: 'solo' | 'studio', canAddStaff = false) =>
-  ({ id: 'club-1', accountType, canAddStaff } as Club);
+  ({ id: 'club-1', isActive: true, accountType, canAddStaff } as Club);
 const context = (role: Role, accountType?: 'solo' | 'studio', planningEnabled = true): NavigationContext =>
   ({ role, club: club(accountType), planningEnabled });
 const ids = (ctx: NavigationContext) => getAllContextItems(ctx).map(item => item.id);

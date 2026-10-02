@@ -120,7 +120,7 @@ it('conversion emits one logical CONVERTED event on retry using existing convers
   const events = await db().collection('salesEvents').where('prospectUid', '==', uid).where('eventType', '==', 'CONVERTED').get(); assert.equal(events.size, 1);
 });
 it('500 prospects overview uses four tenant queries and never finance or N queries', async () => {
-  const capClub = `${club}-500`; await person('portfolio', 'owner', capClub, 9550); await db().doc(`clubs/${capClub}`).set({ id: capClub, accountType: 'studio', ownerId: people.portfolio.uid });
+  const capClub = `${club}-500`; await person('portfolio', 'owner', capClub, 9550); await db().doc(`clubs/${capClub}`).set({ isActive: true, id: capClub, accountType: 'studio', ownerId: people.portfolio.uid });
   const batch = db().batch(); for (let i = 0; i < 500; i++) batch.set(db().doc(`prospects/${capClub}-${i}`), { id: i + 1, clubId: capClub, name: `Lead ${i}`, status: 'lead', date: new Date().toISOString() }); await batch.commit();
   const collections: string[] = [], database = new Proxy(db(), { get(target, key) { if (key === 'collection') return (name: string) => { collections.push(name); assert.ok(!['payments', 'subscriptions', 'invoices', 'plans'].includes(name)); return target.collection(name); }; const value = Reflect.get(target, key, target); return typeof value === 'function' ? value.bind(target) : value; } });
   const facts = await loadSales(database, people.portfolio.uid); assert.equal(facts.input.prospects.length, 500); assert.equal(collections.length, 4);

@@ -1,4 +1,6 @@
 import { registerNotifications, dispatchPendingPush, notificationActor } from './server/notifications.ts';
+import { isOrganizationActive } from './organizationAccess.ts';
+import { registerOrganizationAuthority } from './server/organizationAuthority.ts';
 import { registerMessages } from './server/messages.ts';
 import { registerSales } from './server/sales.ts';
 import { salesEvent } from './server/salesEvents.ts';
@@ -164,6 +166,7 @@ app.post('/api/public/prospects', async (req: any, res: any) => {
 
     const club = await admin.firestore().collection('clubs').doc(submission.clubId).get();
     if (!club.exists) return res.status(404).json({ error: "Ce code de club n'existe pas." });
+    if (!isOrganizationActive(club.data())) return res.status(403).json({ error: 'Organisation indisponible.' });
     const prospectRef = admin.firestore().collection('prospects').doc();
     const batch = admin.firestore().batch();
     const prospectData = {
@@ -215,8 +218,10 @@ const requireUserProfile = async (req: any, res: any, next: any) => {
     }
     req.profile = userSnapshot.data();
     if (req.profile?.isSuspended === true) return res.status(403).json({ error: 'Compte suspendu.' });
-    const club = req.profile?.role === 'manager' && req.profile.clubId
+    const trustedAdmin = req.auth.email_verified === true && req.auth.email === 'victor.defreitas.pro@gmail.com' && req.profile.role === 'superadmin';
+    const club = typeof req.profile.clubId === 'string' && /^[^/]{1,180}$/.test(req.profile.clubId)
       ? (await admin.firestore().doc(`clubs/${req.profile.clubId}`).get()).data() : undefined;
+    if (!trustedAdmin && !isOrganizationActive(club)) return res.status(403).json({ error: 'Organisation suspendue ou activation non confirmée.' });
     if (req.profile?.role === 'manager' && club?.accountType !== 'studio') return res.status(403).json({ error: 'Manager nécessite un Studio explicite.' });
     req.authorizationActor = authorizationActor(req.profile, club,
       req.auth.email_verified === true && req.auth.email === 'victor.defreitas.pro@gmail.com');
@@ -291,7 +296,7 @@ app.post("/api/bootstrap-superadmin", verifyFirebaseSession, async (req: any, re
       const clubs = await db.collection('clubs').limit(1).get();
       if (clubs.empty) {
         clubId = 'CLUB123';
-        await db.collection('clubs').doc(clubId).set({ id: clubId, name: 'Mon Club', ownerId: req.auth.uid });
+        await db.collection('clubs').doc(clubId).set({ id: clubId, name: 'Mon Club', ownerId: req.auth.uid, plan: 'basic', isActive: false, canAddStaff: false });
       } else {
         clubId = clubs.docs[0].id;
       }
@@ -346,6 +351,7 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
     if (!clubSnapshot.exists) {
       return res.status(404).json({ error: "Ce code de club n'existe pas." });
     }
+    if (!isOrganizationActive(clubSnapshot.data())) return res.status(403).json({ error: 'Organisation indisponible.' });
     if (profileSnapshot.exists) {
       const existing = profileSnapshot.data();
       if (existing?.role === 'member' && existing?.clubId === input.clubId) {
@@ -384,6 +390,7 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
 
     await db.runTransaction(async (transaction) => {
       const latest = await transaction.get(userRef);
+      if (!isOrganizationActive((await transaction.get(clubRef)).data())) throw new MemberCreationError(403, 'Organisation indisponible.');
       if (latest.exists) throw new Error('PROFILE_ALREADY_EXISTS');
       for (let attempt = 0; attempt < 8; attempt += 1) {
         const candidateId = randomInt(1_000_000_000_000, 2_000_000_000_000);
@@ -401,6 +408,7 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
     if (error?.message === 'PROFILE_ALREADY_EXISTS') {
       return res.status(409).json({ error: "Un profil existe déjà pour ce compte." });
     }
+    if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
     console.error('Member registration failed', { code: error?.code || 'unknown' });
     return res.status(500).json({ error: "L'inscription a échoué. Réessayez dans quelques instants." });
   }
@@ -408,6 +416,7 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
 
 // All remaining API routes require a verified session and a server-side profile.
 app.use("/api", verifyFirebaseSession, requireUserProfile);
+registerOrganizationAuthority(app, admin.firestore());
 registerNotifications(app, admin.firestore());
 registerMessages(app, admin.firestore());
 registerCoachingFollowup(app, admin.firestore());

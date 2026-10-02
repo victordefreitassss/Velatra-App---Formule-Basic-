@@ -37,14 +37,14 @@ const signup = (accountType: unknown) => ({ clubName: 'Fixture Product', ownerNa
 for (const accountType of ['solo', 'studio'] as const) {
   it(`registers and logs in a new ${accountType} owner, persisting only the club type`, async () => {
     const user = await identity();
-    const response = await post('/api/register-club', user.token, { ...signup(accountType), role: 'superadmin', canAddStaff: true, capabilities: { inventory: true }, ownerId: 'attacker' });
+    const response = await post('/api/register-club', user.token, { ...signup(accountType), role: 'superadmin', plan: 'premium', entitlements: ['premium'], isActive: false, canAddStaff: true, capabilities: { inventory: true }, ownerId: 'attacker' });
     assert.equal(response.status, 200);
     const result = await response.json();
     const club = (await getFirestore().doc(`clubs/${result.clubId}`).get()).data()!;
     const profile = (await getFirestore().doc(`users/${user.uid}`).get()).data()!;
     assert.equal(club.accountType, accountType); assert.equal(club.ownerId, user.uid);
     assert.equal(profile.role, 'owner'); assert.equal(profile.clubId, result.clubId);
-    assert.equal('accountType' in profile, false); assert.equal('capabilities' in club, false); assert.equal('canAddStaff' in club, false);
+    assert.equal('accountType' in profile, false); assert.equal('capabilities' in club, false); assert.equal(club.canAddStaff, false); assert.equal(club.plan, 'basic'); assert.equal(club.isActive, true); assert.equal('entitlements' in club, false);
     const duplicate = await post('/api/register-club', user.token, signup(accountType === 'solo' ? 'studio' : 'solo'));
     assert.equal(duplicate.status, 409);
     assert.equal((await getFirestore().doc(`clubs/${result.clubId}`).get()).data()!.accountType, accountType);
@@ -67,7 +67,7 @@ for (const role of ['coach', 'member', 'superadmin'] as const) {
   it(`rejects forged owner/type/capabilities from ${role} at protected HTTP endpoints`, async () => {
     const user = await identity();
     const clubId = `foundation-${randomUUID()}`;
-    await getFirestore().doc(`clubs/${clubId}`).set({ id: clubId, ownerId: 'owner', accountType: 'studio', canAddStaff: true });
+    await getFirestore().doc(`clubs/${clubId}`).set({ isActive: true, id: clubId, ownerId: 'owner', accountType: 'studio', canAddStaff: true });
     await getFirestore().doc(`users/${user.uid}`).set({ id: 891, role, clubId, firebaseUid: user.uid });
     const forged = { role: 'owner', accountType: 'studio', requestorUid: 'owner', canAddStaff: true, capabilities: { teamManagement: true }, clubId };
     for (const [path, body, method] of [
@@ -79,10 +79,10 @@ for (const role of ['coach', 'member', 'superadmin'] as const) {
   });
 }
 
-it('keeps historical staff API access for legacy owners and prevents cross-club creation', async () => {
+it('keeps authorized legacy staff API access and prevents cross-club creation', async () => {
   const user = await identity();
   const clubId = `legacy-${randomUUID()}`;
-  await getFirestore().doc(`clubs/${clubId}`).set({ id: clubId, ownerId: user.uid, canAddStaff: false, plan: 'basic' });
+  await getFirestore().doc(`clubs/${clubId}`).set({ isActive: true, id: clubId, ownerId: user.uid, canAddStaff: true, plan: 'basic' });
   await getFirestore().doc(`users/${user.uid}`).set({ id: 892, role: 'owner', clubId, firebaseUid: user.uid });
   const body = { clubId, name: 'Legacy staff', email: `staff-${randomUUID()}@example.test`, password: 'Local-staff-test!' };
   assert.equal((await post('/api/create-staff', user.token, { ...body, clubId: 'other' })).status, 403);

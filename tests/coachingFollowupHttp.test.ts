@@ -45,8 +45,8 @@ before(async () => {
   await person('memberA', 'member', club, 3004, { assignedCoachUid: people.coachA.uid });
   await person('memberB', 'member', club, 3005, { assignedCoachUid: people.coachB.uid });
   await person('otherOwner', 'owner', otherClub, 3006);
-  await db().doc(`clubs/${club}`).set({ id: club, ownerId: people.owner.uid, accountType: 'studio' });
-  await db().doc(`clubs/${otherClub}`).set({ id: otherClub, ownerId: people.otherOwner.uid, accountType: 'solo' });
+  await db().doc(`clubs/${club}`).set({ isActive: true, id: club, ownerId: people.owner.uid, accountType: 'studio' });
+  await db().doc(`clubs/${otherClub}`).set({ isActive: true, id: otherClub, ownerId: people.otherOwner.uid, accountType: 'solo' });
 });
 after(async () => { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); });
 
@@ -171,8 +171,8 @@ it('allows Solo owner and Legacy owner without inventing a coach assignment', as
   const solo = `solo-followup-${randomUUID()}`, legacy = `legacy-followup-${randomUUID()}`;
   await person('soloOwner', 'owner', solo, 4001); await person('soloMember', 'member', solo, 4002);
   await person('legacyOwner', 'owner', legacy, 4003); await person('legacyMember', 'member', legacy, 4004);
-  await db().doc(`clubs/${solo}`).set({ ownerId: people.soloOwner.uid, accountType: 'solo' });
-  await db().doc(`clubs/${legacy}`).set({ ownerId: people.legacyOwner.uid });
+  await db().doc(`clubs/${solo}`).set({ isActive: true, ownerId: people.soloOwner.uid, accountType: 'solo' });
+  await db().doc(`clubs/${legacy}`).set({ isActive: true, ownerId: people.legacyOwner.uid });
   assert.equal((await api(`/api/followup/clients/${people.soloMember.uid}`, 'soloOwner')).status, 200);
   assert.equal((await api(`/api/followup/clients/${people.legacyMember.uid}`, 'legacyOwner')).status, 200);
   assert.equal((await db().doc(`users/${people.soloMember.uid}`).get()).data()?.assignedCoachUid, undefined);

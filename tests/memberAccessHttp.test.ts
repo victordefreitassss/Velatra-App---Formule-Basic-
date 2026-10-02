@@ -43,7 +43,7 @@ function creation(email:string,coachUid?:string) {
 it('Solo creates a member, resolves owner contact, and never writes a fake assignment',async()=>{
   const clubId=`solo-${randomUUID()}`;
   const owner=await identity('owner',clubId,401);
-  await getFirestore().doc(`clubs/${clubId}`).set({id:clubId,accountType:'solo',ownerId:owner.uid});
+  await getFirestore().doc(`clubs/${clubId}`).set({ isActive: true,id:clubId,accountType:'solo',ownerId:owner.uid});
   const email=`solo-member-${randomUUID()}@example.test`;
   const created=await api('/api/create-member',owner.token,creation(email));
   assert.equal(created.status,200);
@@ -59,7 +59,7 @@ it('Studio owner chooses a coach or defers, while coach-created members self-ass
   const clubId=`studio-${randomUUID()}`;
   const owner=await identity('owner',clubId,501);
   const coach=await identity('coach',clubId,502);
-  await getFirestore().doc(`clubs/${clubId}`).set({id:clubId,accountType:'studio',ownerId:owner.uid});
+  await getFirestore().doc(`clubs/${clubId}`).set({ isActive: true,id:clubId,accountType:'studio',ownerId:owner.uid});
   const selected=await api('/api/create-member',owner.token,creation(`selected-${randomUUID()}@example.test`,coach.uid));
   assert.equal(selected.status,200);
   const assigned=await selected.json();

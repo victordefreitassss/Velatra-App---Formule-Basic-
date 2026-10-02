@@ -4,7 +4,7 @@ import type { Club, ProductRole } from '../types.ts';
 import { resolveAccountType, canManageClub, CAPABILITY_DEFINITIONS } from '../productCapabilities.ts';
 import { resolveSaasPlan, resolveProductRole, resolveProductExperience, resolveRolePermission, resolveEntitlement, resolveExperienceCapabilities, resolveProductFormat, resolvePresentationStrategy } from '../productExperience.ts';
 import { resolveExperienceNavigation, getAllContextItems, getPrimaryHubsForRole } from '../components/appShellHelpers.ts';
-const club = (accountType?: 'solo' | 'studio', saasPlanId?: string) => ({ id: 'tenant', accountType, saasPlanId, canAddStaff: true } as Club);
+const club = (accountType?: 'solo' | 'studio', saasPlanId?: string) => ({ id: 'tenant', isActive: true, accountType, saasPlanId, canAddStaff: true } as Club);
 const actor = (role: ProductRole) => ({ role, clubId: 'tenant' });
 
 for (const [role, type, expected] of [

@@ -1,3 +1,4 @@
+import { isOrganizationActive } from '../organizationAccess.ts';
 import { enqueueNotification } from './notifications.ts';
 import { salesActivity, salesEvent, trialReferences } from './salesEvents.ts';
 import { staffReader } from './staffFacts.ts';
@@ -53,7 +54,7 @@ function validateSlot(settings: any, coach: FirebaseFirestore.DocumentSnapshot, 
 }
 
 function assertAccess(profile: any, member: any, memberUid: string, coachUid: string, club: any) {
-  if (profile?.isSuspended === true || member?.isSuspended === true || club?.isActive === false) fail(403, 'Compte indisponible.');
+  if (profile?.isSuspended === true || member?.isSuspended === true || !isOrganizationActive(club)) fail(403, 'Compte indisponible.');
   if (!profile || !member || profile.clubId !== member.clubId || member.role !== 'member') fail(403, 'Vos droits ont changé. Rechargez votre espace.');
   if (canAssignMembers(authorizationActor(profile, club), member.clubId)) return;
   if (profile.role === 'coach' && member.assignedCoachUid === profile.firebaseUid && coachUid === profile.firebaseUid) return;
@@ -301,7 +302,7 @@ export async function createTrialBooking(db: Firestore, uid: string, input: any)
     const profile = profileDoc.data(), prospect = prospectDoc.data(), coach = coachDoc.data();
     if (profile?.clubId !== initial.clubId || profile.role !== initial.role || !canOperateStudio(authorizationActor(profile, clubDoc.data()), initial.clubId) || prospect?.clubId !== initial.clubId)
       fail(403, 'Ce prospect ne fait pas partie de votre espace.');
-    if (!coach || coach.clubId !== initial.clubId || !['owner', 'coach'].includes(coach.role) || !Number.isSafeInteger(coach.id) || coach.id <= 0 || coach.isSuspended === true || clubDoc.data()?.isActive === false) fail(403, 'Coach indisponible dans votre espace.');
+    if (!coach || coach.clubId !== initial.clubId || !['owner', 'coach'].includes(coach.role) || !Number.isSafeInteger(coach.id) || coach.id <= 0 || coach.isSuspended === true || !isOrganizationActive(clubDoc.data())) fail(403, 'Coach indisponible dans votre espace.');
     const prospectId = Number.isSafeInteger(Number(prospect.id)) && Number(prospect.id) > 0 ? Number(prospect.id) : legacyProspectNumericId(prospectUid);
     if (prospect.convertedMemberUid || prospect.status === 'won') fail(409, 'Ce prospect est déjà devenu adhérent.');
     if (previous.exists) {

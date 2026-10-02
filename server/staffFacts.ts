@@ -1,3 +1,4 @@
+import { isOrganizationActive } from '../organizationAccess.ts';
 import type { Firestore, Query, Transaction, DocumentReference } from 'firebase-admin/firestore';
 import type { Club, User } from '../types.ts';
 import { authorizationActor, canManageBilling, canOperateStudio } from './authorization.ts';
@@ -19,7 +20,7 @@ export async function staffReader(db: Firestore, uid: string, tx?: Transaction) 
   const club = clubData && { ...clubData, id: clubDoc.id } as Club;
   const actor = { ...profile, firebaseUid: uid } as User;
   const policy = authorizationActor(actor, club);
-  if (!club || club.isActive === false || !canOperateStudio(policy, actor.clubId) ||
+  if (!club || !isOrganizationActive(club) || !canOperateStudio(policy, actor.clubId) ||
     actor.role === 'owner' && resolveAccountType(club) !== 'legacy' && club.ownerId !== uid ||
     !resolveExperienceCapabilities(club, actor).clients.runtimeUsable) fail(403, 'Accès réservé au staff autorisé.');
   if (!Number.isSafeInteger(actor.id) || actor.id <= 0) fail(403, 'Profil staff invalide.');

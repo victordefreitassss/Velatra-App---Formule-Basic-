@@ -11,7 +11,13 @@ service cloud.firestore {
     }
 
     function profileExists() {
-      return signedIn() && exists(userPath()) && get(userPath()).data.get('isSuspended', false) != true;
+      let caller = get(userPath()).data;
+      return signedIn() && caller != null && caller.get('isSuspended', false) != true;
+    }
+
+    function activeClub(clubId) {
+      let club = get(clubDocumentPath(clubId)).data;
+      return club != null && club.get('isActive', false) == true;
     }
 
     function profile() {
@@ -37,13 +43,13 @@ service cloud.firestore {
 
     function canManageClubSettings(clubId) {
       return profileExists() && profile().clubId == clubId &&
-        (profile().role == 'owner' || (profile().role == 'superadmin' && isSuperAdminEmail()));
+        ((profile().role == 'owner' && activeClub(clubId)) || (profile().role == 'superadmin' && isSuperAdminEmail()));
     }
 
     function isStudioManager(clubId) {
       return profileExists() && profile().role == 'manager' && profile().clubId == clubId &&
         exists(/databases/$(database)/documents/clubs/$(clubId)) &&
-        get(/databases/$(database)/documents/clubs/$(clubId)).data.get('accountType', '') == 'studio';
+        get(/databases/$(database)/documents/clubs/$(clubId)).data.get('accountType', '') == 'studio' && activeClub(clubId);
     }
 
     function canManageTeam(clubId) {
@@ -63,7 +69,7 @@ service cloud.firestore {
     }
 
     function isSameClub(clubId) {
-      return profileExists() && profile().clubId == clubId;
+      return profileExists() && profile().clubId == clubId && activeClub(clubId);
     }
 
     function staffInClub(clubId) {
@@ -105,7 +111,7 @@ service cloud.firestore {
     }
 
     function coachCanManageAssignedRecord(data) {
-      return profileExists() && profile().role == 'coach' && profile().clubId == data.clubId &&
+      return profileExists() && profile().role == 'coach' && isSameClub(data.clubId) &&
         data.assignedCoachUid == request.auth.uid && 'assignedMemberIds' in profile() &&
         profile().assignedMemberIds is list && (
           ('memberId' in data && profile().assignedMemberIds.hasAny([data.memberId])) ||
@@ -115,7 +121,7 @@ service cloud.firestore {
     }
 
     function coachOwnsConversation(data) {
-      return profileExists() && profile().role == 'coach' && profile().clubId == data.clubId &&
+      return profileExists() && profile().role == 'coach' && isSameClub(data.clubId) &&
         data.assignedCoachUid == request.auth.uid &&
         ((data.from == profile().id && hasAssignedMember(data.to)) ||
           (data.to == profile().id && hasAssignedMember(data.from)));
@@ -173,7 +179,7 @@ service cloud.firestore {
       // platform console. Ordinary owners, coaches and members remain scoped.
       return isSuperAdmin() || isSuperAdminEmail() || isSelf(userId) || canManageTeam(data.clubId) ||
         (profileExists() && profile().role == 'coach' &&
-          data.clubId == profile().clubId && data.role == 'member' &&
+          isSameClub(data.clubId) && data.role == 'member' &&
           'assignedCoachUid' in data && data.assignedCoachUid == request.auth.uid);
     }
 
@@ -202,6 +208,19 @@ service cloud.firestore {
 
     function noLegacyStripeSecret(data) {
       return !('settings' in data) || !('payment' in data.settings) || !('stripeSecretKey' in data.settings.payment);
+    }
+
+    function safeClubSettingsUpdate() {
+      let before = resource.data.get('settings', {});
+      let after = request.resource.data.get('settings', {});
+      let paymentBefore = before.get('payment', {});
+      let paymentAfter = after.get('payment', {});
+      // Preserve server-owned legacy keys, but never allow their addition,
+      // removal or change through a nested/partial client write.
+      return after is map && before is map && after.diff(before).affectedKeys().hasOnly([
+        'defaultProgramDuration', 'onboarding', 'finances', 'loyalty', 'payment', 'booking'
+      ]) && paymentAfter is map && paymentBefore is map &&
+        paymentAfter.diff(paymentBefore).affectedKeys().hasOnly(['acceptedMethods', 'autoCollection']);
     }
 
     match /test/{documentId} {
@@ -270,11 +289,19 @@ service cloud.firestore {
     match /clubs/{clubId} {
       // Public onboarding validates club codes through a server endpoint and
       // returns no club profile fields to unauthenticated visitors.
-      allow get: if noLegacyStripeSecret(resource.data) && (isSameClub(clubId) || staffInClub(clubId));
+      // Keep the canonical status readable so a suspended tenant can display
+      // the suspension screen and observe an authorized reactivation.
+      allow get: if noLegacyStripeSecret(resource.data) && (isSuperAdminEmail() ||
+        (signedIn() && exists(userPath()) && get(userPath()).data.get('isSuspended', false) != true &&
+          get(userPath()).data.clubId == clubId));
       allow list: if isSuperAdmin() || isSuperAdminEmail();
       allow create: if false;
-      // Product type is server-owned, including on legacy documents.
-      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['accountType', 'saasPlanId']) &&
+      // An allowlist protects canonical/legacy SaaS fields and future aliases.
+      // Even the platform browser must use the authenticated server command.
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'email', 'phone', 'address', 'description', 'horaires', 'googleReview',
+          'mapsLink', 'logo', 'primaryColor', 'coaches', 'settings'
+        ]) && safeClubSettingsUpdate() &&
         staffInClub(clubId) && (isSuperAdmin() || isSuperAdminEmail() ||
         (profile().role == 'owner' && request.resource.data.ownerId == resource.data.ownerId && noLegacyStripeSecret(request.resource.data)));
       allow delete: if isSuperAdmin() || isSuperAdminEmail();
@@ -416,7 +443,7 @@ service cloud.firestore {
       allow read, write: if false;
       match /items/{notificationId} {
         allow read: if profileExists() && resource.data.recipientUid == request.auth.uid && isSameClub(resource.data.clubId) &&
-          exists(clubDocumentPath(resource.data.clubId)) && get(clubDocumentPath(resource.data.clubId)).data.get('isActive', true) == true;
+          activeClub(resource.data.clubId);
         allow create, update, delete: if false;
       }
     }
