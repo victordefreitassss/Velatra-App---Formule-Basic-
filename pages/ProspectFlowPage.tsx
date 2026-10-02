@@ -344,7 +344,6 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     return isToday(reminderDate) || (!isToday(reminderDate) && isPast(reminderDate));
   });
 
-  const totalWon = state.prospects.filter(p => p.status === 'won').length;
 
   const search = searchTerm.trim().toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const filteredProspects = state.prospects.filter(p =>
@@ -427,10 +426,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-medium text-zinc-700">Conversions observées à ce jour</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-2xl font-black text-zinc-900">Voir Performance</span>
-                  <span className="text-sm font-medium text-zinc-500">dossiers gagnés</span>
-                </div>
+                <button type="button" aria-label="Consulter les conversions dans Performance" onClick={() => setSalesTab('performance')} className="mt-2 min-h-[44px] text-sm font-semibold text-emerald-900 underline underline-offset-4">Voir Performance</button>
               </div>
               <div className="p-2 bg-emerald-50 text-emerald-900 rounded-lg">
                 <CheckCircle className="w-5 h-5" />
