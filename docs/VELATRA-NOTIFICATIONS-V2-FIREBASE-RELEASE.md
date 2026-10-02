@@ -48,7 +48,7 @@ L'inventaire paginé via Firestore Admin API avant publication, relu à **20:09:
 - Collection group : **`items`** ; scope **`COLLECTION`**.
 - Champs, dans cet ordre : **`readAt ASCENDING`, `createdAt DESCENDING`, `__name__ DESCENDING`**.
 - Densité retournée par l'API : `SPARSE_ALL`.
-- État observé à **20:09:48 UTC** : **CREATING**. La présence de l'index est confirmée ; cet état n'est pas une preuve de disponibilité.
+- État initial à **20:09:48 UTC** : **CREATING**. Relecture indépendante via Firestore Admin API à **20:13:58 UTC** : **READY**, avec le même identifiant, les mêmes champs et le même scope. L'index est disponible.
 - Après publication : **1 index composite**, correspondant à la configuration locale ; **0 surcharge de champ / TTL**.
 - Index existants préservés : **OUI**. Index supprimé : **NON**. Aucun `--force`, aucune demande de suppression, aucun DELETE exécuté.
 
