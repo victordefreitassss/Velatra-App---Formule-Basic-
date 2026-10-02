@@ -12,15 +12,15 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 before(async () => {
   if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST) throw new Error('Run with Firebase emulators');
-  await db.doc('clubs/123456').set({ id: '123456', ownerId: 'provision-owner', accountType: 'solo' });
+  await db.doc('clubs/123456').set({ isActive: true, id: '123456', ownerId: 'provision-owner', accountType: 'solo' });
   await db.doc('users/provision-owner').set({ id: 12, role: 'owner', clubId: '123456', name: 'Solo Owner' });
   await db.doc('users/provision-coach').set({ id: 10, role: 'coach', clubId: '123456', assignedMemberIds: [] });
   await db.doc('users/provision-member').set({ id: 11, role: 'member', clubId: '123456' });
-  await db.doc('clubs/studio-club').set({ id: 'studio-club', ownerId: 'studio-owner', accountType: 'studio' });
+  await db.doc('clubs/studio-club').set({ isActive: true, id: 'studio-club', ownerId: 'studio-owner', accountType: 'studio' });
   await db.doc('users/studio-owner').set({ id: 20, role: 'owner', clubId: 'studio-club' });
   await db.doc('users/studio-coach').set({ id: 21, role: 'coach', clubId: 'studio-club', assignedMemberIds: [] });
   await db.doc('users/other-coach').set({ id: 22, role: 'coach', clubId: 'other-club', assignedMemberIds: [] });
-  await db.doc('clubs/legacy-club').set({ id: 'legacy-club', ownerId: 'legacy-owner' });
+  await db.doc('clubs/legacy-club').set({ isActive: true, id: 'legacy-club', ownerId: 'legacy-owner' });
   await db.doc('users/legacy-owner').set({ id: 30, role: 'owner', clubId: 'legacy-club' });
 });
 after(() => deleteApp(app));

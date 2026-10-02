@@ -1,3 +1,4 @@
+import { isOrganizationActive } from '../organizationAccess.ts';
 import { createHash } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
 import { MemberCreationError } from './createMember.ts';
@@ -46,7 +47,7 @@ export async function completeWorkout(db: Firestore, uid: string, input: any) {
       tx.get(callerRef), tx.get(memberRef), tx.get(logRef), tx.get(programRef), tx.get(db.doc(`clubs/${initialCaller!.clubId}`))
     ]);
     const caller = callerDoc.data(), member = memberDoc.data(), program = programDoc.data();
-    if (!caller || !member || caller.clubId !== member.clubId || caller.clubId !== initialCaller!.clubId ||
+    if (!isOrganizationActive(clubDoc.data()) || !caller || !member || caller.clubId !== member.clubId || caller.clubId !== initialCaller!.clubId ||
         !(caller.role === 'owner' || caller.role === 'member' && uid === memberRef.id || caller.role === 'coach' && member.assignedCoachUid === uid)) fail(403, 'Vous ne pouvez pas enregistrer une séance pour cet adhérent.');
     if (previous.exists) return { success: true, alreadyCompleted: true, log: previous.data(), performances: [] };
     const isMember = caller!.role === 'member';

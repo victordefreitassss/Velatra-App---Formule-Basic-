@@ -11,9 +11,9 @@ const app = initializeApp({ projectId: 'demo-velatra' }, 'crm-conversion-tests')
 const db = getFirestore(app), auth = getAuth(app);
 before(async () => {
   if (!process.env.FIRESTORE_EMULATOR_HOST || !process.env.FIREBASE_AUTH_EMULATOR_HOST) throw new Error('Run with Firebase emulators');
-  await db.doc('clubs/crm-solo').set({ accountType: 'solo', ownerId: 'crm-solo-owner' });
-  await db.doc('clubs/crm-studio').set({ accountType: 'studio', ownerId: 'crm-studio-owner' });
-  await db.doc('clubs/crm-legacy').set({ ownerId: 'crm-legacy-owner' });
+  await db.doc('clubs/crm-solo').set({ isActive: true, accountType: 'solo', ownerId: 'crm-solo-owner' });
+  await db.doc('clubs/crm-studio').set({ isActive: true, accountType: 'studio', ownerId: 'crm-studio-owner' });
+  await db.doc('clubs/crm-legacy').set({ isActive: true, ownerId: 'crm-legacy-owner' });
   for (const [uid, role, clubId] of [
     ['crm-solo-owner', 'owner', 'crm-solo'], ['crm-studio-owner', 'owner', 'crm-studio'],
     ['crm-studio-coach', 'coach', 'crm-studio'], ['crm-legacy-owner', 'owner', 'crm-legacy'],

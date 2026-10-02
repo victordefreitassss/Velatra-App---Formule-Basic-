@@ -7,7 +7,7 @@ before(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-velatra', firestore: { rules: await readFile('firestore.rules', 'utf8') } });
   await env.withSecurityRulesDisabled(async context => {
     const db = context.firestore();
-    await setDoc(doc(db, 'clubs/pulse-rules'), { accountType: 'studio', ownerId: 'pulse-rules-owner' });
+    await setDoc(doc(db, 'clubs/pulse-rules'), { isActive: true, accountType: 'studio', ownerId: 'pulse-rules-owner' });
     for (const role of ['owner', 'manager', 'coach', 'member', 'superadmin']) await setDoc(doc(db, `users/pulse-rules-${role}`), { id: 9800, role, clubId: 'pulse-rules', firebaseUid: `pulse-rules-${role}` });
     await setDoc(doc(db, 'pulseActionStates/fixture'), { actorUid: 'pulse-rules-owner', clubId: 'pulse-rules', key: 'task:x', sourceFingerprint: 'hash', status: 'handled' });
   });

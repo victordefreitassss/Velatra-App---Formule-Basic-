@@ -1,3 +1,4 @@
+import { isOrganizationActive } from '../organizationAccess.ts';
 import { createHash } from 'node:crypto';
 import { FieldValue, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
@@ -14,7 +15,7 @@ export async function notificationActor(db: Firestore, uid: string, tx?: Transac
   const profile = (await get(`users/${uid}`)).data();
   if (!profile?.clubId || profile.isSuspended === true || !['owner', 'manager', 'coach', 'member'].includes(profile.role)) fail(403, 'Accès aux notifications refusé.');
   const club = (await get(`clubs/${profile.clubId}`)).data();
-  if (!club || club.isActive === false || profile.role === 'manager' && club.accountType !== 'studio' || profile.role === 'owner' && club.ownerId !== uid) fail(403, 'Votre espace est indisponible.');
+  if (!club || !isOrganizationActive(club) || profile.role === 'manager' && club.accountType !== 'studio' || profile.role === 'owner' && club.ownerId !== uid) fail(403, 'Votre espace est indisponible.');
   return { uid, profile, club, clubId: String(profile.clubId) };
 }
 const copy: Record<string, [NotificationCategory, string, string]> = {

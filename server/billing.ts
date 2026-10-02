@@ -1,3 +1,4 @@
+import { isOrganizationActive } from '../organizationAccess.ts';
 import { authorizationActor, canManageBilling, canUseBilling } from './authorization.ts';
 import type { Firestore, DocumentReference } from "firebase-admin/firestore";
 import type { Express } from "express";
@@ -66,7 +67,7 @@ export async function billingContext(
     fail(403, "Droits insuffisants.");
   const club = (await db.doc(`clubs/${cleanId(user.clubId)}`).get()).data();
   if (
-    !club ||
+    !isOrganizationActive(club) ||
     (user.role === "owner" &&
       resolveAccountType(club) !== "legacy" &&
       club.ownerId !== uid) ||

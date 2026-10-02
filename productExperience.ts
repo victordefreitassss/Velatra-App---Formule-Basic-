@@ -1,3 +1,4 @@
+import { isOrganizationActive } from './organizationAccess.ts';
 import type { Club, ProductRole, SaasPlanId } from './types.ts';
 import { CAPABILITY_DEFINITIONS, getProductCapabilities, resolveAccountType, type Capability, type CapabilityActor } from './productCapabilities.ts';
 
@@ -80,7 +81,7 @@ export function resolveExperienceCapabilities(club: Club | null | undefined, act
   return Object.fromEntries((Object.keys(CAPABILITY_DEFINITIONS) as Capability[]).map(feature => {
     const entitlement = resolveEntitlement(feature, club);
     const scope = resolveRolePermission(feature, club, actor);
-    const targetUsable = CAPABILITY_DEFINITIONS[feature].implemented && scope !== 'none' &&
+    const targetUsable = isOrganizationActive(club) && CAPABILITY_DEFINITIONS[feature].implemented && scope !== 'none' &&
       (entitlement === null ? legacy[feature].enabled : entitlement);
     // No SaaS plan is provisioned by this mission. Explicit plans remain preview-only
     // until server and deployed rules enforce commercial inclusion and target scopes.

@@ -52,7 +52,7 @@ test('production target, CI, emulator and environment guards; default dry-run', 
 });
 test('migrated fixtures resolve modern experiences, own scopes, formats, Pulse and Retain', () => {
   for (const [role, type, experience] of [['owner', 'solo', 'SOLO_OWNER'], ['owner', 'studio', 'STUDIO_OWNER'], ['manager', 'studio', 'STUDIO_MANAGER'], ['coach', 'studio', 'STUDIO_COACH'], ['member', 'studio', 'MEMBER']] as const) {
-    const club = { id: 'club', accountType: type, ownerId: 'owner', plan: 'basic' } as Club;
+    const club = { id: 'club', isActive: true, accountType: type, ownerId: 'owner', plan: 'basic' } as Club;
     const actor = { role, clubId: 'club' };
     assert.equal(resolveProductExperience(club, actor), experience);
     if (role !== 'member') {

@@ -4,7 +4,7 @@ import { canShowClient360AccountActions, getClient360AdminSections, getClient360
 import { getProductCapabilities } from '../productCapabilities.ts';
 import type { AppState, Club, User } from '../types.ts';
 
-const club = (accountType?: 'solo' | 'studio') => ({ id: 'club-1', accountType, canAddStaff: true } as Club);
+const club = (accountType?: 'solo' | 'studio') => ({ id: 'club-1', isActive: true, accountType, canAddStaff: true } as Club);
 const actor = (role: 'owner' | 'coach' | 'member') => ({ role, clubId: 'club-1' });
 const expected = ['overview', 'coaching', 'progress', 'followup', 'retention', 'nutrition', 'calendar', 'administrative', 'communication'];
 

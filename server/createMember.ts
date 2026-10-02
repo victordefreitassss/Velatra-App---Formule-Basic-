@@ -1,3 +1,4 @@
+import { isOrganizationActive } from '../organizationAccess.ts';
 import { authorizationActor, canOperateStudio, canAssignMembers } from './authorization.ts';
 import { randomBytes, randomInt } from 'node:crypto';
 import type { Auth } from 'firebase-admin/auth';
@@ -19,6 +20,7 @@ export async function createManagedMember(auth: Auth, db: Firestore, requesterUi
   const clubRef = db.collection('clubs').doc(requester.clubId);
   const club = (await clubRef.get()).data();
   if (!club) throw new MemberCreationError(404, 'Votre club est introuvable.');
+  if (!isOrganizationActive(club)) throw new MemberCreationError(403, 'Organisation indisponible.');
   const accountType = resolveAccountType(club);
   if (!canOperateStudio(authorizationActor(requester, club), requester.clubId)) throw new MemberCreationError(403, 'Accès refusé.');
   if (requester.role === 'owner' && accountType !== 'legacy' && club.ownerId !== requesterUid) {
@@ -77,7 +79,7 @@ export async function createManagedMember(auth: Auth, db: Firestore, requesterUi
       if (latestRequester?.role !== requester.role || latestRequester?.clubId !== requester.clubId) {
         throw new MemberCreationError(403, 'Vos droits ont changé. Rechargez votre espace.');
       }
-      if (!latestClub || !canOperateStudio(authorizationActor(latestRequester, latestClub), requester.clubId) || resolveAccountType(latestClub) !== accountType ||
+      if (!isOrganizationActive(latestClub) || !canOperateStudio(authorizationActor(latestRequester, latestClub), requester.clubId) || resolveAccountType(latestClub) !== accountType ||
         (requester.role === 'owner' && accountType !== 'legacy' && latestClub.ownerId !== requesterUid)) {
         throw new MemberCreationError(409, 'La configuration du club a changé. Réessayez.');
       }

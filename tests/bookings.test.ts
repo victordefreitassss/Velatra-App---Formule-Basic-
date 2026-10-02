@@ -10,7 +10,7 @@ const start = new Date(); start.setUTCDate(start.getUTCDate() + 2); start.setUTC
 const input = { coachId: 'booking-coach', startTime: start.toISOString(), endTime: new Date(start.getTime() + 3600000).toISOString() };
 before(async () => {
   if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('Run with Firebase emulators');
-  await db.doc('clubs/876543').set({ ownerId: 'booking-owner', accountType: 'studio', settings: { booking: { enabled: true, sessionDuration: 60, schedule: Array.from({ length: 7 }, (_, day) => ({ day, slots: [{ start: '00:00', end: '23:00' }] })) } } });
+  await db.doc('clubs/876543').set({ isActive: true, ownerId: 'booking-owner', accountType: 'studio', settings: { booking: { enabled: true, sessionDuration: 60, schedule: Array.from({ length: 7 }, (_, day) => ({ day, slots: [{ start: '00:00', end: '23:00' }] })) } } });
   await db.doc('users/booking-owner').set({ id: 9000, role: 'owner', clubId: '876543' });
   await db.doc('users/booking-coach').set({ id: 9001, role: 'coach', clubId: '876543', assignedMemberIds: [9010, 9011] });
   for (let i = 0; i < 2; i++) await db.doc(`users/booking-member-${i}`).set({ id: 9010 + i, role: 'member', clubId: '876543', credits: 1, assignedCoachUid: 'booking-coach' });
@@ -155,7 +155,7 @@ it('validates coach, member, availability, duration, credits and policy boundari
 });
 
 it('supports Solo owner as implicit referent and denies unassigned Studio member', async () => {
-  await db.doc('clubs/booking-solo').set({ ownerId: 'booking-solo-owner', accountType: 'solo', settings: { booking: { enabled: true, sessionDuration: 60, schedule: Array.from({ length: 7 }, (_, day) => ({ day, slots: [{ start: '00:00', end: '23:00' }] })) } } });
+  await db.doc('clubs/booking-solo').set({ isActive: true, ownerId: 'booking-solo-owner', accountType: 'solo', settings: { booking: { enabled: true, sessionDuration: 60, schedule: Array.from({ length: 7 }, (_, day) => ({ day, slots: [{ start: '00:00', end: '23:00' }] })) } } });
   await db.doc('users/booking-solo-owner').set({ id: 9080, role: 'owner', clubId: 'booking-solo' });
   await db.doc('users/booking-solo-member').set({ id: 9081, role: 'member', clubId: 'booking-solo', credits: 1 });
   const slot = futureInput(11, 10, { coachId: 'booking-solo-owner' });

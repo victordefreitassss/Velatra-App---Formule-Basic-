@@ -1,3 +1,4 @@
+import { isOrganizationActive } from '../organizationAccess.ts';
 import type { AppState, Booking, Page, Program, Task, User } from '../types';
 import { getProductCapabilities } from '../productCapabilities.ts';
 import { resolveExperienceCapabilities, resolveProductExperience } from '../productExperience.ts';
@@ -29,7 +30,7 @@ export interface HomeAction {
 const DAY = 86_400_000;
 const time = (value: string | undefined) => value ? new Date(value).getTime() : NaN;
 const validStaff = (state: Pick<AppState, 'user' | 'currentClub'>) => !!state.user &&
-  state.user.clubId === state.currentClub?.id && state.user.isSuspended !== true && state.currentClub?.isActive !== false &&
+  state.user.clubId === state.currentClub?.id && state.user.isSuspended !== true && isOrganizationActive(state.currentClub) &&
   (state.user.role !== 'coach' || !!state.user.firebaseUid) &&
   (state.user.role !== 'manager' || resolveExperienceCapabilities(state.currentClub, state.user).clients.runtimeUsable) &&
   ['SOLO_OWNER', 'STUDIO_OWNER', 'STUDIO_MANAGER', 'STUDIO_COACH', 'LEGACY_OWNER', 'LEGACY_COACH'].includes(resolveProductExperience(state.currentClub, state.user));

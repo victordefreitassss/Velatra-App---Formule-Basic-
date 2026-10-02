@@ -12,9 +12,9 @@ const storage = (role = 'manager') => env.authenticatedContext(`authz-${role}`).
 const fixture = async (path: string, value: any) => env.withSecurityRulesDisabled(async c => { await setDoc(doc(c.firestore(), path), value); });
 before(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-velatra', firestore: { rules: await readFile('firestore.rules', 'utf8') }, storage: { rules: await readFile('storage.rules', 'utf8') } });
-  await fixture(`clubs/${tenant}`, { id: tenant, ownerId: 'authz-owner', accountType: 'studio' });
-  await fixture('clubs/authz-other', { accountType: 'studio' });
-  await fixture('clubs/authz-solo', { accountType: 'solo' });
+  await fixture(`clubs/${tenant}`, { isActive: true, id: tenant, ownerId: 'authz-owner', accountType: 'studio' });
+  await fixture('clubs/authz-other', { isActive: true, accountType: 'studio' });
+  await fixture('clubs/authz-solo', { isActive: true, accountType: 'solo' });
   for (const [role, id] of [['owner', 8101], ['manager', 8102], ['coach', 8103], ['member', 8104]] as const) await fixture(`users/authz-${role}`, profile(role, id));
   await fixture('users/authz-other', { ...profile('member', 8110, 'authz-other'), firebaseUid: 'authz-other' });
   await fixture('users/authz-solo-manager', { ...profile('manager', 8111, 'authz-solo'), firebaseUid: 'authz-solo-manager', accountType: 'studio' });
@@ -109,7 +109,7 @@ it('Owner suspends/reactivates Manager, Manager manages Coach suspension only, e
   await assertSucceeds(getDoc(doc(db(), `clubs/${tenant}`)));
 });
 it('Studio Coach cannot query global financial collections; legacy Coach permissions stay compatible', async () => {
-  await fixture('clubs/authz-legacy', { ownerId: 'legacy-owner' });
+  await fixture('clubs/authz-legacy', { isActive: true, ownerId: 'legacy-owner' });
   await fixture('users/authz-legacy-coach', { ...profile('coach', 8190, 'authz-legacy'), firebaseUid: 'authz-legacy-coach' });
   for (const name of ['expenses', 'fixedCosts', 'manualStats']) {
     await fixture(`${name}/authz-studio-finance`, { clubId: tenant });

@@ -39,7 +39,7 @@ async function fixture(accountType: any = "studio") {
     coach = `${clubId}-coach`,
     memberUid = `${clubId}-member`,
     memberId = 7000 + seq;
-  await db.doc(`clubs/${clubId}`).set({
+  await db.doc(`clubs/${clubId}`).set({ isActive: true,
     id: clubId,
     name: "Fixture",
     ownerId: owner,

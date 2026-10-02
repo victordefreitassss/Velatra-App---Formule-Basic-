@@ -1,3 +1,4 @@
+import { isOrganizationActive } from '../organizationAccess.ts';
 import { createHash } from 'node:crypto';
 import type { AppState, Program } from '../types';
 import { selectHomeMembers, selectOperationalTasks, selectHomeBookings } from '../components/experienceHomeSelectors.ts';
@@ -13,7 +14,7 @@ const dateKey = (value?: string) => value && (validDay(value) ? value : Number.i
 const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / DAY);
 const usable = (program: Program) => Array.isArray(program.days) && program.days.some(day => Array.isArray(day.exercises) && day.exercises.length > 0);
 export function pulseCategories(input: PulseInput): PulseCategory[] {
-  if (!input.user || !['owner', 'manager', 'coach'].includes(input.user.role) || input.user.isSuspended || input.currentClub?.isActive === false || input.currentClub?.id !== input.user.clubId) return [];
+  if (!input.user || !['owner', 'manager', 'coach'].includes(input.user.role) || input.user.isSuspended || !isOrganizationActive(input.currentClub) || input.currentClub?.id !== input.user.clubId) return [];
   if (!resolveExperienceCapabilities(input.currentClub, input.user).clients.runtimeUsable) return [];
   const caps = getProductCapabilities(input.currentClub, input.user);
   return (['clients', 'coaching', 'followup', 'messages', 'tasks', 'planning', 'crm', 'business'] as const).filter(category =>

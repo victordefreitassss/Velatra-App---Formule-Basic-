@@ -15,7 +15,7 @@ const messages = () => db.collection('messages').where('clubId', '==', clubId).g
 before(async () => {
   if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('Emulators required');
   await db.doc(`clubs/${clubId}`).set({ ownerId: uid('owner'), accountType: 'studio', isActive: true, settings: { booking: { enabled: true, sessionDuration: 60, schedule: Array.from({ length: 7 }, (_, day) => ({ day, slots: [{ start: '00:00', end: '23:00' }] })) } } });
-  await db.doc(`clubs/${soloId}`).set({ ownerId: uid('solo-owner'), accountType: 'solo' });
+  await db.doc(`clubs/${soloId}`).set({ isActive: true, ownerId: uid('solo-owner'), accountType: 'solo' });
   for (const [name, role, id] of [['owner', 'owner', 8801], ['manager', 'manager', 8802], ['coach', 'coach', 8803], ['coach-b', 'coach', 8804], ['member', 'member', 8810], ['member-b', 'member', 8811], ['suspended', 'member', 8812], ['solo-owner', 'owner', 8901], ['solo-member', 'member', 8910]] as const) {
     await db.doc(`users/${uid(name)}`).set({ role, id, clubId: name.startsWith('solo') ? soloId : clubId, assignedCoachUid: uid(name === 'member-b' ? 'coach-b' : 'coach'), credits: 10, ...(name === 'suspended' ? { isSuspended: true } : {}) });
   }
