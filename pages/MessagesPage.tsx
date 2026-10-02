@@ -17,6 +17,8 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
   const [searchContact, setSearchContact] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const user = state.user!;
+  const pendingSend = useRef<{ fingerprint: string; requestId: string } | null>(null);
+  const [sending, setSending] = useState(false);
   const [memberCoach, setMemberCoach] = useState<User | null>(null);
   const [memberCoachLoading, setMemberCoachLoading] = useState(user.role === 'member');
   const [memberCoachError, setMemberCoachError] = useState<string | null>(null);
@@ -108,49 +110,20 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
 
   const sendMessage = async () => {
     if ((!text && !fileData) || !selectedDest || !selectedContactAvailable) return;
-    const messageId = Date.now().toString();
-    const assignedCoachUid = user.role === 'member'
-      ? (memberCoach?.role === 'coach' ? memberCoach.firebaseUid : undefined)
-      : user.role === 'coach'
-        ? user.firebaseUid
-        : state.users.find(contact => contact.id === selectedDest)?.assignedCoachUid;
-    const newMessage: Message = {
-      id: Date.now(),
-      clubId: user.clubId,
-      ...(assignedCoachUid ? { assignedCoachUid } : {}),
-      from: user.id,
-      to: selectedDest,
-      text: text || (fileData ? "Fichier joint" : ""),
-      date: new Date().toISOString(),
-      read: false,
-      file: fileData
-    };
-    
+    const fingerprint = JSON.stringify([selectedDest, text, fileData]);
+    if (!pendingSend.current || pendingSend.current.fingerprint !== fingerprint) pendingSend.current = { fingerprint, requestId: crypto.randomUUID() };
+    if (sending) return;
+    setSending(true);
     try {
-      await setDoc(doc(db, "messages", messageId), newMessage);
-      
-      // Staff can create a recipient notification for an assigned member.
-      // Member messages remain private and are delivered by the message listener.
-      if (user.role !== 'member') {
-        await addDoc(collection(db, 'notifications'), {
-          clubId: user.clubId,
-          ...(assignedCoachUid ? { assignedCoachUid } : {}),
-          userId: selectedDest,
-          title: 'Nouveau message',
-          message: `Vous avez reçu un nouveau message de ${user.name}.`,
-          type: 'info',
-          read: false,
-          createdAt: new Date().toISOString(),
-          link: 'messages'
-        });
-      }
-
+      const response = await apiFetch('/api/messages', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ requestId: pendingSend.current.requestId, to: selectedDest, text, file: fileData }) });
+      if (!response.ok) throw new Error('Send refused');
+      pendingSend.current = null;
       setText("");
       setFileData(null);
       setFileName(null);
     } catch (err) {
       showToast("Message non envoyé. Votre texte est conservé ; réessayez.", "error");
-    }
+    } finally { setSending(false); }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -372,7 +345,7 @@ export const MessagesPage: React.FC<{ state: AppState, setState: any, showToast:
           rows={1}
         />
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="shrink-0 h-[50px] w-[50px]">
-          <Button aria-label="Envoyer le message" onClick={sendMessage} disabled={!text.trim() && !fileData} className="!p-3 h-full w-full shadow-lg shadow-emerald-500/20 flex items-center justify-center">
+          <Button aria-label="Envoyer le message" onClick={sendMessage} disabled={sending || (!text.trim() && !fileData)} className="!p-3 h-full w-full shadow-lg shadow-emerald-500/20 flex items-center justify-center">
             <MessageCircleIcon size={20} />
           </Button>
         </motion.div>

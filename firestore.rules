@@ -392,20 +392,14 @@ service cloud.firestore {
       allow delete: if canDeleteMemberRecord(resource.data) || canCreateOwnRecord(resource.data);
     }
     match /messages/{documentId} {
-      allow read: if canReadMemberRecord(resource.data);
-      allow create: if isCoach()
-        ? coachOwnsConversation(request.resource.data)
-        : canManageMemberRecord(request.resource.data) ||
-          (memberOwnsConversation(request.resource.data) && request.resource.data.from == profile().id);
-      allow update: if isCoach()
-        ? (coachOwnsConversation(resource.data) && coachOwnsConversation(request.resource.data) &&
-            request.resource.data.from == resource.data.from && request.resource.data.to == resource.data.to &&
-            request.resource.data.clubId == resource.data.clubId)
-        : (canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
-          (memberOwnsConversation(resource.data) && memberOwnsConversation(request.resource.data) &&
-            request.resource.data.from == resource.data.from && request.resource.data.to == resource.data.to &&
-            request.resource.data.clubId == resource.data.clubId);
-      allow delete: if isCoach() ? coachOwnsConversation(resource.data) : canManageMemberRecord(resource.data);
+      // UID-backed server writes; numeric participation retained for existing realtime queries.
+      allow read: if profileExists() && isSameClub(resource.data.clubId) &&
+        (resource.data.from == profile().id || resource.data.to == profile().id) &&
+        (!isCoach() || coachOwnsConversation(resource.data));
+      allow create, delete: if false;
+      allow update: if profileExists() && isSameClub(resource.data.clubId) &&
+        resource.data.to == profile().id && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']) &&
+        request.resource.data.read == true;
     }
     match /bookings/{documentId} {
       allow read: if canReadMemberRecord(resource.data);
@@ -414,12 +408,21 @@ service cloud.firestore {
       allow delete: if false;
     }
     match /notifications/{documentId} {
-      allow read: if canReadMemberRecord(resource.data);
-      allow create: if canManageMemberRecord(request.resource.data);
-      allow update: if (canManageMemberRecord(resource.data) && canManageMemberRecord(request.resource.data)) ||
-        (canCreateOwnRecord(resource.data) && canCreateOwnRecord(request.resource.data));
-      allow delete: if canDeleteMemberRecord(resource.data) || canCreateOwnRecord(resource.data);
+      // Historical inbox only: own read, immutable via SDK; V2 creation is server-owned.
+      allow read: if profileExists() && isSameClub(resource.data.clubId) && resource.data.userId == profile().id;
+      allow create, update, delete: if false;
     }
+    match /notificationInboxes/{inboxId} {
+      allow read, write: if false;
+      match /items/{notificationId} {
+        allow read: if profileExists() && resource.data.recipientUid == request.auth.uid && isSameClub(resource.data.clubId) &&
+          exists(clubDocumentPath(resource.data.clubId)) && get(clubDocumentPath(resource.data.clubId)).data.get('isActive', true) == true;
+        allow create, update, delete: if false;
+      }
+    }
+    match /pushDevices/{document=**} { allow read, write: if false; }
+    match /notificationPreferences/{document=**} { allow read, write: if false; }
+    match /pushTokenOwners/{document=**} { allow read, write: if false; }
     match /presets/{documentId} {
       allow read: if signedIn() && (resource.data.clubId == 'global' || isSameClub(resource.data.clubId));
       allow create: if canWriteClubRecord(request.resource.data);

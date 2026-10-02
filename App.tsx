@@ -1,3 +1,5 @@
+import { useNotificationBadge, usePushDeviceSync, disableCurrentPush, notificationRequest, notificationsChanged } from './notifications/client';
+import { safeNotificationDestination, type NotificationDestination } from './notifications/model';
 import { wrapReactRouterRouting } from './monitoring/sentry';
 import { TeamPage } from './pages/TeamPage';
 import { getAllContextItems } from './components/appShellHelpers';
@@ -9,7 +11,7 @@ import {
   SupplementProduct, SupplementOrder, FixedCost, CommissionPayment, Prospect, Newsletter, Club, Exercise,
   Task, Subscription, Payment, Plan, NutritionPlan, NutritionLog, CRMClient, CRMFormula, ManualStats, PendingProspect, Expense, Invoice, Booking, DriveFile, DriveFolder, Product, ProgressPhoto, NutritionPreset
 } from './types';
-import type { Notification, Page } from './types';
+import type { Page } from './types';
 import { 
   INIT_EXERCISES, CLUB_INFO, COACHES, CATEGORY_MEDIA, getExerciseMedia 
 } from './constants';
@@ -95,6 +97,8 @@ import LandingLayout from './components/LandingLayout';
 const lazyNamed = <T extends object>(load: () => Promise<T>, exportName: keyof T) =>
   React.lazy(async () => ({ default: (await load())[exportName] as React.ComponentType<any> }));
 
+const NotificationsPage = lazyNamed(() => import('./pages/NotificationsPage'), 'NotificationsPage');
+const MemberFollowup = lazyNamed(() => import('./components/CoachingFollowup'), 'MemberFollowup');
 const WorkoutView = lazyNamed(() => import('./components/WorkoutView'), 'WorkoutView');
 const CoachingSessionView = lazyNamed(() => import('./components/CoachingSessionView'), 'CoachingSessionView');
 const ProgramEditor = lazyNamed(() => import('./components/Editor'), 'ProgramEditor');
@@ -213,6 +217,8 @@ import { createDashboardLocationState } from './components/dashboardNavigation';
 
 export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
+  const unreadNotificationsCount = useNotificationBadge(state.user?.firebaseUid, state.user?.clubId);
+  usePushDeviceSync(state.user?.firebaseUid);
   useEffect(() => {
     setMonitoringContext(state.user?.role, state.currentClub?.accountType);
     return () => setMonitoringContext();
@@ -450,6 +456,7 @@ export default function App() {
               if (!isCurrent()) return;
               setState({ ...INITIAL_STATE, exercises: [...INIT_EXERCISES] });
               setLoading(false);
+              try { await disableCurrentPush(); } catch { /* Offline logout still clears local opt-in. */ }
               await signOut(auth);
               return;
             }
@@ -680,12 +687,7 @@ export default function App() {
       setState(prev => ({ ...prev, programs: allProgs }));
       markOnboardingSourceReady('programs');
 
-      if (!isInitialProgsLoad && hasNewProgram && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification("Nouveau programme", {
-          body: "Un nouveau programme d'entraînement vous a été assigné.",
-          icon: "/brand/velatra-mark.png"
-        });
-      }
+
       isInitialProgsLoad = false;
     });
 
@@ -777,12 +779,7 @@ export default function App() {
       });
 
       setState(prev => ({ ...prev, messages: Array.from(messageSnapshots.values()) }));
-      if (!isInitialMessagesLoad && hasNewUnread && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification("Nouveau message", {
-          body: "Vous avez reçu un nouveau message sur Velatra.",
-          icon: "/brand/velatra-mark.png"
-        });
-      }
+
       initialMessageSnapshots += 1;
       if (initialMessageSnapshots >= messageQueryCount) isInitialMessagesLoad = false;
     };
@@ -796,7 +793,7 @@ export default function App() {
             query(collection(db, "messages"), where("clubId", "==", clubId), where("from", "==", ownId)),
             query(collection(db, "messages"), where("clubId", "==", clubId), where("to", "==", ownId))
           ]
-        : [query(collection(db, "messages"), where("clubId", "==", clubId))];
+        : [query(collection(db, "messages"), where("clubId", "==", clubId), where("from", "==", ownId)), query(collection(db, "messages"), where("clubId", "==", clubId), where("to", "==", ownId))];
     messageQueryCount = messageQueries.length;
     const unsubMessageQueries = messageQueries.map(messageQuery => onSnapshot(messageQuery, onMessagesChanged));
     const unsubMessages = () => unsubMessageQueries.forEach(unsubscribe => unsubscribe());
@@ -854,12 +851,7 @@ export default function App() {
       snap.forEach(d => prospects.push({ ...d.data(), id: Number.isSafeInteger(Number(d.data().id)) && Number(d.data().id) > 0 ? Number(d.data().id) : legacyProspectNumericId(d.id), firebaseUid: d.id } as Prospect));
       setState(prev => ({ ...prev, prospects }));
 
-      if (!isInitialProspectsLoad && hasNewProspect && state.user?.role !== 'member' && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification("Nouveau prospect", {
-          body: "Un nouveau prospect a été ajouté ou s'est inscrit.",
-          icon: "/brand/velatra-mark.png"
-        });
-      }
+
       isInitialProspectsLoad = false;
     });
 
@@ -891,12 +883,7 @@ export default function App() {
       setState(prev => ({ ...prev, tasks }));
       markOnboardingSourceReady('tasks');
 
-      if (!isInitialTasksLoad && hasNewTask && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification("Nouvelle tâche", {
-          body: `Vous avez une nouvelle tâche à accomplir : ${newTaskTitle}`,
-          icon: "/brand/velatra-mark.png"
-        });
-      }
+
       isInitialTasksLoad = false;
     });
 
@@ -918,12 +905,7 @@ export default function App() {
       setState(prev => ({ ...prev, bookings }));
       markOnboardingSourceReady('bookings');
 
-      if (!isInitialBookingsLoad && hasNewBooking && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification("Nouvelle réservation", {
-          body: "Vous avez une nouvelle session de coaching réservée.",
-          icon: "/brand/velatra-mark.png"
-        });
-      }
+
       isInitialBookingsLoad = false;
     });
 
@@ -956,12 +938,7 @@ export default function App() {
       });
       setState(prev => ({ ...prev, nutritionPlans }));
 
-      if (!isInitialNutritionPlansLoad && hasNewNutritionPlan && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification("Nouveau plan nutritionnel", {
-          body: "Un nouveau plan nutritionnel vous a été assigné.",
-          icon: "/brand/velatra-mark.png"
-        });
-      }
+
       isInitialNutritionPlansLoad = false;
     });
 
@@ -1110,12 +1087,6 @@ export default function App() {
       setState(prev => ({ ...prev, driveFolders }));
     });
 
-    const unsubNotifications = subscribeMemberRecords("notifications", "userId", (snap) => {
-      const notifications: Notification[] = [];
-      snap.forEach(d => notifications.push(d.data() as Notification));
-      setState(prev => ({ ...prev, notifications }));
-    });
-
     const unsubProgressPhotos = subscribeMemberRecords("progressPhotos", "memberId", (snap) => {
       const progressPhotos: ProgressPhoto[] = [];
       snap.forEach(d => progressPhotos.push({ id: d.id, ...d.data() } as ProgressPhoto));
@@ -1128,7 +1099,7 @@ export default function App() {
       unsubLogs(); unsubMessages(); unsubFeed(); unsubBody();
       unsubProspects(); unsubNewsletters(); unsubExercises();
       unsubTasks(); unsubBookings(); unsubPlans(); unsubSubscriptions(); unsubPayments(); unsubExpenses(); unsubInvoices(); unsubFixedCosts(); unsubNutritionPlans(); unsubNutritionLogs();
-      unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects(); unsubDriveFiles(); unsubDriveFolders(); unsubNotifications(); unsubProgressPhotos();
+      unsubCrmClients(); unsubCrmFormulas(); unsubManualStats(); unsubPendingProspects(); unsubDriveFiles(); unsubDriveFolders(); unsubProgressPhotos();
     };
   }, [state.user?.clubId, state.user?.role, state.user?.firebaseUid, state.user?.assignedMemberIds?.join(','), authResolved, state.currentClub?.id, state.currentClub?.accountType]);
 
@@ -1139,12 +1110,35 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
+      try { await disableCurrentPush(); } catch { /* Offline logout still clears local opt-in. */ }
       await signOut(auth);
       showToast("Déconnexion réussie");
     } catch (err) {
       showToast("Erreur", "error");
     }
   };
+
+  const openNotificationDestination = (value: NotificationDestination) => {
+    const destination = safeNotificationDestination(value);
+    if (!destination || !state.user || state.user.role === 'member' && destination.velatraPage === 'users') return;
+    const page: Page = state.user.role === 'member' && destination.velatraPage === 'chat' ? 'messages' : destination.velatraPage;
+    setState(previous => ({ ...previous, page, selectedMember: null, viewingProg: null, editingProg: null, editingPreset: null }));
+    navigate('/dashboard', { state: { ...destination, velatraPage: page } });
+  };
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get('notification');
+    if (id && /^[a-f0-9]{64}$/.test(id)) sessionStorage.setItem('velatra-pending-notification', id);
+    const pending = sessionStorage.getItem('velatra-pending-notification');
+    if (!state.user?.firebaseUid || !pending) return;
+    let active = true;
+    void notificationRequest(`/api/notifications/${pending}`).then(async item => {
+      if (!active) return;
+      await notificationRequest(`/api/notifications/${pending}/read`, 'POST');
+      if (!active) return;
+      sessionStorage.removeItem('velatra-pending-notification'); notificationsChanged(); openNotificationDestination(item.destination);
+    }).catch(() => { if (active) { sessionStorage.removeItem('velatra-pending-notification'); navigate('/dashboard', { replace: true, state: createDashboardLocationState('notifications') }); setState(previous => ({ ...previous, page: 'notifications' })); } });
+    return () => { active = false; };
+  }, [state.user?.firebaseUid, state.user?.clubId, location.search]);
 
   const renderActivePageContent = (user: User) => {
     if (state.viewingProg) {
@@ -1218,6 +1212,9 @@ export default function App() {
     }
 
     const { page } = state;
+    if (page === 'notifications' && user.role !== 'superadmin') return <NotificationsPage key={`${user.firebaseUid}:${location.key}`} user={user} onOpen={openNotificationDestination} />;
+    if (page === 'calendar' && user.role === 'member' && (location.state as any)?.planningBookingId) return <PlanningPage state={state} setState={setState} showToast={showToast} />;
+    if (page === 'coaching' && user.role === 'member') return <div className="va-member-page"><h1>Mes bilans et mon suivi</h1><MemberFollowup focusAssignmentId={(location.state as any)?.followupAssignmentId} /></div>;
     const currentPlan = state.currentClub?.plan || 'basic';
     const isClassic = currentPlan === 'classic' || currentPlan === 'premium';
     const isPremium = currentPlan === 'premium';
@@ -1294,62 +1291,6 @@ export default function App() {
       default: return <MemberDashboard state={state} setState={setState} showToast={showToast} onToggleTimer={() => {}} />;
     }
   };
-
-  const hasNotifiedTasks = useRef(false);
-
-  useEffect(() => {
-    if (!authResolved) return;
-    if (!auth.currentUser || !state.user || state.user.firebaseUid !== auth.currentUser.uid) return;
-    let cancelled = false;
-    let unsubscribe: (() => void) | undefined;
-    const initializePush = async () => {
-      const pushSdk = await getMessagingClient();
-      if (cancelled || !pushSdk) return;
-      try {
-        const permission = Notification.permission === 'granted'
-          ? 'granted'
-          : await Notification.requestPermission();
-        if (permission === 'granted') {
-          const token = await pushSdk.getToken(pushSdk.messaging, {
-            // Public VAPID key configured in Firebase Cloud Messaging.
-            vapidKey: 'BH_DNK6qCrM8TNPAXNLnL_vWKM2S6wjzsdoHwG4lKVvkxkJQJIz5E2vL7CF-N_XZy1a27sgZaOnQVjpHUwVa3Lw'
-          });
-          if (token && !cancelled) {
-            await setDoc(doc(db, "users", state.user.firebaseUid || String(state.user.id)), { fcmToken: token }, { merge: true });
-          }
-        }
-        if (!cancelled) {
-          unsubscribe = pushSdk.onMessage(pushSdk.messaging, (payload) => {
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification(payload.notification?.title || "Nouvelle notification", {
-                body: payload.notification?.body,
-                icon: payload.notification?.icon || "/brand/velatra-mark.png"
-              });
-            }
-          });
-        }
-      } catch (error) {
-        console.error('Erreur lors de la récupération du token push:', error);
-      }
-    };
-    void initializePush();
-    return () => { cancelled = true; unsubscribe?.(); };
-  }, [state.user?.id, authResolved, state.currentClub?.id, state.currentClub?.accountType]);
-
-  useEffect(() => {
-    if (state.user && (state.tasks || []).length > 0 && !hasNotifiedTasks.current && 'Notification' in window && Notification.permission === 'granted') {
-      const today = new Date().toISOString().split('T')[0];
-      const tasksDueToday = (state.tasks || []).filter(t => t.status === 'todo' && t.assignedTo === String(state.user?.id) && t.dueDate === today);
-      
-      if (tasksDueToday.length > 0) {
-        new Notification("Rappel de tâches", {
-          body: `Vous avez ${tasksDueToday.length} tâche(s) à accomplir aujourd'hui.`,
-          icon: "/brand/velatra-mark.png"
-        });
-        hasNotifiedTasks.current = true;
-      }
-    }
-  }, [state.tasks, state.user]);
 
   const renderFirebaseConnectionIssue = () => {
     if (!firebaseConnectionIssue) return null;
@@ -1437,7 +1378,6 @@ export default function App() {
   );
 
   const unreadMessagesCount = state.user ? (state.messages || []).filter(m => !m.read && m.to === state.user?.id).length : 0;
-  const unreadNotificationsCount = state.user ? (state.notifications || []).filter(n => !n.read && n.userId === state.user?.id).length : 0;
 
   const isSuperAdmin = state.user?.role === 'superadmin';
   const effectiveRole = isSuperAdmin ? adminPerspective : state.user?.role;

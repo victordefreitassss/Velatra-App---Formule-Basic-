@@ -52,6 +52,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
   const [confirmCancelBookingId, setConfirmCancelBookingId] = useState<string | null>(null);
 
   const isCoach = state.user?.role === 'coach' || state.user?.role === 'owner' || state.user?.role === 'manager';
+  const canOperateSelectedCoaching = state.user?.role !== 'coach' || !!selectedDetail && state.users.some(member => Number(member.id) === Number(selectedDetail.memberId) && member.assignedCoachUid === state.user?.firebaseUid);
   const contextualMember = isCoach ? resolvePlanningMember(state.users, state.user, location.state) : null;
 
   useEffect(() => {
@@ -64,15 +65,17 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
     if (productFormat === 'desktop' || productFormat === 'largeDesktop') setView('week');
   }, []);
   useEffect(() => {
-    if (!isCoach || consumedBookingContext.current === location.key) return;
+    if (consumedBookingContext.current === location.key) return;
     const id = getPlanningBookingId(location.state);
     if (!id) return;
-    const booking = state.bookings.find(item => item.id === id && item.type === 'trial' && item.clubId === state.user?.clubId &&
-      (state.user?.role !== 'coach' || (item.coachUid ? item.coachUid === state.user.firebaseUid : [state.user.firebaseUid, String(state.user.id)].includes(item.coachId)))) || selectHomeBookings(state).find(item => item.id === id);
     const open = (item: Booking) => { consumedBookingContext.current = location.key; setSelectedDate(new Date(item.startTime)); setSelectedDetail(item); };
+    const booking = !isCoach ? state.bookings.find(item => item.id === id && item.clubId === state.user?.clubId && item.type === 'coaching' &&
+      Number(item.memberId) === Number(state.user?.id) && (!item.memberUid || item.memberUid === state.user?.firebaseUid))
+      : state.bookings.find(item => item.id === id && item.type === 'trial' && item.clubId === state.user?.clubId &&
+        (state.user?.role !== 'coach' || (item.coachUid ? item.coachUid === state.user.firebaseUid : [state.user.firebaseUid, String(state.user.id)].includes(item.coachId)))) || selectHomeBookings(state).find(item => item.id === id);
     if (booking) { open(booking); return; }
     let active = true; const controller = new AbortController();
-    salesRequest(`/api/sales/trials/${encodeURIComponent(id)}`, undefined, controller.signal).then(row => { if (active) open(row.booking); }).catch(() => {});
+    apiFetch(`/api/notifications/bookings/${encodeURIComponent(id)}`, { signal: controller.signal }).then(async response => { if (!response.ok) throw new Error('Booking unavailable'); const row = await response.json(); if (active) open(row.booking); }).catch(() => {});
     return () => { active = false; controller.abort(); };
   }, [location.key, state.bookings, state.users, state.user]);
   useEffect(() => {
@@ -684,9 +687,9 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
             </dl>
             {isCoach && <div className="mt-6 grid grid-cols-2 gap-2">
               {selectedDetail.type === 'trial' && <TrialAttendanceControls booking={selectedDetail} state={state} setState={setState} />}
-              {selectedDetail.type === 'coaching' && <button type="button" onClick={() => { openMember(selectedDetail.memberId); setSelectedDetail(null); }} className="min-h-11 rounded-xl border border-zinc-300 px-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-50">Ouvrir le client</button>}
-              {selectedDetail.status === 'confirmed' && selectedDetail.type === 'coaching' && new Date(selectedDetail.startTime).getTime() > Date.now() && <button type="button" onClick={() => startMove(selectedDetail)} className="min-h-11 rounded-xl bg-emerald-800 px-3 text-sm font-semibold text-white hover:bg-emerald-900">Déplacer</button>}
-              {selectedDetail.status === 'confirmed' && new Date(selectedDetail.startTime).getTime() > Date.now() && <button type="button" onClick={() => { setConfirmCancelBookingId(selectedDetail.id); setSelectedDetail(null); }} className="min-h-11 rounded-xl border border-red-300 px-3 text-sm font-semibold text-red-900 hover:bg-red-50">Annuler</button>}
+              {isCoach && canOperateSelectedCoaching && selectedDetail.type === 'coaching' && <button type="button" onClick={() => { openMember(selectedDetail.memberId); setSelectedDetail(null); }} className="min-h-11 rounded-xl border border-zinc-300 px-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-50">Ouvrir le client</button>}
+              {isCoach && canOperateSelectedCoaching && selectedDetail.status === 'confirmed' && selectedDetail.type === 'coaching' && new Date(selectedDetail.startTime).getTime() > Date.now() && <button type="button" onClick={() => startMove(selectedDetail)} className="min-h-11 rounded-xl bg-emerald-800 px-3 text-sm font-semibold text-white hover:bg-emerald-900">Déplacer</button>}
+              {(selectedDetail.type === 'trial' || canOperateSelectedCoaching) && selectedDetail.status === 'confirmed' && new Date(selectedDetail.startTime).getTime() > Date.now() && <button type="button" onClick={() => { setConfirmCancelBookingId(selectedDetail.id); setSelectedDetail(null); }} className="min-h-11 rounded-xl border border-red-300 px-3 text-sm font-semibold text-red-900 hover:bg-red-50">Annuler</button>}
             </div>}
           </section>
         </div>, document.body

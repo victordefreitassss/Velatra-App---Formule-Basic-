@@ -204,6 +204,7 @@ describe('Firestore coach/member isolation', () => {
   it('enforces assigned-coach reads for every member-scoped collection', async () => {
     const db = testEnv.authenticatedContext('coach-a').firestore();
     for (const collectionName of memberRecordCollections) {
+      if (['messages', 'notifications'].includes(collectionName)) { await assertFails(getDocs(query(collection(db, collectionName), where('clubId', '==', 'club-a'), where('assignedCoachUid', '==', 'coach-a')))); continue; }
       const assignedRecords = query(collection(db, collectionName), where('clubId', '==', 'club-a'), where('assignedCoachUid', '==', 'coach-a'));
       const result = await assertSucceeds(getDocs(assignedRecords));
       const expectedIds = collectionName === 'programs' ? ['program-a', 'programs-a'] : ['payments','subscriptions'].includes(collectionName) ? ['billing-server-owned', `${collectionName}-a`] : [`${collectionName}-a`];
@@ -249,9 +250,9 @@ describe('Firestore coach/member isolation', () => {
     }));
   });
 
-  it('lets coaches message assigned members and blocks other members', async () => {
+  it('requires the server to send coach messages, including assigned members', async () => {
     const db = testEnv.authenticatedContext('coach-a').firestore();
-    await assertSucceeds(setDoc(doc(db, 'messages', 'coach-message-a'), {
+    await assertFails(setDoc(doc(db, 'messages', 'coach-message-a'), {
       clubId: 'club-a', assignedCoachUid: 'coach-a', from: 2, to: 101, text: 'Bonjour', date: '2026-09-25', read: false
     }));
     await assertFails(setDoc(doc(db, 'messages', 'coach-message-b'), {
@@ -259,9 +260,9 @@ describe('Firestore coach/member isolation', () => {
     }));
   });
 
-  it('lets an adherent message their assigned coach and blocks coach reassignment spoofing', async () => {
+  it('requires the server to send member messages and blocks reassignment spoofing', async () => {
     const db = testEnv.authenticatedContext('member-a').firestore();
-    await assertSucceeds(setDoc(doc(db, 'messages', 'member-message-a'), {
+    await assertFails(setDoc(doc(db, 'messages', 'member-message-a'), {
       clubId: 'club-a', assignedCoachUid: 'coach-a', from: 101, to: 2, text: 'Bonjour', date: '2026-09-25', read: false
     }));
     await assertFails(setDoc(doc(db, 'messages', 'member-message-b'), {
@@ -269,9 +270,9 @@ describe('Firestore coach/member isolation', () => {
     }));
   });
 
-  it('allows a Solo member to message the canonical owner without a fake coach assignment', async () => {
+  it('requires the server for Solo messages as well as unauthorized contacts', async () => {
     const db = testEnv.authenticatedContext('solo-member').firestore();
-    await assertSucceeds(setDoc(doc(db, 'messages', 'solo-member-to-owner'), {
+    await assertFails(setDoc(doc(db, 'messages', 'solo-member-to-owner'), {
       clubId: 'solo-club', from: 402, to: 401, text: 'Bonjour', date: '2026-09-30', read: false
     }));
     await assertFails(setDoc(doc(db, 'messages', 'solo-member-to-stranger'), {

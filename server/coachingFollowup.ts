@@ -1,3 +1,4 @@
+import { notificationActor, notificationHash, enqueueNotification, dispatchPendingPush } from './notifications.ts';
 import { authorizationActor, canOperateStudio, canAssignMembers } from './authorization.ts';
 import { randomUUID } from 'node:crypto';
 import type { Express, Request, Response } from 'express';
@@ -207,20 +208,28 @@ export function registerCoachingFollowup(app: Express, db: Firestore) {
       const journey = (await database.doc(`coachingJourneys/${memberUid}`).get()).data();
       if (!journey?.phases?.some((phase: any) => phase.id === body.phaseId)) fail(400, 'Phase inconnue.');
     }
-    if ((await database.collection('coachCheckInAssignments').where('memberUid', '==', memberUid).limit(50).get()).size >= 50) fail(409, 'Ce client a déjà trop de bilans assignés.');
-    const ref = database.collection('coachCheckInAssignments').doc(id());
+    if (body.requestId !== undefined && (typeof body.requestId !== 'string' || !/^[a-zA-Z0-9_-]{16,128}$/.test(body.requestId))) fail(400, 'Requête invalide.');
+    const ref = database.collection('coachCheckInAssignments').doc(body.requestId ? notificationHash(access.clubId, req.auth.uid, body.requestId) : id());
+    const requestFingerprint = notificationHash(JSON.stringify([body.templateId, memberUid, frequency, body.startDate, body.phaseId || '', body.purpose || '']));
     const value = { id: ref.id, clubId: access.clubId, memberUid, memberId: access.member.id, assignedCoachUid: access.member.assignedCoachUid || null,
       templateId: body.templateId, templateName: template.name, questions: template.questions, frequency, startDate: body.startDate,
       ...(body.purpose === 'onboarding' ? { purpose: 'onboarding' } : {}),
       phaseId: body.phaseId || null, active: true, createdBy: req.auth.uid, createdAt: new Date().toISOString() };
-    await database.runTransaction(async tx => {
+    const assignmentResult = await database.runTransaction(async tx => {
+      await notificationActor(database, req.auth.uid, tx);
       await currentStaffMember(tx, database, req.auth.uid, memberUid, access.clubId);
+      const previous = await tx.get(ref);
+      if (previous.exists) { if (previous.data()?.requestFingerprint !== requestFingerprint) fail(409, 'Cette requête a changé.'); return previous.data(); }
+      if ((await tx.get(database.collection('coachCheckInAssignments').where('memberUid', '==', memberUid).limit(50))).size >= 50) fail(409, 'Ce client a déjà trop de bilans assignés.');
       const currentTemplate = (await tx.get(database.doc(`coachCheckInTemplates/${body.templateId}`))).data();
       if (!currentTemplate?.active || currentTemplate.clubId !== access.clubId || access.actor.role === 'coach' && currentTemplate.createdBy !== req.auth.uid) fail(409, 'Ce modèle a changé.');
       if (body.purpose === 'onboarding') { const policy = (await tx.get(database.doc(`clubs/${access.clubId}`))).data()?.settings?.onboarding; if (!policy?.requireInitialAssessment || policy.initialAssessmentTemplateId !== body.templateId) fail(409, 'Ce modèle ne correspond pas au bilan initial configuré.'); }
-      tx.create(ref, value);
+      tx.create(ref, { ...value, requestFingerprint });
+      enqueueNotification(tx, database, { clubId: access.clubId, recipientUid: memberUid, actorUid: req.auth.uid, type: 'FOLLOWUP_ASSIGNED', eventKey: `followup-assigned:${ref.id}`, destination: { velatraPage: 'coaching', followupAssignmentId: ref.id }, sourceId: ref.id, sourceType: 'followup' });
+      return value;
     });
-    return { assignment: value };
+    await dispatchPendingPush(database, access.clubId, memberUid);
+    return { assignment: assignmentResult };
   }, db));
   app.patch('/api/followup/assignments/:assignmentId', route(async (req, _res, database) => {
     const assignmentId = String(req.params.assignmentId);
@@ -243,7 +252,8 @@ export function registerCoachingFollowup(app: Express, db: Firestore) {
     const answers = validateAnswers(assignment.questions, req.body?.answers);
     if (!answers) fail(400, 'Vérifiez vos réponses.');
     const ref = database.doc(`coachCheckInResponses/${assignmentId}_${dueDate}`);
-    return database.runTransaction(async tx => {
+    const result = await database.runTransaction(async tx => {
+      const identity = await notificationActor(database, uid, tx);
       const [memberDoc, assignmentDoc, previous] = await Promise.all([tx.get(actorRef), tx.get(assignmentRef), tx.get(ref)]);
       const member = memberDoc.data(), current = assignmentDoc.data();
       if (member?.role !== 'member' || member?.clubId !== assignment.clubId || current?.memberUid !== uid || !current?.active || current?.clubId !== member.clubId) fail(403, 'Ce bilan n’est plus disponible.');
@@ -251,8 +261,18 @@ export function registerCoachingFollowup(app: Express, db: Firestore) {
       const value = { id: ref.id, memberUid: uid, memberId: member.id, clubId: member.clubId, assignedCoachUid: member.assignedCoachUid || null,
         assignmentId, templateId: current!.templateId, templateName: current!.templateName, questions: current!.questions,
         dueDate, answeredAt: new Date().toISOString(), answers };
-      tx.create(ref, value); return { response: value, alreadySubmitted: false };
+      const recipientUid = identity.club.accountType === 'solo' ? identity.club.ownerId : member.assignedCoachUid || (identity.club.accountType !== 'studio' ? identity.club.ownerId : null);
+      const recipient = recipientUid ? (await tx.get(database.doc(`users/${recipientUid}`))).data() : null;
+      tx.create(ref, value);
+      if (recipient && recipient.clubId === member.clubId && recipient.isSuspended !== true && (recipient.role === 'coach' || identity.club.accountType !== 'studio' && recipient.role === 'owner' && recipientUid === identity.club.ownerId)) enqueueNotification(tx, database, { clubId: member.clubId, recipientUid, actorUid: uid, type: 'FOLLOWUP_RESPONDED', eventKey: `followup-response:${ref.id}`, destination: { velatraPage: 'users', client360MemberId: member.id, client360Section: 'followup' }, sourceId: ref.id, sourceType: 'followup' });
+      return { response: value, alreadySubmitted: false };
     });
+    try {
+      const actor = await notificationActor(database, uid);
+      const recipientUid = actor.club.accountType === 'solo' ? actor.club.ownerId : actor.profile.assignedCoachUid || (actor.club.accountType !== 'studio' ? actor.club.ownerId : null);
+      if (recipientUid) await dispatchPendingPush(database, actor.clubId, recipientUid);
+    } catch { /* Optional push cannot turn a committed response into a failed submission. */ }
+    return result;
   }, db));
   app.post('/api/followup/habits/:memberUid', route(async (req, _res, database) => {
     const memberUid = String(req.params.memberUid), access = await scope(database, req.auth.uid, memberUid, true), body = req.body || {};
