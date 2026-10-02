@@ -1,56 +1,42 @@
 import * as Sentry from '@sentry/react';
-import type { Event, ErrorEvent, EventHint } from '@sentry/react';
+import type { ErrorEvent, EventHint } from '@sentry/react';
+
+import { useEffect } from 'react';
+import { useLocation, useNavigationType, createRoutesFromChildren, matchRoutes } from 'react-router-dom';
+import { sanitizeErrorEvent, sanitizeTransactionEvent, sanitizeSpan, safeRoute, safeComponentStack, currentDiagnostics } from './privacy';
+export { sanitizeErrorEvent } from './privacy';
+export { wrapReactRouterRouting } from '@sentry/react';
 
 const roles = new Set(['superadmin', 'owner', 'manager', 'coach', 'member']);
-const errorTypes = new Set(['Error', 'TypeError', 'ReferenceError', 'RangeError', 'SyntaxError', 'URIError', 'EvalError', 'AggregateError']);
 let role = 'anonymous';
 let accountType = 'unknown';
 
 export function setMonitoringContext(nextRole?: string, nextAccountType?: string) {
   role = nextRole && roles.has(nextRole) ? nextRole : 'anonymous';
-  accountType = nextAccountType === 'solo' || nextAccountType === 'studio' ? nextAccountType : 'unknown';
+  accountType = role !== 'anonymous' && (nextAccountType === 'solo' || nextAccountType === 'studio') ? nextAccountType : 'unknown';
 }
 
-// Rebuild the payload from a small allowlist: error messages, URLs, component
-// stacks, request data, arbitrary tags and application state can contain PII.
-export function sanitizeErrorEvent(event: Event): ErrorEvent | null {
-  if (event.type || !event.exception?.values?.length) return null;
-  return {
-    type: undefined,
-    event_id: /^[a-f0-9]{32}$/.test(event.event_id ?? '') ? event.event_id : undefined,
-    timestamp: event.timestamp,
-    platform: 'javascript',
-    level: 'error',
-    exception: { values: event.exception.values.map(exception => ({
-      type: errorTypes.has(exception.type ?? '') ? exception.type : 'Error',
-      value: 'Frontend exception (message redacted)',
-      mechanism: { type: 'generic', handled: exception.mechanism?.handled !== false },
-      stacktrace: { frames: (exception.stacktrace?.frames ?? []).map(frame => {
-        // Only bundled static JS asset paths are retained, never origin/query/hash.
-        const asset = frame.filename?.match(/(?:^|\/)assets\/([A-Za-z0-9_-]+\.js)(?:[?#].*)?$/);
-        return {
-          filename: asset ? `/assets/${asset[1]}` : undefined,
-          lineno: frame.lineno,
-          colno: frame.colno,
-        };
-      }) },
-    })) },
-    tags: { role, accountType },
-  };
-}
-
-export function createMonitoringOptions(production: boolean, dsn?: string, commit?: string) {
-  const environment = production ? 'production' : 'development';
-  const appVersion = /^[a-f0-9]{40}$/.test(commit ?? '') ? commit! : 'unversioned';
+export function createMonitoringOptions(production: boolean, dsn?: string, commit?: string, target: string = production ? 'production' : 'development') {
+  const environment = target;
+  const appVersion = /^[a-f0-9]{40}$/.test(commit ?? '') ? commit! : undefined;
   const seenErrors = new WeakSet<object>();
   return {
     dsn,
     environment,
-    enabled: production && !!dsn,
+    enabled: production && target === 'production' && !!dsn,
     tracesSampleRate: 0.1,
     traceLifecycle: 'static' as const,
     defaultIntegrations: false as const,
-    integrations: [Sentry.globalHandlersIntegration()],
+    integrations: [Sentry.globalHandlersIntegration(), Sentry.reactRouterBrowserTracingIntegration({
+      useEffect, useLocation, useNavigationType, createRoutesFromChildren, matchRoutes,
+      traceFetch: false, traceXHR: false, enableHTTPTimings: false,
+      enableLongTask: false, enableLongAnimationFrame: false,
+      webVitals: { ignore: ['cls', 'inp', 'lcp'], softNavigations: false, bfcacheNavigations: false },
+      ignoreResourceSpans: ['resource.script', 'resource.css', 'resource.img', 'resource.other', 'resource.fetch', 'resource.xmlhttprequest', 'resource.link', 'resource.iframe'],
+      linkPreviousTrace: 'off',
+      beforeStartSpan: options => ({ ...options, name: safeRoute(options.name), attributes: { 'sentry.source': 'route' } }),
+    })],
+    tracePropagationTargets: [],
     // SDK v11 replaces sendDefaultPii with explicit dataCollection controls.
     dataCollection: {
       userInfo: false, cookies: false, httpHeaders: false, httpBodies: [],
@@ -69,25 +55,28 @@ export function createMonitoringOptions(production: boolean, dsn?: string, commi
         if (seenErrors.has(original)) return null;
         seenErrors.add(original);
       }
-      const safeEvent = sanitizeErrorEvent(event);
+      const safeEvent = sanitizeErrorEvent(event, currentDiagnostics());
       if (!safeEvent) return null;
-      return { ...safeEvent, environment, release: appVersion, tags: { ...safeEvent.tags, appVersion, environment } };
+      return { ...safeEvent, environment, release: appVersion, tags: { ...safeEvent.tags, role, accountType, ...(appVersion ? { appVersion } : {}), environment } };
     },
-    // No tracing integration in V1; do not forward manually created transactions.
-    beforeSendTransaction: () => null,
-    ignoreSpans: [/.*/],
+    beforeSendTransaction(event) {
+      const safeEvent = sanitizeTransactionEvent(event, currentDiagnostics().browser);
+      return safeEvent ? { ...safeEvent, environment, release: appVersion, tags: { ...safeEvent.tags, role, accountType, environment } } : null;
+    },
+    beforeSendSpan: Sentry.withStaticSpan(sanitizeSpan),
+    ignoreSpans: [{ op: /^(?!pageload$|navigation$).*/ }],
   } satisfies Parameters<typeof Sentry.init>[0];
 }
 
-export function initializeMonitoring(production: boolean, dsn?: string, commit?: string) {
-  const options = createMonitoringOptions(production, dsn, commit);
+export function initializeMonitoring(production: boolean, dsn?: string, commit?: string, target?: string) {
+  const options = createMonitoringOptions(production, dsn, commit, target);
   if (!options.enabled) return;
   // A malformed deployment setting must never stop React from mounting.
   try { Sentry.init(options); } catch { /* Monitoring is optional. */ }
 }
 
-export function captureReactError(error: Error) {
+export function captureReactError(error: Error, componentStack?: string | null) {
   try {
-    if (Sentry.getClient()?.getOptions().enabled) Sentry.captureException(error);
+    if (Sentry.getClient()?.getOptions().enabled) Sentry.captureException(error, { contexts: { react: { componentStack: safeComponentStack(componentStack) } } });
   } catch { /* Keep the existing React fallback available even if monitoring fails. */ }
 }

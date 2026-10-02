@@ -1,5 +1,7 @@
+import { wrapReactRouterRouting } from './monitoring/sentry';
 import React from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes as RouterRoutes } from 'react-router-dom';
+const Routes = wrapReactRouterRouting(RouterRoutes);
 import LandingLayout from './components/LandingLayout';
 
 const lazyNamed = <T extends object>(load: () => Promise<T>, exportName: keyof T) => React.lazy(async () => ({ default: (await load())[exportName] as React.ComponentType<any> }));

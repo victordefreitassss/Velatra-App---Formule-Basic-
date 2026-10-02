@@ -21,7 +21,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    captureReactError(error);
+    captureReactError(error, errorInfo.componentStack);
     console.error('Uncaught UI error:', { name: error.name, componentStackAvailable: Boolean(errorInfo.componentStack) });
   }
 

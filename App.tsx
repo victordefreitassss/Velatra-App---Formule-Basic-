@@ -1,3 +1,4 @@
+import { wrapReactRouterRouting } from './monitoring/sentry';
 import { TeamPage } from './pages/TeamPage';
 import { getAllContextItems } from './components/appShellHelpers';
 import { readClubDocument, isLiveExperienceRole, isLiveProfileAllowed, canLoadLiveCollection } from './productCapabilities';
@@ -87,7 +88,8 @@ import { Toast } from './components/Toast';
 import { Onboarding } from './components/Onboarding';
 
 // Routing & Marketing Pages
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Routes as RouterRoutes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+const Routes = wrapReactRouterRouting(RouterRoutes);
 import LandingLayout from './components/LandingLayout';
 
 const lazyNamed = <T extends object>(load: () => Promise<T>, exportName: keyof T) =>
