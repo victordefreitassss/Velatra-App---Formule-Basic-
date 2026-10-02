@@ -354,7 +354,9 @@ export interface ClubInfo {
 }
 
 export interface Message {
-  id: number;
+  id: number | string;
+  senderUid?: string;
+  recipientUid?: string;
   clubId: string;
   assignedCoachUid?: string;
   from: number;

@@ -447,6 +447,7 @@ export const Layout: React.FC<LayoutProps> = ({
             )}
           </div>
           <div className="va-topbar-tools">
+            {user.role !== 'superadmin' && <button type="button" className="va-icon-button" style={{ minWidth: 44, minHeight: 44, flexShrink: 0 }} onClick={() => onPageChange('notifications')} aria-label={`Notifications, ${unreadNotificationsCount} non lues`} aria-current={activePage === 'notifications' ? 'page' : undefined}><BellIcon size={20} aria-hidden="true" />{unreadNotificationsCount > 0 && <span className="va-context-count" aria-hidden="true">{unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}</span>}</button>}
             <button type="button" className="va-icon-button va-topbar-search" onClick={() => setShowCommandPalette(true)} aria-label="Rechercher une page (Commande K)" aria-keyshortcuts="Meta+K Control+K">
               <Search size={17} aria-hidden="true" />
               <span>Rechercher…</span>

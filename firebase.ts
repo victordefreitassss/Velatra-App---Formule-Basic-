@@ -129,14 +129,18 @@ export const getStorageClient = async () => {
 };
 export const googleProvider = new GoogleAuthProvider();
 
+export const fcmVapidKey = env.VITE_FIREBASE_VAPID_KEY || 'BH_DNK6qCrM8TNPAXNLnL_vWKM2S6wjzsdoHwG4lKVvkxkJQJIz5E2vL7CF-N_XZy1a27sgZaOnQVjpHUwVa3Lw';
 let messagingInstance: any = null;
 export const getMessagingClient = async () => {
   if (useEmulators || typeof window === 'undefined' || !('Notification' in window)) return null;
   try {
     const messagingSdk = await import('firebase/messaging');
+    if (!await messagingSdk.isSupported()) return null;
     messagingInstance ||= messagingSdk.getMessaging(app);
     return {
       messaging: messagingInstance,
+      vapidKey: fcmVapidKey,
+      deleteToken: messagingSdk.deleteToken,
       getToken: messagingSdk.getToken,
       onMessage: messagingSdk.onMessage
     };

@@ -14,6 +14,7 @@ export type DashboardLocationState = {
   planningBookingId?: string;
   taskId?: string;
   conversationMemberId?: number;
+  followupAssignmentId?: string;
 };
 
 export const createDashboardLocationState = (page: Page): DashboardLocationState => ({ velatraPage: page });

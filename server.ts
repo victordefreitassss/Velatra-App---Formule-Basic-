@@ -1,3 +1,5 @@
+import { registerNotifications, dispatchPendingPush, notificationActor } from './server/notifications.ts';
+import { registerMessages } from './server/messages.ts';
 import { registerSales } from './server/sales.ts';
 import { salesEvent } from './server/salesEvents.ts';
 import { createStaffAccount } from './server/teamManagement.ts';
@@ -94,6 +96,7 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
 // ==========================================
 registerBillingWebhooks(app, admin.firestore());
 
+app.use('/api/messages', express.json({ limit: '1mb' }));
 app.use(express.json());
 
 app.post('/api/public/contact', async (req: any, res: any) => {
@@ -405,6 +408,8 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
 
 // All remaining API routes require a verified session and a server-side profile.
 app.use("/api", verifyFirebaseSession, requireUserProfile);
+registerNotifications(app, admin.firestore());
+registerMessages(app, admin.firestore());
 registerCoachingFollowup(app, admin.firestore());
 registerPulse(app, admin.firestore());
 registerSales(app, admin.firestore());
@@ -422,7 +427,12 @@ app.get('/api/bookings/availability', async (req, res) => {
 });
 
 app.post('/api/bookings/trial', async (req, res) => {
-  try { return res.json(await createTrialBooking(admin.firestore(), req.auth.uid, req.body)); }
+  try {
+    await notificationActor(admin.firestore(), req.auth.uid);
+    const result = await createTrialBooking(admin.firestore(), req.auth.uid, req.body);
+    await dispatchBookingPush(result.id);
+    return res.json(result);
+  }
   catch (error: any) {
     if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });
     console.error('Trial booking failed', { code: error?.code || 'unknown' });
@@ -430,14 +440,24 @@ app.post('/api/bookings/trial', async (req, res) => {
   }
 });
 
+async function dispatchBookingPush(id: string) {
+  try {
+    const booking = (await admin.firestore().doc(`bookings/${id}`).get()).data();
+    if (!booking?.clubId) return;
+    for (const uid of new Set([booking.memberUid, booking.coachUid].filter(Boolean))) await dispatchPendingPush(admin.firestore(), booking.clubId, uid);
+  } catch { /* Business transaction already committed. */ }
+}
+
 for (const action of ['reserve', 'cancel', 'reschedule'] as const) {
   app.post(`/api/bookings/${action}`, async (req, res) => {
     try {
+      await notificationActor(admin.firestore(), req.auth.uid);
       const result = action === 'reserve'
         ? await reserveBooking(admin.firestore(), req.auth.uid, req.body)
         : action === 'reschedule'
           ? await rescheduleBooking(admin.firestore(), req.auth.uid, req.body)
           : await cancelBooking(admin.firestore(), req.auth.uid, String(req.body?.id || ''));
+      await dispatchBookingPush('id' in result ? String(result.id) : String(req.body?.id || ''));
       return res.json(result);
     } catch (error: any) {
       if (error instanceof MemberCreationError) return res.status(error.status).json({ error: error.message });

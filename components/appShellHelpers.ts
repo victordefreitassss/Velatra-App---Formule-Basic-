@@ -211,6 +211,7 @@ export function getHubLabel(hub: AppHub, context: NavigationContext): string {
   return (isStaffExperience(context) ? staffHubCatalog : memberHubs).find(item => item.id === hub)?.label || 'Accueil';
 }
 export function getContextPageLabel(page: string, context: NavigationContext): string {
+  if (page === 'notifications') return 'Notifications';
   return getAllContextItems(context).find(item => item.id === page)?.label || page;
 }
 export function getMobileTabForPage(page: string, context: NavigationContext): string {

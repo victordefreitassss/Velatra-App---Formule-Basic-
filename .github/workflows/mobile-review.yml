@@ -55,6 +55,10 @@ jobs:
           VELATRA_ACCOUNT_MIGRATION_QA: 'true'
           VELATRA_RETAIN_QA_OUTPUT: ${{ runner.temp }}/account-migration-evidence
         run: node --import tsx scripts/qa/retain-browser.mjs
+      - name: Notifications, roles, pagination and explicit push permission (FCM mocked)
+        env:
+          VELATRA_NOTIFICATIONS_QA_OUTPUT: ${{ runner.temp }}/notifications-evidence
+        run: node scripts/qa/notifications-browser.mjs
       - name: Browser evidence (synthetic fixtures only)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -76,5 +80,7 @@ jobs:
             ${{ runner.temp }}/onboarding-evidence/*.png
             ${{ runner.temp }}/account-migration-evidence/results.json
             ${{ runner.temp }}/account-migration-evidence/*.png
+            ${{ runner.temp }}/notifications-evidence/results.json
+            ${{ runner.temp }}/notifications-evidence/*.png
           retention-days: 7
           if-no-files-found: warn

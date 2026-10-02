@@ -1,0 +1,121 @@
+import { before, after, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import { initializeApp, deleteApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { notificationActor, notificationInbox, enqueueNotification, dispatchPendingPush, setNotificationRead } from '../server/notifications';
+import { sendMessage } from '../server/messages';
+import { reserveBooking, rescheduleBooking, cancelBooking, createTrialBooking } from '../server/bookings';
+import { defaultPreferences, safeNotificationDestination } from '../notifications/model';
+const app = initializeApp({ projectId: 'demo-velatra' }, `notifications-${randomUUID()}`), db = getFirestore(app);
+const clubId = `notification-club-${randomUUID()}`, soloId = `notification-solo-${randomUUID()}`;
+const uid = (name: string) => `notification-${name}`;
+const inbox = (name: string) => notificationInbox(db, clubId, uid(name));
+const messages = () => db.collection('messages').where('clubId', '==', clubId).get();
+before(async () => {
+  if (!process.env.FIRESTORE_EMULATOR_HOST) throw new Error('Emulators required');
+  await db.doc(`clubs/${clubId}`).set({ ownerId: uid('owner'), accountType: 'studio', isActive: true, settings: { booking: { enabled: true, sessionDuration: 60, schedule: Array.from({ length: 7 }, (_, day) => ({ day, slots: [{ start: '00:00', end: '23:00' }] })) } } });
+  await db.doc(`clubs/${soloId}`).set({ ownerId: uid('solo-owner'), accountType: 'solo' });
+  for (const [name, role, id] of [['owner', 'owner', 8801], ['manager', 'manager', 8802], ['coach', 'coach', 8803], ['coach-b', 'coach', 8804], ['member', 'member', 8810], ['member-b', 'member', 8811], ['suspended', 'member', 8812], ['solo-owner', 'owner', 8901], ['solo-member', 'member', 8910]] as const) {
+    await db.doc(`users/${uid(name)}`).set({ role, id, clubId: name.startsWith('solo') ? soloId : clubId, assignedCoachUid: uid(name === 'member-b' ? 'coach-b' : 'coach'), credits: 10, ...(name === 'suspended' ? { isSuspended: true } : {}) });
+  }
+});
+after(() => deleteApp(app));
+const queue = async (name: string, key: string) => db.runTransaction(async tx => enqueueNotification(tx, db, { clubId, recipientUid: uid(name), type: 'MESSAGE_RECEIVED', eventKey: key, destination: { velatraPage: 'chat', conversationMemberId: 8810 }, sourceId: key, sourceType: 'message' }));
+it('messages and notification commit once under concurrent retries; changed request content is refused', async () => {
+  const requestId = randomUUID(), input = { requestId, to: 8803, text: 'private weight injury Stripe canary' };
+  const result = await Promise.all([sendMessage(db, uid('member'), input), sendMessage(db, uid('member'), input)]);
+  assert.equal(result[0].id, result[1].id);
+  assert.equal((await messages()).size, 1);
+  assert.equal((await inbox('coach').collection('items').get()).size, 1);
+  assert.equal((await inbox('coach').get()).data()?.unreadCount, 1);
+  const notification = (await inbox('coach').collection('items').get()).docs[0].data();
+  assert.equal(notification.recipientUid, uid('coach'));
+  assert.deepEqual(notification.destination, { velatraPage: 'chat', conversationMemberId: 8810 });
+  assert.ok(!JSON.stringify(notification).includes(input.text));
+  await assert.rejects(sendMessage(db, uid('member'), { ...input, text: 'changed' }), { status: 409 });
+  await Promise.all([setNotificationRead(db, uid('coach'), notification.id, true), setNotificationRead(db, uid('coach'), notification.id, true)]);
+  assert.equal((await inbox('coach').get()).data()?.unreadCount, 0);
+  await setNotificationRead(db, uid('coach'), notification.id, false);
+  assert.equal((await inbox('coach').get()).data()?.unreadCount, 1);
+  await assert.rejects(setNotificationRead(db, uid('member-b'), notification.id, true), { status: 404 });
+});
+it('assigned conversations only; Studio Owner and Manager cannot intercept private threads; Solo works', async () => {
+  await sendMessage(db, uid('coach'), { requestId: randomUUID(), to: 8810, text: 'ok' });
+  for (const [sender, to] of [['coach', 8811], ['manager', 8810], ['owner', 8810], ['member', 8804], ['member', 8910], ['suspended', 8803]] as const) await assert.rejects(sendMessage(db, uid(sender), { requestId: randomUUID(), to, text: 'refused' }), { status: 403 });
+  await sendMessage(db, uid('solo-member'), { requestId: randomUUID(), to: 8901, text: 'Solo' });
+  assert.equal((await notificationInbox(db, soloId, uid('solo-owner')).collection('items').get()).size, 1);
+  await sendMessage(db, uid('solo-owner'), { requestId: randomUUID(), to: 8910, text: 'Solo response' });
+});
+it('notification access denies inactive clubs, suspended profiles and unknown roles', async () => {
+  await notificationActor(db, uid('manager'));
+  await assert.rejects(notificationActor(db, uid('suspended')), { status: 403 });
+  await db.doc(`clubs/${clubId}`).update({ isActive: false });
+  for (const name of ['owner', 'manager', 'coach', 'member']) await assert.rejects(notificationActor(db, uid(name)), { status: 403 });
+  await db.doc(`clubs/${clubId}`).update({ isActive: true });
+});
+it('preferences default to no push; no self-notifications and no unsafe destination', async () => {
+  assert.equal(defaultPreferences().pushEnabled, false);
+  assert.equal(safeNotificationDestination({ velatraPage: 'crm_finances', url: 'https://outside.test' }), null);
+  const before = (await inbox('member').collection('items').get()).size;
+  await db.runTransaction(async tx => enqueueNotification(tx, db, { clubId, recipientUid: uid('member'), actorUid: uid('member'), type: 'MESSAGE_RECEIVED', eventKey: 'self', destination: { velatraPage: 'chat' }, sourceId: 'self', sourceType: 'message' }));
+  assert.equal((await inbox('member').collection('items').get()).size, before);
+  let count = 0; await queue('member-b', 'disabled');
+  await dispatchPendingPush(db, clubId, uid('member-b'), async () => { count++; });
+  assert.equal(count, 0);
+});
+it('multi-device delivery is generic, deduplicated, invalid device isolated and failure does not reject', async () => {
+  const box = inbox('member-b');
+  await db.doc(`notificationPreferences/${box.id}`).set({ ...defaultPreferences(), pushEnabled: true });
+  for (const id of ['mac', 'phone']) await db.doc(`pushDevices/${box.id}/devices/${id}`).set({ uid: uid('member-b'), clubId, token: `fake-${id}`, enabled: true });
+  await queue('member-b', 'multi-device');
+  const sent: string[] = [];
+  const fake = async (token: string, data: Record<string, string>) => { sent.push(token); assert.equal(data.body, 'Une nouvelle notification vous attend dans Velatra.'); assert.equal(data.kind, 'velatra-notification-v2'); if (token === 'fake-mac') throw { code: 'messaging/registration-token-not-registered' }; };
+  await Promise.all([dispatchPendingPush(db, clubId, uid('member-b'), fake), dispatchPendingPush(db, clubId, uid('member-b'), fake)]);
+  assert.deepEqual(sent.sort(), ['fake-mac', 'fake-phone']);
+  assert.equal((await db.doc(`pushDevices/${box.id}/devices/mac`).get()).data()?.enabled, false);
+  assert.equal((await db.doc(`pushDevices/${box.id}/devices/phone`).get()).data()?.enabled, true);
+  await dispatchPendingPush(db, clubId, uid('member-b'), fake); assert.equal(sent.length, 2);
+  await queue('member-b', 'transport-failure');
+  await dispatchPendingPush(db, clubId, uid('member-b'), async () => { throw new Error('temporary'); });
+  assert.equal((await db.doc(`pushDevices/${box.id}/devices/phone`).get()).data()?.enabled, true);
+});
+it('category opt-out and opt-in cutoff never send historical or disabled-category messages', async () => {
+  const box = inbox('member-b');
+  await queue('member-b', 'historical-cutoff');
+  await db.doc(`notificationPreferences/${box.id}`).set({ ...defaultPreferences(), pushEnabled: true, pushEnabledAt: '2099-01-01T00:00:00.000Z' });
+  let count = 0; await dispatchPendingPush(db, clubId, uid('member-b'), async () => { count++; }); assert.equal(count, 0);
+  await db.doc(`notificationPreferences/${box.id}`).set({ ...defaultPreferences(), pushEnabled: true, categories: { ...defaultPreferences().categories, MESSAGE: false } });
+  await queue('member-b', 'category-off'); await dispatchPendingPush(db, clubId, uid('member-b'), async () => { count++; }); assert.equal(count, 0);
+});
+it('planning created, unchanged retry, move and cancellation create exactly their semantic events', async () => {
+  const start = new Date(); start.setUTCDate(start.getUTCDate() + 12); start.setUTCHours(10, 0, 0, 0);
+  const input = { coachId: uid('coach'), memberId: 8810, startTime: start.toISOString(), endTime: new Date(start.getTime() + 3600000).toISOString() };
+  const initialCount = (await inbox('member').collection('items').get()).size;
+  const booking = await reserveBooking(db, uid('owner'), input); await reserveBooking(db, uid('owner'), input);
+  assert.equal((await inbox('member').collection('items').get()).size, initialCount + 1);
+  await rescheduleBooking(db, uid('owner'), { ...input, id: booking.id });
+  assert.equal((await inbox('member').collection('items').get()).size, initialCount + 1);
+  const moved = { ...input, id: booking.id, startTime: new Date(start.getTime() + 3600000).toISOString(), endTime: new Date(start.getTime() + 7200000).toISOString() };
+  await rescheduleBooking(db, uid('owner'), moved); await rescheduleBooking(db, uid('owner'), moved);
+  const coachBefore = (await inbox('coach-b').collection('items').get()).size;
+  await rescheduleBooking(db, uid('owner'), { ...moved, coachId: uid('coach-b') });
+  await rescheduleBooking(db, uid('owner'), { ...moved, coachId: uid('coach-b') });
+  assert.equal((await inbox('coach-b').collection('items').get()).size, coachBefore + 1, 'new coach is notified once');
+  await cancelBooking(db, uid('owner'), booking.id); await cancelBooking(db, uid('owner'), booking.id);
+  assert.equal((await inbox('member').collection('items').get()).size, initialCount + 4);
+  assert.equal((await inbox('owner').collection('items').get()).size, 0, 'no self-action noise');
+});
+it('a trial booked for another coach is notified once; a self-booked trial has no self notification', async () => {
+  const prospect = `notification-prospect-${randomUUID()}`;
+  await db.doc(`prospects/${prospect}`).set({ id: 9921, clubId, status: 'lead' });
+  const start = new Date(); start.setUTCDate(start.getUTCDate() + 14); start.setUTCHours(10, 0, 0, 0);
+  const input = { prospectUid: prospect, coachUid: uid('coach-b'), startTime: start.toISOString(), endTime: new Date(start.getTime() + 3600000).toISOString() };
+  const before = (await inbox('coach-b').collection('items').get()).size;
+  await createTrialBooking(db, uid('manager'), input); await createTrialBooking(db, uid('manager'), input);
+  assert.equal((await inbox('coach-b').collection('items').get()).size, before + 1);
+  const notifications = (await inbox('coach-b').collection('items').get()).docs.map(d => d.data()); assert.equal(notifications.filter(n => n.type === 'TRIAL_BOOKED').length, 1);
+  await db.doc(`prospects/${prospect}-self`).set({ id: 9922, clubId, status: 'lead' });
+  await createTrialBooking(db, uid('coach-b'), { ...input, prospectUid: `${prospect}-self`, startTime: new Date(start.getTime() + 7200000).toISOString(), endTime: new Date(start.getTime() + 10800000).toISOString() });
+  assert.equal((await inbox('coach-b').collection('items').get()).size, before + 1);
+});

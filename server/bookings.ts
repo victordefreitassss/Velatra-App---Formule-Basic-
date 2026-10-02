@@ -1,3 +1,4 @@
+import { enqueueNotification } from './notifications.ts';
 import { salesActivity, salesEvent, trialReferences } from './salesEvents.ts';
 import { staffReader } from './staffFacts.ts';
 import { authorizationActor, canOperateStudio, canAssignMembers } from './authorization.ts';
@@ -52,6 +53,7 @@ function validateSlot(settings: any, coach: FirebaseFirestore.DocumentSnapshot, 
 }
 
 function assertAccess(profile: any, member: any, memberUid: string, coachUid: string, club: any) {
+  if (profile?.isSuspended === true || member?.isSuspended === true || club?.isActive === false) fail(403, 'Compte indisponible.');
   if (!profile || !member || profile.clubId !== member.clubId || member.role !== 'member') fail(403, 'Vos droits ont changé. Rechargez votre espace.');
   if (canAssignMembers(authorizationActor(profile, club), member.clubId)) return;
   if (profile.role === 'coach' && member.assignedCoachUid === profile.firebaseUid && coachUid === profile.firebaseUid) return;
@@ -122,7 +124,7 @@ export async function reserveBooking(db: Firestore, uid: string, input: any) {
       ...locks.map(ref => tx.get(ref))
     ]);
     const profile = profileDoc.data(), memberData = memberDoc.data(), coachData = coachDoc.data(), club = clubDoc.data();
-    if (profile?.clubId !== initial.clubId || coachData?.clubId !== initial.clubId || !['owner', 'coach'].includes(coachData?.role)) fail(403, 'Vos droits ont changé. Rechargez votre espace.');
+    if (profile?.clubId !== initial.clubId || coachData?.clubId !== initial.clubId || coachData?.isSuspended === true || !['owner', 'coach'].includes(coachData?.role)) fail(403, 'Vos droits ont changé. Rechargez votre espace.');
     assertAccess({ ...profile, firebaseUid: uid }, memberData, member.id, coach.id, club);
     if (previous.exists) {
       const old = previous.data()!;
@@ -142,8 +144,10 @@ export async function reserveBooking(db: Firestore, uid: string, input: any) {
     }
     bumpLocks(tx, lockDocs);
     tx.set(bookingRef, { id, clubId: initial.clubId, memberId, memberUid: member.id, coachId: String(coachData.id),
+      coachUid: coach.id, notificationRevision: (previous.data()?.notificationRevision || 0) + 1,
       startTime: start.toISOString(), endTime: end.toISOString(), type: 'coaching', status: 'confirmed', creditDebited: debit,
       ...(sessionType ? { sessionTypeId: sessionType.id } : {}), ...(memberData?.assignedCoachUid ? { assignedCoachUid: memberData.assignedCoachUid } : {}) });
+    for (const recipientUid of [member.id, coach.id]) enqueueNotification(tx, db, { clubId: initial.clubId, recipientUid, actorUid: uid, type: 'BOOKING_CREATED', eventKey: `booking-created:${id}:${(previous.data()?.notificationRevision || 0) + 1}`, destination: { velatraPage: 'calendar', planningBookingId: id }, sourceId: id, sourceType: 'booking' });
     return { success: true, id };
   });
 }
@@ -164,6 +168,7 @@ export async function cancelBooking(db: Firestore, uid: string, id: string) {
       const at = new Date().toISOString();
       const event = salesEvent(db, `trial:${id}:cancelled`, 'TRIAL_CANCELLED', prospectDoc.id, prospect, at, uid, { bookingId: id, coachUid: coachDoc.id });
       tx.update(bookingRef, { status: 'cancelled', attendanceStatus: 'CANCELLED', attendanceUpdatedAt: at, attendanceUpdatedByUid: uid, prospectUid: prospectDoc.id, coachUid: coachDoc.id, creditDebited: false });
+      enqueueNotification(tx, db, { clubId: booking.clubId, recipientUid: coachDoc.id, actorUid: uid, type: 'BOOKING_CANCELLED', eventKey: `trial-cancelled:${id}`, destination: { velatraPage: 'calendar', planningBookingId: id }, sourceId: id, sourceType: 'booking' });
       tx.create(event.ref, event.data);
       tx.update(prospectDoc.ref, { activityHistory: salesActivity(prospect, 'Essai annulé', uid, at, event.ref.id) });
       return { success: true, refunded: false };
@@ -181,7 +186,9 @@ export async function cancelBooking(db: Firestore, uid: string, id: string) {
       if (member?.clubId !== booking.clubId || Number(member.id) !== Number(booking.memberId)) fail(409, 'Le profil de cet adhérent doit être vérifié.');
       tx.update(memberRef!, { [booking.sessionTypeId ? `sessionCredits.${booking.sessionTypeId}` : 'credits']: FieldValue.increment(1) });
     }
-    tx.update(bookingRef, { status: 'cancelled', creditDebited: false });
+    const revision = (booking.notificationRevision || 0) + 1;
+    tx.update(bookingRef, { status: 'cancelled', creditDebited: false, notificationRevision: revision });
+    for (const recipientUid of [booking.memberUid, booking.coachUid || booking.assignedCoachUid].filter(Boolean)) enqueueNotification(tx, db, { clubId: booking.clubId, recipientUid, actorUid: uid, type: 'BOOKING_CANCELLED', eventKey: `booking-cancelled:${id}:${revision}`, destination: { velatraPage: 'calendar', planningBookingId: id }, sourceId: id, sourceType: 'booking' });
     return { success: true, refunded: refund };
   });
 }
@@ -223,7 +230,7 @@ export async function rescheduleBooking(db: Firestore, uid: string, input: any) 
     if (!current || current.clubId !== profile.clubId || current.type !== 'coaching' || (current.memberUid && current.memberUid !== memberRef.id) || Number(current.memberId) !== Number(member?.id) || current.status !== 'confirmed') fail(409, 'Cette séance a changé. Rechargez le planning.');
     if (new Date(current.startTime).getTime() <= Date.now()) fail(409, 'Une séance passée ne peut pas être déplacée.');
     if (current.startTime !== booking.startTime || current.endTime !== booking.endTime || current.coachId !== booking.coachId || (current.sessionTypeId || '') !== (booking.sessionTypeId || '')) fail(409, 'Cette séance a changé. Rechargez le planning.');
-    if (staff?.clubId !== profile.clubId || member?.clubId !== profile.clubId || coachData?.clubId !== profile.clubId || !['owner', 'coach'].includes(coachData?.role)) fail(403, 'Vos droits ont changé.');
+    if (staff?.clubId !== profile.clubId || member?.clubId !== profile.clubId || coachData?.clubId !== profile.clubId || coachData?.isSuspended === true || !['owner', 'coach'].includes(coachData?.role)) fail(403, 'Vos droits ont changé.');
     assertAccess({ ...staff, firebaseUid: uid }, member, memberRef.id, coach.id, club);
     if (current.startTime === start.toISOString() && current.endTime === end.toISOString() && current.coachId === String(coachData.id)) return { success: true, id, unchanged: true };
     const settings = club?.settings?.booking;
@@ -231,7 +238,9 @@ export async function rescheduleBooking(db: Firestore, uid: string, input: any) 
     assertNoConflict(active, { start, end, memberId: Number(current.memberId), coachId: String(coachData.id), coachUid: coach.id, sessionTypeId: current.sessionTypeId, capacity }, id);
     if (current.creditDebited) assertMemberLimits(active, Number(current.memberId), local, start, settings, id);
     bumpLocks(tx, lockDocs);
-    tx.update(bookingRef, { startTime: start.toISOString(), endTime: end.toISOString(), coachId: String(coachData.id) });
+    const revision = (current.notificationRevision || 0) + 1;
+    tx.update(bookingRef, { startTime: start.toISOString(), endTime: end.toISOString(), coachId: String(coachData.id), coachUid: coach.id, notificationRevision: revision });
+    for (const recipientUid of [memberRef.id, ...(oldCoach.id !== coach.id ? [coach.id] : [])]) enqueueNotification(tx, db, { clubId: profile.clubId, recipientUid, actorUid: uid, type: 'BOOKING_RESCHEDULED', eventKey: `booking-moved:${id}:${revision}`, destination: { velatraPage: 'calendar', planningBookingId: id }, sourceId: id, sourceType: 'booking' });
     return { success: true, id };
   });
 }
@@ -308,6 +317,7 @@ export async function createTrialBooking(db: Firestore, uid: string, input: any)
     const event = salesEvent(db, `trial:${id}:booked`, 'TRIAL_BOOKED', prospectUid, prospect, at, uid, { bookingId: id, coachUid });
     tx.set(bookingRef, { id, clubId: initial.clubId, coachId: String(coach.id), coachUid, assignedCoachUid: coachUid, prospectId, prospectUid,
       startTime: start.toISOString(), endTime: end.toISOString(), status: 'confirmed', type: 'trial', attendanceStatus: 'PENDING' });
+    enqueueNotification(tx, db, { clubId: initial.clubId, recipientUid: coachUid, actorUid: uid, type: 'TRIAL_BOOKED', eventKey: `trial-booked:${id}`, destination: { velatraPage: 'calendar', planningBookingId: id }, sourceId: id, sourceType: 'booking' });
     tx.create(event.ref, event.data);
     tx.update(prospectRef, { id: prospectId, status: 'trial', lostAt: null, lostReason: null, activityHistory: salesActivity(prospect, 'Essai programmé', uid, at, event.ref.id) });
     return { success: true, id };
