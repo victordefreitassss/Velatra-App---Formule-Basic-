@@ -1,3 +1,4 @@
+import { withSalesActions } from '../sales/salesPulse.ts';
 import { assessRetention, retentionCounts } from '../retention/retentionEngine.ts';
 import { withRetentionActions } from '../retention/retentionPulse.ts';
 import type { RetentionCounts } from '../retention/retentionModel.ts';
@@ -19,13 +20,14 @@ export const pulseStateId = (uid: string, clubId: string, key: string) => hash([
 export async function loadPulse(db: Firestore, uid: string, now: Date, tx?: Transaction): Promise<{ actor: User; club: Club; categories: PulseCategory[]; partialSources: string[]; actions: PulseAction[]; retentionSummary: RetentionCounts }> {
   const { actor, club, billing, partialSources, sourceVersions, source } = await staffReader(db, uid, tx);
   const coach = actor.role === 'coach';
-  const [users, programs, logs, bookings, tasks, messages, prospects, subscriptions, payments, assignments, states, sent, responses, habits, entries] = await Promise.all([
-    source('users', [['role', 'member'], ...(coach ? [['assignedCoachUid', uid] as [string, unknown]] : [])], 1000),
+  const [roster, programs, logs, bookings, tasks, messages, prospects, subscriptions, payments, assignments, states, sent, responses, habits, entries] = await Promise.all([
+    source('users', coach ? [] : [['role', 'member']], coach ? 2000 : 1000),
     source('programs'), source('logs'), source('bookings'), source('tasks'), source('messages', [['to', actor.id]]),
-    coach ? [] : source('prospects'), billing ? source('subscriptions') : [], billing ? source('payments') : [],
+    source('prospects'), billing ? source('subscriptions') : [], billing ? source('payments') : [],
     source('coachCheckInAssignments'), source('pulseActionStates', [['actorUid', uid]], 5000),
     source('messages', [['from', actor.id]]), source('coachCheckInResponses'), source('coachHabits'), source('coachHabitEntries'),
   ]);
+  const users = roster.filter(person => person.role === 'member' && (!coach || person.assignedCoachUid === uid));
   const input: PulseInput = { user: actor, currentClub: club, users, programs, logs, bookings, tasks, messages, prospects, subscriptions, payments, sourceVersions };
   const uids = new Set(users.filter(member => !coach || member.assignedCoachUid === uid).map(member => member.firebaseUid));
   const today = parisDateKey(now);
@@ -44,7 +46,7 @@ export async function loadPulse(db: Firestore, uid: string, now: Date, tx?: Tran
   if (partialSources.includes('logs')) actions = actions.filter(item => item.type !== 'CLIENT_INACTIVE');
   if (partialSources.includes('programs')) actions = actions.filter(item => !['PROGRAM_MISSING', 'PROGRAM_ENDING'].includes(item.type));
   if (partialSources.some(name => ['coachCheckInAssignments', 'coachCheckInResponses'].includes(name))) actions = actions.filter(item => !['FOLLOWUP_DUE', 'FOLLOWUP_LATE'].includes(item.type));
-  return { actor, club, retentionSummary: retentionCounts(assessments), categories: pulseCategories(input), partialSources, actions: applyPulseStates(withRetentionActions(actions, assessments), states as PulseActionState[], uid, club.id, now) };
+  return { actor, club, retentionSummary: retentionCounts(assessments), categories: pulseCategories(input), partialSources, actions: applyPulseStates(withRetentionActions(withSalesActions(actions, input, now, partialSources, roster), assessments), states as PulseActionState[], uid, club.id, now) };
 }
 const route = (handler: (req: Request) => Promise<unknown>) => async (req: Request, res: Response) => {
   try {

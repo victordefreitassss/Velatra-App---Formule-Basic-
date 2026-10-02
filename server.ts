@@ -1,3 +1,5 @@
+import { registerSales } from './server/sales.ts';
+import { salesEvent } from './server/salesEvents.ts';
 import { createStaffAccount } from './server/teamManagement.ts';
 import { registerClub, ClubRegistrationError } from './server/clubRegistration.ts';
 import { authorizationActor, canReadStripeStatus, canAssignMembers, canManageStripe, canPerformDestructiveClubActions, canDeleteUser } from './server/authorization.ts';
@@ -159,7 +161,8 @@ app.post('/api/public/prospects', async (req: any, res: any) => {
     const club = await admin.firestore().collection('clubs').doc(submission.clubId).get();
     if (!club.exists) return res.status(404).json({ error: "Ce code de club n'existe pas." });
     const prospectRef = admin.firestore().collection('prospects').doc();
-    await prospectRef.set({
+    const batch = admin.firestore().batch();
+    const prospectData = {
       id: legacyProspectNumericId(prospectRef.id),
       clubId: submission.clubId,
       name: submission.name,
@@ -167,8 +170,12 @@ app.post('/api/public/prospects', async (req: any, res: any) => {
       phone: submission.answers.phone || '',
       date: new Date(now).toISOString(),
       status: 'pending',
-      answers: submission.answers
-    });
+      answers: submission.answers, salesVersion: 2,
+      ...(typeof submission.answers.source === 'string' ? { source: submission.answers.source.slice(0, 80) } : {})
+    };
+    const leadEvent = salesEvent(admin.firestore(), `lead:${prospectRef.id}`, 'LEAD_CREATED', prospectRef.id, prospectData, prospectData.date);
+    batch.create(prospectRef, prospectData); batch.create(leadEvent.ref, leadEvent.data);
+    await batch.commit();
     return res.status(201).json({ success: true });
   } catch (error: any) {
     console.error('Public prospect submission failed', { code: error?.code || 'unknown' });
@@ -399,6 +406,7 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
 app.use("/api", verifyFirebaseSession, requireUserProfile);
 registerCoachingFollowup(app, admin.firestore());
 registerPulse(app, admin.firestore());
+registerSales(app, admin.firestore());
 registerRetention(app, admin.firestore());
 registerBillingRoutes(app, admin.firestore());
 

@@ -1,12 +1,12 @@
+import { SalesSurface, ProspectSalesDetail, salesRequest } from '../components/SalesSurface';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AppState, Prospect, ProspectNote } from '../types';
-import { db, doc, updateDoc, setDoc, deleteDoc, auth, sendPasswordResetEmail, apiFetch } from '../firebase';
+import { db, doc, deleteDoc, auth, sendPasswordResetEmail, apiFetch } from '../firebase';
 import { getMemberCreationCoachOptions } from '../components/memberAccess';
 import { normalizeProspectEmail, probableProspectDuplicate, prospectActivity, prospectPriority, prospectStage } from '../components/prospectCrm';
 import { runTransaction } from 'firebase/firestore';
 import { parisLocalInstant } from '../components/planningSlots';
-import { createNumericId } from '../components/dataHelpers';
 import { Plus, Search, Mail, Phone, Clock, CheckCircle, Users, X, AlertCircle, MessageSquare } from 'lucide-react';
 import { format, isToday, isPast, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -28,6 +28,12 @@ const COLUMNS = [
 ];
 
 export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }) => {
+  const [salesTab, setSalesTab] = useState<'pipeline' | 'trials' | 'performance'>('pipeline');
+  const [createRequestId, setCreateRequestId] = useState(() => crypto.randomUUID());
+  const saveStage = async (prospect: Prospect, body: unknown) => {
+    const result = await salesRequest(`/api/sales/prospects/${encodeURIComponent(prospect.firebaseUid!)}/stage`, body);
+    setState(prev => ({ ...prev, prospects: prev.prospects.map(p => p.firebaseUid === prospect.firebaseUid ? result.prospect : p) }));
+  };
   const [searchTerm, setSearchTerm] = useState('');
   const [mobileStage, setMobileStage] = useState<string>('all');
   
@@ -41,7 +47,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   useEffect(() => {
     if (!state.pendingProspectUid) return;
     const prospect = state.prospects.find(item => item.firebaseUid === state.pendingProspectUid);
-    if (prospect) setSelectedProspect(prospect);
+    if (prospect) { setSalesTab('pipeline'); setSelectedProspect(prospect); }
     setState(previous => ({ ...previous, pendingProspectUid: undefined }));
   }, [state.pendingProspectUid, state.prospects]);
   const [newProspect, setNewProspect] = useState({ name: '', email: '', phone: '', source: '', notes: '' });
@@ -71,7 +77,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     const previousFocus = document.activeElement as HTMLElement | null;
     requestAnimationFrame(() => drawerRef.current?.querySelector<HTMLButtonElement>('button')?.focus());
     const onKeyDown = (event: KeyboardEvent) => {
-      if (document.querySelector('[data-crm-modal="true"]')) return;
+      if (document.querySelector('[data-crm-modal="true"]') || (event.target as HTMLElement)?.closest('[role="alertdialog"]')) return;
       if (event.key === 'Escape') setSelectedProspect(null);
       if (event.key !== 'Tab' || !drawerRef.current) return;
       const items = Array.from(drawerRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), select:not([disabled])'));
@@ -154,12 +160,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     if (newStatus === 'lost') { setLostProspect(prospect); setLostReason(''); return; }
 
     try {
-      await runTransaction(db, async transaction => {
-        const reference = doc(db, 'prospects', prospect.firebaseUid!);
-        const current = await transaction.get(reference);
-        if (!current.exists() || current.data().convertedMemberUid) throw new Error('Prospect indisponible.');
-        transaction.update(reference, { status: newStatus, activityHistory: prospectActivity(current.data().activityHistory, `Étape : ${COLUMNS.find(column => column.id === newStatus)?.title || newStatus}`, auth.currentUser?.uid) });
-      });
+      await saveStage(prospect, { status: newStatus });
       // Mettre à jour l'état local dans le cas du sélectionné
       if (selectedProspect && selectedProspect.id === prospectId) {
          setSelectedProspect({ ...selectedProspect, status: newStatus as any });
@@ -176,23 +177,10 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     if (!state.user?.clubId) return;
     if (duplicate && !allowDuplicate) return;
 
-    const id = createNumericId();
-    const prospect: Prospect = {
-      id,
-      clubId: state.user.clubId,
-      name: newProspect.name.trim(),
-      email: normalizeProspectEmail(newProspect.email),
-      phone: newProspect.phone.trim(),
-      date: new Date().toISOString(),
-      status: 'lead',
-      answers: {},
-      activityHistory: prospectActivity([], 'Lead créé', auth.currentUser?.uid),
-      ...(newProspect.source.trim() ? { source: newProspect.source.trim().slice(0, 80) } : {}),
-      notesHistory: newProspect.notes ? [{ id: Date.now().toString(), date: new Date().toISOString(), content: newProspect.notes }] : [],
-    };
-
     try {
-      await setDoc(doc(db, "prospects", id.toString()), prospect);
+      const result = await salesRequest('/api/sales/prospects', { ...newProspect, requestId: createRequestId });
+      setState(prev => ({ ...prev, prospects: prev.prospects.some(p => p.firebaseUid === result.prospect.firebaseUid) ? prev.prospects : [...prev.prospects, result.prospect] }));
+      setCreateRequestId(crypto.randomUUID());
       setIsAdding(false);
       setNewProspect({ name: '', email: '', phone: '', source: '', notes: '' });
       setAllowDuplicate(false);
@@ -235,14 +223,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   const handleUpdateReminder = async (prospect: Prospect, dateStr: string) => {
     if (!prospect.firebaseUid) return;
     try {
-      await runTransaction(db, async transaction => {
-        const reference = doc(db, 'prospects', prospect.firebaseUid!);
-        const snapshot = await transaction.get(reference);
-        if (!snapshot.exists()) throw new Error('Prospect introuvable.');
-        transaction.update(reference, { nextReminderDate: dateStr || null,
-          status: dateStr ? 'call_pending' : 'contacted',
-          activityHistory: prospectActivity(snapshot.data().activityHistory, dateStr ? 'Relance planifiée' : 'Relance terminée', auth.currentUser?.uid) });
-      });
+      await saveStage(prospect, { status: dateStr ? 'call_pending' : 'contacted', nextReminderDate: dateStr || null });
       showToast("Date de relance mise à jour", "success");
     } catch(err) {
       console.error(err);
@@ -277,13 +258,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     event.preventDefault();
     if (!lostProspect?.firebaseUid) return;
     try {
-      await runTransaction(db, async transaction => {
-        const reference = doc(db, 'prospects', lostProspect.firebaseUid!);
-        const snapshot = await transaction.get(reference);
-        if (!snapshot.exists() || snapshot.data().convertedMemberUid) throw new Error('Prospect indisponible.');
-        transaction.update(reference, { status: 'lost', lostReason: lostReason.trim().slice(0, 300), lostAt: new Date().toISOString(), nextReminderDate: null,
-          activityHistory: prospectActivity(snapshot.data().activityHistory, 'Classé perdu', auth.currentUser?.uid) });
-      });
+      await saveStage(lostProspect, { status: 'lost', lostReason: lostReason.trim().slice(0, 300) });
       setLostProspect(null);
       showToast('Prospect classé perdu.', 'success');
     } catch { showToast('Impossible de classer ce prospect.', 'error'); }
@@ -325,13 +300,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
       const instant = parisLocalInstant(reminderForm.date, reminderForm.time);
       if (!instant) throw new Error('Date de relance invalide.');
       const isoDate = instant.toISOString();
-      await runTransaction(db, async transaction => {
-        const reference = doc(db, 'prospects', schedulingReminderProspect.firebaseUid!);
-        const snapshot = await transaction.get(reference);
-        if (!snapshot.exists()) throw new Error('Prospect introuvable.');
-        transaction.update(reference, { status: 'call_pending', nextReminderDate: isoDate,
-          activityHistory: prospectActivity(snapshot.data().activityHistory, 'Relance planifiée', auth.currentUser?.uid) });
-      });
+      await saveStage(schedulingReminderProspect, { status: 'call_pending', nextReminderDate: isoDate });
       setSchedulingReminderProspect(null);
       showToast("Prospect déplacé et relance planifiée", "success");
     } catch (err) {
@@ -348,7 +317,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
       const end = parisLocalInstant(trialForm.date, trialForm.endTime);
       if (!start || !end) throw new Error('Horaire invalide en heure de Paris.');
       const response = await apiFetch('/api/bookings/trial', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prospectUid: schedulingTrialProspect.firebaseUid, ...(state.user?.role === 'manager' ? { coachUid: trialCoachUid } : {}), startTime: start.toISOString(), endTime: end.toISOString() }) });
+        body: JSON.stringify({ prospectUid: schedulingTrialProspect.firebaseUid, ...(trialCoachUid ? { coachUid: trialCoachUid } : {}), startTime: start.toISOString(), endTime: end.toISOString() }) });
       if (!response.ok) throw new Error((await response.json()).error || 'Impossible de planifier cette séance.');
       setSchedulingTrialProspect(null);
       showToast("Séance d'essai planifiée sur le planning !", "success");
@@ -375,9 +344,6 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
     return isToday(reminderDate) || (!isToday(reminderDate) && isPast(reminderDate));
   });
 
-  const totalClosed = state.prospects.filter(p => p.status === 'won' || p.status === 'lost').length;
-  const totalWon = state.prospects.filter(p => p.status === 'won').length;
-  const winRate = totalClosed > 0 ? Math.round((totalWon / totalClosed) * 100) : 0;
 
   const search = searchTerm.trim().toLocaleLowerCase('fr').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const filteredProspects = state.prospects.filter(p =>
@@ -385,7 +351,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   );
   const mobileProspects = filteredProspects.filter(prospect => mobileStage === 'all' || prospectStage(prospect) === mobileStage)
     .sort((a, b) => prospectPriority(a) - prospectPriority(b));
-  const trialForProspect = (prospect: Prospect) => state.bookings.filter(booking => booking.type === 'trial' && Number(booking.prospectId) === Number(prospect.id) && booking.status === 'confirmed' && new Date(booking.startTime).getTime() >= Date.now())
+  const trialForProspect = (prospect: Prospect) => state.bookings.filter(booking => booking.type === 'trial' && (booking.prospectUid ? booking.prospectUid === prospect.firebaseUid : Number(booking.prospectId) === Number(prospect.id)) && booking.status === 'confirmed' && new Date(booking.startTime).getTime() >= Date.now())
     .sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
   const openLinkedMember = (prospect: Prospect) => {
     const member = state.users.find(user => user.firebaseUid === prospect.convertedMemberUid || user.id === prospect.convertedMemberId);
@@ -395,10 +361,13 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
   };
   
   // Utiliser la donnée state persistente pour le tiroir ouvert
-  const activeSelectedProspect = selectedProspect ? state.prospects.find(p => p.id === selectedProspect.id) : null;
+  const activeSelectedProspect = selectedProspect ? state.prospects.find(p => p.firebaseUid === selectedProspect.firebaseUid) : null;
 
   return (
     <div className="p-4 md:p-6 lg:p-8 space-y-6 lg:space-y-8 page-transition xl:min-h-screen w-full flex flex-col">
+      <nav aria-label="Vues CRM" className="flex flex-wrap gap-2">{([['pipeline', 'Pipeline'], ['trials', 'Essais'], ['performance', 'Performance']] as const).map(([tab, label]) => <button key={tab} type="button" aria-pressed={salesTab === tab} className="min-h-[44px] rounded-xl border border-zinc-300 px-4 py-2 font-semibold" onClick={() => setSalesTab(tab)}>{label}</button>)}</nav>
+      {salesTab !== 'pipeline' && <SalesSurface tab={salesTab} state={state} setState={setState} onProspect={uid => { setSalesTab('pipeline'); const p = state.prospects.find(p => p.firebaseUid === uid); if (p) setSelectedProspect(p); }} />}
+      <div hidden={salesTab !== 'pipeline'}>
       {/* HEADER & DASHBOARD */}
       <div className="space-y-6 shrink-0 max-w-[1600px] w-full mx-auto">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -456,11 +425,8 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
           <Card className="p-4 border border-zinc-200 bg-white">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium text-zinc-700">Taux de conversion</p>
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-2xl font-black text-zinc-900">{winRate}%</span>
-                  <span className="text-sm font-medium text-zinc-500">dossiers gagnés</span>
-                </div>
+                <p className="text-sm font-medium text-zinc-700">Conversions observées à ce jour</p>
+                <button type="button" aria-label="Consulter les conversions dans Performance" onClick={() => setSalesTab('performance')} className="mt-2 min-h-[44px] text-sm font-semibold text-emerald-900 underline underline-offset-4">Voir Performance</button>
               </div>
               <div className="p-2 bg-emerald-50 text-emerald-900 rounded-lg">
                 <CheckCircle className="w-5 h-5" />
@@ -602,6 +568,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
         </div>
       </div>
 
+      </div>
       {/* PROSPECT DETAILS DRAWER/MODAL */}
       {activeSelectedProspect && createPortal(
         <div className="fixed inset-0 z-[100] flex justify-end bg-zinc-900/40 backdrop-blur-sm">
@@ -627,6 +594,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
 
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-8">
               
+              <ProspectSalesDetail prospect={activeSelectedProspect} state={state} setState={setState} onAction={status => handleStatusChange(activeSelectedProspect.id, status)} />
               {/* Contact Info */}
               <section className="space-y-3">
                 <h3 className="text-sm border-b border-zinc-100 pb-2 font-bold text-zinc-900 uppercase tracking-wider">Coordonnées</h3>
@@ -927,7 +895,7 @@ export const ProspectFlowPage: React.FC<Props> = ({ state, setState, showToast }
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-zinc-500 mb-1">Date</label>
-                {state.user?.role === 'manager' && <label className="block">Coach de la séance<select aria-label="Coach de la séance d'essai" value={trialCoachUid} onChange={event => setTrialCoachUid(event.target.value)} required className="min-h-11 w-full rounded-xl border border-zinc-300 bg-white p-3"><option value="">Choisir un Coach</option>{(coachOptions || []).map(coach => <option key={coach.firebaseUid} value={coach.firebaseUid}>{coach.name}</option>)}</select></label>}
+                {state.currentClub?.accountType === 'studio' && <label className="block">Coach de la séance<select aria-label="Coach de la séance d'essai" value={trialCoachUid} onChange={event => setTrialCoachUid(event.target.value)} required={state.user?.role === 'manager'} className="min-h-11 w-full rounded-xl border border-zinc-300 bg-white p-3"><option value="">{state.user?.role === 'owner' ? 'Owner (moi)' : 'Choisir un Coach'}</option>{(coachOptions || []).map(coach => <option key={coach.firebaseUid} value={coach.firebaseUid}>{coach.name}</option>)}</select></label>}
                 <Input type="date" value={trialForm.date} onChange={e => setTrialForm({...trialForm, date: e.target.value})} required />
               </div>
               <div className="grid grid-cols-2 gap-3">

@@ -1,3 +1,4 @@
+import { TrialAttendanceControls, SalesSurface, salesRequest } from '../components/SalesSurface';
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPortal } from 'react-dom';
@@ -66,11 +67,13 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
     if (!isCoach || consumedBookingContext.current === location.key) return;
     const id = getPlanningBookingId(location.state);
     if (!id) return;
-    const booking = selectHomeBookings(state).find(item => item.id === id);
-    if (!booking) return;
-    consumedBookingContext.current = location.key;
-    setSelectedDate(new Date(booking.startTime));
-    setSelectedDetail(booking);
+    const booking = state.bookings.find(item => item.id === id && item.type === 'trial' && item.clubId === state.user?.clubId &&
+      (state.user?.role !== 'coach' || (item.coachUid ? item.coachUid === state.user.firebaseUid : [state.user.firebaseUid, String(state.user.id)].includes(item.coachId)))) || selectHomeBookings(state).find(item => item.id === id);
+    const open = (item: Booking) => { consumedBookingContext.current = location.key; setSelectedDate(new Date(item.startTime)); setSelectedDetail(item); };
+    if (booking) { open(booking); return; }
+    let active = true; const controller = new AbortController();
+    salesRequest(`/api/sales/trials/${encodeURIComponent(id)}`, undefined, controller.signal).then(row => { if (active) open(row.booking); }).catch(() => {});
+    return () => { active = false; controller.abort(); };
   }, [location.key, state.bookings, state.users, state.user]);
   useEffect(() => {
     if (!isBookingModalOpen && !selectedDetail && !confirmCancelBookingId) return;
@@ -79,6 +82,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
     const buttons = () => [...(dialog?.querySelectorAll<HTMLElement>('button:not([disabled]), select:not([disabled]), input:not([disabled])') || [])];
     buttons()[0]?.focus();
     const onKey = (event: KeyboardEvent) => {
+      if ((event.target as HTMLElement)?.closest('[role="alertdialog"]')) return;
       if (event.key === 'Escape') { setIsBookingModalOpen(false); setSelectedDetail(null); setConfirmCancelBookingId(null); return; }
       if (event.key !== 'Tab' || !dialog) return;
       const focusable = buttons();
@@ -659,6 +663,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
       document.body
       )}
 
+      {state.user?.role === 'coach' && <SalesSurface tab="trials" state={state} setState={setState} onProspect={() => {}} />}
       {selectedDetail && createPortal(
         <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/30 p-0 sm:items-center sm:p-4 2xl:pointer-events-none 2xl:inset-auto 2xl:bottom-6 2xl:right-6 2xl:top-28 2xl:w-[360px] 2xl:bg-transparent 2xl:p-0" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) setSelectedDetail(null); }}>
           <section role="dialog" aria-modal="true" aria-label="Détails de la réservation" data-planning-dialog="active" className="pointer-events-auto max-h-[88vh] w-full overflow-y-auto rounded-t-3xl border border-zinc-200 bg-white p-5 shadow-2xl sm:max-w-md sm:rounded-3xl 2xl:max-h-full 2xl:max-w-none">
@@ -678,6 +683,7 @@ export const PlanningPage: React.FC<{ state: AppState, setState: any, showToast:
               {selectedDetail.creditDebited && <div><dt className="font-semibold text-zinc-600">Crédit</dt><dd className="font-bold text-zinc-900">1 crédit utilisé lors de la réservation</dd></div>}
             </dl>
             {isCoach && <div className="mt-6 grid grid-cols-2 gap-2">
+              {selectedDetail.type === 'trial' && <TrialAttendanceControls booking={selectedDetail} state={state} setState={setState} />}
               {selectedDetail.type === 'coaching' && <button type="button" onClick={() => { openMember(selectedDetail.memberId); setSelectedDetail(null); }} className="min-h-11 rounded-xl border border-zinc-300 px-3 text-sm font-semibold text-zinc-900 hover:bg-zinc-50">Ouvrir le client</button>}
               {selectedDetail.status === 'confirmed' && selectedDetail.type === 'coaching' && new Date(selectedDetail.startTime).getTime() > Date.now() && <button type="button" onClick={() => startMove(selectedDetail)} className="min-h-11 rounded-xl bg-emerald-800 px-3 text-sm font-semibold text-white hover:bg-emerald-900">Déplacer</button>}
               {selectedDetail.status === 'confirmed' && new Date(selectedDetail.startTime).getTime() > Date.now() && <button type="button" onClick={() => { setConfirmCancelBookingId(selectedDetail.id); setSelectedDetail(null); }} className="min-h-11 rounded-xl border border-red-300 px-3 text-sm font-semibold text-red-900 hover:bg-red-50">Annuler</button>}

@@ -661,6 +661,14 @@ export interface Booking {
   clubId: string;
   memberId?: number;
   prospectId?: number;
+  prospectUid?: string;
+  coachUid?: string;
+  attendanceStatus?: AttendanceStatus;
+  attendanceMarkedAt?: string;
+  attendanceMarkedByUid?: string;
+  attendanceUpdatedAt?: string;
+  attendanceUpdatedByUid?: string;
+  attendanceRevision?: number;
   coachId: string; // The coach's ID
   startTime: string; // ISO string
   endTime: string; // ISO string

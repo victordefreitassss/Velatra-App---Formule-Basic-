@@ -40,6 +40,10 @@ jobs:
         env:
           VELATRA_RETAIN_QA_OUTPUT: ${{ runner.temp }}/retain-evidence
         run: node scripts/qa/retain-browser.mjs
+      - name: Sales with CRM, trial Planning and Pulse (isolated Firebase fixtures)
+        env:
+          VELATRA_SALES_QA_OUTPUT: ${{ runner.temp }}/sales-evidence
+        run: node scripts/qa/sales-browser.mjs
       - name: Legacy account migration activates modern experiences (synthetic fixtures)
         env:
           VELATRA_ACCOUNT_MIGRATION_QA: 'true'
@@ -60,6 +64,8 @@ jobs:
             ${{ runner.temp }}/pulse-evidence/*.png
             ${{ runner.temp }}/retain-evidence/results.json
             ${{ runner.temp }}/retain-evidence/*.png
+            ${{ runner.temp }}/sales-evidence/results.json
+            ${{ runner.temp }}/sales-evidence/*.png
             ${{ runner.temp }}/account-migration-evidence/results.json
             ${{ runner.temp }}/account-migration-evidence/*.png
           retention-days: 7

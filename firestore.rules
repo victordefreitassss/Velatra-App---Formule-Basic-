@@ -304,22 +304,20 @@ service cloud.firestore {
     }
 
     match /prospects/{prospectId} {
-      // Public discovery requests are written by the validated server endpoint.
-      allow create: if operationalStaffInClub(request.resource.data.clubId)
-        && request.resource.data.status != 'won'
-        && !request.resource.data.keys().hasAny(['convertedMemberUid', 'convertedMemberId', 'convertedAt']);
+      // Creation and analytics transitions are atomic server operations with salesEvents.
+      allow create: if false;
       allow read: if resource != null && operationalStaffInClub(resource.data.clubId);
       allow delete: if resource != null && operationalStaffInClub(resource.data.clubId)
+        && resource.data.get('salesVersion', 0) != 2
         && resource.data.status in ['lead', 'contacted']
         && resource.data.get('notesHistory', []).size() == 0
         && resource.data.get('activityHistory', []).size() == 0
         && !('convertedMemberUid' in resource.data);
       allow update: if resource != null && clubUnchanged() && operationalStaffInClub(resource.data.clubId)
-        && request.resource.data.get('id', null) == resource.data.get('id', null)
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['convertedMemberUid', 'convertedMemberId', 'convertedAt'])
-        && !(resource.data.status != 'won' && request.resource.data.status == 'won')
-        && !(resource.data.status == 'won' && request.resource.data.status != 'won');
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'notesHistory', 'activityHistory']);
     }
+
+    match /salesEvents/{eventId} { allow read, write: if false; }
 
     match /programs/{documentId} {
       allow read: if canReadMemberRecord(resource.data);

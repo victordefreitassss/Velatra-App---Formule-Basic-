@@ -1,7 +1,7 @@
 import type { AppState } from '../types';
 import type { HomeDestination } from '../components/experienceHomeSelectors';
 import { addParisDays, parisDateKey, parisLocalInstant } from '../components/planningSlots.ts';
-export type PulseType = 'RETENTION_ATTENTION' | 'CLIENT_INACTIVE' | 'PROGRAM_MISSING' | 'PROGRAM_ENDING' | 'FOLLOWUP_DUE' | 'FOLLOWUP_LATE' | 'MESSAGE_UNREAD' | 'TASK_OVERDUE' | 'TASK_TODAY' | 'TASK_UPCOMING' | 'PROSPECT_REMINDER_OVERDUE' | 'PROSPECT_REMINDER_TODAY' | 'TRIAL_UPCOMING' | 'CLIENT_UNASSIGNED' | 'PAYMENT_ATTENTION' | 'SUBSCRIPTION_ENDING';
+export type PulseType = 'TRIAL_ATTENDANCE_MISSING' | 'TRIAL_NO_SHOW_FOLLOWUP' | 'RETENTION_ATTENTION' | 'CLIENT_INACTIVE' | 'PROGRAM_MISSING' | 'PROGRAM_ENDING' | 'FOLLOWUP_DUE' | 'FOLLOWUP_LATE' | 'MESSAGE_UNREAD' | 'TASK_OVERDUE' | 'TASK_TODAY' | 'TASK_UPCOMING' | 'PROSPECT_REMINDER_OVERDUE' | 'PROSPECT_REMINDER_TODAY' | 'TRIAL_UPCOMING' | 'CLIENT_UNASSIGNED' | 'PAYMENT_ATTENTION' | 'SUBSCRIPTION_ENDING';
 export type PulseCategory = 'clients' | 'coaching' | 'followup' | 'messages' | 'tasks' | 'crm' | 'planning' | 'business';
 export type PulsePriority = 'urgent' | 'high' | 'normal';
 export type PulseGroup = 'overdue' | 'today' | 'upcoming';

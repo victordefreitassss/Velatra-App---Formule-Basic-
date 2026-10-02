@@ -1,3 +1,5 @@
+import { salesActivity, salesEvent, trialReferences } from './salesEvents.ts';
+import { staffReader } from './staffFacts.ts';
 import { authorizationActor, canOperateStudio, canAssignMembers } from './authorization.ts';
 import { createHash } from 'node:crypto';
 import { FieldValue, type Firestore, type Transaction } from 'firebase-admin/firestore';
@@ -153,6 +155,19 @@ export async function cancelBooking(db: Firestore, uid: string, id: string) {
     const [profileDoc, bookingDoc] = await Promise.all([tx.get(db.doc(`users/${uid}`)), tx.get(bookingRef)]);
     const profile = profileDoc.data(), booking = bookingDoc.data();
     if (!booking || !profile || booking.clubId !== profile.clubId) fail(403, 'Vous ne pouvez pas annuler cette réservation.');
+    if (booking.type === 'trial') {
+      const reader = await staffReader(db, uid, tx);
+      const { prospectDoc, prospect, coachDoc } = await trialReferences(db, tx, booking);
+      if (reader.actor.role === 'coach' && coachDoc.id !== uid) fail(403, 'Cet essai ne vous est pas affecté.');
+      if (booking.status === 'cancelled') return { success: true, refunded: false };
+      if (booking.status !== 'confirmed' || booking.attendanceStatus && booking.attendanceStatus !== 'PENDING') fail(409, 'Une présence finalisée ne peut pas être annulée.');
+      const at = new Date().toISOString();
+      const event = salesEvent(db, `trial:${id}:cancelled`, 'TRIAL_CANCELLED', prospectDoc.id, prospect, at, uid, { bookingId: id, coachUid: coachDoc.id });
+      tx.update(bookingRef, { status: 'cancelled', attendanceStatus: 'CANCELLED', attendanceUpdatedAt: at, attendanceUpdatedByUid: uid, prospectUid: prospectDoc.id, coachUid: coachDoc.id, creditDebited: false });
+      tx.create(event.ref, event.data);
+      tx.update(prospectDoc.ref, { activityHistory: salesActivity(prospect, 'Essai annulé', uid, at, event.ref.id) });
+      return { success: true, refunded: false };
+    }
     const memberRef = booking.memberUid ? db.doc(`users/${booking.memberUid}`) : null;
     const memberDoc = memberRef ? await tx.get(memberRef) : null;
     const member = memberDoc?.data();
@@ -259,7 +274,7 @@ export async function createTrialBooking(db: Firestore, uid: string, input: any)
   const initialClub = (await db.doc(`clubs/${initial.clubId}`).get()).data();
   if (!canOperateStudio(authorizationActor(initial, initialClub), initial.clubId)) fail(403, 'Vous ne pouvez pas planifier cette séance.');
   // Managers schedule a real coach; they never become the coaching provider themselves.
-  const coachUid = initial.role === 'manager' ? input?.coachUid : uid;
+  const coachUid = initial.role === 'manager' || initial.role === 'owner' && initialClub?.accountType === 'studio' && input?.coachUid ? input?.coachUid : uid;
   if (typeof coachUid !== 'string' || !/^[^/]{1,128}$/.test(coachUid)) fail(400, 'Choisissez un coach.');
   const coachRef = db.doc(`users/${coachUid}`);
   const local = parisDayParts(start);
@@ -267,6 +282,8 @@ export async function createTrialBooking(db: Firestore, uid: string, input: any)
   const id = createHash('sha256').update(`trial:${initial.clubId}:${prospectUid}:${coachUid}:${start.toISOString()}`).digest('hex');
   const bookingRef = db.doc(`bookings/${id}`);
   return db.runTransaction(async tx => {
+    const reader = await staffReader(db, uid, tx);
+    if (reader.actor.clubId !== initial.clubId) fail(403, 'Vos droits ont changé.');
     const [profileDoc, prospectDoc, coachDoc, clubDoc, previous, active, ...lockDocs] = await Promise.all([
       tx.get(profileRef), tx.get(prospectRef), tx.get(coachRef), tx.get(db.doc(`clubs/${initial.clubId}`)), tx.get(bookingRef),
       tx.get(db.collection('bookings').where('clubId', '==', initial.clubId).where('status', '==', 'confirmed')),
@@ -275,19 +292,24 @@ export async function createTrialBooking(db: Firestore, uid: string, input: any)
     const profile = profileDoc.data(), prospect = prospectDoc.data(), coach = coachDoc.data();
     if (profile?.clubId !== initial.clubId || profile.role !== initial.role || !canOperateStudio(authorizationActor(profile, clubDoc.data()), initial.clubId) || prospect?.clubId !== initial.clubId)
       fail(403, 'Ce prospect ne fait pas partie de votre espace.');
-    if (!coach || coach.clubId !== initial.clubId || !['owner', 'coach'].includes(coach.role)) fail(403, 'Coach indisponible dans votre espace.');
+    if (!coach || coach.clubId !== initial.clubId || !['owner', 'coach'].includes(coach.role) || !Number.isSafeInteger(coach.id) || coach.id <= 0 || coach.isSuspended === true || clubDoc.data()?.isActive === false) fail(403, 'Coach indisponible dans votre espace.');
     const prospectId = Number.isSafeInteger(Number(prospect.id)) && Number(prospect.id) > 0 ? Number(prospect.id) : legacyProspectNumericId(prospectUid);
     if (prospect.convertedMemberUid || prospect.status === 'won') fail(409, 'Ce prospect est déjà devenu adhérent.');
     if (previous.exists) {
       const old = previous.data()!;
       if (old.clubId !== initial.clubId || Number(old.prospectId) !== prospectId || ![coachUid, String(coach.id)].includes(String(old.coachId)) || old.startTime !== start.toISOString() || old.endTime !== end.toISOString() || old.type !== 'trial') fail(409, 'Cette réservation doit être vérifiée.');
       if (old.status === 'confirmed') return { success: true, id, alreadyBooked: true };
+      fail(409, 'Cet essai possède un historique. Choisissez un nouveau créneau.');
     }
     const conflicts = active.docs.map(doc => doc.data()).filter(booking => new Date(booking.startTime) < end && new Date(booking.endTime) > start);
     if (conflicts.some(booking => Number(booking.prospectId) === prospectId || [coachUid, String(coach.id)].includes(String(booking.coachId)))) fail(409, 'Ce créneau est déjà occupé.');
     bumpLocks(tx, lockDocs);
-    tx.set(bookingRef, { id, clubId: initial.clubId, coachId: String(coach.id), prospectId, startTime: start.toISOString(), endTime: end.toISOString(), status: 'confirmed', type: 'trial' });
-    tx.update(prospectRef, { id: prospectId, status: 'trial', activityHistory: [{ id, date: new Date().toISOString(), label: 'Essai programmé', authorUid: uid }, ...(Array.isArray(prospect.activityHistory) ? prospect.activityHistory : [])].slice(0, 80) });
+    const at = new Date().toISOString();
+    const event = salesEvent(db, `trial:${id}:booked`, 'TRIAL_BOOKED', prospectUid, prospect, at, uid, { bookingId: id, coachUid });
+    tx.set(bookingRef, { id, clubId: initial.clubId, coachId: String(coach.id), coachUid, assignedCoachUid: coachUid, prospectId, prospectUid,
+      startTime: start.toISOString(), endTime: end.toISOString(), status: 'confirmed', type: 'trial', attendanceStatus: 'PENDING' });
+    tx.create(event.ref, event.data);
+    tx.update(prospectRef, { id: prospectId, status: 'trial', lostAt: null, lostReason: null, activityHistory: salesActivity(prospect, 'Essai programmé', uid, at, event.ref.id) });
     return { success: true, id };
   });
 }
