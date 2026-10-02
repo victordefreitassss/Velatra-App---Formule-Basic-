@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { captureReactError } from '../monitoring/sentry';
 
 interface Props {
   children?: ReactNode;
@@ -20,6 +21,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    captureReactError(error);
     console.error('Uncaught UI error:', { name: error.name, componentStackAvailable: Boolean(errorInfo.componentStack) });
   }
 

@@ -204,12 +204,17 @@ const INITIAL_STATE: AppState = {
 };
 
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { setMonitoringContext } from './monitoring/sentry';
 import { trackProductEventOnce } from './components/productEvents';
 import { sameUserDataScope } from './components/dataHelpers';
 import { createDashboardLocationState } from './components/dashboardNavigation';
 
 export default function App() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
+  useEffect(() => {
+    setMonitoringContext(state.user?.role, state.currentClub?.accountType);
+    return () => setMonitoringContext();
+  }, [state.user?.role, state.currentClub?.accountType]);
   const [loading, setLoading] = useState(true);
   const [connectionTested, setConnectionTested] = useState(false);
   const [gcpBillingError, setGcpBillingError] = useState<string | null>(null);

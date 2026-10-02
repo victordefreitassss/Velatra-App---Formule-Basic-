@@ -32,7 +32,8 @@ export default defineConfig(({ mode, command }) => {
       define: {
         'process.env.APP_URL': JSON.stringify(process.env.APP_URL || env.APP_URL || env.VITE_APP_URL || ''),
         '__FIREBASE_APPLET_CONFIG__': JSON.stringify(firebaseConfig),
-        '__USE_FIREBASE_EMULATORS__': JSON.stringify(useEmulators)
+        '__USE_FIREBASE_EMULATORS__': JSON.stringify(useEmulators),
+        '__VELATRA_BUILD_COMMIT__': JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA || '')
       },
       resolve: {
         alias: {
