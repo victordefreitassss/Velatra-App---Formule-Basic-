@@ -80,6 +80,8 @@ describe('Cloud Storage coach/member isolation', () => {
     await testEnv.clearStorage();
     await testEnv.withSecurityRulesDisabled(async context => {
       const db = context.firestore();
+      await setDoc(doc(db, 'clubs', 'club-a'), {id:'club-a',isActive:true,accountType:'studio'});
+      await setDoc(doc(db, 'clubs', 'club-b'), {id:'club-b',isActive:true,accountType:'studio'});
       await Promise.all(Object.values(profiles).map(profile =>
         setDoc(doc(db, 'users', profile.firebaseUid), profile)
       ));
@@ -126,11 +128,14 @@ describe('Cloud Storage coach/member isolation', () => {
     await assertFails(uploadBytes(ref(storageFor('coach-b'), memberDocument), testFile, { contentType: 'application/pdf' }));
   });
 
-  it('allows a member to read only Drive files explicitly shared with their profile', async () => {
-    const sharedPath = 'drive/club-a/coach-a/shared-file/report.pdf';
-    await assertSucceeds(uploadBytes(ref(storageFor('coach-a'), sharedPath), testFile, { contentType: 'application/pdf' }));
-    await assertSucceeds(getBytes(ref(storageFor('member-a'), sharedPath)));
-    await assertFails(getBytes(ref(storageFor('member-b'), sharedPath)));
+  it('final Drive objects deny SDK bytes and token lookup, including active shares', async () => {
+    const path = 'drive/club-a/coach-a/shared-file/report.pdf';
+    await seedFile(path, 'application/pdf');
+    for (const storage of [storageFor('member-a'), storageFor('coach-a'), storageFor('owner'), adminStorage(), anonymous()]) {
+      await assertFails(getBytes(ref(storage, path)));
+      await assertFails(getDownloadURL(ref(storage, path)));
+      await assertFails(uploadBytes(ref(storage, path), replacement, { contentType: 'application/pdf' }));
+    }
   });
 
   for (const [kind, path, contentType] of [
@@ -276,46 +281,26 @@ describe('Cloud Storage coach/member isolation', () => {
     await assertFails(uploadBytes(ref(storageFor('coach-a'), 'videos/club-a/coach-a/oversize.mp4'), new Uint8Array(50 * MiB + 1), { contentType: 'video/mp4' }));
   });
 
-  it('Drive preserves upload -> URL -> metadata and requires an exact explicit share for member reads', async () => {
-    const id = 'drive-ui-flow';
-    const path = `drive/club-a/coach-a/${id}/guide.pdf`;
-    const storage = storageFor('coach-a');
-    await assertSucceeds(uploadBytes(ref(storage, path), testFile, { contentType: 'application/pdf' }));
-    await assertSucceeds(getDownloadURL(ref(storage, path)));
-    await assertFails(getBytes(ref(storageFor('member-a'), path)));
-    await assertSucceeds(setDoc(doc(testEnv.authenticatedContext('coach-a').firestore(), 'driveFiles', id), {
-      id, clubId: 'club-a', uploadedBy: 2, sharedWith: [101], path, name: 'guide.pdf',
-    }));
-    await assertSucceeds(getBytes(ref(storageFor('member-a'), path)));
-    await assertFails(getBytes(ref(storageFor('member-b'), path)));
-    await assertSucceeds(getBytes(ref(storageFor('coach-b'), path)));
-    await assertSucceeds(getBytes(ref(storageFor('owner'), path)));
-    await assertSucceeds(getBytes(ref(adminStorage(), path)));
-    await assertFails(uploadBytes(ref(storageFor('member-a'), path), replacement, { contentType: 'application/pdf' }));
-    await assertFails(deleteObject(ref(storageFor('member-a'), path)));
-    await assertFails(setDoc(doc(testEnv.authenticatedContext('member-b').firestore(), 'driveFiles', id), { sharedWith: [202] }, { merge: true }));
-    await assertSucceeds(setDoc(doc(testEnv.authenticatedContext('coach-a').firestore(), 'driveFiles', id), { sharedWith: [] }, { merge: true }));
-    await assertFails(getBytes(ref(storageFor('member-a'), path)));
-    await assertSucceeds(deleteObject(ref(storage, path)));
+  it('Drive staging preserves resumable upload permission without SDK reads or overwrites', async () => {
+    const path = 'driveUploads/club-a/coach-a/staged/guide.pdf';
+    await assertSucceeds(uploadBytes(ref(storageFor('coach-a'), path), testFile, { contentType: 'application/pdf' }));
+    for (const storage of [storageFor('coach-a'), storageFor('member-a'), anonymous(), adminStorage()]) {
+      await assertFails(getBytes(ref(storage, path)));
+      await assertFails(getDownloadURL(ref(storage, path)));
+      await assertFails(uploadBytes(ref(storage, path), replacement, { contentType: 'application/pdf' }));
+    }
+    await assertSucceeds(deleteObject(ref(storageFor('coach-a'), path)));
   });
 
-  it('Drive sharing cannot substitute metadata for another path, file ID, name or club', async () => {
-    const id = 'metadata-bind';
-    const path = `drive/club-a/coach-a/${id}/guide.pdf`;
-    await seedFile(path, 'application/pdf');
-    for (const overrides of [
-      { id: 'different-id' }, { clubId: 'club-b' }, { name: 'different.pdf' },
-      { path: `drive/club-a/coach-b/${id}/guide.pdf` }, { path: `drive/club-a/coach-a/${id}/different.pdf` },
-      { sharedWith: '101' }, { sharedWith: ['101'] },
-    ]) {
-      await seedDrive(id, path, overrides);
-      await assertFails(getBytes(ref(storageFor('member-a'), path)));
-    }
+  it('Drive metadata allows share/revoke/rename but cannot forge an object path or public URL', async () => {
+    const id = 'drive-ui-flow', path = `drive/club-a/coach-a/${id}/guide.pdf`;
     await seedDrive(id, path);
-    await assertSucceeds(getBytes(ref(storageFor('member-a'), path)));
-    const otherObject = `drive/club-a/coach-b/${id}/guide.pdf`;
-    await seedFile(otherObject, 'application/pdf');
-    await assertFails(getBytes(ref(storageFor('member-a'), otherObject)));
+    const coach = testEnv.authenticatedContext('coach-a').firestore();
+    await assertFails(setDoc(doc(coach, 'driveFiles', 'forged'), {id:'forged', clubId:'club-a',uploadedBy:2,path,name:'guide.pdf',sharedWith:[101]}));
+    for (const patch of [{path:'drive/club-a/coach-b/victim/private.pdf'},{url:'https://public.invalid'},{id:'forged'},{uploadedBy:3},{clubId:'club-b'}])
+      await assertFails(setDoc(doc(coach, 'driveFiles', id), patch, {merge:true}));
+    await assertSucceeds(setDoc(doc(coach, 'driveFiles', id), {name:'renamed.pdf',sharedWith:[]}, {merge:true}));
+    await assertFails(setDoc(doc(testEnv.authenticatedContext('member-a').firestore(), 'driveFiles', id), {sharedWith:[101]}, {merge:true}));
   });
 
   it('Drive paths do not give a member uploader rights and do not leak across clubs', async () => {
@@ -327,7 +312,7 @@ describe('Cloud Storage coach/member isolation', () => {
     await expectPrivateDenial(storageFor('member-a'), 'drive/club-a/member-a/fake-upload/private.pdf', 'application/pdf');
   });
 
-  it('Drive overwrite stays with the uploader while owner and verified admin can delete even orphaned uploads', async () => {
+  it('Drive private objects cannot be overwritten; uploader, owner and verified admin can delete even orphaned uploads', async () => {
     const path = 'drive/club-a/coach-a/drive-delete/report.pdf';
     await seedDrive('drive-delete', path, { uploadedBy: 3 });
     await seedFile(path, 'application/pdf');
@@ -336,7 +321,9 @@ describe('Cloud Storage coach/member isolation', () => {
     for (const storage of [storageFor('coach-b'), storageFor('owner'), adminStorage()]) {
       await assertFails(uploadBytes(ref(storage, path), replacement, { contentType: 'application/pdf' }));
     }
-    await assertSucceeds(uploadBytes(ref(storageFor('coach-a'), path), replacement, { contentType: 'application/pdf' }));
+    await assertFails(uploadBytes(ref(storageFor('coach-a'), path), replacement, { contentType: 'application/pdf' }));
+    await assertSucceeds(deleteObject(ref(storageFor('coach-a'), path)));
+    await seedFile(path, 'application/pdf');
     await assertSucceeds(deleteObject(ref(storageFor('owner'), path)));
     await seedFile(path, 'application/pdf');
     await assertSucceeds(deleteObject(ref(adminStorage(), path)));
@@ -350,7 +337,7 @@ describe('Cloud Storage coach/member isolation', () => {
     await testEnv.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'users', id), {
       id: 404, role: 'coach', clubId: 'club-a', firebaseUid: id,
     }));
-    const path = `drive/club-a/${id}/demotion/report.pdf`;
+    const path = `driveUploads/club-a/${id}/demotion/report.pdf`;
     await assertSucceeds(uploadBytes(ref(storageFor(id), path), testFile, { contentType: 'application/pdf' }));
     await testEnv.withSecurityRulesDisabled(context => setDoc(doc(context.firestore(), 'users', id), { role: 'member' }, { merge: true }));
     await assertFails(getBytes(ref(storageFor(id), path)));
@@ -359,11 +346,11 @@ describe('Cloud Storage coach/member isolation', () => {
   });
 
   it('Drive accepts documented guides/images/videos and rejects generic, executable, absent and oversized types', async () => {
-    const path = 'drive/club-a/coach-a/drive-types/typed-file';
+    const path = 'driveUploads/club-a/coach-a/drive-types/typed-file';
     for (const contentType of [
       'application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'text/plain',
       'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'video/mp4', 'video/webm',
-    ]) await assertSucceeds(uploadBytes(ref(storageFor('coach-a'), path), testFile, { contentType }));
+    ]) await assertSucceeds(uploadBytes(ref(storageFor('coach-a'), path+'-'+contentType.replaceAll('/','-')), testFile, { contentType }));
     for (const contentType of ['application/octet-stream', 'application/x-msdownload', 'text/html', 'image/svg+xml', 'video/', '']) {
       await assertFails(uploadBytes(ref(storageFor('coach-a'), path), replacement, { contentType }));
       await assertFails(uploadBytes(ref(storageFor('coach-a'), `${path}-new`), testFile, { contentType }));

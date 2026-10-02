@@ -1,3 +1,4 @@
+import { finalizeDriveFile, openDriveFile } from '../services/driveAccess';
 import { OnboardingDetail } from '../onboarding/OnboardingDetail';
 import { RetentionDetail } from '../retention/RetentionDetail';
 import { authorizationActor, canAssignMembers } from '../server/authorization';
@@ -759,7 +760,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     const uploadPromises = Array.from(files).map((file) => {
       return new Promise<void>((resolve, reject) => {
         const fileId = doc(collection(db, 'driveFiles')).id;
-        const storageRef = ref(storage, `drive/${state.currentClub!.id}/${auth.currentUser!.uid}/${fileId}/${file.name}`);
+        const storageRef = ref(storage, `driveUploads/${state.currentClub!.id}/${auth.currentUser!.uid}/${fileId}/${file.name}`);
         
         const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -773,23 +774,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           }, 
           async () => {
             try {
-              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-              
-              const newFile: DriveFile = {
-                id: fileId,
-                clubId: state.currentClub!.id,
-                name: file.name,
-                type: file.type || 'application/octet-stream',
-                size: file.size,
-                url: downloadURL,
-                path: storageRef.fullPath,
-                createdAt: new Date().toISOString(),
-                uploadedBy: state.user!.id,
-                folderId: null,
-                sharedWith: [Number(selectedProfile.id)]
-              };
-
-              await setDoc(doc(db, 'driveFiles', fileId), newFile);
+              await finalizeDriveFile(fileId, {
+                clubId: state.currentClub!.id, name: file.name,
+                folderId: null, sharedWith: [Number(selectedProfile.id)],
+              });
 
               // Create notification for the member
               await addDoc(collection(db, 'notifications'), {
@@ -2571,9 +2559,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <a href={file.url} target="_blank" rel="noopener noreferrer" className="p-2 text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-xl transition-colors">
+                                  <button onClick={() => { void openDriveFile(file).catch(error => showToast(error.message, "error")); }} className="p-2 text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-xl transition-colors">
                                     <EyeIcon size={18} />
-                                  </a>
+                                  </button>
                                   {(state.user?.role !== 'manager' || file.uploadedBy === state.user.id) && <button onClick={() => setConfirmDeleteFileId(file.id)} className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-colors">
                                     <Trash2Icon size={18} />
                                   </button>}

@@ -310,8 +310,12 @@ service cloud.firestore {
     match /driveFiles/{fileId} {
       allow read: if operationalStaffInClub(resource.data.clubId) ||
         (isSameClub(resource.data.clubId) && profileExists() && 'sharedWith' in resource.data && resource.data.sharedWith.hasAny([profile().id]));
-      allow create: if canWriteClubRecord(request.resource.data);
+      // The backend binds id/path/uploader/content after token-free publication.
+      allow create: if false;
       allow update: if resource != null && clubUnchanged() && canWriteClubRecord(resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'folderId', 'sharedWith']) &&
+        request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 255 &&
+        request.resource.data.sharedWith is list && request.resource.data.sharedWith.size() <= 1000 &&
         (isSuperAdmin() || canManageClubSettings(resource.data.clubId) || resource.data.uploadedBy == profile().id);
       allow delete: if resource != null && canWriteClubRecord(resource.data) &&
         (isSuperAdmin() || canManageClubSettings(resource.data.clubId) || resource.data.uploadedBy == profile().id);

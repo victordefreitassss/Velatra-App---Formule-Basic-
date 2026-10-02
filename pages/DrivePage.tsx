@@ -4,10 +4,11 @@ import { motion } from 'framer-motion';
 import { AppState, DriveFile, DriveFolder } from '../types';
 import { FolderIcon, DownloadIcon, PlusIcon, FileIcon, Trash2Icon, ShareIcon, EyeIcon, ArrowLeftIcon, UploadIcon, XIcon } from '../components/Icons';
 import { Button, Input } from '../components/UI';
+import { finalizeDriveFile, openDriveFile } from '../services/driveAccess';
 import { auth, db, getStorageClient } from '../firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { addDoc, setDoc, updateDoc } from '../firebase';
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadBytesResumable, deleteObject } from 'firebase/storage';
 
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }> = ({ isOpen, onClose, title, children }) => {
   if (!isOpen) return null;
@@ -52,6 +53,10 @@ export const DrivePage: React.FC<{ state: AppState; setState?: React.Dispatch<Re
     return f.sharedWith.includes(state.user!.id);
   });
 
+  const handleOpenFile = (file: DriveFile, download = false) => {
+    void openDriveFile(file, download).catch(error => alert(error.message));
+  };
+
   const handleCreateFolder = async () => {
     if (!newFolderName.trim() || !state.currentClub?.id) return;
 
@@ -87,7 +92,7 @@ export const DrivePage: React.FC<{ state: AppState; setState?: React.Dispatch<Re
     const uploadPromises = Array.from(files).map((file, index) => {
       return new Promise<void>((resolve, reject) => {
         const fileId = doc(collection(db, 'driveFiles')).id;
-        const storageRef = ref(storage, `drive/${state.currentClub!.id}/${auth.currentUser!.uid}/${fileId}/${file.name}`);
+        const storageRef = ref(storage, `driveUploads/${state.currentClub!.id}/${auth.currentUser!.uid}/${fileId}/${file.name}`);
         
         const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -104,24 +109,11 @@ export const DrivePage: React.FC<{ state: AppState; setState?: React.Dispatch<Re
           }, 
           async () => {
             try {
-              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-              
-              const newFile: DriveFile = {
-                id: fileId,
-                clubId: state.currentClub!.id,
-                name: file.name,
-                url: downloadURL,
-                path: uploadTask.snapshot.ref.fullPath,
-                size: file.size,
-                type: file.type,
-                folderId: currentFolderId,
-                uploadedBy: state.user!.id,
-                createdAt: new Date().toISOString(),
-                sharedWith: [],
-              };
+              await finalizeDriveFile(fileId, {
+                clubId: state.currentClub!.id, name: file.name,
+                folderId: currentFolderId, sharedWith: [],
+              });
 
-              await setDoc(doc(db, 'driveFiles', fileId), newFile);
-              
               fileProgresses[index] = 100;
               const overallProgress = fileProgresses.reduce((a, b) => a + b, 0) / totalFiles;
               setUploadProgress(overallProgress);
@@ -255,7 +247,7 @@ export const DrivePage: React.FC<{ state: AppState; setState?: React.Dispatch<Re
   const clients = state.users.filter(u => u.role === 'member');
 
   if (!isCoach) return <div className="va-member-page"><header><h1>Mes documents</h1><p>Les ressources partagées par votre coach.</p></header>
-    {files.length?<div className="va-member-files">{files.map(file=><a key={file.id} className="va-member-file" href={file.url} target="_blank" rel="noopener noreferrer" aria-label={`Ouvrir ${file.name} dans un nouvel onglet`}><FileIcon/><span><strong>{file.name}</strong><small>{formatFileSize(file.size)} · {new Date(file.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}</small></span><EyeIcon aria-hidden="true"/></a>)}</div>:<section className="va-member-empty"><FolderIcon/><h2>Aucun document pour le moment</h2><p>Votre coach n’a pas encore partagé de ressource avec vous. Demandez-lui le document dont vous avez besoin.</p>{setState&&<button className="va-member-primary" onClick={()=>setState(p=>({...p,page:'messages'}))}>Écrire à mon coach</button>}</section>}
+    {files.length?<div className="va-member-files">{files.map(file=><button key={file.id} className="va-member-file" onClick={() => handleOpenFile(file)} aria-label={`Ouvrir ${file.name} dans un nouvel onglet`}><FileIcon/><span><strong>{file.name}</strong><small>{formatFileSize(file.size)} · {new Date(file.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'long'})}</small></span><EyeIcon aria-hidden="true"/></button>)}</div>:<section className="va-member-empty"><FolderIcon/><h2>Aucun document pour le moment</h2><p>Votre coach n’a pas encore partagé de ressource avec vous. Demandez-lui le document dont vous avez besoin.</p>{setState&&<button className="va-member-primary" onClick={()=>setState(p=>({...p,page:'messages'}))}>Écrire à mon coach</button>}</section>}
   </div>;
 
   return (
@@ -385,15 +377,14 @@ export const DrivePage: React.FC<{ state: AppState; setState?: React.Dispatch<Re
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <a 
-                        href={file.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => handleOpenFile(file)}
                         className="p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"
                         title="Voir"
                       >
                         <EyeIcon size={18} />
-                      </a>
+                      </button>
+                      <button onClick={() => handleOpenFile(file, true)} title="Télécharger" className="p-2 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-colors"><DownloadIcon size={18} /></button>
                       {isCoach && (
                         <>
                           {(state.user?.role !== 'manager' || file.uploadedBy === state.user.id) && <button
