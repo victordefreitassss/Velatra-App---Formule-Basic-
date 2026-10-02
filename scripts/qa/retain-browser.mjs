@@ -10,7 +10,8 @@ import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
 
 const root=path.resolve(fileURLToPath(new URL('../..',import.meta.url)));
-const work=path.join(tmpdir(),'velatra-retain-browser');
+const migrationQA=process.env.VELATRA_ACCOUNT_MIGRATION_QA==='true';
+const work=path.join(tmpdir(),migrationQA?'velatra-account-migration-browser':'velatra-retain-browser');
 const evidence=process.env.VELATRA_RETAIN_QA_OUTPUT || path.join(work,'evidence');
 await rm(work,{recursive:true,force:true});await mkdir(work,{recursive:true});await mkdir(evidence,{recursive:true});
 const imported=new Set(['auth','db','firebaseConfig','googleProvider','apiFetch','getMessagingClient','getStorageClient','onAuthStateChanged','onSnapshot','getDoc','getDocFromServer','getDocs','doc','collection','query','where','signOut','signInWithEmailAndPassword','setDoc','updateDoc','deleteDoc','addDoc','getDownloadURL','uploadBytes','ref','listAll']);
@@ -19,11 +20,21 @@ await scan(root);
 const engineFile=path.join(work,'engine.mjs');
 await build({stdin:{contents:`export * from '${root}/pulse/pulseEngine.ts';export * from '${root}/retention/retentionEngine.ts';export * from '${root}/retention/retentionPulse.ts';export {snoozeUntil} from '${root}/pulse/pulseModel.ts';`,resolveDir:root,loader:'ts'},outfile:engineFile,bundle:true,platform:'node',format:'esm'});
 const {derivePulse,applyPulseStates,snoozeUntil,assessRetention,retentionCounts,withRetentionActions}=await import(engineFile);
+const migrationTypes={solo:'solo',studio:'studio'};
+if(migrationQA){
+ const {classifyAccounts}=await import('../migrations/account-type-policy.ts');
+ for(const type of ['solo','studio']){
+  const users=[{key:'context-owner',data:{role:'owner',clubId:'context-club'}}];
+  if(type==='studio')users.push({key:'context-coach',data:{role:'coach',clubId:'context-club'}},{key:'context-manager',data:{role:'manager',clubId:'context-club'}});
+  const row=classifyAccounts([{key:'context-club',data:{ownerId:'context-owner'}}],users).rows[0];
+  assert.equal(row.classification,'SAFE_TO_MIGRATE');assert.equal(row.change,true);migrationTypes[type]=row.nextAccountType;
+ }
+}
 const known=`
 const params=new URLSearchParams(location.search);const role=params.get('role')||'coach';const uid='context-'+role;window.__qaListeners=[];window.__qaApi=[];window.__qaWrites=[];window.__qaSignouts=0;
 const user={uid,email:'fixture@example.test',emailVerified:true,getIdToken:async()=> 'fixture-token'};
 const profile={id:10,firebaseUid:uid,clubId:'context-club',name:'Coach Test',role,onboardingCompleted:true,xp:0,assignedMemberIds:[]};
-const club={id:'context-club',ownerId:'context-owner',accountType:params.get('accountType')||'studio',name:'Club recette',isActive:true,canAddStaff:true,settings:{booking:{enabled:true,schedule:[],sessionTypes:[{id:'coaching',name:'Coaching',durationMinutes:60}]}}};
+const club={id:'context-club',ownerId:'context-owner',accountType:${JSON.stringify(migrationTypes)}[params.get('accountType')||'studio'],name:'Club recette',isActive:true,canAddStaff:true,settings:{booking:{enabled:true,schedule:[],sessionTypes:[{id:'coaching',name:'Coaching',durationMinutes:60}]}}};
 export const auth={currentUser:null};export const db={};export const firebaseConfig={projectId:'demo-velatra'};export const googleProvider={};
 const coach={id:11,role:'coach',firebaseUid:'context-coach',clubId:club.id,name:'Coach Lucas',onboardingCompleted:true};
 const owner={...profile,id:12,role:'owner',firebaseUid:'context-owner',name:'Owner Studio'};
@@ -109,10 +120,24 @@ const check=(label,passed,details)=>{records.push({label,passed,details});if(!pa
 const clickText=async(page,text,selector='button')=>{await page.waitForFunction((selector,label)=>[...document.querySelectorAll(selector)].some(button=>button.offsetHeight&&button.textContent?.trim()===label),{},selector,text);const handle=await page.evaluateHandle((selector,label)=>[...document.querySelectorAll(selector)].find(button=>button.offsetHeight&&button.textContent?.trim()===label),selector,text);const button=handle.asElement();assert.ok(button,`Missing action ${text}`);await button.evaluate(element=>element.scrollIntoView({block:'center'}));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await button.click();await handle.dispose();};
 async function open(role,type,width,height,count){const page=await browser.newPage();page.setDefaultTimeout(15000);page.setDefaultNavigationTimeout(30000);await page.setViewport({width,height,deviceScaleFactor:1});await page.setRequestInterception(true);page.on('request',r=>r.url().startsWith(origin)?void r.continue():void r.abort());page.on('console',message=>{if(message.type()==='error'&&message.text().includes('Fixture UI error'))console.log(message.text());});page.on('pageerror',error=>errors.push({label:'Runtime exception',details:error.message}));await page.goto(`${origin}/dashboard?role=${role}&accountType=${type}&clients=${count}`,{waitUntil:'domcontentloaded'});await page.waitForSelector('[data-home-retain]');return page;}
 async function inspect(page,name,surface){const data=await page.evaluate(surface=>({overflow:document.documentElement.scrollWidth>innerWidth,short:[...document.querySelectorAll(`${surface} button,${surface} select,${surface} input`)].filter(el=>el.offsetHeight&&el.getBoundingClientRect().height<43.9).map(el=>el.textContent),finance:window.__qaListeners.filter(row=>['subscriptions','payments','invoices','plans'].includes(row.path)),writes:window.__qaWrites.length}),surface);check(name+' layout/touch',!data.overflow&&!data.short.length,data);return data;}
+const compositions=new Map();
 try{
- for(const[role,type,label]of(process.env.VELATRA_RETAIN_QA_ACTIONS_ONLY?[]:[['owner','solo','Solo'],['manager','studio','Manager'],['coach','studio','Coach'],['owner','studio','StudioOwner']]))for(const[width,height]of[[390,844],[820,1180],[1440,900],[1920,1080]])for(const count of[0,1,100,500]){
+ for(const[role,type,label]of(process.env.VELATRA_RETAIN_QA_ACTIONS_ONLY?[]:[['owner','solo','Solo'],['manager','studio','Manager'],['coach','studio','Coach'],['owner','studio','StudioOwner']]))for(const[width,height]of(migrationQA?[[390,844],[1440,900]]:[[390,844],[820,1180],[1440,900],[1920,1080]]))for(const count of(migrationQA?[1]:[0,1,100,500])){
   const page=await open(role,type,width,height,count),name=`${label}-${width}-${count}`;
-  const home=await inspect(page,name+' Home','[data-home-section="actions"]');if(role!=='owner')check(name+' no finance',home.finance.length===0,home.finance);check(name+' GET read-only',home.writes===0);
+  const home=await inspect(page,name+' Home','[data-home-section="actions"]');
+  if(migrationQA){
+   const actual=await page.evaluate(()=>({experience:document.querySelector('[data-experience]')?.dataset.experience,format:document.querySelector('[data-experience]')?.dataset.format,sections:[...document.querySelectorAll('[data-home-section]')].map(el=>el.dataset.homeSection),nav:[...document.querySelectorAll(innerWidth<1024?'.va-mobile-nav button':'.va-rail button')].filter(el=>el.offsetHeight).map(el=>el.textContent.trim()),business:!!document.querySelector('[data-home-section="business"]')}));
+   const expected=role==='owner'?(type==='solo'?'SOLO_OWNER':'STUDIO_OWNER'):role==='manager'?'STUDIO_MANAGER':'STUDIO_COACH';
+   check(name+' migrated modern ExperienceHome',actual.experience===expected&&actual.format===(width===390?'phone':'desktop'),actual);
+   check(name+' modern navigation',actual.nav.includes('Accueil')&&actual.nav.length>0,actual.nav);
+   if(role==='coach')check(name+' no global finance or team',!actual.business&&!actual.nav.some(text=>/Finances|Business|Équipe/.test(text)),actual);
+   if(width===390)compositions.set(label,actual);else{const phone=compositions.get(label);check(name+' phone differs from desktop',JSON.stringify(phone.sections)!==JSON.stringify(actual.sections)&&JSON.stringify(phone.nav)!==JSON.stringify(actual.nav),{phone,desktop:actual});}
+   await page.screenshot({path:path.join(evidence,name+'-home.png')});
+   await clickText(page,'Voir toutes les actions','[data-home-section="actions"] button');await page.waitForSelector('[data-pulse-page]');await page.waitForFunction(()=>!document.querySelector('[data-pulse-page]').textContent.includes('Chargement des actions'));
+   check(name+' Pulse route accessible',await page.evaluate(()=>window.__qaApi.some(row=>row.path.startsWith('/api/pulse'))));
+   await page.goBack();await page.waitForSelector('[data-home-retain]');
+  }
+  if(role!=='owner')check(name+' no finance',home.finance.length===0,home.finance);check(name+' GET read-only',home.writes===0);
   if(width===390)check(name+' five mobile roots',await page.$$eval('.va-mobile-nav button',buttons=>buttons.filter(el=>el.offsetHeight).length===5));
   await clickText(page,'Ouvrir Velatra Retain');await page.waitForSelector('[data-retain-page]');await page.waitForFunction(()=>!document.querySelector('[data-retain-page]').textContent.includes('Chargement de Retain'));
   await inspect(page,name+' Retain','[data-retain-page]');check(name+' bounded list',await page.$$eval('[data-retain-card]',cards=>cards.length===Math.min(Number(new URLSearchParams(location.search).get('clients')),20)));
@@ -120,14 +145,14 @@ try{
   if(count===1){await clickText(page,'Voir Retain','[data-retain-card] button');await page.waitForSelector('[data-retain-detail]');check(name+' explained detail',await page.$eval('[data-retain-detail]',el=>el.textContent.includes('14 jours sans séance')&&el.textContent.includes('Attention')));await inspect(page,name+' Detail','[data-retain-detail]');if(width===390)await page.screenshot({path:path.join(evidence,name+'-detail.png')});}
   if(count===100&&width===390)await page.screenshot({path:path.join(evidence,name+'.png')});await page.close();
  }
- for(const[role,type]of[['owner','solo'],['manager','studio'],['coach','studio']]){
+ if(!migrationQA)for(const[role,type]of[['owner','solo'],['manager','studio'],['coach','studio']]){
   const page=await open(role,type,390,844,1);await page.waitForSelector('[data-pulse-action="retention:member-0"]');check(role+' one Pulse aggregate',await page.$$eval('[data-home-section="actions"] [data-pulse-action]',cards=>cards.filter(el=>el.dataset.pulseAction==='retention:member-0').length===1&&!cards.some(el=>el.dataset.pulseAction.startsWith('inactive:'))));
   await clickText(page,'Voir Retain','[data-pulse-action="retention:member-0"] button');await page.waitForSelector('[data-retain-detail]');await clickText(page,'Enregistrer l’intervention','[data-retain-detail] button');await page.waitForFunction(()=>document.querySelector('[data-retain-detail]').textContent.includes('Intervention enregistrée.'));check(role+' intervention source isolated',await page.evaluate(()=>window.__qaWrites.length===1&&window.__qaWrites[0].path==='retentionInterventions'));check(role+' intervention does not resolve',await page.$eval('[data-retain-detail] [data-retain-state]',el=>el.dataset.retainState==='attention'));await clickText(page,'Voir le dossier complet');await page.waitForFunction(()=>document.querySelector('#client-360-section')?.value==='retention');await page.waitForSelector('[data-retain-detail]');check(role+' Client360 light retention',true);await page.close();
  }
  // Filters exercise all states and factual search on a 500-member portfolio.
- const page=await open('manager','studio',1440,900,500);await clickText(page,'Ouvrir Velatra Retain');await page.waitForSelector('[data-retain-card]');
+ if(!migrationQA){const page=await open('manager','studio',1440,900,500);await clickText(page,'Ouvrir Velatra Retain');await page.waitForSelector('[data-retain-card]');
  for(const state of ['critical','attention','watch','stable','insufficient_data']){await page.evaluate(state=>{const labels={critical:'Critique',attention:'Attention',watch:'À surveiller',stable:'Stable',insufficient_data:'Données insuffisantes'};[...document.querySelectorAll('nav[aria-label="Niveaux Retain"] button')].find(el=>el.textContent.startsWith(labels[state]+' ·')).click();},state);await page.waitForFunction(state=>document.querySelectorAll('[data-retain-card]').length===20&&[...document.querySelectorAll('[data-retain-card] [data-retain-state]')].every(el=>el.dataset.retainState===state),{},state);check('Manager filters '+state,true);}
- await page.close();
+ await page.close();}
 }catch(error){for(const page of await browser.pages())if(page.url().startsWith(origin)){console.log(JSON.stringify(await page.evaluate(()=>({body:document.body.innerText.slice(0,2500),calls:window.__qaApi?.slice(-5)})),null,2));await page.screenshot({path:path.join(evidence,'failure.png')});}errors.push({label:'Scenario',details:error.stack});}
 finally{await browser.close();await new Promise(resolve=>server.close(resolve));await writeFile(path.join(evidence,'results.json'),JSON.stringify({checks:records,failures:errors,environment:'RootApp/Home/Retain/Pulse; actual shared pure engine; synthetic API; no production; external requests blocked'},null,2));}
 console.log(JSON.stringify({checks:records.length,failures:errors.length,evidence,errors},null,2));if(errors.length)process.exitCode=1;

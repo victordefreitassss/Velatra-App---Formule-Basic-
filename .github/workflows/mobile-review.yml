@@ -40,6 +40,11 @@ jobs:
         env:
           VELATRA_RETAIN_QA_OUTPUT: ${{ runner.temp }}/retain-evidence
         run: node scripts/qa/retain-browser.mjs
+      - name: Legacy account migration activates modern experiences (synthetic fixtures)
+        env:
+          VELATRA_ACCOUNT_MIGRATION_QA: 'true'
+          VELATRA_RETAIN_QA_OUTPUT: ${{ runner.temp }}/account-migration-evidence
+        run: node --import tsx scripts/qa/retain-browser.mjs
       - name: Browser evidence (synthetic fixtures only)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -55,5 +60,7 @@ jobs:
             ${{ runner.temp }}/pulse-evidence/*.png
             ${{ runner.temp }}/retain-evidence/results.json
             ${{ runner.temp }}/retain-evidence/*.png
+            ${{ runner.temp }}/account-migration-evidence/results.json
+            ${{ runner.temp }}/account-migration-evidence/*.png
           retention-days: 7
           if-no-files-found: warn
