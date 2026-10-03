@@ -133,7 +133,8 @@ try{
           document.querySelector('[data-home-member="901"] .vd-widget-badges')?.textContent.includes('Programme demandé') &&
           document.querySelector('[data-home-booking] .vd-widget-badges')?.textContent.includes('Confirmé') &&
           !document.querySelector('[data-home-member="901"] details')?.open));
-        const returnHome=async()=>{await page.goBack();await page.waitForSelector('[data-desktop-dashboard]');};
+        const settleRender=async()=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+        const returnHome=async()=>{await page.goBack();await page.waitForFunction(()=>window.__qaGetState().page==='home'&&document.querySelector('[data-desktop-dashboard]'));await settleRender();};
         const expandClient=async()=>{
           await page.$eval('[data-home-member="901"] summary',element=>{element.scrollIntoView({block:'center'});element.focus();});
           await page.keyboard.press('Enter');await page.waitForSelector('[data-home-member="901"] details[open]');
@@ -156,7 +157,12 @@ try{
         const writes=await page.evaluate(()=>window.__qaWrites);
         check(experience+' only existing conversation read receipt is written',writes.every(write=>write.path==='messages/600'&&Object.keys(write.patch).join()==='read'&&write.patch.read===true),writes);
         for(const label of ['Drive',...(role!=='coach'?['Prospects']:[])]){
-          await clickText(page,label,'.vd-sidebar-navigation button');await page.waitForFunction(()=>!document.querySelector('[data-desktop-dashboard]'));check(experience+' desktop navigation '+label,await page.evaluate(()=>!!document.querySelector('.vd-shell')));await page.goBack();await page.waitForSelector('[data-desktop-dashboard]');
+          await clickText(page,label,'.vd-sidebar-navigation button');
+          // A removed dashboard can mean Suspense, not a ready destination. Wait for
+          // the real page and router state before exercising browser Back.
+          await page.waitForFunction(({destination,title})=>window.__qaGetState().page===destination&&history.state?.usr?.velatraPage===destination&&document.querySelector('.va-page-body h1')?.textContent.includes(title),{},
+            {destination:label==='Drive'?'drive':'crm_pipeline',title:label==='Drive'?'Drive Intégré':'Pipeline Commercial'});
+          await settleRender();check(experience+' desktop navigation '+label,await page.evaluate(()=>!!document.querySelector('.vd-shell')));await returnHome();
         }
       }
       await page.close();
