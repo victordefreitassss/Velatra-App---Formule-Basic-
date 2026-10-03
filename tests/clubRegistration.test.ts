@@ -89,3 +89,46 @@ it('keeps authorized legacy staff API access and prevents cross-club creation', 
   assert.equal((await post('/api/create-staff', user.token, body)).status, 200);
   assert.equal((await getFirestore().doc(`clubs/${clubId}`).get()).data()!.accountType, undefined);
 });
+
+// Real Auth emulator Google identities, then the same protected registration endpoint.
+async function googleIdentity(email: string, subject: string) {
+  const jwt = [Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url'), Buffer.from(JSON.stringify({ sub: subject, email, email_verified: true, name: 'Google Fixture', aud: 'demo-velatra', iss: 'https://accounts.google.com', iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000)+3600 })).toString('base64url'), ''].join('.');
+  const response = await fetch(`http://${process.env.FIREBASE_AUTH_EMULATOR_HOST}/identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=local-emulator`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requestUri: 'http://localhost', postBody: `id_token=${jwt}&providerId=google.com`, returnSecureToken: true })
+  });
+  const result = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(result.error));
+  return { uid: result.localId as string, token: result.idToken as string };
+}
+for (const accountType of ['solo', 'studio'] as const) {
+  it(`Google ${accountType}: no tenant before explicit signup, server authority and one profile per UID`, async () => {
+    const email = `google-${randomUUID()}@gmail.com`, subject = randomUUID();
+    const user = await googleIdentity(email, subject);
+    assert.equal((await getFirestore().doc(`users/${user.uid}`).get()).exists, false);
+    const denied = await post('/api/register-club', user.token, { ...signup(accountType), inviteCode: 'wrong' });
+    assert.equal(denied.status, 403);
+    assert.equal((await getFirestore().doc(`users/${user.uid}`).get()).exists, false);
+    const response = await post('/api/register-club', user.token, { ...signup(accountType), role: 'superadmin', plan: 'premium', isActive: false, canAddStaff: true });
+    assert.equal(response.status, 200);
+    const { clubId } = await response.json();
+    const profile = (await getFirestore().doc(`users/${user.uid}`).get()).data()!;
+    const club = (await getFirestore().doc(`clubs/${clubId}`).get()).data()!;
+    assert.equal(profile.role, 'owner'); assert.equal(profile.email, email);
+    assert.equal(club.plan, 'basic'); assert.equal(club.isActive, true); assert.equal(club.canAddStaff, false); assert.equal(club.accountType, accountType);
+    const again = await googleIdentity(email, subject);
+    assert.equal(again.uid, user.uid);
+    assert.equal((await post('/api/register-club', again.token, signup(accountType))).status, 409);
+  });
+}
+it('Google with an existing verified email/password identity retains the same UID and business profile', async () => {
+  const email = `same-${randomUUID()}@gmail.com`;
+  const passwordIdentity = await identity(email, true);
+  const created = await post('/api/register-club', passwordIdentity.token, signup('solo'));
+  assert.equal(created.status, 200);
+  const before = (await getFirestore().doc(`users/${passwordIdentity.uid}`).get()).data();
+  const google = await googleIdentity(email, randomUUID());
+  assert.equal(google.uid, passwordIdentity.uid);
+  assert.deepEqual((await getFirestore().doc(`users/${google.uid}`).get()).data(), before);
+  assert.equal((await post('/api/register-club', google.token, signup('studio'))).status, 409);
+});

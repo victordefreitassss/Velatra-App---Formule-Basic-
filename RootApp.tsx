@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 import MarketingSite from './MarketingSite';
 
 const CoachingApp = React.lazy(() => import('./App'));
-const applicationPaths = new Set(['/login', '/register', '/dashboard']);
+const applicationPaths = new Set(['/login', '/register', '/forgot-password', '/dashboard']);
 
 export default function RootApp() {
   const { pathname } = useLocation();

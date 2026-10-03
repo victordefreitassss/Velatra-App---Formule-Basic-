@@ -230,6 +230,7 @@ export default function App() {
   const [firebaseConnectionIssue, setFirebaseConnectionIssue] = useState<'permission' | 'temporary' | null>(null);
   const [authResolved, setAuthResolved] = useState(false);
   const [profileResolved, setProfileResolved] = useState(false);
+  const [authAccessError, setAuthAccessError] = useState('');
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -441,6 +442,7 @@ export default function App() {
       }
       setState({ ...INITIAL_STATE, exercises: [...INIT_EXERCISES] });
       if (firebaseUser) {
+        setAuthAccessError('');
         const userDocRef = doc(db, "users", firebaseUser.uid);
         
         // Listen to the user document so it updates automatically when created during registration
@@ -464,6 +466,7 @@ export default function App() {
             if (!isCurrent()) return;
             const verifiedClub = managerClub?.exists() ? readClubDocument(profileData.clubId, managerClub.data()) : null;
             if (!isLiveProfileAllowed(profileData, verifiedClub)) {
+              setAuthAccessError("Ce compte n’est actuellement pas accessible.");
               setState({ ...INITIAL_STATE, exercises: [...INIT_EXERCISES] });
               setLoading(false);
               await signOut(auth);
@@ -1328,7 +1331,10 @@ export default function App() {
     return null;
   };
 
-  if (loading || !authResolved || (auth.currentUser && !profileResolved)) return (
+  // Keep public auth forms mounted while a new session resolves its profile.
+  // Private routes still wait for the authoritative profile before rendering.
+  const onAuthPage = ['/login', '/register', '/forgot-password'].includes(location.pathname);
+  if (loading || !authResolved || (auth.currentUser && !profileResolved && !onAuthPage)) return (
     <div className="min-h-screen bg-white flex flex-col justify-between">
       {renderFirebaseConnectionIssue()}
       {renderBillingBanner()}
@@ -1426,7 +1432,7 @@ export default function App() {
             {renderBillingBanner()}
             {renderOfflineBanner()}
             <div className="flex-1 animate-fadeIn">
-              <Login initialMode="login" />
+              <Login initialMode="login" sessionError={authAccessError} />
             </div>
           </div>
         )
@@ -1439,11 +1445,13 @@ export default function App() {
             {renderBillingBanner()}
             {renderOfflineBanner()}
             <div className="flex-1 animate-fadeIn">
-              <Login initialMode="choose_account" />
+              <Login initialMode="choose_account" sessionError={authAccessError} />
             </div>
           </div>
         )
       } />
+
+      <Route path="/forgot-password" element={state.user ? <Navigate to="/dashboard" replace /> : <Login initialMode="forgot_password" sessionError={authAccessError} />} />
 
       {/* Private Dashboard Route */}
       <Route path="/dashboard" element={
