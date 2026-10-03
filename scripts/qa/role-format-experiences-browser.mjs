@@ -69,8 +69,16 @@ const sizes=[[320,568],[360,800],[390,844],[430,932],[768,1024],[820,1180],[1024
 const roles=[['owner','solo','SOLO_OWNER'],['manager','studio','STUDIO_MANAGER'],['coach','studio','STUDIO_COACH'],['owner','studio','STUDIO_OWNER']];
 const records=[];const errors=[];
 const check=(label,passed,details)=>{records.push({label,passed,details});if(!passed)errors.push({label,details});};
-const clickSelector=async(page,selector)=>{await page.$eval(selector,element=>element.scrollIntoView({block:'center'}));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await page.click(selector);};
-const clickText=async(page,text,selector='button')=>{const handle=await page.evaluateHandle((selector,label)=>[...document.querySelectorAll(selector)].find(button=>button.offsetHeight&&button.textContent?.trim()===label),selector,text);const button=handle.asElement();assert.ok(button,`Missing visible action ${text}`);await button.evaluate(element=>element.scrollIntoView({block:'center'}));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await button.click();await handle.dispose();};
+// Re-resolve after route/sheet animation; a retained ElementHandle can become
+// detached or temporarily unclickable while React restores the mobile shell.
+const pointerClick=async(page,selector,text=null)=>{
+  await page.evaluate(target=>{window.__qaPointerTarget=target;},{selector,text});
+  await page.locator(()=>{const {selector,text}=window.__qaPointerTarget;return [...document.querySelectorAll(selector)].find(e=>e.offsetHeight&&(text===null||e.textContent?.trim()===text));})
+    .map(e=>{e.scrollIntoView({block:'center',inline:'center',behavior:'instant'});return e;})
+    .filter(e=>{const r=e.getBoundingClientRect();return e.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}).click();
+};
+const clickSelector=(page,selector)=>pointerClick(page,selector);
+const clickText=(page,text,selector='button')=>pointerClick(page,selector,text);
 async function open(role,accountType,width,height,clients=1){
   const page=await browser.newPage();page.setDefaultTimeout(10000);page.setDefaultNavigationTimeout(30000);await page.setViewport({width,height,deviceScaleFactor:1});
   await page.setRequestInterception(true);page.on('request',request=>request.url().startsWith(origin)?void request.continue():void request.abort());
@@ -191,7 +199,7 @@ try{
     await clickSelector(page,'[data-home-booking] button');await page.waitForSelector('[data-planning-dialog="active"]');check(`${experience} opens actual booking`,await page.$eval('[data-planning-dialog="active"]',element=>element.textContent.includes('Emma Martin')));await page.goBack();await page.waitForSelector('[data-experience]');
     await clickSelector(page,'[data-home-action="task"]');await page.waitForSelector('[data-operational-task="task-1"]');check(`${experience} opens focused operational task`,await page.$eval('[data-operational-task="task-1"]',element=>element.contains(document.activeElement)));await clickText(page,'Terminer la tâche','[data-operational-task] button');await page.waitForFunction(()=>window.__qaWrites.some(write=>write.path==='tasks/task-1'&&write.patch.status==='done'));check(`${experience} completes only selected fixture task`,true);
     await page.goBack();await page.waitForSelector('[data-experience]');
-    if(experience==='STUDIO_MANAGER'||experience==='STUDIO_OWNER'||experience==='SOLO_OWNER'){await clickText(page,'Plus','.va-mobile-nav button');await clickText(page,experience==='SOLO_OWNER'?'Finances':'Équipe');check(`${experience} secondary destinations accessible`,true);}
+    if(experience==='STUDIO_MANAGER'||experience==='STUDIO_OWNER'||experience==='SOLO_OWNER'){await page.locator('.va-mobile-nav button[aria-label="Ouvrir Plus"]').click();await page.waitForSelector('#velatra-mobile-more',{visible:true});await clickText(page,experience==='SOLO_OWNER'?'Finances':'Équipe','#velatra-mobile-more button');check(`${experience} secondary destinations accessible`,true);}
     await page.close();
   }
   for(const [role,type,experience] of roles){
