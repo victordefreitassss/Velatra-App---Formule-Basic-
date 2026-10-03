@@ -18,7 +18,7 @@ The backend defaults to `velatra-75daa.firebasestorage.app`; a server-only `FIRE
 
 ## Existing objects: mandatory manual release step
 
-Changing Rules or the frontend alone does **not** invalidate tokens already distributed. Production is not inspected or changed by this PR. The token inventory and apply utility are manual, never executed by app startup/CI.
+Changing Rules or the frontend alone does **not** invalidate tokens already distributed. The token inventory and apply utility are manual, never executed by app startup/CI. Operator-only read observations are recorded below; no production write has been performed.
 
 Use server-side ADC for `velatra-75daa`; no credential in argv or the frontend. Store manifests outside Git, in a private directory. Default mode reads metadata only, including object versions, and stores token fingerprints rather than usable tokens:
 
@@ -66,4 +66,10 @@ Primary references: [Firebase direct SDK downloads](https://firebase.google.com/
 
 ## Read-only configuration check, 2026-10-03
 
-The production bucket configuration was read without accessing file bytes or changing data/IAM: versioning disabled; uniform bucket-level access disabled; public access prevention inherited; no `allUsers`/`allAuthenticatedUsers` bucket IAM, bucket ACL or default-object ACL detected. Individual object ACLs, historical generations and project-level inherited IAM still require the private inventory/release review above. No token inventory or apply command was executed against production.
+The production bucket configuration was read without accessing file bytes or changing data/IAM: versioning disabled; uniform bucket-level access disabled; public access prevention inherited; no `allUsers`/`allAuthenticatedUsers` bucket IAM, bucket ACL or default-object ACL detected. Individual object ACLs, historical generations and project-level inherited IAM still require the private inventory/release review above. At this initial configuration check, no token inventory or apply command had been executed against production; the later READ ONLY inventory is recorded below.
+
+## PR #44 follow-up verification, 2026-10-03
+
+The original Retain browser suite passed 417 checks on both unchanged main and the unchanged PR HEAD locally, but failed intermittently in CI before any Retain API request. A physical-click acknowledgement exposed clicks reaching the fixed app navigation instead of the intended button. Only the QA helper changes: wait for a stable bounding box and a center point that wins `elementFromPoint` hit testing, then perform one physical mouse click and verify that the intended button received it. Retain routing, product behavior, timeouts and page assertions remain unchanged; no DOM-invoked click or blind click retry masks a navigation failure.
+
+The prepared migration's default READ ONLY mode ran against `velatra-75daa.firebasestorage.app`. It found zero `drive/` objects and zero download tokens. A second independent listing confirmed the existing bucket is unversioned and contains zero objects including archived versions; `driveFiles` also contains zero documents in both configured Firestore databases. The exact affected-path list is `[]`. Consequently no apply command, object rewrite, data/IAM change or deployment was performed. There is no existing production URL/token available for an anonymous before/after probe; the actual token invalidation regression is validated on the isolated emulators. This empty inventory must not be described as a production token-removal operation. New files will use the authenticated API only once the matching PR frontend/backend/Rules are released. Refresh the inventory if files are created before that release.
