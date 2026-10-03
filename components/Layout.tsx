@@ -19,6 +19,9 @@ import { trackProductEventOnce } from './productEvents';
 import './app-shell.css';
 import './visual-polish.css';
 import './member-mobile.css';
+import './desktop/desktop-theme.css';
+import { DesktopSidebar } from './desktop/DesktopSidebar';
+import { DesktopShellActions, ProfileSummary } from './desktop/DesktopUI';
 import { AppPageContent } from './AppPageContent';
 import { useProductFormat } from './useProductFormat';
 
@@ -85,6 +88,7 @@ export const Layout: React.FC<LayoutProps> = ({
   const isSuperAdmin = user.role === 'superadmin';
   const effectiveRole = isSuperAdmin ? adminPerspective : user.role;
   const productFormat = useProductFormat();
+  const desktopVisual = !isSuperAdmin && ['coach', 'manager', 'owner'].includes(effectiveRole) && ['desktop', 'largeDesktop'].includes(productFormat);
   const navContext: NavigationContext = {
     role: effectiveRole as Role,
     club: club || (user.clubId ? { id: user.clubId } as Club : null),
@@ -290,7 +294,7 @@ export const Layout: React.FC<LayoutProps> = ({
         if (showCreateMenu) createTriggerRef.current?.focus();
         if (showProfileMenu) {
           const isMobile = window.matchMedia('(max-width: 1023px)').matches;
-          (isMobile ? mobileProfileTriggerRef.current : desktopProfileTriggerRef.current)?.focus();
+          (isMobile || desktopVisual ? mobileProfileTriggerRef.current : desktopProfileTriggerRef.current)?.focus();
         }
         setShowCommandPalette(false);
         setShowPlusSheet(false);
@@ -301,7 +305,7 @@ export const Layout: React.FC<LayoutProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [showCreateMenu, showProfileMenu, desktopVisual]);
 
   React.useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -383,9 +387,9 @@ export const Layout: React.FC<LayoutProps> = ({
   const profileLabel = effectiveRole === 'member' ? 'Mon profil et mes objectifs' : effectiveRole === 'superadmin' ? 'Administration' : 'Paramètres du compte';
 
   return (
-    <div className={`velatra-app-shell ${effectiveRole === 'member' ? 'va-member-shell' : ''} min-h-screen flex flex-col md:flex-row ${isVirtualKeyboardOpen ? 'va-keyboard-open' : ''} ${isWorkspaceMode ? 'va-workspace-mode' : ''}`}>
+    <div className={`velatra-app-shell ${desktopVisual ? 'vd-shell' : ''} ${effectiveRole === 'member' ? 'va-member-shell' : ''} min-h-screen flex flex-col md:flex-row ${isVirtualKeyboardOpen ? 'va-keyboard-open' : ''} ${isWorkspaceMode ? 'va-workspace-mode' : ''}`}>
       <aside className="va-rail" aria-label="Navigation de Velatra">
-        <AppLogo />
+        {desktopVisual ? <DesktopSidebar items={getAllContextItems(navContext)} activePage={activePage} onNavigate={goToPage} onSearch={() => setShowCommandPalette(true)} manager={effectiveRole === 'manager' || effectiveRole === 'owner' && club?.accountType === 'studio'} notifications={unreadNotificationsCount} /> : <><AppLogo />
         <nav className="va-rail-nav" aria-label="Espaces principaux">
           {primaryHubs.map(hub => {
             const Icon = hubIcon[hub.id] || MenuIcon;
@@ -405,6 +409,7 @@ export const Layout: React.FC<LayoutProps> = ({
           })}
         </nav>
 
+        </>}
         <div className="va-rail-profile-wrap">
           <button
             ref={desktopProfileTriggerRef}
@@ -426,7 +431,7 @@ export const Layout: React.FC<LayoutProps> = ({
         <header className="va-topbar va-context-bar" aria-label="Contexte de navigation">
           <div className="va-context-main">
             <div className="va-context-heading">
-              <strong>{getHubLabel(activeHub, navContext)}</strong>
+              <strong>{desktopVisual && activePage === 'home' ? 'Tableau de bord' : getHubLabel(activeHub, navContext)}</strong>
               <span>{roleLabel}</span>
             </div>
             {contextItems.length > 0 && (
@@ -481,7 +486,7 @@ export const Layout: React.FC<LayoutProps> = ({
             )}
             <button ref={mobileProfileTriggerRef} type="button" className="va-mobile-profile" aria-label={`Ouvrir le profil de ${user.name}`} aria-haspopup="menu" aria-expanded={showProfileMenu} aria-controls="va-profile-menu" onClick={() => setShowProfileMenu(open => !open)}>
               <span className="va-user-avatar">{user.avatar?.startsWith('http') ? <img src={user.avatar} alt="" /> : (user.avatar || user.name.substring(0, 2).toUpperCase())}</span>
-            </button>
+            {desktopVisual && <ProfileSummary name={user.name} role={effectiveRole === 'manager' || effectiveRole === 'owner' && club?.accountType === 'studio' ? 'Pilotage du club' : 'Espace coaching'} />}</button>
             {showProfileMenu && (
               <div id="va-profile-menu" ref={profileMenuRef} className="va-profile-menu" role="menu" aria-label="Menu du compte">
                 <div className="va-profile-menu-user"><strong>{user.name}</strong><span>{roleLabel}</span></div>
@@ -578,7 +583,7 @@ export const Layout: React.FC<LayoutProps> = ({
           identity={`${user.firebaseUid || user.id}:${club?.id || ''}:${effectiveRole}`}
           warmup={!isWorkspaceMode && !isSessionOpen}
         >
-          {children}
+          <DesktopShellActions.Provider value={() => setShowCommandPalette(true)}>{children}</DesktopShellActions.Provider>
         </AppPageContent>
 
         {showTimer && (
