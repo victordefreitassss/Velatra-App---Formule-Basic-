@@ -385,7 +385,7 @@ export interface ProspectNote {
   authorName?: string;
 }
 
-export interface ProspectActivity { id: string; date: string; label: string; authorUid?: string; }
+export interface ProspectActivity { id: string; date: string; label: string; authorUid?: string; kind?: 'note' | 'call' | 'email' | 'message'; content?: string; noteId?: string; }
 
 export interface Prospect {
   id: number;
@@ -401,6 +401,12 @@ export interface Prospect {
   notesHistory?: ProspectNote[];
   nextReminderDate?: string; // ISO format
   source?: string;
+  firstName?: string;
+  lastName?: string;
+  proposedOffer?: string; // Commercial intention only; never a billing subscription.
+  tags?: string[];
+  nextAction?: string;
+  lastContactAt?: string; // Explicitly recorded interaction, not a mailto/tel click.
   assignedCoachUid?: string | null;
   activityHistory?: ProspectActivity[];
   lostReason?: string;

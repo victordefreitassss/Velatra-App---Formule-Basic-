@@ -1,3 +1,4 @@
+import { editCrmProspect } from './crmProspect.ts';
 import { randomUUID } from 'node:crypto';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { Express, Request, Response } from 'express';
@@ -118,6 +119,8 @@ export function registerSales(app: Express, db: Firestore) {
     return { trials: rows.slice(offset, offset + limit).map(b => ({ booking: b, group: trialGroup(b, now), prospectUid: joins.prospect(b)?.firebaseUid || null, prospectName: joins.prospect(b)?.name || 'Prospect non identifié', coachName: joins.coach(b)?.name || 'Non attribué' })), total: rows.length, partial: !!input.partialSources?.length, partialSources: input.partialSources };
   }));
   app.post('/api/sales/prospects', route(req => createSalesProspect(db, req.auth.uid, req.body)));
+  app.post('/api/sales/prospects/:id/profile', route(req => editCrmProspect(db, req.auth.uid, String(req.params.id), req.body)));
+  app.post('/api/sales/prospects/:id/activity', route(req => editCrmProspect(db, req.auth.uid, String(req.params.id), req.body, true)));
   app.post('/api/sales/prospects/:id/stage', route(req => updateSalesProspect(db, req.auth.uid, String(req.params.id), req.body)));
   app.post('/api/sales/prospects/:id/assignment', route(req => updateSalesProspect(db, req.auth.uid, String(req.params.id), req.body, true)));
   app.post('/api/bookings/:bookingId/attendance', route(req => markTrialAttendance(db, req.auth.uid, String(req.params.bookingId), req.body)));

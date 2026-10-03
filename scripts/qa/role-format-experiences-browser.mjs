@@ -161,7 +161,7 @@ try{
           // A removed dashboard can mean Suspense, not a ready destination. Wait for
           // the real page and router state before exercising browser Back.
           await page.waitForFunction(({destination,title})=>window.__qaGetState().page===destination&&history.state?.usr?.velatraPage===destination&&document.querySelector('.va-page-body h1')?.textContent.includes(title),{},
-            {destination:label==='Drive'?'drive':'crm_pipeline',title:label==='Drive'?'Drive Intégré':'Pipeline Commercial'});
+            {destination:label==='Drive'?'drive':'crm_pipeline',title:label==='Drive'?'Drive Intégré':'Prospects'});
           await settleRender();check(experience+' desktop navigation '+label,await page.evaluate(()=>!!document.querySelector('.vd-shell')));await returnHome();
         }
       }

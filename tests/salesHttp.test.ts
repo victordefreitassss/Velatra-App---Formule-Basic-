@@ -164,3 +164,27 @@ it('trial creation stores both identities and one booked event; preserves cancel
   const events = await db().collection('salesEvents').where('prospectUid', '==', uid).where('eventType', '==', 'TRIAL_BOOKED').get(); assert.equal(events.size, 1);
   await api('/api/bookings/cancel', 'owner', { id: first.body.id }); assert.equal((await api('/api/bookings/trial', 'manager', body)).status, 409);
 });
+
+it('CRM profile update validates metadata and cannot change tenant, role, stage, assignments or conversion', async () => {
+  const {uid}=await trial('crm-details'), path=`/api/sales/prospects/${uid}/profile`;
+  const updated=await api(path,'manager',{firstName:'Camille',lastName:'Martin',name:'Camille Martin',source:'Recommandation',tags:['Essai','VIP'],proposedOffer:'Coaching 3 mois',nextAction:'Rappeler après essai'});
+  assert.equal(updated.status,200); assert.equal(updated.body.prospect.status,'trial');assert.equal(updated.body.prospect.clubId,club);
+  assert.equal((await api(path,'manager',{tags:['Essai','VIP']})).body.unchanged,true);
+  for (const body of [{clubId:otherClub},{status:'won'},{assignedCoachUid:people.coach.uid},{convertedMemberUid:'bad'},{plan:'premium'},{tags:Array(13).fill('tag')}]) assert.equal((await api(path,'manager',body)).status,400);
+  for (const role of ['coach','member','superadmin','other','suspended'])assert.equal((await api(path,role,{source:'Invalid'})).status,403);
+  assert.equal((await api(path,undefined,{source:'Invalid'})).status,401);
+  const solo=await trial('crm-solo',{},soloClub,'solo');assert.equal((await api(`/api/sales/prospects/${solo.uid}/profile`,'solo',{source:'Web'})).status,200);
+});
+it('CRM notes and explicit interactions reuse journals, server-stamp identity, and survive retries/concurrency', async () => {
+  const {uid}=await trial('crm-activity'), path=`/api/sales/prospects/${uid}/activity`, requestId=randomUUID();
+  const body={requestId,kind:'note',content:'Objectif commercial'};
+  const results=await Promise.all([api(path,'owner',body),api(path,'owner',body)]); assert.ok(results.every(r=>r.status===200));
+  let p=(await db().doc(`prospects/${uid}`).get()).data()!;assert.equal(p.notesHistory.length,1);assert.equal(p.activityHistory.length,1);assert.equal(p.notesHistory[0].authorUid,people.owner.uid);assert.equal(p.lastContactAt,undefined);
+  assert.equal((await api(path,'manager',{requestId:randomUUID(),kind:'call',content:'Appel effectué : essai confirmé'})).status,200);
+  p=(await db().doc(`prospects/${uid}`).get()).data()!;assert.ok(p.lastContactAt);assert.equal(p.activityHistory.length,2);assert.equal(p.notesHistory.length,1);
+  assert.equal((await api(path,'manager',{...body,authorUid:people.owner.uid})).status,400);
+  for(const role of ['coach','member','superadmin','other'])assert.equal((await api(path,role,{...body,requestId:randomUUID()})).status,403);
+  const profile=`/api/sales/prospects/${uid}/profile`;
+  await db().doc(`clubs/${club}`).update({isActive:false});assert.equal((await api(path,'owner',body)).status,403);assert.equal((await api(profile,'owner',{source:'Blocked'})).status,403);await db().doc(`clubs/${club}`).update({isActive:true});
+  await db().doc(`users/${people.manager.uid}`).update({isSuspended:true});assert.equal((await api(path,'manager',body)).status,403);await db().doc(`users/${people.manager.uid}`).update({isSuspended:false});
+});
