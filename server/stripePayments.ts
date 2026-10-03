@@ -172,6 +172,8 @@ export async function processBillingStripeEvent(
   event: any,
 ) {
   if (!/^[\w-]{1,150}$/.test(clubId) || !/^evt_[\w]+$/.test(event.id)) deny();
+  // Purge tombstones prevent new webhook writes from resurrecting tenant data.
+  if ((await db.doc(`organizationPurgeJobs/${clubId}`).get()).exists) throw new Error('Organization purge blocks billing writes.');
   const o = event.data.object,
     meta = metadata(o);
   if (meta.clubId && meta.clubId !== clubId) deny();

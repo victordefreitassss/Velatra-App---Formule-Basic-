@@ -1,3 +1,4 @@
+import { runOrganizationPurge, readOrganizationPurge, type PurgeProgress } from '../services/organizationPurge';
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { 
@@ -86,6 +87,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
 
   // Modals / Dropdowns
   const [confirmDeleteClubId, setConfirmDeleteClubId] = useState<string | null>(null);
+  const [purgeConfirmation, setPurgeConfirmation] = useState('');
+  const [purgeProgress, setPurgeProgress] = useState<PurgeProgress | null>(null);
+  const [purging, setPurging] = useState(false);
+
+  useEffect(() => {
+    if (!confirmDeleteClubId || purging) return;
+    let cancelled = false;
+    readOrganizationPurge(confirmDeleteClubId).then(value => { if (!cancelled) setPurgeProgress(value); }).catch(() => { if (!cancelled) showToast('Journal de purge indisponible. La commande backend vérifiera son état avant toute reprise.', 'error'); });
+    return () => { cancelled = true; };
+  }, [confirmDeleteClubId, purging]);
 
   // Load audit logs & active alerts as well
   useEffect(() => {
@@ -276,48 +287,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
   };
 
   const deleteClubAndData = (clubId: string) => {
+    setPurgeConfirmation('');
+    setPurgeProgress(null);
     setConfirmDeleteClubId(clubId);
   };
 
   const confirmDelete = async () => {
-    if (!confirmDeleteClubId) return;
+    if (!confirmDeleteClubId || purgeConfirmation !== confirmDeleteClubId || purging) return;
     const clubId = confirmDeleteClubId;
-    const clubName = clubs.find(c => c.id === clubId)?.name || 'Club inconnu';
-    
-    setLoading(true);
+    setPurging(true);
     try {
-      showToast("Suppression intégrale des données en cours...", "success");
-      
-      const collectionsToDelete = [
-        "users", "programs", "presets", "archivedPrograms", "performances", 
-        "supplementProducts", "supplementOrders", "logs", "messages", "feed", 
-        "bodyData", "prospects", "newsletters", "tasks", "plans", "nutritionPlans", 
-        "nutritionLogs", "subscriptions", "payments", "exercises", "crmClients", 
-        "crmFormulas", "manualStats", "pendingProspects", "expenses", "invoices"
-      ];
-
-      for (const colName of collectionsToDelete) {
-        try {
-          const q = query(collection(db, colName), where("clubId", "==", clubId));
-          const snap = await getDocs(q);
-          const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
-          await Promise.all(deletePromises);
-        } catch (e) {
-          console.error(`Error deleting from ${colName}:`, e);
-        }
-      }
-
-      await deleteDoc(doc(db, "clubs", clubId));
-      
-      setClubs(clubs.filter(c => c.id !== clubId));
-      showToast("Le club et toutes ses données correspondantes ont été épurés", "success");
-      logAdminAction("CLUB_DELETE", `Suppression définitive du club "${clubName}" ainsi que toutes ses données liées.`);
-    } catch (error) {
-      console.error("Error deleting club:", error);
-      showToast("Erreur lors de la suppression", "error");
-    } finally {
-      setLoading(false);
+      await runOrganizationPurge(clubId, value => {
+        setPurgeProgress(value);
+        if (value.state !== 'completed') setClubs(previous => previous.map(club => club.id === clubId ? { ...club, isActive: false } : club));
+      });
+      setClubs(previous => previous.filter(club => club.id !== clubId));
+      showToast(`Purge vérifiée et terminée : ${clubId}`, 'success');
       setConfirmDeleteClubId(null);
+      void fetchData();
+      // The backend writes the authoritative journal and completion audit atomically.
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Purge échouée. Aucune réussite confirmée.', 'error');
+    } finally {
+      setPurging(false);
     }
   };
 
@@ -916,6 +908,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
                           </button>
                           
                           <button
+                            data-club-purge={club.id}
                             onClick={() => deleteClubAndData(club.id)}
                             className="p-2.5 rounded-2xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 transition-all shadow-sm"
                             title="Suppression irrémédiable de l'intégralité des données du club"
@@ -1708,7 +1701,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
 
       {/* 4b. Confirm Delete Club Modal (Existing) */}
       {confirmDeleteClubId && createPortal(
-        <div className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div role="dialog" aria-label="Purger une organisation" className="fixed inset-0 bg-black/25 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -1720,15 +1713,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
             </div>
             
             <p className="text-zinc-650 text-xs font-medium leading-relaxed mb-6">
-              Êtes-vous absolument certain de vouloir supprimer définitivement ce club ainsi que <strong>TOUTES ses collections synchrones</strong> (membres, entraînements, historiques d'activités, drives de documents, messageries...) ?
+              Supprimer définitivement <strong>{clubs.find(club => club.id === confirmDeleteClubId)?.name || 'Club'}</strong> — ID <strong>{confirmDeleteClubId}</strong> et ses données exclusives ? Le club sera suspendu. Il restera conservé si une étape échoue. Les comptes Auth partagés seront conservés, avec retrait du lien à ce club.
               <br /><br />
               <span className="text-red-650 font-bold bg-red-50 text-[10px] uppercase font-black px-2 py-1.5 rounded-lg border border-red-100 shadow-inner inline-block mt-2">
                 ⚠️ action irrémédiable et définitive !
               </span>
             </p>
 
+            <label className="block text-sm mb-4">
+              Saisissez l’ID exact pour confirmer : {confirmDeleteClubId}
+              <input aria-label="ID du club à purger" className="w-full border rounded-lg p-3 mt-2" value={purgeConfirmation} onChange={event => setPurgeConfirmation(event.target.value)} disabled={purging} />
+            </label>
+            {purgeProgress && <p role="status" className="text-sm mb-4" data-purge-state={purgeProgress.state}>
+              {purgeProgress.state === 'completed' ? 'Purge déjà terminée et vérifiée.' : purgeProgress.state === 'failed' ? 'Échec — club conservé et suspendu.' : 'Purge en cours.'} Étape : {purgeProgress.phase}. {purgeProgress.processed}/{purgeProgress.total} ressources confirmées.
+              {purgeProgress.error?.message && <span className="block">{purgeProgress.error.message}</span>}
+              {purgeProgress.error?.resource && ` Ressource en échec : ${purgeProgress.error.resource}.`}
+            </p>}
             <div className="flex gap-3">
-              <button 
+              <button
+                disabled={purging}
                 className="flex-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-900 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer" 
                 onClick={() => setConfirmDeleteClubId(null)}
               >
@@ -1737,8 +1740,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ showToast, actor
               <button 
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-colors shadow-md shadow-red-100 cursor-pointer animate-pulse" 
                 onClick={confirmDelete}
+                disabled={purging || purgeConfirmation !== confirmDeleteClubId}
               >
-                Supprimer
+                {purging ? 'Purge en cours…' : purgeProgress?.state === 'failed' ? 'Reprendre la purge' : 'Purger ce club'}
               </button>
             </div>
           </motion.div>

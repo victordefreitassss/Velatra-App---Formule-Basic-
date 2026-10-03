@@ -1,3 +1,4 @@
+import { registerOrganizationPurge } from './server/organizationPurge.ts';
 import { registerDrive } from './server/drive.ts';
 import { getStorage } from 'firebase-admin/storage';
 import { registerNotifications, dispatchPendingPush, notificationActor } from './server/notifications.ts';
@@ -419,6 +420,7 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
 // All remaining API routes require a verified session and a server-side profile.
 app.use("/api", verifyFirebaseSession, requireUserProfile);
 registerOrganizationAuthority(app, admin.firestore());
+registerOrganizationPurge(app, () => ({ databases: [getFirestore(), getFirestore('ai-studio-b80dc370-7dfb-4c83-8d03-6fe42e41a878')], auth: getAuth(), bucket: () => getStorage().bucket(process.env.FIREBASE_STORAGE_EMULATOR_HOST ? 'demo-velatra.appspot.com' : (process.env.FIREBASE_STORAGE_BUCKET || 'velatra-75daa.firebasestorage.app')) }));
 registerDrive(app, admin.firestore(), () => getStorage().bucket(process.env.FIREBASE_STORAGE_EMULATOR_HOST ? 'demo-velatra.appspot.com' : (process.env.FIREBASE_STORAGE_BUCKET || 'velatra-75daa.firebasestorage.app')));
 registerNotifications(app, admin.firestore());
 registerMessages(app, admin.firestore());

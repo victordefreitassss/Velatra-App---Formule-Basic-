@@ -25,6 +25,7 @@ export async function updateOrganizationAuthority(db: Firestore, identity: Ident
     if (profile?.role !== 'superadmin' || profile.isSuspended === true)
       throw new MemberCreationError(403, 'Administration plateforme requise.');
     if (!current) throw new MemberCreationError(404, 'Organisation introuvable.');
+    if (current.purgeJobId) throw new MemberCreationError(409, 'Purge en cours ou échouée : le club doit rester suspendu.');
     const updates: Record<string, unknown> = command.initializeLegacy ? {
       ...(!['basic', 'classic', 'premium'].includes(current.plan) ? { plan: 'basic' } : {}),
       ...(typeof current.isActive !== 'boolean' ? { isActive: false } : {}),

@@ -28,6 +28,8 @@ jobs:
         run: npm ci
       - name: Sentry privacy, React boundary and missing DSN (isolated transport)
         run: node scripts/qa/sentry-browser.mjs
+      - name: Super Admin purge confirmation and truthful outcomes (isolated fixtures)
+        run: node scripts/qa/super-admin-purge-browser.mjs
       - name: Isolated component browser tests (not physical iPhone tests)
         run: node scripts/qa/mobile-foundations-browser.mjs
       - name: Role and format functional experiences (isolated Firebase fixtures)
