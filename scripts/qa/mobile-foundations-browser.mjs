@@ -42,16 +42,17 @@ export const db = {};
 export const firebaseConfig = { projectId: 'demo-velatra' };
 export const googleProvider = {};
 const listeners = new Set();
-export function onAuthStateChanged(_auth, cb) { listeners.add(cb); const t=setTimeout(()=>{auth.currentUser=user; cb(user);},80); return ()=>{clearTimeout(t);listeners.delete(cb)}; }
-export async function signOut() { auth.currentUser=null; for(const cb of listeners) cb(null); }
+let authInitialized = false;
+export function onAuthStateChanged(_auth, cb) { listeners.add(cb); const t=setTimeout(()=>{if (!authInitialized) { auth.currentUser=user; authInitialized=true; } cb(auth.currentUser);},80); return ()=>{clearTimeout(t);listeners.delete(cb)}; }
+export async function signOut() { authInitialized=true; auth.currentUser=null; for(const cb of listeners) cb(null); }
 window.__qaSignOut = signOut;
 const snap = value => ({exists:()=>Boolean(value), data:()=>value, id: value?.firebaseUid || 'fixture', docs:[], forEach:()=>{}, docChanges:()=>[]});
 export const doc = (_db, ...parts) => ({path:parts.join('/')});
 export const collection = doc;
 export const query = (r,...args)=>({...r,query:true,args});
 export const where = (...args)=>args;
-export const getDoc = async r => snap(r.path?.startsWith('clubs/') ? club : undefined);
-export const getDocFromServer = async () => snap(undefined);
+export const getDoc = async r => snap(r.path === 'users/'+uid ? profile : r.path?.startsWith('clubs/') ? club : undefined);
+export const getDocFromServer = getDoc;
 export const getDocs = async () => snap(undefined);
 export function onSnapshot(r, cb) { const value = r.path === 'users/'+uid ? profile : r.path === 'clubs/654321' ? club : undefined; const t=setTimeout(()=>cb(snap(value)), r.path==='users/'+uid?350:5);return()=>clearTimeout(t); }
 export async function apiFetch(input) {

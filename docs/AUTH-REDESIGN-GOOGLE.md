@@ -44,7 +44,7 @@ Les domaines autorisés actuellement contiennent `localhost`, `velatra-75daa.fir
 ### Action manuelle avant recette Google sur Vercel
 
 1. Ouvrir [Firebase Authentication, projet Velatra](https://console.firebase.google.com/project/velatra-75daa/authentication/settings), onglet Settings → Authorized domains.
-2. Ajouter uniquement le hostname exact de la Preview Vercel utilisée pour cette PR (sans `https://`, chemin ou port). Ajouter aussi le domaine public de production au moment prévu pour la release s’il est absent. Ne pas autoriser tous les domaines `vercel.app`.
+2. Ajouter uniquement le hostname exact de la Preview Vercel utilisée pour cette PR : `velatra-app-git-feat-auth-re-6a5502-victordefreitassss-projects.vercel.app` (sans `https://`, chemin ou port). Ajouter aussi le domaine public de production au moment prévu pour la release s’il est absent. Ne pas autoriser tous les domaines `vercel.app`.
 3. Dans Sign-in method → Google, conserver le provider activé et le client existant ; vérifier le nom public et l’email d’assistance. Aucun nouveau credential à créer.
 4. Si Google retourne `redirect_uri_mismatch`, ouvrir [Google Cloud Credentials](https://console.cloud.google.com/apis/credentials?project=velatra-75daa), le client web utilisé par Firebase, et vérifier l’URI de redirection `https://velatra-75daa.firebaseapp.com/__/auth/handler`. Le frontend garde ce `authDomain` ; le callback n’est pas `/login` et aucun callback Vercel supplémentaire n’est nécessaire pour cette architecture popup. Pour un futur authDomain personnalisé, suivre la procédure Firebase avant de le modifier.
 5. Si l’écran de consentement OAuth est en mode Testing, vérifier les utilisateurs de test autorisés dans Google Auth Platform → Audience. Le statut de cet écran n’a pas été modifié ni validé par cette tâche.
@@ -59,10 +59,12 @@ Sources officielles : [Google avec Firebase JS](https://firebase.google.com/docs
 - `node --import tsx --test tests/authMessages.test.ts tests/productExperience.test.ts tests/appShellHelpers.test.ts tests/roleFormatExperiences.test.ts` : 57 PASS.
 - `npm run test:emulators` : 834 tests PASS + 5 contrôles préalables PASS, projet `demo-velatra` uniquement. Inclut Google nouveau solo/studio, invitation refusée, privilèges forgés ignorés, identité Google existante et email/password de même adresse vérifiée.
 - `node scripts/qa/auth-browser.mjs` : 53 contrôles PASS (RootApp réel, réponses Firebase isolées, requêtes externes bloquées).
-- `node scripts/qa/role-format-experiences-browser.mjs` : 433 PASS.
+- `node scripts/qa/role-format-experiences-browser.mjs` : 433 PASS ; mode desktop dédié : 170 PASS.
 - `node scripts/qa/onboarding-browser.mjs` : 1049 PASS.
 - `node scripts/qa/mobile-foundations-browser.mjs` : 48 PASS.
 - `git diff --check` : PASS.
+
+Le simulateur mobile conserve désormais la session courante lors de chaque nouvelle souscription Auth, y compris après logout, au lieu de réinjecter son utilisateur initial. Le test de retour depuis Drive/Prospects attend la destination et son historique (correction de synchronisation déjà validée dans la PR #47, sans reprendre ses changements de widgets). Aucun comportement métier modifié par ces ajustements de tests.
 
 Un job CI Auth dédié conserve les captures 320/390/768/1440 px et les résultats. Les tests navigateur simulent les résultats du provider ; les tests Google serveur utilisent le véritable émulateur Auth. Ils ne remplacent pas un consentement OAuth réel sur le domaine Vercel autorisé. Aucun envoi réel d’email de réinitialisation n’a été effectué.
 

@@ -97,7 +97,7 @@ try {
  }
  await open();await config({delay:450});await emailLogin();await page.evaluate(()=>document.querySelector('form').requestSubmit());await app();check('Email success and duplicate submit blocked',await page.evaluate(()=>window.__qaCalls.filter(c=>c.type==='email').length===1));
  await page.reload({waitUntil:'networkidle0'});await app();check('Refresh keeps same profile',await page.evaluate(()=>window.__qaGetState().user.firebaseUid==='auth-fixture-uid'));
- await page.evaluate(()=>window.__qaLogout());await page.waitForSelector('#login-email');check('Logout returns to login',await page.evaluate(()=>location.pathname==='/login'));await emailLogin();await app();check('Login after logout',true);
+ await page.evaluate(()=>window.__qaLogout());await page.waitForSelector('#login-email');await wait(500);check('Logout returns to login',await page.evaluate(()=>location.pathname==='/login'));await emailLogin();await app();check('Login after logout',true);
  await open();await config({suspended:true});await emailLogin();await page.waitForFunction(()=>document.body.innerText.includes('Ce compte n’est actuellement pas accessible.'));check('Suspended user never enters app',await page.evaluate(()=>!window.__qaGetState().user&&location.pathname==='/login'));
  await open();await config({active:false});await emailLogin();await page.waitForFunction(()=>document.body.innerText.includes('Compte Suspendu'));check('Suspended organization blocked',await page.$('[data-experience]')===null);
  await open();await config({google:'existing'});await click('Continuer avec Google');await app();check('Existing Google uses Velatra profile',await page.evaluate(()=>window.__qaGetState().user.role==='owner'&&!window.__qaCalls.some(c=>c.path==='/api/register-club')));

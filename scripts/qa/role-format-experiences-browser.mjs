@@ -129,7 +129,14 @@ try{
         check(experience+' dashboard selected',nav.some(b=>b.label.includes('Tableau de bord')&&b.selected==='page'));
         await page.click('.va-topbar .va-mobile-profile');await page.waitForSelector('#va-profile-menu');check(experience+' topbar account menu works',await page.$eval('#va-profile-menu',menu=>{const box=menu.getBoundingClientRect();return box.top>=0&&box.bottom<=innerHeight&&box.height<500;}));await page.keyboard.press('Escape');await page.waitForSelector('#va-profile-menu',{hidden:true});check(experience+' account menu restores keyboard focus',await page.$eval('.va-topbar .va-mobile-profile',button=>document.activeElement===button));
         for(const label of ['Drive',...(role!=='coach'?['Prospects']:[])]){
-          await clickText(page,label,'.vd-sidebar-navigation button');await page.waitForFunction(()=>!document.querySelector('[data-desktop-dashboard]'));check(experience+' desktop navigation '+label,await page.evaluate(()=>!!document.querySelector('.vd-shell')));await page.goBack();await page.waitForSelector('[data-desktop-dashboard]');
+          await clickText(page,label,'.vd-sidebar-navigation button');
+          // Wait for the destination and its history entry, not the Suspense fallback.
+          await page.waitForFunction(({destination,title})=>window.__qaGetState().page===destination&&history.state?.usr?.velatraPage===destination&&document.querySelector('.va-page-body h1')?.textContent.includes(title),{},
+            {destination:label==='Drive'?'drive':'crm_pipeline',title:label==='Drive'?'Drive Intégré':'Pipeline Commercial'});
+          await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+          check(experience+' desktop navigation '+label,await page.evaluate(()=>!!document.querySelector('.vd-shell')));
+          await page.goBack();await page.waitForFunction(()=>window.__qaGetState().page==='home'&&document.querySelector('[data-desktop-dashboard]'));
+          await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
         }
       }
       await page.close();
