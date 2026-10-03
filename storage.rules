@@ -10,8 +10,12 @@ service firebase.storage {
       return /databases/(default)/documents/users/$(uid);
     }
 
+    function purgingClub(clubId) {
+      return clubId is string && clubId.size() > 0 && firestore.exists(/databases/(default)/documents/clubs/$(clubId)) && firestore.get(/databases/(default)/documents/clubs/$(clubId)).data.get('purgeJobId', '') != '';
+    }
+
     function profileExists() {
-      return signedIn() && firestore.exists(profilePath(request.auth.uid)) && firestore.get(profilePath(request.auth.uid)).data.get('isSuspended', false) != true;
+      return signedIn() && firestore.exists(profilePath(request.auth.uid)) && firestore.get(profilePath(request.auth.uid)).data.get('isSuspended', false) != true && !purgingClub(firestore.get(profilePath(request.auth.uid)).data.get('clubId', ''));
     }
 
     function profile() {
@@ -35,7 +39,7 @@ service firebase.storage {
     }
 
     function staffInClub(clubId) {
-      return profileExists() && (
+      return !purgingClub(clubId) && profileExists() && (
         (profile().clubId == clubId && profile().role in ['owner', 'coach']) || isSuperAdmin()
       );
     }
@@ -49,7 +53,7 @@ service firebase.storage {
     }
 
     function canManageMember(memberUid) {
-      return profileExists() && firestore.exists(memberPath(memberUid)) && (
+      return profileExists() && firestore.exists(memberPath(memberUid)) && !purgingClub(memberProfile(memberUid).clubId) && (
         request.auth.uid == memberUid ||
         (isSuperAdmin() && firestore.get(memberPath(memberUid)).data.role == 'member') ||
         (firestore.get(memberPath(memberUid)).data.clubId == profile().clubId &&

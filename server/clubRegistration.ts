@@ -37,7 +37,8 @@ export async function registerClub(db: Firestore, identity: { uid: string; email
     for (let attempt = 0; attempt < 10; attempt++) {
       const id = String(randomInt(100000, 1000000));
       const clubRef = db.collection('clubs').doc(id);
-      if ((await transaction.get(clubRef)).exists) continue;
+      const [existing, purged] = await transaction.getAll(clubRef, db.doc(`organizationPurgeJobs/${id}`));
+      if (existing.exists || purged.exists) continue;
       transaction.create(clubRef, {
         id, accountType, name: clubName, ownerId: identity.uid, email: identity.email || '',
         plan: 'basic', isActive: true, canAddStaff: false,
