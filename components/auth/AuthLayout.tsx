@@ -1,5 +1,4 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { Users, ChartNoAxesCombined, Heart, Zap, ArrowLeft, LoaderCircle, ArrowRight, Mail, LockKeyhole, Eye, EyeOff } from 'lucide-react';
 import './auth-theme.css';
 
@@ -13,7 +12,7 @@ const benefits = [
 export function AuthLayout({ children }: { children: React.ReactNode }) {
   return <main className="va-auth">
     <aside className="va-auth-story" style={{ backgroundImage: "linear-gradient(90deg,rgba(12,17,57,.36),transparent 72%),url('/brand/auth/pitou-gym.webp')" }}>
-      <Link to="/" className="va-auth-brand" aria-label="Velatra — retour au site"><img src="/brand/desktop/velatra-logo.png" alt="" width="72" height="72" /><span>Velatra</span></Link>
+      <a href="https://velatra.fr" className="va-auth-brand" aria-label="Velatra — retour au site vitrine"><img src="/brand/desktop/velatra-logo.png" alt="" width="72" height="72" /><span>Velatra</span></a>
       <div className="va-auth-pitch">
         <h2>Le cockpit des coachs<br />et des clubs <span>ambitieux.</span></h2>
         <p>Tout ce dont vous avez besoin pour gérer, développer et faire rayonner votre activité. Plus simple. Plus humain. Plus loin, ensemble.</p>
