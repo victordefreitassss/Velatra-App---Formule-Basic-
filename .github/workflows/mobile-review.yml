@@ -36,6 +36,11 @@ jobs:
         env:
           VELATRA_ROLE_QA_OUTPUT: ${{ runner.temp }}/role-format-evidence
         run: node scripts/qa/role-format-experiences-browser.mjs
+      - name: Desktop visual system and existing navigation (isolated fixtures)
+        env:
+          VELATRA_DESKTOP_QA_ONLY: 'true'
+          VELATRA_ROLE_QA_OUTPUT: ${{ runner.temp }}/desktop-evidence
+        run: node scripts/qa/role-format-experiences-browser.mjs
       - name: Pulse and impacted Home (isolated Firebase fixtures)
         env:
           VELATRA_PULSE_QA_OUTPUT: ${{ runner.temp }}/pulse-evidence
@@ -72,6 +77,8 @@ jobs:
             mobile-review-evidence/bundle-map.json
             ${{ runner.temp }}/role-format-evidence/results.json
             ${{ runner.temp }}/role-format-evidence/*.png
+            ${{ runner.temp }}/desktop-evidence/results.json
+            ${{ runner.temp }}/desktop-evidence/*.png
             ${{ runner.temp }}/pulse-evidence/results.json
             ${{ runner.temp }}/pulse-evidence/*.png
             ${{ runner.temp }}/retain-evidence/results.json

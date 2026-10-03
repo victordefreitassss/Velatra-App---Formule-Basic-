@@ -150,7 +150,7 @@ try{
    const actual=await page.evaluate(()=>({experience:document.querySelector('[data-experience]')?.dataset.experience,format:document.querySelector('[data-experience]')?.dataset.format,sections:[...document.querySelectorAll('[data-home-section]')].map(el=>el.dataset.homeSection),nav:[...document.querySelectorAll(innerWidth<1024?'.va-mobile-nav button':'.va-rail button')].filter(el=>el.offsetHeight).map(el=>el.textContent.trim()),business:!!document.querySelector('[data-home-section="business"]')}));
    const expected=role==='owner'?(type==='solo'?'SOLO_OWNER':'STUDIO_OWNER'):role==='manager'?'STUDIO_MANAGER':'STUDIO_COACH';
    check(name+' migrated modern ExperienceHome',actual.experience===expected&&actual.format===(width===390?'phone':'desktop'),actual);
-   check(name+' modern navigation',actual.nav.includes('Accueil')&&actual.nav.length>0,actual.nav);
+   check(name+' modern navigation',actual.nav.includes(width<1024?'Accueil':'Tableau de bord')&&actual.nav.length>0,actual.nav);
    if(role==='coach')check(name+' no global finance or team',!actual.business&&!actual.nav.some(text=>/Finances|Business|Équipe/.test(text)),actual);
    if(width===390)compositions.set(label,actual);else{const phone=compositions.get(label);check(name+' phone differs from desktop',JSON.stringify(phone.sections)!==JSON.stringify(actual.sections)&&JSON.stringify(phone.nav)!==JSON.stringify(actual.nav),{phone,desktop:actual});}
    await page.screenshot({path:path.join(evidence,name+'-home.png')});

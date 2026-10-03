@@ -63,7 +63,7 @@ if(!jsFile)throw Error('App entry bundle missing');
 const tailwind=await readFile(process.env.VELATRA_QA_TAILWIND_PATH||path.join(tmpdir(),'velatra-tailwind-3.4.17.js')).catch(async()=>{const response=await fetch('https://cdn.tailwindcss.com');if(!response.ok)throw Error('Tailwind QA runtime unavailable');return Buffer.from(await response.arrayBuffer());});
 const index=await readFile(path.join(root,'index.html'),'utf8');const meta=index.match(/<meta name="viewport"[^>]+>/)?.[0]||'';const base=(index.match(/<style>([\s\S]*?)<\/style>/)?.[1]||'').replace(/@import[^;]+;/g,'');
 const html=`<!doctype html><html lang="fr"><head>${meta}<script src="/tailwind.js"></script><style>${base}</style>${cssFile?`<link rel="stylesheet" href="/${cssFile}">`:''}</head><body><div id="root"></div><script type="module" src="/${jsFile}"></script></body></html>`;
-const server=createServer(async(req,res)=>{const pathname=new URL(req.url,'http://localhost').pathname;if(pathname==='/tailwind.js'){res.setHeader('Content-Type','text/javascript');res.end(tailwind);return;}if(pathname.endsWith('.js')||pathname.endsWith('.css')){res.setHeader('Content-Type',pathname.endsWith('.css')?'text/css':'text/javascript');res.end(await readFile(path.join(bundle,path.basename(pathname))));return;}res.setHeader('Content-Type','text/html');res.end(html);});
+const server=createServer(async(req,res)=>{const pathname=new URL(req.url,'http://localhost').pathname;if(pathname.startsWith('/brand/') && /\.(png|webp)$/.test(pathname)){const asset=path.resolve(root,'public',pathname.slice(1));if(!asset.startsWith(path.join(root,'public','brand')+path.sep)){res.writeHead(404);res.end();return;}res.setHeader('Content-Type',pathname.endsWith('.png')?'image/png':'image/webp');res.end(await readFile(asset));return;}if(pathname==='/tailwind.js'){res.setHeader('Content-Type','text/javascript');res.end(tailwind);return;}if(pathname.endsWith('.js')||pathname.endsWith('.css')){res.setHeader('Content-Type',pathname.endsWith('.css')?'text/css':'text/javascript');res.end(await readFile(path.join(bundle,path.basename(pathname))));return;}res.setHeader('Content-Type','text/html');res.end(html);});
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin=`http://127.0.0.1:${server.address().port}`;const browser=await puppeteer.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
 const sizes=[[320,568],[360,800],[390,844],[430,932],[768,1024],[820,1180],[1024,768],[1280,800],[1440,900],[1600,1000],[1920,1080]];
 const roles=[['owner','solo','SOLO_OWNER'],['manager','studio','STUDIO_MANAGER'],['coach','studio','STUDIO_COACH'],['owner','studio','STUDIO_OWNER']];
@@ -72,7 +72,7 @@ const check=(label,passed,details)=>{records.push({label,passed,details});if(!pa
 const clickSelector=async(page,selector)=>{await page.$eval(selector,element=>element.scrollIntoView({block:'center'}));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await page.click(selector);};
 const clickText=async(page,text,selector='button')=>{const handle=await page.evaluateHandle((selector,label)=>[...document.querySelectorAll(selector)].find(button=>button.offsetHeight&&button.textContent?.trim()===label),selector,text);const button=handle.asElement();assert.ok(button,`Missing visible action ${text}`);await button.evaluate(element=>element.scrollIntoView({block:'center'}));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await button.click();await handle.dispose();};
 async function open(role,accountType,width,height,clients=1){
-  const page=await browser.newPage();page.setDefaultTimeout(10000);await page.setViewport({width,height,deviceScaleFactor:1});
+  const page=await browser.newPage();page.setDefaultTimeout(10000);page.setDefaultNavigationTimeout(30000);await page.setViewport({width,height,deviceScaleFactor:1});
   await page.setRequestInterception(true);page.on('request',request=>request.url().startsWith(origin)?void request.continue():void request.abort());
   page.on('console',message=>{if(message.type()==='error'&&/TypeError|ReferenceError|Uncaught UI error/.test(message.text())){errors.push({label:'Console exception',details:message.text().slice(0,500)});}});
   page.on('pageerror',error=>errors.push({label:'Runtime exception',details:error.message}));
@@ -101,12 +101,41 @@ async function inspect(page,label,width,height){
   check(`${label} ${width}×${height} layout and access`,!result.overflow&&!result.foreign&&!result.shortActions.length&&result.writes===0,result);
   check(`${label} ${width}×${height} format`,result.format===(width<768?'phone':width<1024?'tablet':width<1600?'desktop':'largeDesktop'),result.format);
   if(result.experience==='STUDIO_COACH'||result.experience==='STUDIO_MANAGER')check(`${label} ${width}×${height} no finance loading`,!result.finance&&!result.financialListeners.length&&!result.sensitiveCalls.length,result);
-  if(result.experience==='STUDIO_COACH')check(`${label} ${width}×${height} assigned portfolio`,!result.otherPortfolio&&!result.team&&result.sections[0]===(width<1024?'agenda':'clients'),result);
+  if(result.experience==='STUDIO_COACH')check(`${label} ${width}×${height} assigned portfolio`,!result.otherPortfolio&&!result.team&&result.sections[0]==='agenda',result);
   if(width<768){check(`${label} phone five roots`,result.nav.length===5,result.nav);if(result.experience.endsWith('OWNER'))check(`${label} phone Business secondary`,result.closedBusiness&&result.sections.at(-1)==='business',result.sections);}
   if(width>=1600)check(`${label} cockpit two zones`,result.zones===2,result.zones);
+  if(width>=1024)check(`${label} branded desktop shell`,await page.$('.vd-shell .vd-sidebar-brand img[src="/brand/desktop/velatra-logo.png"]')!==null);
+  else check(`${label} existing mobile/tablet shell`,await page.$('.vd-shell')===null);
   return result;
 }
 try{
+  if(process.env.VELATRA_DESKTOP_QA_ONLY){
+    for(const [role,type,experience] of roles) for(const [width,height] of [[1024,768],[1280,800],[1440,1000],[1600,1000],[1920,1080]]) {
+      const page=await open(role,type,width,height,8); await inspect(page,experience,width,height);
+      await page.waitForFunction(()=>[...document.querySelectorAll('.vd-shell img[src^="/brand/desktop/"]')].every(img=>img.complete&&img.naturalWidth>0));
+      check(experience+' desktop brand assets loaded',await page.$$eval('.vd-shell img[src^="/brand/desktop/"]',images=>images.length>=3));
+      await page.click('.vd-search-bar');await page.waitForSelector('#velatra-command-results');check(experience+' hero opens existing command palette',true);await page.keyboard.press('Escape');await page.waitForSelector('.va-command-overlay',{hidden:true});
+      if(width===1440){
+        await page.evaluate(()=>window.__qaSetState(state=>({...state,driveFiles:[
+          {id:'doc-local',clubId:state.currentClub.id,name:'Programme de préparation.pdf',createdAt:'2026-10-01T09:00:00Z',path:'fixture-only',size:1200,type:'application/pdf',folderId:null,uploadedBy:state.user.id,sharedWith:[]},
+          {id:'doc-foreign',clubId:'other',name:'FOREIGN DOCUMENT',createdAt:'2026-10-02T09:00:00Z',path:'fixture-only',size:1200,type:'application/pdf',folderId:null,uploadedBy:999,sharedWith:[]}
+        ]})));
+        await page.waitForFunction(()=>document.querySelector('.vd-documents')?.textContent.includes('Programme de préparation.pdf'));
+        check(experience+' recent documents stay in current tenant',!(await page.$eval('.vd-documents',node=>node.textContent.includes('FOREIGN DOCUMENT'))));
+      }
+      await page.screenshot({path:path.join(evidence,`${experience}-${width}.png`),fullPage:true});
+      if(width===1440){
+        const nav=await page.$$eval('.vd-sidebar-navigation button',buttons=>buttons.map(b=>({label:b.textContent,selected:b.getAttribute('aria-current')})));
+        check(experience+' dashboard selected',nav.some(b=>b.label.includes('Tableau de bord')&&b.selected==='page'));
+        await page.click('.va-topbar .va-mobile-profile');await page.waitForSelector('#va-profile-menu');check(experience+' topbar account menu works',await page.$eval('#va-profile-menu',menu=>{const box=menu.getBoundingClientRect();return box.top>=0&&box.bottom<=innerHeight&&box.height<500;}));await page.keyboard.press('Escape');await page.waitForSelector('#va-profile-menu',{hidden:true});check(experience+' account menu restores keyboard focus',await page.$eval('.va-topbar .va-mobile-profile',button=>document.activeElement===button));
+        for(const label of ['Drive',...(role!=='coach'?['Prospects']:[])]){
+          await clickText(page,label,'.vd-sidebar-navigation button');await page.waitForFunction(()=>!document.querySelector('[data-desktop-dashboard]'));check(experience+' desktop navigation '+label,await page.evaluate(()=>!!document.querySelector('.vd-shell')));await page.goBack();await page.waitForSelector('[data-desktop-dashboard]');
+        }
+      }
+      await page.close();
+    }
+    for(const role of ['coach','manager'])for(const width of [390,820]){const page=await open(role,'studio',width,900);await inspect(page,role,width,900);check(role+' mobile/tablet theme unchanged',await page.$('.vd-shell')===null);await page.close();}
+  } else {
   for(const [role,type,experience] of (process.env.VELATRA_QA_ACTIONS_ONLY?[]:roles))for(const [width,height] of sizes){
     const page=await open(role,type,width,height);const result=await inspect(page,experience,width,height);check('Correct role Home',result.experience===experience,result.experience);
     if([320,820,1600].includes(width))await page.screenshot({path:path.join(evidence,`${experience}-${width}.png`),fullPage:true});await page.close();
@@ -156,7 +185,7 @@ try{
   // Live server status changes must revoke the actual App surfaces and cached
   // tenant data without losing the status listener needed for reactivation.
   for (const role of ['owner','manager','coach','member']) {
-    const page=await browser.newPage();page.setDefaultTimeout(10000);await page.setViewport({width:390,height:844});
+    const page=await browser.newPage();page.setDefaultTimeout(10000);page.setDefaultNavigationTimeout(30000);await page.setViewport({width:390,height:844});
     await page.setRequestInterception(true);page.on('request',r=>r.url().startsWith(origin)?void r.continue():void r.abort());
     page.on('pageerror',e=>errors.push({label:role+' suspension runtime',details:e.message}));
     await page.goto(origin+'/dashboard?role='+role+'&accountType=studio&clients=1',{waitUntil:'networkidle0'});
@@ -171,6 +200,7 @@ try{
       await page.waitForFunction(()=>!document.body.innerText.includes('Compte Suspendu')&&window.__qaActiveTenantListeners().length>0);
     }
     check(role+' authorized reactivation restores live App',true);await page.close();
+  }
   }
 }catch(error){const pages=await browser.pages();for(const page of pages){if(page.url().startsWith(origin)){console.log(JSON.stringify(await page.evaluate(()=>({state:history.state,body:document.body.innerText.slice(0,1600),tab:document.querySelector('#client-360-section')?.value,active:document.activeElement?.tagName,notes:document.querySelectorAll('textarea').length})),null,2));await page.screenshot({path:path.join(evidence,'scenario-failure.png')});}}errors.push({label:'Browser scenario',details:error.stack});}
 finally{await browser.close();await new Promise(resolve=>server.close(resolve));await writeFile(path.join(evidence,'results.json'),JSON.stringify({checks:records,failures:errors,environment:'RootApp with isolated Firebase fixture; all external requests blocked; no production data'},null,2));}

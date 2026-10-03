@@ -11,6 +11,9 @@ import { useProductFormat } from './useProductFormat';
 import { Card, Button, Input } from './UI';
 import { apiFetch } from '../firebase';
 import './experience-home.css';
+import { Users, CalendarDays, ClipboardList, Activity, Target, Dumbbell, MessageCircle, FolderOpen, ArrowUpRight, LayoutGrid, FileText } from 'lucide-react';
+import { DesktopDashboard } from './desktop/DesktopDashboard';
+import { SectionHeader, KpiCard, ActionPill, DashboardCard, EmptyState } from './desktop/DesktopUI';
 
 const LegacyHome = React.lazy(() => import('./CoachDashboard').then(module => ({ default: module.CoachDashboard })));
 interface Props { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; showToast: (message: string, type?: 'success' | 'error' | 'info') => void; }
@@ -21,8 +24,10 @@ const readableTime = (date: string) => new Date(date).toLocaleTimeString('fr-FR'
 const euros = (amount: number) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount);
 
 function Section({ id, title, children, action }: { id: HomeSection; title: string; children: React.ReactNode; action?: React.ReactNode }) {
+  const icon = { agenda: CalendarDays, actions: Activity, clients: Users, sales: Target, business: Activity, coaching: Dumbbell, messages: MessageCircle, tasks: ClipboardList, team: Users, shortcuts: LayoutGrid }[id];
+  const Icon = icon;
   return <section className="min-w-0" data-home-section={id} aria-labelledby={`home-${id}`}><Card className="h-full min-w-0 space-y-4">
-    <header className="flex flex-wrap items-center justify-between gap-2"><h2 id={`home-${id}`} className="font-semibold">{title}</h2>{action}</header>{children}
+    <SectionHeader id={`home-${id}`} title={title} action={action} icon={<Icon size={19} />} />{children}
   </Card></section>;
 }
 const Empty = ({ children }: { children: React.ReactNode }) => <p className="text-sm text-zinc-600">{children}</p>;
@@ -100,6 +105,7 @@ function ResolvedHome({ state, setState, showToast }: Props) {
   const link = (page: HomeDestination['page'], label: string) => allowedPages.includes(page) ? <LinkButton onClick={() => open({ page })}>{label}</LinkButton> : undefined;
   if (state.onboardingDataReady === false) return <div role="status" className="p-6 text-sm text-zinc-600">Chargement de votre espace…</div>;
   const compact = format === 'phone';
+  const desktop = format === 'desktop' || format === 'largeDesktop';
   const coach = data.experience === 'STUDIO_COACH';
   const supervisor = data.experience === 'STUDIO_MANAGER' || data.experience === 'STUDIO_OWNER';
   const bookingLabel = (booking: Booking) => data.members.find(member => Number(member.id) === Number(booking.memberId))?.name ||
@@ -137,7 +143,7 @@ function ResolvedHome({ state, setState, showToast }: Props) {
     {coach && !compact && <label className="block space-y-1 text-sm font-medium">Rechercher dans mes clients<Input value={query} onChange={event => { setQuery(event.target.value); setPortfolioPage(0); }} /></label>}
     {filteredFacts.length === 0 ? <Empty>{data.members.length === 0 ? coach ? 'Aucun client ne vous est affecté pour le moment.' : 'Aucun client pour le moment. Ajoutez votre premier client depuis Clients.' : query ? 'Aucun client ne correspond à cette recherche.' : 'Aucune intervention détectée pour vos clients.'}</Empty> :
       <ul className="space-y-4">{filteredFacts.slice(currentPage * pageSize, (currentPage + 1) * pageSize).map(fact => <li key={fact.member.id} className="min-w-0 border-b border-zinc-100 pb-3 last:border-0" data-home-member={fact.member.id}>
-        <h3 className="break-words font-semibold">{fact.member.name}</h3><p className="text-sm text-zinc-600">{[fact.needsProgram ? fact.member.planRequested ? 'Programme demandé' : 'Programme à préparer' : fact.currentProgram ? 'Programme actif' : 'Aucun programme actif', fact.inactiveDays !== null ? `${fact.inactiveDays} jours sans séance` : null, fact.followups.length ? 'Bilan / check-in attendu' : null, fact.unassigned ? 'Sans coach affecté' : null].filter(Boolean).join(' · ')}</p>
+        <h3 className="vd-client-name break-words font-semibold"><span className="vd-initials" aria-hidden="true">{fact.member.name.trim().split(/\s+/).map(part => part[0]).slice(0, 2).join('')}</span>{fact.member.name}</h3><p className="text-sm text-zinc-600">{[fact.needsProgram ? fact.member.planRequested ? 'Programme demandé' : 'Programme à préparer' : fact.currentProgram ? 'Programme actif' : 'Aucun programme actif', fact.inactiveDays !== null ? `${fact.inactiveDays} jours sans séance` : null, fact.followups.length ? 'Bilan / check-in attendu' : null, fact.unassigned ? 'Sans coach affecté' : null].filter(Boolean).join(' · ')}</p>
         {memberLinks(fact.member)}
         {fact.needsProgram && <LinkButton onClick={() => open({ page: 'users', memberId: fact.member.id, section: 'coaching' })}>Préparer le programme</LinkButton>}
         {fact.followups.length > 0 && <LinkButton onClick={() => open({ page: 'users', memberId: fact.member.id, section: 'followup' })}>Ouvrir le bilan</LinkButton>}
@@ -160,8 +166,8 @@ function ResolvedHome({ state, setState, showToast }: Props) {
     {finance.endingSubscriptions.length > 0 && <p className="text-sm">{finance.endingSubscriptions.length} abonnement(s) à échéance dans les 30 jours.</p>}
     {link('crm_finances', 'Ouvrir les finances')}
   </> : null;
-  const business = finance ? compact ? <details className="min-w-0 rounded-2xl border border-zinc-200 bg-white p-5" data-home-section="business"><summary className="min-h-11 cursor-pointer font-semibold">Business · Indicateurs secondaires</summary><div className="mt-4 space-y-4">{businessBody}</div></details> : <Section id="business" title="Business · Billing V2">{businessBody}</Section> : undefined;
-  const coaching = data.caps.programs.usable ? <Section id="coaching" title="Coaching et préparation" action={link('presets', 'Programmes')}>
+  const business = finance ? compact ? <details className="min-w-0 rounded-2xl border border-zinc-200 bg-white p-5" data-home-section="business"><summary className="min-h-11 cursor-pointer font-semibold">Business · Indicateurs secondaires</summary><div className="mt-4 space-y-4">{businessBody}</div></details> : <Section id="business" title={desktop ? "Chiffre d’affaires" : "Business · Billing V2"}>{businessBody}</Section> : undefined;
+  const coaching = data.caps.programs.usable ? <Section id="coaching" title={desktop ? supervisor ? 'Activité du club' : 'Activité récente' : 'Coaching et préparation'} action={link('presets', 'Programmes')}>
     <p className="text-sm">{data.clientFacts.filter(fact => fact.currentProgram).length} client(s) avec programme actif · {data.clientFacts.filter(fact => fact.needsProgram).length} programme(s) à préparer</p>
     {data.logs.length ? <ul className="space-y-2">{[...data.logs].sort((a, b) => new Date(b.completedAt || b.date).getTime() - new Date(a.completedAt || a.date).getTime()).slice(0, 4).map(log => <li key={log.id}><LinkButton onClick={() => open({ page: 'users', memberId: Number(log.memberId), section: 'followup' })}>{data.members.find(member => member.id === Number(log.memberId))?.name} · Séance du {readableDate(log.date)}</LinkButton></li>)}</ul> : <Empty>Aucune séance enregistrée dans ce portefeuille.</Empty>}
   </Section> : undefined;
@@ -176,6 +182,29 @@ function ResolvedHome({ state, setState, showToast }: Props) {
   </Section> : undefined;
   const shortcuts = <Section id="shortcuts" title="Accès rapides"><div className="flex flex-wrap gap-2">{link('users', 'Clients')}{link('calendar', 'Planning')}{link('coaching', 'Séance coach')}{link('presets', 'Programmes')}{link('crm_pipeline', 'CRM')}{link('team', 'Équipe')}{link('crm_tasks', coach ? 'Mes tâches' : 'Tâches')}{link('chat', 'Messages')}{state.user?.role === 'owner' && link('settings', 'Paramètres Owner')}</div></Section>;
   const sections = { agenda, actions: actionCenter, clients, sales, team, business, coaching, messages, tasks, shortcuts };
+  if (desktop) {
+    // Presentation uses the same scoped selectors and authorized destinations as the existing Home.
+    // No invented retention/progression rates or additional subscriptions/API calls.
+    const action = (page: HomeDestination['page'], label: string) => allowedPages.includes(page) ? <ActionPill key={page} onClick={() => open({ page })}>{label}</ActionPill> : null;
+    const kpis = supervisor ? <>
+      <KpiCard label="Membres suivis" value={data.members.length} detail="Dans votre club" icon={<Users size={20} />} />
+      <KpiCard label="Prospects en cours" value={data.activeProspects.length} detail="Dans votre pipeline" icon={<Target size={20} />} tone="violet" />
+      <KpiCard label="Coachs de l’équipe" value={data.team.length} detail="Effectif enregistré" icon={<Dumbbell size={20} />} tone="rose" />
+      <KpiCard label="Séances à venir" value={data.todayBookings.length} detail="Confirmées aujourd’hui" icon={<CalendarDays size={20} />} tone="indigo" />
+    </> : <>
+      <KpiCard label="Clients suivis" value={data.members.length} detail="Votre portefeuille" icon={<Users size={20} />} />
+      <KpiCard label="Séances à venir" value={data.todayBookings.length} detail="Confirmées aujourd’hui" icon={<CalendarDays size={20} />} tone="violet" />
+      <KpiCard label="Tâches ouvertes" value={data.tasks.length} detail="Dans votre périmètre" icon={<ClipboardList size={20} />} tone="rose" />
+      <KpiCard label="Programmes actifs" value={data.clientFacts.filter(fact => fact.currentProgram).length} detail="Clients accompagnés" icon={<Activity size={20} />} tone="indigo" />
+    </>;
+    const files = data.caps.documents.usable ? state.driveFiles.filter(file => file.clubId === state.currentClub?.id).slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 3) : [];
+    const documents = allowedPages.includes('drive') && data.caps.documents.usable ? <DashboardCard title="Mes derniers documents" icon={<FolderOpen size={19} />} action={link('drive', 'Ouvrir le Drive')} className="vd-documents">
+      {files.length ? <ul>{files.map(file => <li key={file.id}><button type="button" onClick={() => open({ page: 'drive' })}><span className="vd-file-icon"><FileText size={20} aria-hidden="true" /></span><span><strong>{file.name}</strong><small>Ajouté le {readableDate(file.createdAt)}</small></span><ArrowUpRight size={17} aria-hidden="true" /></button></li>)}</ul> : <EmptyState>Retrouvez vos documents et vos partages dans votre espace Drive.</EmptyState>}
+    </DashboardCard> : undefined;
+    return <DesktopDashboard name={state.user?.name || 'Coach'} manager={supervisor} experience={data.experience} format={format} sections={sections} order={resolvePresentationStrategy(data.experience, format).sections}
+      kpis={kpis} actions={<>{action('calendar', 'Voir mon planning')}{action('users', supervisor ? 'Suivre les membres' : 'Retrouver un client')}{supervisor ? action('team', 'Voir mon équipe') : action('presets', 'Mes programmes')}</>} documents={documents}
+      date={now.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'long', day: 'numeric', month: 'long' })} />;
+  }
   const props = { format, sections, name: state.user?.name || 'Coach' };
   return coach ? <StudioCoachHome {...props} /> : supervisor ? <StudioManagerHome {...props} ownerVariant={data.experience === 'STUDIO_OWNER'} /> : <SoloOwnerHome {...props} />;
 }
