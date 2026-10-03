@@ -49,5 +49,5 @@ export function ProfileSummary({ name, role }: { name: string; role: string }) {
   return <span className="vd-profile-summary"><strong>{name}</strong><small>{role}</small></span>;
 }
 export function UpgradeCard({ onExplore }: { onExplore: () => void }) {
-  return <div className="vd-sidebar-card"><Sparkles size={19} aria-hidden="true" /><strong>Votre ambition,<br />bien accompagnée.</strong><p>Retrouvez tous vos outils Velatra.</p><button type="button" onClick={onExplore}>Explorer mes outils <ArrowUpRight size={16} aria-hidden="true" /></button></div>;
+  return <div className="vd-sidebar-card"><Sparkles size={19} aria-hidden="true" /><strong>Passez au niveau supérieur</strong><p>Plus de possibilités pour accompagner encore plus de clients.</p><button type="button" onClick={onExplore}>Découvrir <ArrowUpRight size={16} aria-hidden="true" /></button></div>;
 }
