@@ -1,3 +1,4 @@
+import { desktopContextItems } from './desktop/desktopNavigation';
 
 import React from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
@@ -12,7 +13,7 @@ import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestor
 import { Megaphone, AlertTriangle, X, Search, Plus, Copy, ChevronDown, UserRound } from 'lucide-react';
 import {
   AppHub, getAllContextItems, getAppHubForPage, getContextItemsForHub, getCreateActions,
-  getHubLabel, getMobileMoreGroups, getMobileTabForPage, getPrimaryHubsForRole,
+  getContextPageLabel, getHubLabel, getMobileMoreGroups, getMobileTabForPage, getPrimaryHubsForRole,
   type NavigationContext, type CreateActionId,
 } from './appShellHelpers';
 import { trackProductEventOnce } from './productEvents';
@@ -98,7 +99,7 @@ export const Layout: React.FC<LayoutProps> = ({
   };
   const activeHub = getAppHubForPage(activePage, navContext);
   const primaryHubs = getPrimaryHubsForRole(navContext);
-  const contextItems = getContextItemsForHub(activeHub, navContext);
+  const contextItems = desktopVisual ? desktopContextItems(getAllContextItems(navContext), activePage) : getContextItemsForHub(activeHub, navContext);
   const commandItems = getAllContextItems(navContext).map(item => ({ ...item, icon: pageIcon[item.id] || InfoIcon }));
   const createActions = getCreateActions(navContext);
   const mobileMoreGroups = getMobileMoreGroups(navContext).map(group => ({
@@ -389,7 +390,7 @@ export const Layout: React.FC<LayoutProps> = ({
   return (
     <div className={`velatra-app-shell ${desktopVisual ? 'vd-shell' : ''} ${effectiveRole === 'member' ? 'va-member-shell' : ''} min-h-screen flex flex-col md:flex-row ${isVirtualKeyboardOpen ? 'va-keyboard-open' : ''} ${isWorkspaceMode ? 'va-workspace-mode' : ''}`}>
       <aside className="va-rail" aria-label="Navigation de Velatra">
-        {desktopVisual ? <DesktopSidebar items={getAllContextItems(navContext)} activePage={activePage} onNavigate={goToPage} onSearch={() => setShowCommandPalette(true)} manager={effectiveRole === 'manager' || effectiveRole === 'owner' && club?.accountType === 'studio'} notifications={unreadNotificationsCount} /> : <><AppLogo />
+        {desktopVisual ? <DesktopSidebar items={getAllContextItems(navContext)} activePage={activePage} onNavigate={goToPage} onSearch={() => setShowCommandPalette(true)} manager={effectiveRole === 'manager' || effectiveRole === 'owner' && club?.accountType === 'studio'} employee={effectiveRole === 'coach' && club?.accountType === 'studio'} notifications={unreadNotificationsCount} /> : <><AppLogo />
         <nav className="va-rail-nav" aria-label="Espaces principaux">
           {primaryHubs.map(hub => {
             const Icon = hubIcon[hub.id] || MenuIcon;
@@ -431,7 +432,7 @@ export const Layout: React.FC<LayoutProps> = ({
         <header className="va-topbar va-context-bar" aria-label="Contexte de navigation">
           <div className="va-context-main">
             <div className="va-context-heading">
-              <strong>{desktopVisual && activePage === 'home' ? 'Tableau de bord' : getHubLabel(activeHub, navContext)}</strong>
+              <strong>{desktopVisual ? activePage === 'home' ? 'Tableau de bord' : getContextPageLabel(activePage, navContext) : getHubLabel(activeHub, navContext)}</strong>
               <span>{roleLabel}</span>
             </div>
             {contextItems.length > 0 && (

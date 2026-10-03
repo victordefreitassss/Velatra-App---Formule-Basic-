@@ -103,15 +103,21 @@ export function SalesSurface({ tab, state, setState, onProspect }: { tab: 'trial
     </>}
   </section>;
 }
-export function ProspectSalesDetail({ prospect, state, setState, onAction }: { prospect: Prospect; state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; onAction: (status: string) => void }) {
-  const [revision, setRevision] = useState(0), [offset, setOffset] = useState(0), [error, setError] = useState('');
+export function ProspectAssignment({ prospect, state, setState }: { prospect: Prospect; state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>> }) {
+  const [error, setError] = useState('');
+  return <div className="space-y-2">
+    {state.currentClub?.accountType === 'studio' && <label className="block text-sm">Responsable commercial<select aria-label="Responsable du prospect" value={prospect.assignedCoachUid || ''} disabled={!!prospect.convertedMemberUid} className="block w-full min-h-[44px] border rounded-lg p-2" onChange={async e => { try { const r = await salesRequest(`/api/sales/prospects/${prospect.firebaseUid}/assignment`, { coachUid: e.target.value || null }); setState(prev => ({ ...prev, prospects: prev.prospects.map(p => p.firebaseUid === prospect.firebaseUid ? r.prospect : p) })); setError(''); } catch (err: any) { setError(err.message); } }}><option value="">Non attribué</option>{state.users.filter(u => u.role === 'coach' && u.clubId === prospect.clubId && !u.isSuspended).map(u => <option key={u.firebaseUid} value={u.firebaseUid}>{u.name}</option>)}</select></label>}
+    {state.currentClub?.accountType === 'solo' && <p className="text-sm">Responsable : Owner Solo</p>}
+    {error && <p role="alert">{error}</p>}
+  </div>;
+}
+export function ProspectSalesDetail({ prospect, state, setState, onAction, showAssignment = true }: { prospect: Prospect; state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; onAction: (status: string) => void; showAssignment?: boolean }) {
+  const [revision, setRevision] = useState(0), [offset, setOffset] = useState(0);
   const { result, error: loadError } = useSales(`/api/sales/trials?prospectUid=${encodeURIComponent(prospect.firebaseUid || '')}&offset=${offset}&limit=20`, `${state.user?.firebaseUid}:${state.user?.clubId}`, revision);
   const rows: TrialRow[] = result?.trials || [];
   return <section className="space-y-3" data-sales-prospect><h3 className="font-bold">Essais et présence</h3>
     {loadError && <p role="alert">{loadError}</p>}{result?.partial && <p>Données partielles.</p>}
-    {state.currentClub?.accountType === 'studio' && <label className="block text-sm">Responsable commercial<select aria-label="Responsable du prospect" value={prospect.assignedCoachUid || ''} disabled={!!prospect.convertedMemberUid} className="block w-full min-h-[44px] border rounded-lg p-2" onChange={async e => { try { const r = await salesRequest(`/api/sales/prospects/${prospect.firebaseUid}/assignment`, { coachUid: e.target.value || null }); setState(prev => ({ ...prev, prospects: prev.prospects.map(p => p.firebaseUid === prospect.firebaseUid ? r.prospect : p) })); setError(''); } catch (err: any) { setError(err.message); } }}><option value="">Non attribué</option>{state.users.filter(u => u.role === 'coach' && u.clubId === prospect.clubId && !u.isSuspended).map(u => <option key={u.firebaseUid} value={u.firebaseUid}>{u.name}</option>)}</select></label>}
-    {state.currentClub?.accountType === 'solo' && <p className="text-sm">Responsable : Owner Solo</p>}
-    {error && <p role="alert">{error}</p>}
+    {showAssignment && <ProspectAssignment prospect={prospect} state={state} setState={setState} />}
     {!rows.length && <p className="text-sm">Aucun essai enregistré.</p>}
     {rows.map((row, i) => <div key={row.booking.id} className="space-y-2"><p className="text-sm">{i === 0 && offset === 0 ? 'Dernier résultat · ' : ''}{date(row.booking.startTime)} · {row.coachName}</p><TrialAttendanceControls booking={row.booking} state={state} setState={setState} onChanged={() => setRevision(r => r + 1)} /></div>)}
     {(result?.total || 0) > 20 && <div className="flex flex-wrap gap-2"><button className={button} disabled={!offset} onClick={() => setOffset(Math.max(0, offset - 20))}>Essais précédents</button><button className={button} disabled={offset + 20 >= result.total} onClick={() => setOffset(offset + 20)}>Essais suivants</button></div>}

@@ -12,6 +12,7 @@ const work = await mkdtemp(path.join(os.tmpdir(), 'velatra-crm-qa-'));
 const entry = `
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
 import { ProspectFlowPage } from '${root}/pages/ProspectFlowPage';
 import { TasksPage } from '${root}/pages/TasksPage';
 const parameters = new URLSearchParams(location.search);
@@ -35,15 +36,15 @@ const prospects = Array.from({length:count}, (_, index) => ({
 const bookings = count > 3 ? [{id:'trial',clubId:'crm-qa',prospectId:1003,coachId:'10',type:'trial',status:'confirmed',startTime:date(2),endTime:date(2)}] : [];
 const initial = {user:owner,currentClub:{id:'crm-qa',ownerId:owner.firebaseUid,accountType:studio?'studio':'solo'},users:[owner,coach],prospects,bookings,page:'crm_pipeline'};
 function Fixture(){const [state,setState]=React.useState(initial);window.__qaState=state;return <div className="va-content">{page==='tasks'?<TasksPage state={state} setState={setState} showToast={()=>{}}/>:<ProspectFlowPage state={state} setState={setState} showToast={()=>{}}/>}</div>}
-createRoot(document.getElementById('root')).render(<Fixture/>);
+createRoot(document.getElementById('root')).render(<BrowserRouter><Fixture/></BrowserRouter>);
 `;
 await writeFile(path.join(work, 'entry.tsx'), entry);
 await build({ entryPoints: [path.join(work, 'entry.tsx')], outfile: path.join(work, 'entry.js'), bundle: true, format: 'esm', jsx: 'automatic', target: 'es2022', nodePaths: [path.join(root, 'node_modules')],
   define: { 'process.env.NODE_ENV': '"production"' },
   plugins: [{ name: 'firebase-fixture', setup(bundle) { bundle.onLoad({ filter: /[/\\]firebase\.ts$/ }, () => ({ loader: 'ts', contents: `export const db={};export const auth={currentUser:{uid:'crm-qa-owner'}};export const doc=()=>({});export const updateDoc=async()=>{throw Error('No QA writes')};export const setDoc=async()=>{throw Error('No QA writes')};export const deleteDoc=async()=>{throw Error('No QA writes')};export const sendPasswordResetEmail=async()=>{throw Error('No QA email')};export const apiFetch=async()=>{throw Error('No QA API')};` })); } }] });
 const assets = await readdir(path.join(root, 'dist/assets'));
-const styles = (await Promise.all(assets.filter(name => name.endsWith('.css')).map(name => readFile(path.join(root, 'dist/assets', name), 'utf8')))).join('\n');
-const tailwind = await readFile('/private/tmp/velatra-tailwind-3.4.17.js');
+const styles = (await Promise.all(assets.filter(name => name.endsWith('.css')).map(name => readFile(path.join(root, 'dist/assets', name), 'utf8')))).join('\n') + (await readFile(path.join(work,'entry.css'),'utf8'));
+const tailwind = await readFile(path.join(os.tmpdir(), 'velatra-tailwind-3.4.17.js')).catch(async () => { const response = await fetch('https://cdn.tailwindcss.com'); if (!response.ok) throw Error('Tailwind QA runtime unavailable'); return Buffer.from(await response.arrayBuffer()); });
 const html = '<!doctype html><html lang="fr"><head><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><script src="/tailwind.js"></script><link rel="stylesheet" href="/styles.css"></head><body style="margin:0;background:#f5f7ef"><div id="root"></div><script type="module" src="/entry.js"></script></body></html>';
 const server = createServer(async (request, response) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
@@ -59,7 +60,7 @@ const sizes = [[320,568],[360,800],[375,812],[390,844],[430,932],[768,1024],[820
 let checks = 0, failures = 0;
 try {
   for (const [scenario, pageName, studio] of [['empty','pipeline',false],['one','pipeline',false],['many','pipeline',true],['many','tasks',true]]) {
-    for (const [width,height] of sizes) {
+    for (const [width,height] of (process.env.VELATRA_CRM_NARROW_QA ? sizes.slice(0,1) : sizes)) {
       const page = await browser.newPage(), errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.setViewport({width,height,deviceScaleFactor:1,isMobile:width<768,hasTouch:width<1024});
@@ -69,7 +70,7 @@ try {
       await page.waitForSelector('h1');
       const result = await page.evaluate(() => ({scroll:document.documentElement.scrollWidth,width:innerWidth,heading:document.querySelector('h1')?.textContent||''}));
       const valid = !errors.length && result.scroll <= width + 1 && !!result.heading;
-      checks++; if (!valid) failures++;
+      checks++; if (!valid) { failures++; console.log('OVERFLOW', await page.evaluate(() => [...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > document.documentElement.clientWidth + 1).slice(0,10).map(e => ({tag:e.tagName,cls:e.className,text:e.textContent?.slice(0,90),width:e.getBoundingClientRect().width})))); }
       console.log(`${valid?'PASS':'FAIL'} ${scenario} ${pageName} ${width}x${height} ${JSON.stringify({...result,errors})}`);
       if (width === 320 && scenario === 'many' && pageName === 'pipeline') {
         await page.evaluate(() => [...document.querySelectorAll('button')].find(button => button.textContent?.includes('Alexandre'))?.click());
