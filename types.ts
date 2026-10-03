@@ -121,7 +121,7 @@ export interface User {
   equipment?: 'Salle complète' | 'Haltères/Kettlebells' | 'Poids du corps' | 'Élastiques';
   injuries?: string;
   notes: string;
-  coachingNotesHistory?: { id: string; date: string; content: string }[];
+  coachingNotesHistory?: { id: string; date: string; content: string; authorUid?: string; authorName?: string }[];
   createdAt: string;
   xp: number;
   streak: number;

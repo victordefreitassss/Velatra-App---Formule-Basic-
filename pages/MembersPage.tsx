@@ -1,36 +1,61 @@
-import { finalizeDriveFile, openDriveFile } from '../services/driveAccess';
-import { OnboardingDetail } from '../onboarding/OnboardingDetail';
-import { RetentionDetail } from '../retention/RetentionDetail';
-import { authorizationActor, canAssignMembers } from '../server/authorization';
-import { billingRequest, downloadReceipt } from '../components/billingClient';
-import { netPayment, paymentStatusLabels, subscriptionStatusLabels } from '../components/billingMetrics';
-import { canManageClub, getProductCapabilities, resolveAccountType } from '../productCapabilities';
 import { AddMemberDialog } from '../components/AddMemberDialog';
+import { billingRequest,downloadReceipt } from '../components/billingClient';
+import { subscriptionStatusLabels } from '../components/billingMetrics';
 import { CoachFollowup } from '../components/CoachingFollowup';
-import { createMemberAndSendAccess, getMemberCreationCoachOptions } from '../components/memberAccess';
-import { localDateKey, createNumericId } from '../components/dataHelpers';
+import { createNumericId,localDateKey } from '../components/dataHelpers';
+import { Member360Header } from '../components/member360/Member360Header';
+import { canOpenMember,type CoachingView } from '../components/member360/member360Model';
+import { Member360Mount,Member360Navigation,useMemberDesktop } from '../components/member360/Member360Workspace';
+import { MemberBilling } from '../components/member360/MemberBilling';
+import { MemberCoaching } from '../components/member360/MemberCoaching';
+import { MemberDocuments } from '../components/member360/MemberDocuments';
+import { MemberFollowup } from '../components/member360/MemberFollowup';
+import { MemberMessages } from '../components/member360/MemberMessages';
+import { MemberNutrition } from '../components/member360/MemberNutrition';
+import { MemberOverview } from '../components/member360/MemberOverview';
+import { MemberPlanning } from '../components/member360/MemberPlanning';
+import { MemberProfile } from '../components/member360/MemberProfile';
+import { MemberProgress } from '../components/member360/MemberProgress';
+import { createMemberAndSendAccess,getMemberCreationCoachOptions } from '../components/memberAccess';
+import { OnboardingDetail } from '../onboarding/OnboardingDetail';
+import { getProductCapabilities,resolveAccountType } from '../productCapabilities';
+import { RetentionDetail } from '../retention/RetentionDetail';
+import { authorizationActor,canAssignMembers } from '../server/authorization';
+import { finalizeDriveFile } from '../services/driveAccess';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { deleteObject,getDownloadURL,ref,uploadBytes,uploadBytesResumable } from 'firebase/storage';
+import { AnimatePresence,motion } from 'framer-motion';
+import React,{ useEffect,useRef,useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AppState, User, UserDocument, Performance, BodyData, Program, Gender, Goal, Subscription, Plan, NutritionPlan, Payment, Invoice, SessionLog, DriveFile } from '../types';
-import { Card, Button, Input, Badge } from '../components/UI';
+import { useLocation,useNavigate } from 'react-router-dom';
+import { canShowClient360AccountActions,getClient360AdminSections,getClient360CoachingContact,getClient360Facts,getClient360QuickActions,getClient360Sections,type Client360AdminSectionId,type Client360SectionId } from '../components/client360';
+import { getMemberActivationStatus,hasAssignedProgram } from '../components/coachOnboardingHelpers';
+import { createClient360LocationState,createPlanningLocationState,getClient360AdminSection,getClient360MemberId,getClient360Section,resolveClient360Member,shouldFocusClientNote } from '../components/dashboardNavigation';
 import { 
-  SearchIcon, InfoIcon, UserIcon, ActivityIcon, DollarSignIcon,
-  XIcon, DumbbellIcon, BarChartIcon, CheckIcon, SaveIcon, LayersIcon, MessageCircleIcon, Edit2Icon, BotIcon, TargetIcon, CalendarIcon, CreditCardIcon, FileTextIcon, BellIcon, DownloadIcon, LinkIcon, UploadIcon, FolderIcon, FileIcon, EyeIcon, Trash2Icon, MailIcon, ImageIcon, SparklesIcon, PlusIcon, PlayCircleIcon, SettingsIcon, PhoneIcon
+BellIcon,
+BotIcon,
+CalendarIcon,
+CheckIcon,
+DumbbellIcon,
+Edit2Icon,
+FileTextIcon,
+InfoIcon,
+LayersIcon,MessageCircleIcon,
+PlusIcon,
+SaveIcon,
+SearchIcon,
+SparklesIcon,
+Trash2Icon,
+UploadIcon,
+UserIcon,
+XIcon
 } from '../components/Icons';
-import { apiFetch, createMemberAccount, db, doc, setDoc, updateDoc, deleteDoc, auth, sendPasswordResetEmail, collection, query, where, getDocs, getStorageClient, addDoc } from '../firebase';
-import { ref, uploadBytes, getDownloadURL, uploadBytesResumable, deleteObject } from 'firebase/storage';
+import { requestClubInviteDialog,trackProductEventOnce } from '../components/productEvents';
+import { Badge,Button,Card,Input } from '../components/UI';
 import { GOALS } from '../constants';
-import { calculateNutritionPlan, updateNutritionPlanForWeight } from '../utils';
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area 
-} from 'recharts';
-import { motion, AnimatePresence } from 'framer-motion';
-import { getMemberActivationStatus, hasAssignedProgram } from '../components/coachOnboardingHelpers';
-import { requestClubInviteDialog, trackProductEventOnce } from '../components/productEvents';
-import { canShowClient360AccountActions, getClient360AdminSections, getClient360CoachingContact, getClient360Facts, getClient360QuickActions, getClient360Sections, type Client360AdminSectionId, type Client360SectionId } from '../components/client360';
-import { createClient360LocationState, createPlanningLocationState, getClient360MemberId, getClient360Section, getClient360AdminSection, shouldFocusClientNote, resolveClient360Member } from '../components/dashboardNavigation';
+import { addDoc,apiFetch,auth,collection,createMemberAccount,db,deleteDoc,doc,getStorageClient,sendPasswordResetEmail,setDoc,updateDoc } from '../firebase';
+import { AppState,BodyData,Gender,Invoice,NutritionPlan,Payment,Performance,Program,SessionLog,User,UserDocument } from '../types';
+import { updateNutritionPlanForWeight } from '../utils';
 
 const ClientConversation = React.lazy(() => import('./MessagesPage').then(module => ({ default: module.MessagesPage })));
 const ClientNutritionView = React.lazy(() => import('../components/MemberNutritionView').then(module => ({ default: module.MemberNutritionView })));
@@ -43,6 +68,8 @@ const itemVariants: any = {
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: any }> = ({ state, setState, showToast }) => {
+  const desktop = useMemberDesktop();
+  const [coachingView, setCoachingView] = useState<CoachingView>('program');
   const location = useLocation();
   const navigate = useNavigate();
   const clientHistoryEntryRef = useRef(false);
@@ -50,7 +77,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const lastLocationKeyRef = useRef(location.key);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState(state.memberFilter || "Tous");
-  const [selectedProfile, setSelectedProfile] = useState<User | null>(state.selectedMember || null);
+  const [selectedProfile, setSelectedProfile] = useState<User | null>(state.selectedMember && canOpenMember(state.selectedMember, state) ? state.selectedMember : null);
   const [memberTab, setMemberTab] = useState<Client360SectionId>('overview');
   const [adminSection, setAdminSection] = useState<Client360AdminSectionId>('profile');
   const returnFocusRef = useRef<HTMLElement | null>(null);
@@ -80,7 +107,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   }, [state.pendingUiAction, setState]);
 
   useEffect(() => {
-    if (state.selectedMember) {
+    if (state.selectedMember && canOpenMember(state.selectedMember, state)) {
       setSelectedProfile(state.selectedMember);
       setMemberTab('overview');
     }
@@ -105,6 +132,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   },[state.users,selectedProfile?.id]);
 
   const openProfile = (member: User, trigger: HTMLElement) => {
+    if (!canOpenMember(member, state)) return;
     returnFocusRef.current = trigger;
     closingHistoryRef.current = false;
     clientHistoryEntryRef.current = true;
@@ -128,16 +156,19 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     }
     if (closingHistoryRef.current) return;
     const member = resolveClient360Member(state.users, state.user?.clubId, location.state, state.user);
-    if (member) {
+    if (member && canOpenMember(member, state)) {
       clientHistoryEntryRef.current = true;
       if (locationChanged) {
-        setAdminSection(getClient360AdminSection(location.state) === 'billing' && getClient360AdminSections(state.currentClub, state.user || {}).some(item => item.id === 'billing') ? 'billing' : 'profile');
+        const requestedAdmin = getClient360AdminSection(location.state);
+        setAdminSection(requestedAdmin && getClient360AdminSections(state.currentClub, state.user || {}).some(item => item.id === requestedAdmin) ? requestedAdmin : 'profile');
         const section = getClient360Section(location.state);
         setMemberTab(section && getClient360Sections(state.currentClub, state.user || {}).some(item => item.id === section) ? section : 'overview');
       }
       setSelectedProfile(previous => Number(previous?.id) === memberId ? previous : member);
+    } else {
+      setSelectedProfile(null);
     }
-  }, [location.key, state.users]);
+  }, [location.key, state.users, state.user, state.currentClub]);
 
   useEffect(() => {
     if (selectedProfile && memberTab === 'followup' && shouldFocusClientNote(location.state)) {
@@ -145,6 +176,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       return () => cancelAnimationFrame(frame);
     }
   }, [selectedProfile?.id, location.key, memberTab]);
+
+  useEffect(() => {
+    if (selectedProfile && !canOpenMember(selectedProfile, state)) {
+      setSelectedProfile(null);
+      setIsEditingInfo(false);
+      setSelectedLog(null);
+      setSelectedEvolutionPhoto(null);
+    }
+  }, [state.users, state.user, state.currentClub, selectedProfile?.id]);
 
   const closeProfile = () => {
     const hadHistoryEntry = clientHistoryEntryRef.current;
@@ -157,8 +197,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
     requestAnimationFrame(() => returnFocusRef.current?.focus());
     if (hadHistoryEntry) navigate(-1);
   };
+  const navigateMemberSection = (section: Client360SectionId, admin: Client360AdminSectionId = 'profile') => {
+    setMemberTab(section); setAdminSection(admin);
+    if (selectedProfile) navigate(`${location.pathname}${location.search}`, { replace: true, state: createClient360LocationState(Number(selectedProfile.id), section, false, admin) });
+  };
   const openPlanningForMember = () => {
-    if (!selectedProfile) return;
+    if (!selectedProfile || !canOpenMember(selectedProfile, state)) return;
     clientHistoryEntryRef.current = false;
     setSelectedProfile(null);
     setState((previous: AppState) => ({ ...previous, page: 'calendar', selectedMember: null }));
@@ -166,14 +210,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
   const openMemberEditor = (member: User) => {
     setEditInfoData({
-      name: member.name, age: member.profileMeasurementsPending ? 0 : member.age, birthDate: member.birthDate || '', gender: member.gender,
+      name: member.name, phone: member.phone || '', address: member.address || '', age: member.profileMeasurementsPending ? 0 : member.age, birthDate: member.birthDate || '', gender: member.gender,
       weight: member.profileMeasurementsPending ? 0 : member.weight, height: member.profileMeasurementsPending ? 0 : member.height, objectifs: member.objectifs, notes: member.notes, avatar: member.avatar,
     });
     setIsEditingInfo(true);
   };
 
   useEffect(() => {
-    if (!selectedProfile) return;
+    if (!selectedProfile || !canOpenMember(selectedProfile, state)) return;
     const onEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !document.querySelector('[role="dialog"][aria-modal="true"]:not(.va-member-dossier)')) closeProfile();
     };
@@ -257,7 +301,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       setCoachingNotes("");
       setCoachingNoteDate(localDateKey());
       setSelectedDateForPhoto("");
-      setAdminSection(getClient360AdminSection(location.state) === 'billing' && getClient360AdminSections(state.currentClub, state.user || {}).some(item => item.id === 'billing') ? 'billing' : 'profile');
+      setGeneratedReport(null);
+      setStagnationResult(null);
+      setCoachingView('program');
+      const requestedAdmin = getClient360AdminSection(location.state);
+        setAdminSection(requestedAdmin && getClient360AdminSections(state.currentClub, state.user || {}).some(item => item.id === requestedAdmin) ? requestedAdmin : 'profile');
     }
   }, [selectedProfile?.id]);
 
@@ -402,7 +450,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       await setDoc(doc(db, "bodyData", scanData.id.toString()), scanData);
       
       // Update nutrition plan if it exists
-      const plan = state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id));
+      const plan = state.nutritionPlans?.find(p => p.clubId === state.user?.clubId && (p.memberId === Number(selectedProfile.id)));
       if (plan) {
         const updatedPlan = updateNutritionPlanForWeight(plan, weightVal);
         await updateDoc(doc(db, "nutritionPlans", plan.id.toString()), updatedPlan);
@@ -435,7 +483,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleUpdateMemberInfo = async () => {
-    if (!selectedProfile || !selectedProfile.firebaseUid) return;
+    if (!selectedProfile || !selectedProfile.firebaseUid || !canOpenMember(selectedProfile, state)) return;
     if (selectedProfile.profileMeasurementsPending && (!editInfoData.age || !editInfoData.weight || !editInfoData.height)) {
       showToast('Renseignez âge, poids et taille avant de valider les mesures.', 'error');
       return;
@@ -490,10 +538,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleSaveCoachingNotes = async () => {
-    if (!selectedProfile || !selectedProfile.firebaseUid) return;
+    if (!selectedProfile || !selectedProfile.firebaseUid || !canOpenMember(selectedProfile, state)) return;
     if (!coachingNotes.trim()) {
       showToast("Veuillez saisir une note avant d'enregistrer", "error");
       return;
+    }
+    if ((selectedProfile.coachingNotesHistory?.length || 0) >= 200) {
+      showToast('La limite de 200 notes est atteinte. Supprimez une note avant d’en ajouter une.', 'error'); return;
     }
     setIsSavingCoachingNotes(true);
     try {
@@ -507,6 +558,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
         id: Math.random().toString(36).substring(2, 9),
         date: dateObj.toISOString(),
         content: coachingNotes.trim(),
+        ...(state.user?.firebaseUid ? { authorUid: state.user.firebaseUid, authorName: state.user.name } : {}),
       };
       
       const updatedHistory = [newNote, ...(selectedProfile.coachingNotesHistory || [])]
@@ -535,7 +587,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleDeleteCoachingNote = async (noteId: string) => {
-    if (!selectedProfile || !selectedProfile.firebaseUid) return;
+    if (!selectedProfile || !selectedProfile.firebaseUid || !canOpenMember(selectedProfile, state)) return;
     if (!confirm("Voulez-vous vraiment supprimer cette note ?")) return;
     try {
       const userRef = doc(db, "users", selectedProfile.firebaseUid);
@@ -581,7 +633,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleDeleteMember = async () => {
-    if (!selectedProfile) return;
+    if (!selectedProfile || !canOpenMember(selectedProfile, state)) return;
     const uid = selectedProfile.firebaseUid || selectedProfile.id?.toString();
     if (!uid) return;
     setConfirmDeleteMemberId(uid);
@@ -612,7 +664,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleTogglePauseMember = async () => {
-    if (!selectedProfile || !selectedProfile.firebaseUid) return;
+    if (!selectedProfile || !selectedProfile.firebaseUid || !canOpenMember(selectedProfile, state)) return;
     const newStatus = selectedProfile.status === 'paused' ? 'active' : 'paused';
     
     try {
@@ -643,8 +695,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleEditProgram = (member: User) => {
+    if (!canOpenMember(member, state)) return;
     const mid = Number(member.id);
-    const existingProg = state.programs.find(p => Number(p.memberId) === mid && !p.isPlannedSession);
+    const existingProg = state.programs.find(p => p.clubId === state.user?.clubId && (Number(p.memberId) === mid && !p.isPlannedSession));
     if (existingProg) {
       setState((prev: AppState) => ({ ...prev, editingProg: existingProg }));
     } else {
@@ -726,7 +779,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleDeleteOfficialDocument = async (docId: string) => {
-    if (!selectedProfile || !selectedProfile.firebaseUid) return;
+    if (!selectedProfile || !selectedProfile.firebaseUid || !canOpenMember(selectedProfile, state)) return;
     
     try {
       const docToDelete = selectedProfile.documents?.find(d => d.id === docId);
@@ -834,15 +887,15 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleGenerateReport = async () => {
-    if (!selectedProfile) return;
+    if (!selectedProfile || !canOpenMember(selectedProfile, state)) return;
     if (selectedProfile.profileMeasurementsPending) { showToast('Complétez les mesures réelles avant de générer un bilan IA.', 'info'); return; }
     setIsGeneratingReport(true);
     setGeneratedReport(null);
     try {
       const { generateAutoReport } = await import('../services/aiService');
       const mid = Number(selectedProfile.id);
-      const memberBody = state.bodyData.filter(b => Number(b.memberId) === mid);
-      const memberPerfs = state.performances.filter(p => Number(p.memberId) === mid);
+      const memberBody = state.bodyData.filter(b => b.clubId === state.user?.clubId && (Number(b.memberId) === mid));
+      const memberPerfs = state.performances.filter(p => p.clubId === state.user?.clubId && (Number(p.memberId) === mid));
       
       const report = await generateAutoReport(selectedProfile, memberBody, memberPerfs);
       
@@ -857,13 +910,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleDetectStagnation = async () => {
-    if (!selectedProfile) return;
+    if (!selectedProfile || !canOpenMember(selectedProfile, state)) return;
     setIsDetectingStagnation(true);
     setStagnationResult(null);
     try {
       const { detectStagnation } = await import('../services/aiService');
       const mid = Number(selectedProfile.id);
-      const memberPerfs = state.performances.filter(p => Number(p.memberId) === mid);
+      const memberPerfs = state.performances.filter(p => p.clubId === state.user?.clubId && (Number(p.memberId) === mid));
       
       const result = await detectStagnation(selectedProfile, memberPerfs, state.exercises);
       setStagnationResult(result);
@@ -894,7 +947,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   });
 
   const openAIGeneratorModal = () => {
-    if (!selectedProfile) return;
+    if (!selectedProfile || !canOpenMember(selectedProfile, state)) return;
     setAiGeneratorParams({
       nbDays: selectedProfile.trainingDays || 3,
       goals: (selectedProfile.objectifs || []).join(', ') || '',
@@ -909,7 +962,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleGenerateProgram = async () => {
-    if (!selectedProfile) return;
+    if (!selectedProfile || !canOpenMember(selectedProfile, state)) return;
     if (selectedProfile.profileMeasurementsPending) { showToast('Complétez le profil réel avant de générer un programme IA.', 'info'); return; }
     setIsGeneratingProgram(true);
     setIsAIGeneratorModalOpen(false);
@@ -932,7 +985,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       }
 
       const mid = Number(selectedProfile.id);
-      const existingProg = state.programs.find(p => Number(p.memberId) === mid && !p.isPlannedSession);
+      const existingProg = state.programs.find(p => p.clubId === state.user?.clubId && (Number(p.memberId) === mid && !p.isPlannedSession));
       const progId = existingProg ? existingProg.id : createNumericId();
       
       const newProg: Program = {
@@ -963,10 +1016,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const openNutritionTargetsModal = () => {
-    if (!selectedProfile) return;
+    if (!selectedProfile || !canOpenMember(selectedProfile, state)) return;
     if (selectedProfile.profileMeasurementsPending) { showToast('Complétez les mesures réelles avant de calculer les objectifs nutritionnels.', 'info'); return; }
     const mid = Number(selectedProfile.id);
-    const memberBody = state.bodyData.filter(b => Number(b.memberId) === mid);
+    const memberBody = state.bodyData.filter(b => b.clubId === state.user?.clubId && (Number(b.memberId) === mid));
     const bodySorted = memberBody.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const latestScan = bodySorted[0];
 
@@ -997,14 +1050,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleGenerateNutrition = async () => {
-    if (!selectedProfile) return;
+    if (!selectedProfile || !canOpenMember(selectedProfile, state)) return;
     if (selectedProfile.profileMeasurementsPending) { showToast('Complétez les mesures réelles avant de générer un plan nutritionnel.', 'info'); return; }
     setIsAdjustingTargets(false);
     setIsGeneratingNutrition(true);
     setNutritionPlan(null);
     try {
       const mid = Number(selectedProfile.id);
-      const memberBody = state.bodyData.filter(b => Number(b.memberId) === mid);
+      const memberBody = state.bodyData.filter(b => b.clubId === state.user?.clubId && (Number(b.memberId) === mid));
       const bodySorted = memberBody.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       const latestScan = bodySorted[0];
 
@@ -1020,7 +1073,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       const { generateNutritionPlan } = await import('../services/aiService');
       const plan = await generateNutritionPlan(selectedProfile, latestScan, nutritionTargets);
       
-      const existingPlan = state.nutritionPlans?.find(p => p.memberId === mid);
+      const existingPlan = state.nutritionPlans?.find(p => p.clubId === state.user?.clubId && (p.memberId === mid));
       const planId = existingPlan?.id?.toString() || Date.now().toString();
       
       const newPlan: NutritionPlan = {
@@ -1174,10 +1227,10 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   ];
 
   const handleAssignProgramPreset = async (preset: any) => {
-    if (!selectedProfile) return;
+    if (!selectedProfile || !canOpenMember(selectedProfile, state)) return;
     try {
       const mid = Number(selectedProfile.id);
-      const existingProg = state.programs.find(p => Number(p.memberId) === mid && !p.isPlannedSession);
+      const existingProg = state.programs.find(p => p.clubId === state.user?.clubId && (Number(p.memberId) === mid && !p.isPlannedSession));
       if (existingProg) {
         if (state.user?.role === 'manager') {
           const archiveId = createNumericId();
@@ -1210,11 +1263,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleAssignNutritionPreset = async (preset: any) => {
-    if (!selectedProfile) return;
+    if (!selectedProfile || !canOpenMember(selectedProfile, state)) return;
     if (selectedProfile.profileMeasurementsPending) { showToast('Complétez les mesures réelles avant de préparer un plan nutritionnel.', 'info'); return; }
     try {
       const mid = Number(selectedProfile.id);
-      const existingPlan = state.nutritionPlans?.find(p => p.memberId === mid);
+      const existingPlan = state.nutritionPlans?.find(p => p.clubId === state.user?.clubId && (p.memberId === mid));
       const planId = existingPlan?.id?.toString() || Date.now().toString();
       
       const weight = selectedProfile.weight || 70;
@@ -1262,7 +1315,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const handleSaveAsNutritionPreset = async () => {
     if (!selectedProfile || !newNutritionTemplateName.trim()) return;
-    const currentPlan = state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id));
+    const currentPlan = state.nutritionPlans?.find(p => p.clubId === state.user?.clubId && (p.memberId === Number(selectedProfile.id)));
     if (!currentPlan) return;
     
     try {
@@ -1293,9 +1346,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
   const getMemberStats = (memberId: number) => {
     const mid = Number(memberId);
-    const memberPerfs = (state.performances || []).filter(p => Number(p.memberId) === mid);
-    const memberBody = (state.bodyData || []).filter(b => Number(b.memberId) === mid);
-    const program = (state.programs || []).find(p => Number(p.memberId) === mid && !p.isPlannedSession);
+    const memberPerfs = (state.performances || []).filter(p => p.clubId === state.user?.clubId && (Number(p.memberId) === mid));
+    const memberBody = (state.bodyData || []).filter(b => b.clubId === state.user?.clubId && (Number(b.memberId) === mid));
+    const program = (state.programs || []).find(p => p.clubId === state.user?.clubId && (Number(p.memberId) === mid && !p.isPlannedSession));
 
     const topPerfs = memberPerfs.reduce((acc: any, curr) => {
       if (!acc[curr.exId] || acc[curr.exId].weight < curr.weight) {
@@ -1304,9 +1357,9 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       return acc;
     }, {});
 
-    const memberOrders = (state.supplementOrders || []).filter(o => Number(o.adherentId) === mid);
+    const memberOrders = (state.supplementOrders || []).filter(o => o.clubId === state.user?.clubId && (Number(o.adherentId) === mid));
     const totalSpent = memberOrders.filter(o => o.status === 'completed').reduce((acc, curr) => acc + curr.total, 0);
-    const subscription = (state.subscriptions || []).find(s => s.memberId === mid && ['active','pending','past_due','unpaid'].includes(s.status));
+    const subscription = (state.subscriptions || []).find(s => s.clubId === state.user?.clubId && (s.memberId === mid && ['active','pending','past_due','unpaid'].includes(s.status)));
 
     return { 
       perfs: Object.values(topPerfs) as Performance[], 
@@ -1366,8 +1419,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   };
 
   const handleUpdateSubscription = async () => {
-    if (!selectedProfile) return;
-    const subscription = state.subscriptions.find(s => s.memberId === Number(selectedProfile.id) && ['active','pending','past_due','unpaid'].includes(s.status));
+    if (!selectedProfile || !canOpenMember(selectedProfile, state)) return;
+    const subscription = state.subscriptions.find(s => s.clubId === state.user?.clubId && (s.memberId === Number(selectedProfile.id) && ['active','pending','past_due','unpaid'].includes(s.status)));
     if (!subscription) return;
 
     try {
@@ -1574,7 +1627,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
 
   const handleCopyPaymentLink = async () => {
-    const sub=state.subscriptions.find(s=>s.memberId===Number(selectedProfile?.id)&&s.status==='pending');
+    const sub=state.subscriptions.find(s=>s.clubId === state.user?.clubId && (s.memberId===Number(selectedProfile?.id)&&s.status==='pending'));
     if(!sub){showToast('Choisissez un abonnement Stripe en attente de paiement.','error');return;}
     setIsGeneratingLink(true);try{const result=await billingRequest('/api/billing/checkout',{subscriptionId:sub.id});await navigator.clipboard.writeText(result.link);showToast('Lien personnalisé copié.');}catch(e:any){showToast(e.message,'error');}finally{setIsGeneratingLink(false);}
   };
@@ -1620,7 +1673,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
   });
 
   return (
-    <div className="va-members-page va-polish-page space-y-5 page-transition">
+    <div className={`va-members-page va-polish-page space-y-5 page-transition ${desktop && selectedProfile ? 'm360-page' : ''}`}>
+      <div className="m360-member-list space-y-5" hidden={desktop && !!selectedProfile}>
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 px-1">
         <div>
           <h1 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-zinc-900">Membres</h1>
@@ -1690,7 +1744,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               key={f}
               onClick={() => setFilter(f)}
               aria-pressed={filter === f}
-              className={`px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${filter === f ? 'bg-emerald-700 text-white' : 'bg-zinc-50 text-zinc-700 hover:bg-zinc-100 border border-zinc-200'}`}
+              className={`px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${filter === f ? 'bg-emerald-700 lg:bg-indigo-700 text-white' : 'bg-zinc-50 text-zinc-700 hover:bg-zinc-100 border border-zinc-200'}`}
             >
               {f}
             </button>
@@ -1727,7 +1781,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           const hasFeedback = Boolean(stats.program?.memberRemarks);
           const coach = getClient360CoachingContact(u, state.currentClub, [...state.users, ...(state.user ? [state.user] : [])]);
           const programName = stats.program?.name;
-          const memberLogs = (state.logs || []).filter(log => Number(log.memberId) === Number(u.id));
+          const memberLogs = (state.logs || []).filter(log => log.clubId === state.user?.clubId && (Number(log.memberId) === Number(u.id)));
           const lastActivityAt = memberLogs.reduce<string | undefined>((latest, log) => !latest || new Date(log.date).getTime() > new Date(latest).getTime() ? log.date : latest, u.lastWorkoutDate);
           const activationStatus = getMemberActivationStatus(Boolean(stats.program && hasAssignedProgram([u], [stats.program])), lastActivityAt);
           const activationLabel = {
@@ -1743,7 +1797,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               type="button"
               variants={itemVariants}
               onClick={event => openProfile(u, event.currentTarget)}
-              className="va-members-row group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-zinc-100 px-4 py-4 text-left transition-colors last:border-b-0 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-700 lg:grid-cols-[minmax(220px,1.5fr)_minmax(130px,1fr)_minmax(150px,1fr)_minmax(140px,1fr)_auto] lg:gap-4 lg:px-5"
+              className="va-members-row group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 border-b border-zinc-100 px-4 py-4 text-left transition-colors last:border-b-0 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-700 lg:focus-visible:ring-indigo-700 lg:grid-cols-[minmax(220px,1.5fr)_minmax(130px,1fr)_minmax(150px,1fr)_minmax(140px,1fr)_auto] lg:gap-4 lg:px-5"
             >
               <span className="flex min-w-0 items-center gap-3">
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-zinc-100 text-sm font-semibold text-zinc-700">
@@ -1755,8 +1809,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 </span>
               </span>
               <span className="col-start-2 row-start-1 flex items-center justify-end gap-2 lg:col-auto lg:row-auto">
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${u.status === 'paused' ? 'bg-zinc-100 text-zinc-700' : activationStatus === 'actif' ? 'bg-emerald-50 text-emerald-800' : activationStatus === 'pret' ? 'bg-blue-50 text-blue-800' : 'bg-amber-50 text-amber-800'}`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${u.status === 'paused' ? 'bg-zinc-500' : activationStatus === 'actif' ? 'bg-emerald-700' : activationStatus === 'pret' ? 'bg-blue-700' : 'bg-amber-600'}`} />
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${u.status === 'paused' ? 'bg-zinc-100 text-zinc-700' : activationStatus === 'actif' ? 'bg-emerald-50 lg:bg-indigo-50 text-emerald-800 lg:text-indigo-800' : activationStatus === 'pret' ? 'bg-blue-50 text-blue-800' : 'bg-amber-50 text-amber-800'}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${u.status === 'paused' ? 'bg-zinc-500' : activationStatus === 'actif' ? 'bg-emerald-700 lg:bg-indigo-700' : activationStatus === 'pret' ? 'bg-blue-700' : 'bg-amber-600'}`} />
                   {u.status === 'paused' ? 'En pause' : activationLabel}
                 </span>
               </span>
@@ -1770,16 +1824,17 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </span>
               <span className="col-start-2 row-start-2 flex items-center justify-end gap-2 text-zinc-600 lg:col-auto lg:row-auto">
                 {hasFeedback && <span className="hidden rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 sm:inline">À lire</span>}
-                <span className="text-sm font-medium text-emerald-800 group-hover:text-emerald-900">Ouvrir <span aria-hidden="true">→</span></span>
+                <span className="text-sm font-medium text-emerald-800 lg:text-indigo-800 group-hover:text-emerald-900 lg:group-hover:text-indigo-900">Ouvrir <span aria-hidden="true">→</span></span>
               </span>
             </motion.button>
           );
         })}
       </div>
 
-      {createPortal(
+      </div>
+      <Member360Mount desktop={desktop}>
         <AnimatePresence>
-        {selectedProfile && (() => {
+        {selectedProfile && canOpenMember(selectedProfile, state) && (() => {
         const stats = getMemberStats(selectedProfile.id);
         const memberId = Number(selectedProfile.id);
         const clientFacts = getClient360Facts(selectedProfile, state);
@@ -1818,20 +1873,34 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
         return (
             <motion.div 
-              initial={{ opacity: 0 }}
+              initial={desktop ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[500] flex items-start justify-center p-0 md:p-8 overflow-y-auto"
+              className={desktop ? "m360-workspace vi-page" : "fixed inset-0 bg-black/30 backdrop-blur-sm z-[500] flex items-start justify-center p-0 md:p-8 overflow-y-auto"}
             >
               <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                initial={desktop ? false : { opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="va-member-dossier w-full max-w-[1600px] bg-white min-h-screen md:min-h-0 md:rounded-3xl border border-zinc-200 shadow-2xl relative overflow-hidden my-0 md:my-4" role="dialog" aria-modal="true" aria-label={`Dossier de ${selectedProfile.name}`}
+                className="va-member-dossier w-full max-w-[1600px] bg-white min-h-screen md:min-h-0 md:rounded-3xl border border-zinc-200 shadow-2xl relative overflow-hidden my-0 md:my-4" role={desktop ? "region" : "dialog"} aria-modal={desktop ? undefined : true} aria-label={`Dossier de ${selectedProfile.name}`}
               >
-                <button ref={closeButtonRef} onClick={closeProfile} aria-label="Fermer le dossier adhérent" className="va-dossier-close fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-zinc-100 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border border-zinc-200 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
+                <button ref={desktop ? undefined : closeButtonRef} onClick={closeProfile} aria-label="Fermer le dossier adhérent" className="va-dossier-close fixed top-4 right-4 md:absolute md:top-10 md:right-10 p-3 md:p-4 bg-zinc-100 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[600] border border-zinc-200 hover:bg-red-50 hover:border-red-200 hover:text-red-500 transition-all shadow-xl"><XIcon size={20} className="md:w-6 md:h-6" /></button>
 
+                {desktop && <><Member360Header closeRef={closeButtonRef} member={selectedProfile} state={state} onClose={closeProfile} onEdit={() => openMemberEditor(selectedProfile)} actions={<>                  <div className="va-client-360-actions grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" aria-label="Actions pour cet adhérent">
+                    {quickActions.includes('message') && <button type="button" onClick={() => navigateMemberSection('communication')} className="va-client-360-action"><MessageCircleIcon size={16} /> Message</button>}
+                    {quickActions.includes('program') && <button type="button" onClick={() => handleEditProgram(selectedProfile)} className="va-client-360-action"><DumbbellIcon size={16} /> Programme</button>}
+                    {quickActions.includes('plan') && <button type="button" onClick={openPlanningForMember} className="va-client-360-action va-client-360-secondary"><CalendarIcon size={16} /> Planifier</button>}
+                    {quickActions.includes('note') && <button type="button" onClick={() => { navigateMemberSection('followup'); requestAnimationFrame(() => notesRef.current?.focus()); }} className="va-client-360-action va-client-360-secondary"><FileTextIcon size={16} /> Ajouter une note</button>}
+                    <details className="va-client-360-more"><summary aria-label="Actions supplémentaires">Plus ···</summary><div>
+                      {quickActions.includes('plan') && <button type="button" className="va-client-360-xs-action" onClick={openPlanningForMember}>Planifier une séance</button>}
+                      {quickActions.includes('note') && <button type="button" className="va-client-360-xs-action" onClick={() => { navigateMemberSection('followup'); requestAnimationFrame(() => notesRef.current?.focus()); }}>Ajouter une note</button>}
+                      <button type="button" onClick={() => { navigateMemberSection('administrative', 'profile'); }}>Profil et administration</button>
+                      <button type="button" onClick={() => openMemberEditor(selectedProfile)}>Modifier le profil</button>
+                    </div></details>
+                  </div>
+</>} />
+                <Member360Navigation state={state} section={memberTab} admin={adminSection} coachingView={coachingView} setCoachingView={setCoachingView} onChange={navigateMemberSection} /></>}
                 {selectedProfile.planRequested && (
                   <div className="bg-orange-500 text-zinc-900 p-4 flex items-center justify-between z-[500] relative">
                     <div className="flex items-center gap-3">
@@ -1865,7 +1934,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   {/* SIDEBAR */}
                   <div className="va-dossier-sidebar w-full md:w-72 lg:w-80 bg-zinc-50 border-r border-zinc-200 p-4 md:p-6 flex flex-col gap-3 md:gap-6 shrink-0 md:h-[calc(100vh)] md:sticky top-0 overflow-y-auto hide-scrollbar pt-20 md:pt-10">
                   <div className="relative flex items-center gap-3 text-left md:block md:text-center">
-                    <div className="va-dossier-avatar w-12 h-12 md:w-16 md:h-16 shrink-0 rounded-2xl bg-emerald-900 text-white flex items-center justify-center text-lg md:text-2xl font-semibold md:mx-auto md:mb-4 overflow-hidden">
+                    <div className="va-dossier-avatar w-12 h-12 md:w-16 md:h-16 shrink-0 rounded-2xl bg-emerald-900 lg:bg-indigo-900 text-white flex items-center justify-center text-lg md:text-2xl font-semibold md:mx-auto md:mb-4 overflow-hidden">
                       {selectedProfile.avatar?.startsWith('http') ? (
                         <img src={selectedProfile.avatar} alt={selectedProfile.name} className="w-full h-full object-cover" />
                       ) : (
@@ -1887,11 +1956,11 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                     <p className="md:hidden min-w-0 truncate text-xs text-zinc-700">{selectedProfile.objectifs?.[0] || stats.program?.name || 'Objectif à définir'}</p>
                     {(() => {
                       const lastAutonomousSession = state.logs
-                        ?.filter(log => log.memberId === Number(selectedProfile.id) && !log.isCoaching)
+                        ?.filter(log => log.clubId === state.user?.clubId && (log.memberId === Number(selectedProfile.id) && !log.isCoaching))
                         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
                       
                       return lastAutonomousSession ? (
-                        <div className="hidden md:inline-flex text-xs font-medium text-emerald-800 mt-2 items-center justify-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100">
+                        <div className="hidden md:inline-flex text-xs font-medium text-emerald-800 lg:text-indigo-800 mt-2 items-center justify-center gap-1.5 bg-emerald-50 lg:bg-indigo-50 px-3 py-1.5 rounded-full border border-emerald-100 lg:border-indigo-100">
                           Dernière séance : {new Date(lastAutonomousSession.date).toLocaleDateString('fr-FR')}
                         </div>
                       ) : null;
@@ -1910,24 +1979,19 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         key={tab.id}
                         onClick={() => setMemberTab(tab.id)}
                         aria-current={memberTab === tab.id ? 'page' : undefined}
-                        className={`flex min-h-11 items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 ${memberTab === tab.id ? 'bg-emerald-800 text-white' : 'text-zinc-700 hover:text-zinc-900 hover:bg-zinc-200/70'}`}
+                        className={`flex min-h-11 items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-800 lg:focus-visible:ring-indigo-800 ${memberTab === tab.id ? 'bg-emerald-800 lg:bg-indigo-800 text-white' : 'text-zinc-700 hover:text-zinc-900 hover:bg-zinc-200/70'}`}
                       >
                         {tab.label}
                       </button>
                     ))}
                   </nav>
 
-                  
-
-                  
-
-                  
                 </div>
 
                 {/* MAIN GRAPHS & AI */}
                 <div className="va-dossier-content flex-1 min-w-0 bg-white p-4 sm:p-6 md:p-10 lg:p-12 overflow-y-auto space-y-8 custom-scrollbar md:h-[calc(100vh)]">
                   <ErrorBoundary key={`${memberTab}-${adminSection}`}>
-                    <div className="sticky top-0 z-30 -mx-4 -mt-4 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 pr-16 backdrop-blur-sm sm:-mx-6 sm:-mt-6 sm:px-6 sm:pr-16 md:-mx-10 md:-mt-10 md:px-10 md:pr-32 lg:-mx-12 lg:-mt-12 lg:px-12 lg:pr-32">
+                    <div className="m360-legacy-heading sticky top-0 z-30 -mx-4 -mt-4 flex items-center justify-between gap-3 border-b border-zinc-200 bg-white/95 px-4 py-3 pr-16 backdrop-blur-sm sm:-mx-6 sm:-mt-6 sm:px-6 sm:pr-16 md:-mx-10 md:-mt-10 md:px-10 md:pr-32 lg:-mx-12 lg:-mt-12 lg:px-12 lg:pr-32">
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-zinc-700">{assignedCoach ? `Coach · ${assignedCoach.name}` : resolveAccountType(state.currentClub) === 'studio' ? 'Coach à attribuer' : 'Référent indisponible'}{stats.program?.name ? ` · ${stats.program.name}` : ' · Aucun programme'}</p>
                       <div className="flex min-w-0 items-center gap-2">
@@ -1936,6 +2000,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       </div>
                     </div>
                   </div>
+                  {!desktop && (<>
                   <div className="va-client-360-actions grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" aria-label="Actions pour cet adhérent">
                     {quickActions.includes('message') && <button type="button" onClick={() => setMemberTab('communication')} className="va-client-360-action"><MessageCircleIcon size={16} /> Message</button>}
                     {quickActions.includes('program') && <button type="button" onClick={() => handleEditProgram(selectedProfile)} className="va-client-360-action"><DumbbellIcon size={16} /> Programme</button>}
@@ -1948,22 +2013,24 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                       <button type="button" onClick={() => openMemberEditor(selectedProfile)}>Modifier le profil</button>
                     </div></details>
                   </div>
+                  </>)}
                   
                   
-                  {newAccessMemberId === Number(selectedProfile.id) && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                  {newAccessMemberId === Number(selectedProfile.id) && <div role="status" className="rounded-xl border border-emerald-200 lg:border-indigo-200 bg-emerald-50 lg:bg-indigo-50 p-4 text-sm text-emerald-950 lg:text-indigo-950">
                     <p className="font-semibold">✓ Adhérent créé · {selectedProfile.name}</p>
                     <p className="mt-1 break-all">{selectedProfile.email}</p>
                     <p className="mt-1">Coach référent : {assignedCoach?.name || (resolveAccountType(state.currentClub) === 'studio' ? 'À attribuer' : 'Indisponible')}</p>
                     <p className="mt-2 leading-6">{newAccessEmailStatus === 'sent' ? 'Email d’accès envoyé : l’adhérent peut définir son mot de passe.' : 'Compte créé, email d’accès non envoyé. Le compte reste disponible ; renvoyez l’email ci-dessous.'}</p>
                     <p className="mt-2 break-all">Lien de connexion : {window.location.origin}/login</p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <button type="button" onClick={handleCopyLoginLink} className="min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800">Copier le lien de connexion</button>
-                      <button type="button" onClick={handleResetMemberPassword} disabled={isSendingAccessEmail || !selectedProfile.email} aria-busy={isSendingAccessEmail} className="min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800 disabled:opacity-50">{isSendingAccessEmail ? 'Envoi…' : 'Renvoyer l’accès'}</button>
-                      <button type="button" onClick={() => { setMemberTab('administrative'); setAdminSection('profile'); setNewAccessMemberId(null); }} className="min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800">Voir l’accès dans le dossier</button>
+                      <button type="button" onClick={handleCopyLoginLink} className="min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800 lg:focus-visible:ring-indigo-800">Copier le lien de connexion</button>
+                      <button type="button" onClick={handleResetMemberPassword} disabled={isSendingAccessEmail || !selectedProfile.email} aria-busy={isSendingAccessEmail} className="min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800 lg:focus-visible:ring-indigo-800 disabled:opacity-50">{isSendingAccessEmail ? 'Envoi…' : 'Renvoyer l’accès'}</button>
+                      <button type="button" onClick={() => { setMemberTab('administrative'); setAdminSection('profile'); setNewAccessMemberId(null); }} className="min-h-11 rounded-lg px-3 font-semibold underline focus-visible:ring-2 focus-visible:ring-emerald-800 lg:focus-visible:ring-indigo-800">Voir l’accès dans le dossier</button>
                     </div>
                   </div>}
                   {/* Assistants IA */}
-                  {memberTab === 'overview' && (
+                  {desktop && memberTab === 'overview' && <MemberOverview member={selectedProfile} state={state} setState={setState} onNavigate={navigateMemberSection} onPlan={openPlanningForMember} onProgram={() => handleEditProgram(selectedProfile)} />}
+                  {!desktop && memberTab === 'overview' && (
                   <section className="space-y-8">
                     {selectedProfile.firebaseUid && <CoachFollowup memberUid={selectedProfile.firebaseUid} programs={[]} section="summary" />}
                     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
@@ -1974,7 +2041,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         </div>
                         {selectedProfile.status === 'paused' ? (
                           <span className="rounded-full bg-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-800">En pause</span>
-                        ) : <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-900">{stats.subscription ? subscriptionStatusLabels[stats.subscription.status] : 'Actif'}</span>}
+                        ) : <span className="rounded-full bg-emerald-100 lg:bg-indigo-100 px-2.5 py-1 text-xs font-medium text-emerald-900 lg:text-indigo-900">{stats.subscription ? subscriptionStatusLabels[stats.subscription.status] : 'Actif'}</span>}
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                         <div className="rounded-xl border border-zinc-200 bg-white p-3.5">
@@ -2016,1738 +2083,182 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   </section>
                   )}
                   {memberTab === 'onboarding' && selectedProfile.firebaseUid && <OnboardingDetail state={state} setState={setState} memberUid={selectedProfile.firebaseUid} />}
-                  {memberTab === 'retention' && selectedProfile.firebaseUid && <RetentionDetail state={state} setState={setState} memberUid={selectedProfile.firebaseUid} light />}
-                  {memberTab === 'followup' && (
-                  <section className="va-client-360-followup space-y-6">
-                    {selectedProfile.firebaseUid && <CoachFollowup memberUid={selectedProfile.firebaseUid} programs={[]} section="followup" actorRole={state.user?.role} />}
-                    {/* NOTES DE SUIVI SECTION */}
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 mt-6 shadow-sm space-y-4">
-                      <div className="flex items-center justify-between border-b border-zinc-200/60 pb-3">
-                    <div className="flex items-center gap-2">
-                          <FileTextIcon size={20} className="text-emerald-500" />
-                          <h4 className="text-base font-semibold text-zinc-900">
-                            Notes de suivi de l’adhérent
-                          </h4>
-                        </div>
-                        <span className="text-xs font-medium text-emerald-950 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-                          Coach
-                        </span>
-                      </div>
-                      <p className="text-sm text-zinc-700 leading-normal">
-                        Utilisez cet espace pour noter les forces, faiblesses, ressentis, et adaptations pour {selectedProfile.name}.
-                      </p>
-                      <textarea
-                        ref={notesRef}
-                        onFocus={event => { const field = event.currentTarget; requestAnimationFrame(() => field.scrollIntoView({ block: 'center' })); }}
-                        value={coachingNotes}
-                        onChange={(e) => setCoachingNotes(e.target.value)}
-                        placeholder="Saisissez une note de suivi…"
-                        className="w-full h-24 bg-white border border-zinc-300 rounded-xl p-4 text-sm text-zinc-900 placeholder:text-zinc-500 outline-none focus:border-emerald-800 focus:ring-2 focus:ring-emerald-800/20 transition-colors resize-y shadow-sm"
-                      />
-                      <div className="va-client-360-note-footer flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-zinc-700">Date de la note</span>
-                          <input 
-                            type="date"
-                            value={coachingNoteDate}
-                            onChange={(e) => setCoachingNoteDate(e.target.value)}
-                            className="bg-white border border-zinc-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-zinc-800 outline-none focus:border-emerald-500 cursor-pointer shadow-sm"
-                          />
-                        </div>
-                        <Button 
-                          variant="success" 
-                          onClick={handleSaveCoachingNotes} 
-                          disabled={isSavingCoachingNotes}
-                          className="va-client-360-save-note !min-h-11 !py-2.5 !px-6 !text-sm w-full sm:w-auto"
-                        >
-                          {isSavingCoachingNotes ? "Enregistrement…" : "Ajouter la note"}
-                        </Button>
-                      </div>
+                  {memberTab === 'retention' && selectedProfile.firebaseUid && <RetentionDetail state={state} setState={setState} memberUid={selectedProfile.firebaseUid} light={!desktop} />}
+                  <MemberFollowup
+memberTab={memberTab}
+                    selectedProfile={selectedProfile}
+                    state={state}
+                    notesRef={notesRef}
+                    coachingNotes={coachingNotes}
+                    setCoachingNotes={setCoachingNotes}
+                    coachingNoteDate={coachingNoteDate}
+                    setCoachingNoteDate={setCoachingNoteDate}
+                    handleSaveCoachingNotes={handleSaveCoachingNotes}
+                    isSavingCoachingNotes={isSavingCoachingNotes}
+                    handleDeleteCoachingNote={handleDeleteCoachingNote}
+                  />
 
-                      {/* HISTORIQUE DES NOTES */}
-                      <div className="pt-6 border-t border-zinc-200/60 space-y-4">
-                        <h5 className="text-sm font-semibold text-zinc-800 flex items-center gap-2">
-                          <FileTextIcon size={16} className="text-emerald-800" /> Notes enregistrées ({(selectedProfile.coachingNotesHistory || []).length})
-                        </h5>
-
-                        {/* Legacy note or default display if history is empty but notes string is not empty */}
-                        {(!selectedProfile.coachingNotesHistory || selectedProfile.coachingNotesHistory.length === 0) && selectedProfile.notes && (
-                          <div className="bg-white border border-zinc-200 rounded-2xl p-4 text-xs shadow-sm flex justify-between items-start">
-                            <div className="space-y-1 w-full">
-                              <p className="text-zinc-700 text-xs font-medium">Note globale existante</p>
-                              <p className="text-zinc-800 whitespace-pre-wrap font-medium">{selectedProfile.notes}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {selectedProfile.coachingNotesHistory && selectedProfile.coachingNotesHistory.length > 0 ? (
-                          <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
-                            {selectedProfile.coachingNotesHistory.map((note) => (
-                              <div key={note.id} className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-2xl p-4 text-xs shadow-sm space-y-2 relative group transition-colors">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-medium text-zinc-700 bg-zinc-100 px-2 py-1 rounded-md">
-                                    {new Date(note.date).toLocaleString('fr-FR', {
-                                      day: 'numeric',
-                                      month: 'long',
-                                      year: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
-                                  </span>
-                                  <button
-                                    onClick={() => handleDeleteCoachingNote(note.id)}
-                                    className="text-zinc-400 hover:text-red-500 p-1 rounded-lg hover:bg-red-50 transition-colors"
-                                    title="Supprimer la note"
-                                  >
-                                    <Trash2Icon size={14} />
-                                  </button>
-                                </div>
-                                <p className="text-zinc-800 leading-relaxed font-semibold whitespace-pre-wrap">{note.content}</p>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          !selectedProfile.notes && (
-                            <div className="text-center py-6 bg-zinc-100/50 border border-dashed border-zinc-200 rounded-2xl">
-                              <p className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider">Aucune note enregistrée pour le moment.</p>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  </section>
-                  )}
-
-                  {memberTab === 'nutrition' && (
-                  <section className="space-y-6">
-                    <h3 className="text-xl font-semibold text-zinc-900">Nutrition et journal quotidien</h3>
-                    <div className="va-client-360-nutrition-tools grid gap-4">
-                      {/* Feature 2: Nutrition Plan */}
-                      <div className={`flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${isGeneratingNutrition ? 'opacity-60 pointer-events-none' : ''}`}>
-                        <div>
-                          <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
-                            <CheckIcon size={17} className="text-emerald-800" /> Plan alimentaire
-                          </h4>
-                          <p className="mb-5 text-sm leading-relaxed text-zinc-700">Consultez le plan et le suivi existants, ajustez les objectifs ou préparez une nouvelle proposition.</p>
-                        </div>
-                        <div className="space-y-2">
-                          {state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)) && (
-                            <Button variant="primary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={() => setNutritionPlan(state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)))}>
-                              Voir le plan actuel
-                            </Button>
-                          )}
-                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={() => setShowNutritionLog(true)}>
-                            Voir le suivi journalier
-                          </Button>
-                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={openNutritionTargetsModal} disabled={isGeneratingNutrition}>
-                            {isGeneratingNutrition ? "Création en cours…" : (state.nutritionPlans?.find(p => p.memberId === Number(selectedProfile.id)) ? "Régénérer le plan" : "Générer le plan")}
-                          </Button>
-                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg !bg-zinc-50 !text-zinc-800 hover:!bg-zinc-100 transition-colors" onClick={() => setShowAssignNutritionTemplateModal(true)}>
-                            <PlusIcon size={14} className="mr-2 inline" /> Attribuer un modèle
-                          </Button>
-                        </div>
-                      </div>
-
-                    </div>
-    <div className="space-y-6 bg-zinc-50 border border-zinc-200 rounded-[32px] p-6 sm:p-8 animate-in fade-in duration-300">
-      <div>
-        <h4 className="text-sm font-black text-zinc-950 uppercase tracking-widest mb-1 flex items-center gap-2">
-          <FileTextIcon size={18} className="text-emerald-500" /> Journaux Biométriques & Alimentation
-        </h4>
-        <p className="text-[11px] text-zinc-500 leading-normal">
-          Consultez et complétez les relevés nutritionnels quotidiens, l'apport en eau, le sommeil et le poids du membre pour optimiser son suivi de près.
-        </p>
-      </div>
-      <div className="bg-white border border-zinc-200 rounded-2xl p-2 sm:p-6 shadow-inner">
-        <React.Suspense fallback={<p role="status" className="p-5 text-sm text-zinc-700">Ouverture du journal nutritionnel…</p>}>
-          <ClientNutritionView state={state} showToast={showToast} memberId={Number(selectedProfile.id)} readOnly={false} />
-        </React.Suspense>
-      </div>
-    </div>
-                  </section>
-                  )}
+                  <MemberNutrition
+memberTab={memberTab}
+                    isGeneratingNutrition={isGeneratingNutrition}
+                    state={state}
+                    selectedProfile={selectedProfile}
+                    setNutritionPlan={setNutritionPlan}
+                    setShowNutritionLog={setShowNutritionLog}
+                    openNutritionTargetsModal={openNutritionTargetsModal}
+                    setShowAssignNutritionTemplateModal={setShowAssignNutritionTemplateModal}
+                    showToast={showToast}
+                  />
                   {/* AGENDA & RÉSERVATIONS TAB */}
-                  {memberTab === 'calendar' && (
-                  <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CalendarIcon size={24} /></div>
-                       <div>
-                         <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Agenda & Réservations</h3>
-                         <p className="text-xs text-zinc-500 mt-0.5">Consultez, filtrez et gérez les réservations et le forfait d'abonnement actif pour {selectedProfile.name}.</p>
-                       </div>
-                    </div>
-                    <button type="button" onClick={openPlanningForMember} className="va-client-360-action"><CalendarIcon size={16} /> Planifier une séance pour {selectedProfile.name}</button>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                      {/* SIDEBAR FILTERS AND STATS */}
-                      <div className="lg:col-span-1 space-y-6">
-                        {/* 1. Subscription Stats Card */}
-                        <div className="bg-zinc-50 border border-zinc-200 rounded-[32px] p-6 shadow-sm space-y-4">
-                          <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-200 pb-2">
-                            Abonnement & Forfait
-                          </h4>
-                          {(() => {
-                            const activeSub = state.subscriptions?.find(s => s.memberId === Number(selectedProfile?.id) && ['active','pending','past_due','unpaid'].includes(s.status));
-                            const activePlan = activeSub ? state.plans?.find(p => p.id === activeSub.planId) : null;
-                            const memberBookings = state.bookings?.filter(b => b.memberId === Number(selectedProfile?.id) && b.status !== 'cancelled') || [];
-                            const totalBookings = memberBookings.length;
-                            
-                            if (!activeSub) {
-                              return (
-                                <div className="space-y-2">
-                                  <div className="text-xs font-bold text-red-500 bg-red-50 border border-red-100 rounded-2xl p-3 text-center space-y-1">
-                                    <div className="font-extrabold uppercase tracking-wide">⚠️ Pas d'abonnement en cours</div>
-                                    <div className="text-[10px] text-red-400 font-medium normal-case">Aucune formule active trouvée pour ce membre.</div>
-                                  </div>
-                                  <div className="pt-2 border-t border-zinc-200/60 flex justify-between items-center text-[11px]">
-                                    <span className="font-bold text-zinc-500 uppercase tracking-wider">Réservations totales</span>
-                                    <span className="font-black text-zinc-900 bg-zinc-200 px-2 py-0.5 rounded-full">{totalBookings}</span>
-                                  </div>
-                                </div>
-                              );
-                            }
-
-                            const creditsText = activePlan?.credits !== undefined ? String(activePlan.credits) : 'Illimité';
-                            return (
-                              <div className="space-y-4">
-                                <div className="space-y-1">
-                                  <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-full inline-block">
-                                    ACTIF
-                                  </span>
-                                  <h5 className="font-black text-zinc-950 text-xs leading-tight uppercase font-display italic">
-                                    {activeSub.planName || 'Formule Active'}
-                                  </h5>
-                                  <p className="text-[10px] text-zinc-500 font-medium">
-                                    Débute le : {new Date(activeSub.startDate).toLocaleDateString('fr-FR')}
-                                  </p>
-                                </div>
-
-                                <div className="pt-3 border-t border-zinc-200/60 space-y-3">
-                                  <div className="flex justify-between items-center text-xs">
-                                    <span className="font-bold text-zinc-500 uppercase tracking-widest text-[10px]">Réservations totales</span>
-                                    <span className="font-black text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-100">
-                                      {totalBookings}
-                                    </span>
-                                  </div>
-
-                                  <div className="flex justify-between items-center text-xs">
-                                    <span className="font-bold text-zinc-500 uppercase tracking-widest text-[10px]">Séances forfait</span>
-                                    <span className="font-black text-zinc-800 bg-zinc-200 px-2.5 py-0.5 rounded-full">
-                                      {creditsText}
-                                    </span>
-                                  </div>
-
-                                  {activePlan?.credits !== undefined && activePlan.credits > 0 && (
-                                    <div className="space-y-1 pt-1">
-                                      <div className="w-full bg-zinc-200 rounded-full h-1.5 overflow-hidden">
-                                        <div 
-                                          className="bg-emerald-500 h-full rounded-full transition-all duration-500"
-                                          style={{ width: `${Math.min(100, (totalBookings / activePlan.credits) * 100)}%` }}
-                                        />
-                                      </div>
-                                      <div className="flex justify-between text-[9px] text-zinc-400 font-bold uppercase tracking-wider">
-                                        <span>Utilisé : {totalBookings}</span>
-                                        <span>Quota : {activePlan.credits}</span>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                        </div>
-
-                        {/* 2. Filters Card */}
-                        <div className="bg-zinc-50 border border-zinc-200 rounded-[32px] p-6 shadow-sm space-y-4">
-                          <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-200 pb-2">
-                            Filtres de l'Agenda
-                          </h4>
-                          
-                          {/* Status Filter */}
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-wider">
-                              Statut
-                            </label>
-                            <select
-                              value={bookingStatusFilter}
-                              onChange={(e) => setBookingStatusFilter(e.target.value)}
-                              className="w-full text-xs font-bold bg-white border border-zinc-200 rounded-xl px-2.5 py-2 outline-none focus:border-emerald-500 text-zinc-800 cursor-pointer"
-                            >
-                              <option value="all">Tous les statuts</option>
-                              <option value="confirmed">Confirmées / Actives</option>
-                              <option value="pending">En attente</option>
-                              <option value="completed">Terminées</option>
-                              <option value="cancelled">Annulées / Rejetées</option>
-                            </select>
-                          </div>
-
-                          {/* Type Filter */}
-                          <div className="space-y-1.5">
-                            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-wider">
-                              Type de séance
-                            </label>
-                            <select
-                              value={bookingTypeFilter}
-                              onChange={(e) => setBookingTypeFilter(e.target.value)}
-                              className="w-full text-xs font-bold bg-white border border-zinc-200 rounded-xl px-2.5 py-2 outline-none focus:border-emerald-500 text-zinc-800 cursor-pointer"
-                            >
-                              <option value="all">Tous les types</option>
-                              <option value="coaching">Coaching individuel</option>
-                              <option value="trial">Séance d'essai</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* MAIN RESERVATIONS TIMELINE */}
-                      <div className="lg:col-span-3 space-y-4">
-                        {(() => {
-                          const rawBookings = state.bookings?.filter(b => b.memberId === Number(selectedProfile?.id)) || [];
-                          
-                          // Filter bookings based on state
-                          const filteredBookings = rawBookings.filter(b => {
-                            // Status filter
-                            if (bookingStatusFilter === 'confirmed' && b.status !== 'confirmed') return false;
-                            if (bookingStatusFilter === 'pending' && b.status !== 'pending') return false;
-                            if (bookingStatusFilter === 'completed' && b.status !== 'completed') return false;
-                            if (bookingStatusFilter === 'cancelled' && b.status !== 'cancelled' && b.status !== 'rejected') return false;
-                            
-                            // Type filter
-                            if (bookingTypeFilter === 'coaching' && b.type !== 'coaching') return false;
-                            if (bookingTypeFilter === 'trial' && b.type !== 'trial') return false;
-
-                            return true;
-                          });
-
-                          // Sort chronologically (upcoming first, then past)
-                          const sortedBookings = [...filteredBookings].sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
-
-                          if (sortedBookings.length === 0) {
-                            return (
-                              <div className="bg-zinc-50 border border-zinc-200 rounded-[32px] p-12 text-center space-y-4 shadow-sm animate-in fade-in duration-300">
-                                <div className="p-4 bg-zinc-200/50 rounded-full text-zinc-400 inline-block">
-                                  <CalendarIcon size={32} />
-                                </div>
-                                <div className="space-y-1 max-w-sm mx-auto">
-                                  <h4 className="font-black text-zinc-900 text-sm uppercase">Aucune réservation trouvée</h4>
-                                  <p className="text-xs text-zinc-500 leading-normal">
-                                    Aucun créneau de réservation ne correspond à vos filtres actuels ou le membre n'a aucun enregistrement.
-                                  </p>
-                                </div>
-                              </div>
-                            );
-                          }
-
-                          return (
-                            <div className="space-y-3">
-                              {sortedBookings.map(booking => {
-                                const coachName = state.users?.find(u => String(u.id) === booking.coachId || u.firebaseUid === booking.coachId)?.name || 'Coach du club';
-                                const start = new Date(booking.startTime);
-                                const end = new Date(booking.endTime);
-                                
-                                // Format nicer French dates
-                                const dayName = start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short' });
-                                const dayNum = start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris', day: 'numeric', month: 'short' });
-                                const timeStr = `${start.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' })}`;
-
-                                return (
-                                  <div 
-                                    key={booking.id}
-                                    className="bg-white border border-zinc-200 hover:border-zinc-300 rounded-2xl p-4 sm:p-5 shadow-sm transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-                                  >
-                                    <div className="flex items-center gap-4">
-                                      {/* Date indicator block */}
-                                      <div className="bg-zinc-100 border border-zinc-200/60 rounded-xl px-3.5 py-2.5 text-center min-w-[70px]">
-                                        <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{dayName}</div>
-                                        <div className="text-sm font-black text-zinc-900 uppercase font-display italic tracking-tighter">{dayNum}</div>
-                                      </div>
-
-                                      <div className="space-y-1">
-                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                          <span className="text-xs font-black text-zinc-950 uppercase">
-                                            {booking.type === 'coaching' ? state.currentClub?.settings?.booking?.sessionTypes?.find(type => type.id === booking.sessionTypeId)?.name || 'Coaching' : 'Séance d\'Essai'}
-                                          </span>
-                                           <Badge 
-                                            variant={
-                                              booking.status === 'confirmed' ? 'success' :
-                                              booking.status === 'completed' ? 'accent' :
-                                              booking.status === 'pending' ? 'orange' :
-                                              'dark'
-                                            }
-                                            className="uppercase !text-[9px] !px-2 !py-0.5 font-bold tracking-widest"
-                                          >
-                                            {
-                                              booking.status === 'confirmed' ? 'Confirmé' :
-                                              booking.status === 'completed' ? 'Complété' :
-                                              booking.status === 'pending' ? 'En attente' :
-                                              booking.status === 'cancelled' ? 'Annulé' :
-                                              booking.status === 'rejected' ? 'Rejeté' : booking.status
-                                            }
-                                          </Badge>
-                                        </div>
-                                        <div className="text-[11px] text-zinc-500 font-bold flex items-center gap-1.5">
-                                          <span className="bg-zinc-100 px-1.5 py-0.5 rounded text-zinc-700">{timeStr}</span>
-                                          <span>• Dirigé par : <strong className="text-zinc-700 font-extrabold">{coachName}</strong></span>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {/* Action button */}
-                                    {booking.status === 'confirmed' && (
-                                      <Button 
-                                        variant="secondary"
-                                        className="!py-1.5 !px-3 font-bold !text-[9px] !rounded-lg border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600"
-                                        onClick={async () => {
-                                          if (confirm(`Voulez-vous vraiment annuler la réservation de ${selectedProfile.name} le ${dayNum} à ${timeStr} ?`)) {
-                                            try {
-                                              const response = await apiFetch('/api/bookings/cancel', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: booking.id }) });
-                                              if (!response.ok) throw new Error('Cancellation failed');
-                                              showToast("Réservation annulée avec succès");
-                                            } catch (err) {
-                                              console.error(err);
-                                              showToast("Erreur lors de l'annulation", "error");
-                                            }
-                                          }
-                                        }}
-                                      >
-                                        <XIcon size={12} className="mr-1 inline-block" /> ANNULER
-                                      </Button>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </section>
-                  )}
+                  <MemberPlanning
+memberTab={memberTab}
+                    selectedProfile={selectedProfile}
+                    openPlanningForMember={openPlanningForMember}
+                    state={state}
+                    bookingStatusFilter={bookingStatusFilter}
+                    setBookingStatusFilter={setBookingStatusFilter}
+                    bookingTypeFilter={bookingTypeFilter}
+                    setBookingTypeFilter={setBookingTypeFilter}
+                    showToast={showToast}
+                  />
 
                   {/* DOCUMENTS (OFFICIELS & DRIVE) */}
                   {memberTab === 'administrative' && (
-                    <nav className="va-client-360-admin-nav" aria-label="Rubriques administratives">
+                    <nav className="va-client-360-admin-nav m360-legacy-admin" aria-label="Rubriques administratives">
                       {adminSections.map(section => <button type="button" key={section.id} onClick={() => setAdminSection(section.id)} aria-current={adminSection === section.id ? 'page' : undefined}>{section.label}</button>)}
                     </nav>
                   )}
-                  {memberTab === 'administrative' && adminSection === 'documents' && (
-                  <section className="space-y-8">
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500"><FolderIcon size={24} /></div>
-                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Documents</h3>
-                    </div>
-
-                    {/* DOCUMENTS ADMINISTRATIFS */}
-                    <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-[40px] p-8 shadow-sm">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                        <div>
-                          <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Documents Administratifs</h4>
-                          <p className="text-[10px] text-zinc-500 mt-1">Certificats médicaux, formulaires d'inscription...</p>
-                        </div>
-                        <div className="flex items-center gap-2 w-full sm:w-auto">
-                          <select 
-                            value={officialDocumentCategory}
-                            onChange={(e) => setOfficialDocumentCategory(e.target.value as any)}
-                            className="bg-white border border-zinc-200 rounded-xl px-3 py-2 text-xs text-zinc-900 focus:outline-none focus:border-emerald-500 shrink-0"
-                          >
-                            <option value="Certificat médical">Certificat médical</option>
-                            <option value="Formulaire d'inscription">Formulaire d'inscription</option>
-                            <option value="Consentement parent">Consentement parent</option>
-                            <option value="Pièce d'identité">Pièce d'identité</option>
-                            <option value="Autre">Autre</option>
-                          </select>
-                          <label className="cursor-pointer shrink-0">
-                            <input 
-                              type="file" 
-                              className="hidden" 
-                              onChange={(e) => handleOfficialDocumentUpload(e.target.files)}
-                              disabled={isUploadingOfficialDocument}
-                              accept="image/*,.pdf"
-                            />
-                            <Button variant="secondary" className="!py-2 !px-4 !text-[10px] !rounded-xl pointer-events-none" disabled={isUploadingOfficialDocument}>
-                              {isUploadingOfficialDocument ? (
-                                <span>...</span>
-                              ) : (
-                                <>
-                                  <UploadIcon size={14} className="mr-2 inline" />
-                                  IMPORTER
-                                </>
-                              )}
-                            </Button>
-                          </label>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        {selectedProfile.documents && selectedProfile.documents.length > 0 ? (
-                          selectedProfile.documents
-                            .sort((a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime())
-                            .map(doc => (
-                              <div key={doc.id} className="flex items-center justify-between p-4 bg-white border border-zinc-200 rounded-2xl hover:border-emerald-500/30 transition-colors shadow-sm">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-500 shadow-sm border border-emerald-500/20">
-                                    <FileTextIcon size={20} />
-                                  </div>
-                                  <div>
-                                    <div className="text-sm font-bold text-zinc-900">{doc.category}</div>
-                                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
-                                      {doc.name} • {new Date(doc.uploadDate).toLocaleDateString('fr-FR')}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <a href={doc.url} target="_blank" rel="noopener noreferrer" className="p-2 text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-colors">
-                                    <EyeIcon size={18} />
-                                  </a>
-                                  {state.user?.role !== 'manager' && <button onClick={() => handleDeleteOfficialDocument(doc.id)} className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-colors">
-                                    <Trash2Icon size={18} />
-                                  </button>}
-                                </div>
-                              </div>
-                            ))
-                        ) : (
-                          <div className="text-center py-8 text-zinc-500 text-sm">
-                            Aucun document administratif pour le moment.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* DOCUMENTS PARTAGÉS GÉNÉRIQUES */}
-                    <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-[40px] p-8 shadow-sm">
-                      <div className="flex justify-between items-center mb-6">
-                        <div>
-                          <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Fichiers partagés</h4>
-                          <p className="text-[10px] text-zinc-500 mt-1">Vidéos, bilans PDF, historiques partagés...</p>
-                        </div>
-                        <label className="cursor-pointer">
-                          <input 
-                            type="file" 
-                            className="hidden" 
-                            multiple 
-                            onChange={(e) => handleDriveFileUpload(e.target.files)}
-                            disabled={isUploadingDriveFile}
-                          />
-                          <Button variant="secondary" className="!py-2 !px-4 !text-[10px] !rounded-xl pointer-events-none" disabled={isUploadingDriveFile}>
-                            {isUploadingDriveFile ? (
-                              <span>{Math.round(uploadProgress)}%</span>
-                            ) : (
-                              <>
-                                <UploadIcon size={14} className="mr-2 inline" />
-                                IMPORTER
-                              </>
-                            )}
-                          </Button>
-                        </label>
-                      </div>
-
-                      <div className="space-y-3">
-                        {state.driveFiles?.filter(f => f.sharedWith?.includes(Number(selectedProfile.id))).length > 0 ? (
-                          state.driveFiles.filter(f => f.sharedWith?.includes(Number(selectedProfile.id)))
-                            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                            .map(file => (
-                              <div key={file.id} className="flex items-center justify-between p-4 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-2xl hover:border-blue-500/30 transition-colors shadow-sm">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-10 h-10 bg-zinc-50 rounded-xl flex items-center justify-center text-blue-500 shadow-sm border ">
-                                    <FileIcon size={20} />
-                                  </div>
-                                  <div>
-                                    <div className="text-sm font-bold text-zinc-900">{file.name}</div>
-                                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
-                                      {(file.size / 1024 / 1024).toFixed(2)} MB • {new Date(file.createdAt).toLocaleDateString('fr-FR')}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <button onClick={() => { void openDriveFile(file).catch(error => showToast(error.message, "error")); }} className="p-2 text-zinc-500 hover:text-blue-400 hover:bg-blue-500/10 rounded-xl transition-colors">
-                                    <EyeIcon size={18} />
-                                  </button>
-                                  {(state.user?.role !== 'manager' || file.uploadedBy === state.user.id) && <button onClick={() => setConfirmDeleteFileId(file.id)} className="p-2 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-colors">
-                                    <Trash2Icon size={18} />
-                                  </button>}
-                                </div>
-                              </div>
-                            ))
-                        ) : (
-                          <div className="text-center py-8 text-zinc-500 text-sm">
-                            Aucun document partagé avec ce client.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </section>
-                  )}
+                  <MemberDocuments
+memberTab={memberTab}
+                    adminSection={adminSection}
+                    officialDocumentCategory={officialDocumentCategory}
+                    setOfficialDocumentCategory={setOfficialDocumentCategory}
+                    handleOfficialDocumentUpload={handleOfficialDocumentUpload}
+                    isUploadingOfficialDocument={isUploadingOfficialDocument}
+                    selectedProfile={selectedProfile}
+                    state={state}
+                    handleDeleteOfficialDocument={handleDeleteOfficialDocument}
+                    handleDriveFileUpload={handleDriveFileUpload}
+                    isUploadingDriveFile={isUploadingDriveFile}
+                    uploadProgress={uploadProgress}
+                    showToast={showToast}
+                    setConfirmDeleteFileId={setConfirmDeleteFileId}
+                  />
 
                   {/* FINANCES & FACTURATION */}
-                  {state.user?.role !== 'manager' && memberTab === 'administrative' && adminSection === 'billing' && (
-<div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
-    <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-800">Crédits Coaching</h3>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between bg-zinc-50 backdrop-blur-xl p-3 rounded-2xl border border-zinc-200 shadow-sm">
-                        <div>
-                          <div className="text-xl font-black text-zinc-900">{selectedProfile.credits || 0}</div>
-                          <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Standard</div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center \!bg-zinc-50 \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" disabled={state.user?.role!=='owner'||billingBusy} onClick={() => handleUpdateCredits(selectedProfile, -1)}>-</Button>
-                          <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center \!bg-zinc-50 \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" disabled={state.user?.role!=='owner'||billingBusy} onClick={() => handleUpdateCredits(selectedProfile, 1)}>+</Button>
-                        </div>
-                      </div>
-
-                      {state.currentClub?.settings?.booking?.sessionTypes?.map(type => (
-                        <div key={type.id} className="flex items-center justify-between bg-zinc-50 backdrop-blur-xl p-3 rounded-2xl border border-zinc-200 shadow-sm">
-                          <div>
-                            <div className="text-xl font-black text-zinc-900">{selectedProfile.sessionCredits?.[type.id] || 0}</div>
-                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{type.name}</div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" disabled={state.user?.role!=='owner'||billingBusy} onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, -1)}>-</Button>
-                            <Button variant="secondary" className="!p-1 !h-8 !w-8 flex items-center justify-center" disabled={state.user?.role!=='owner'||billingBusy} onClick={() => handleUpdateSessionCredits(selectedProfile, type.id, 1)}>+</Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-    <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
-                    <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-800">Fidélité & Achats</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center">
-                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Points</div>
-                        <div className="text-xl font-black text-zinc-900">{selectedProfile.pointsFidelite || 0}</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Total Achats</div>
-                        <div className="text-xl font-black text-emerald-800">{stats.totalSpent}€</div>
-                      </div>
-                    </div>
-                  </div>
-                      <div className="space-y-4">
-                    <div className="flex items-center justify-between px-1">
-                       <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-800">Abonnement</h3>
-                    </div>
-                    {stats.subscription ? (
-                      <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 shadow-sm space-y-4">
-                        <div className="flex flex-wrap justify-between items-start gap-2">
-                          <span className="min-w-0 break-words font-black text-zinc-900 text-lg uppercase italic">{stats.subscription.planName}</span>
-                          <span className="text-[10px] px-2 py-1 bg-green-500/20 text-emerald-900 rounded-full font-black uppercase tracking-widest">{subscriptionStatusLabels[stats.subscription.status]}</span>
-                        </div>
-                        <div className="text-[10px] font-bold text-zinc-900 uppercase tracking-widest">
-                          <span className="block text-sm">{subscriptionStatusLabels[stats.subscription.status]}</span>{stats.subscription.price}€ / {stats.subscription.billingCycle === 'monthly' ? 'mois' : stats.subscription.billingCycle === 'yearly' ? 'an' : 'fois'}
-                        </div>
-                        
-                        <div className="pt-4 border-t  space-y-2">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-zinc-500">Début :</span>
-                            <span className="font-bold text-zinc-900">{new Date(stats.subscription.startDate).toLocaleDateString()}</span>
-                          </div>
-                          {stats.subscription.commitmentEndDate && (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-zinc-500">Fin d'engagement :</span>
-                              <span className={`font-bold ${new Date(stats.subscription.commitmentEndDate) < new Date() ? 'text-red-500' : 'text-zinc-900'}`}>
-                                {new Date(stats.subscription.commitmentEndDate).toLocaleDateString()}
-                              </span>
-                            </div>
-                          )}
-                          {stats.subscription.contractUrl && (
-                            <div className="flex justify-between text-xs pt-2">
-                              <a href={stats.subscription.contractUrl} target="_blank" rel="noopener noreferrer" className="text-emerald-800 font-bold flex items-center gap-1 hover:underline">
-                                <LinkIcon size={12} /> Voir le contrat
-                              </a>
-                            </div>
-                          )}
-                        </div>
-
-                        {isEditingSub ? (
-                          <div className="space-y-3 pt-4 border-t  max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-                            <div className="space-y-1">
-                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Date de début</label>
-                              <Input type="date" value={subStartDate} onChange={e => setSubStartDate(e.target.value)} />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Fin d'engagement (optionnel)</label>
-                              <Input type="date" value={subCommitmentDate} onChange={e => setSubCommitmentDate(e.target.value)} />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Importer un contrat (PDF, Image)</label>
-                              <input 
-                                type="file" 
-                                accept=".pdf,image/*" 
-                                onChange={handleFileUpload}
-                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-emerald-500/10 file:text-emerald-800 hover:file:bg-emerald-500/20 transition-colors"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Ou lien du contrat (optionnel)</label>
-                              <Input type="url" placeholder="https://..." value={subContractUrl} onChange={e => setSubContractUrl(e.target.value)} />
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-2 pt-2 sticky bottom-0 bg-white pb-2 z-10">
-                              <button onClick={() => setIsEditingSub(false)} className="flex-1 px-3 py-2 text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
-                              <button onClick={handleUpdateSubscription} className="flex-1 bg-emerald-800 text-white px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider">Enregistrer</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <button onClick={() => {
-                            setSubStartDate(stats.subscription!.startDate.split('T')[0]);
-                            setSubCommitmentDate(stats.subscription!.commitmentEndDate ? stats.subscription!.commitmentEndDate.split('T')[0] : '');
-                            setSubContractUrl(stats.subscription!.contractUrl || '');
-                            setIsEditingSub(true);
-                          }} className="w-full mt-4 border border-zinc-200 text-zinc-500 hover:text-zinc-900 hover:border-zinc-300 rounded-xl py-2 text-xs font-black uppercase text-zinc-500 tracking-wider transition-colors">
-                            Modifier l'abonnement
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        <p className="text-xs text-zinc-500 font-medium px-1">Aucun abonnement actif.</p>
-                        {isAssigningPlan ? (
-                          <div className="space-y-3 bg-zinc-50 p-4 rounded-3xl border border-zinc-200 shadow-sm max-h-[60vh] overflow-y-auto custom-scrollbar pr-2">
-                            <label className="block text-sm text-zinc-800 mb-2">Encaissement<select aria-label="Mode de règlement abonnement" value={billingMode} onChange={e=>setBillingMode(e.target.value as any)} className="w-full rounded-xl border bg-white p-3"><option value="manual">Interne / règlement manuel — actif immédiatement</option><option value="stripe" disabled={state.user?.role!=='owner'}>Stripe — en attente jusqu’au paiement confirmé</option></select></label>
-                            <select 
-                              value={selectedPlanId} 
-                              onChange={e => {
-                                const planId = e.target.value;
-                                setSelectedPlanId(planId);
-                                const plan = state.plans.find(p => p.id === planId);
-                                if (plan && plan.hasCommitment && plan.commitmentMonths) {
-                                  const start = new Date(subStartDate);
-                                  if (!isNaN(start.getTime())) {
-                                    start.setMonth(start.getMonth() + plan.commitmentMonths);
-                                    setSubCommitmentDate(start.toISOString().split('T')[0]);
-                                  }
-                                } else {
-                                  setSubCommitmentDate('');
-                                }
-                              }}
-                              className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-3 text-zinc-900 text-xs font-medium focus:outline-none focus:border-emerald-500 shadow-sm"
-                            >
-                              <option value="">Sélectionner une formule</option>
-                              {state.plans.filter(p => p.isActive !== false).map(p => <option key={p.id} value={p.id}>{p.name} - {p.price}€</option>)}
-                            </select>
-                            
-                            <div className="space-y-1">
-                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Date de début</label>
-                              <Input type="date" value={subStartDate} onChange={e => {
-                                const newDate = e.target.value;
-                                setSubStartDate(newDate);
-                                const plan = state.plans.find(p => p.id === selectedPlanId);
-                                if (plan && plan.hasCommitment && plan.commitmentMonths) {
-                                  const start = new Date(newDate);
-                                  if (!isNaN(start.getTime())) {
-                                    start.setMonth(start.getMonth() + plan.commitmentMonths);
-                                    setSubCommitmentDate(start.toISOString().split('T')[0]);
-                                  }
-                                }
-                              }} />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Fin d'engagement (optionnel)</label>
-                              <Input type="date" value={subCommitmentDate} onChange={e => setSubCommitmentDate(e.target.value)} />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Importer un contrat (PDF, Image)</label>
-                              <input 
-                                type="file" 
-                                accept=".pdf,image/*" 
-                                onChange={handleFileUpload}
-                                className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-black file:uppercase file:tracking-widest file:bg-emerald-500/10 file:text-emerald-800 hover:file:bg-emerald-500/20 transition-colors"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 ml-1">Ou lien du contrat (optionnel)</label>
-                              <Input type="url" placeholder="https://..." value={subContractUrl} onChange={e => setSubContractUrl(e.target.value)} />
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row gap-2 pt-2 sticky bottom-0 bg-zinc-50 pb-2 z-10">
-                              <button onClick={() => setIsAssigningPlan(false)} className="flex-1 px-3 py-2 text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 hover:text-zinc-900 transition-colors">Annuler</button>
-                              <button onClick={handleAssignSubscription} disabled={!selectedPlanId || billingBusy} className="flex-1 bg-emerald-800 text-white px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider disabled:opacity-50">Confirmer</button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <button onClick={() => setIsAssigningPlan(true)} className="w-full border border-dashed  text-zinc-500 hover:text-zinc-900 hover:border-zinc-300 rounded-3xl py-4 text-xs font-black uppercase text-zinc-500 tracking-wider transition-colors">
-                              + Assigner une formule
-                            </button>
-                            <button onClick={() => setShowOnboardingEmailModal(true)} className="w-full bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 rounded-3xl py-4 text-xs font-black uppercase text-zinc-500 tracking-wider transition-colors flex items-center justify-center gap-2">
-                              <MailIcon size={14} /> ENVOYER CONTRAT & PAIEMENT
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-    
-  </div>
-
-
-                  <section className="space-y-8">
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-800"><CreditCardIcon size={24} /></div>
-                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Finances & Facturation</h3>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                      <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm">
-                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Solde Total Payé</div>
-                        <div className="text-4xl font-black text-emerald-800">
-                          {state.payments?.filter(p => p.memberId === Number(selectedProfile.id)).reduce((sum, p) => sum + netPayment(p), 0) || 0}€
-                        </div>
-                      </div>
-                      <div className="bg-zinc-50 border border-zinc-200 rounded-3xl p-6 shadow-sm flex flex-col justify-center">
-                        <Button variant="primary" fullWidth onClick={handleCopyPaymentLink} disabled={isGeneratingLink} className="!py-4 mb-3">
-                          <LinkIcon size={16} className="mr-2" /> {isGeneratingLink ? "GÉNÉRATION..." : "COPIER LIEN DE PAIEMENT"}
-                        </Button>
-                        <p className="text-[10px] text-zinc-500 text-center">Envoyez ce lien à votre client pour un paiement en ligne sécurisé via Stripe.</p>
-                      </div>
-                    </div>
-
-                    <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-[40px] p-8 shadow-sm">
-                      <div className="flex justify-between items-center mb-6">
-                        <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Historique des prélèvements & paiements</h4>
-                        <Button variant="secondary" className="!py-2 !px-4 !text-[10px] !rounded-xl" onClick={() => setIsAddingPayment(!isAddingPayment)}>
-                          {isAddingPayment ? 'ANNULER' : '+ AJOUTER PAIEMENT'}
-                        </Button>
-                      </div>
-
-                      {isAddingPayment && (
-                        <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-2xl p-6 mb-6 shadow-sm">
-                          <h5 className="text-xs font-black text-zinc-900 uppercase tracking-widest mb-4">Nouveau Paiement</h5>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                            <div>
-                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Montant (€)</label>
-                              <Input type="number" value={newPayment.amount || ''} onChange={(e) => setNewPayment({...newPayment, amount: Number(e.target.value)})} placeholder="Ex: 50" />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Date</label>
-                              <Input type="date" value={newPayment.date || ''} onChange={(e) => setNewPayment({...newPayment, date: e.target.value})} />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Méthode</label>
-                              <select 
-                                className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-emerald-500 shadow-sm"
-                                value={newPayment.method} 
-                                onChange={(e) => setNewPayment({...newPayment, method: e.target.value as any})}
-                              >
-                                <option value="card">Carte Bancaire</option>
-                                <option value="cash">Espèces</option>
-                                <option value="transfer">Virement</option>
-                                <option value="sepa">Prélèvement SEPA</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Catégorie</label>
-                              <select 
-                                className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-emerald-500 shadow-sm"
-                                value={newPayment.category || 'other'} 
-                                onChange={(e) => setNewPayment({...newPayment, category: e.target.value as any})}
-                              >
-                                <option value="subscription">Abonnement</option>
-                                <option value="coaching">Coaching</option>
-                                <option value="boutique">Boutique</option>
-                                <option value="other">Autre</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Statut</label>
-                              <select 
-                                className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-3 text-zinc-900 text-sm focus:outline-none focus:border-emerald-500 shadow-sm"
-                                value={newPayment.status} 
-                                onChange={(e) => setNewPayment({...newPayment, status: e.target.value as any})}
-                              >
-                                <option value="pending">En attente — à confirmer</option>
-                              </select>
-                            </div>
-                          </div>
-                          <Button variant="primary" fullWidth onClick={handleAddPayment} disabled={!newPayment.amount || billingBusy}>
-                            ENREGISTRER LE PAIEMENT
-                          </Button>
-                        </div>
-                      )}
-                      
-                      {(state.payments?.filter(p => p.memberId === Number(selectedProfile.id))?.length || 0) > 0 ? (
-                        <div className="space-y-4">
-                          {(state.payments || []).filter(p => p.memberId === Number(selectedProfile.id))
-                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                            .map(payment => {
-                              const invoice = state.invoices?.find(inv => inv.paymentId === payment.id);
-                              return (
-                                <div key={payment.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-2xl gap-4 shadow-sm">
-                                  <div>
-                                    <div className="flex items-center gap-3 mb-1">
-                                      <span className="text-lg font-black text-zinc-900">{payment.amount}€</span>
-                                      <Badge variant={payment.status === 'paid' ? 'success' : payment.status === 'pending' ? 'orange' : 'dark'}>
-                                        {paymentStatusLabels[payment.status]}
-                                      </Badge>
-                                    </div>
-                                    <div className="text-xs text-zinc-500">
-                                      {new Date(payment.date).toLocaleDateString('fr-FR')} • {payment.method === 'card' ? 'Carte Bancaire' : payment.method === 'sepa' ? 'Prélèvement SEPA' : payment.method === 'cash' ? 'Espèces' : 'Virement'}
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0">
-                                    {['pending','failed'].includes(payment.status) && (
-                                      <>
-                                        {(payment.method === 'card' || payment.method === 'sepa') && isStripeConnected && state.user?.role==='owner' && (
-                                          <>
-                                            <Button 
-                                              variant="secondary" 
-                                              className="!py-2 !px-3 !text-[10px] !rounded-xl text-emerald-800 border-emerald-500/30 hover:bg-emerald-500/10"
-                                              onClick={() => handleCharge(payment)}
-                                              disabled={isCharging === payment.id}
-                                            >
-                                              <CreditCardIcon size={14} className="mr-1" /> 
-                                              {isCharging === payment.id ? "EN COURS..." : "PRÉLEVER"}
-                                            </Button>
-                                            <Button 
-                                              variant="secondary" 
-                                              className="!py-2 !px-3 !text-[10px] !rounded-xl text-blue-800 border-blue-500/30 hover:bg-blue-500/10"
-                                              onClick={() => handleGeneratePaymentLink(payment)}
-                                              disabled={isGeneratingLinkForPayment === payment.id}
-                                            >
-                                              <LinkIcon size={14} className="mr-1" /> 
-                                              {isGeneratingLinkForPayment === payment.id ? "GÉNÉRATION..." : "LIEN"}
-                                            </Button>
-                                          </>
-                                        )}
-                                        <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl text-amber-800 border-orange-500/30 hover:bg-orange-500/10" onClick={() => handleRemind(payment)}>
-                                          <BellIcon size={14} className="mr-1" /> RELANCER
-                                        </Button>
-                                      </>
-                                    )}
-                                    
-                                    {payment.status === 'pending' && ['cash','transfer'].includes(payment.method) && <Button variant="secondary" onClick={() => handleManualPayment(payment)}>Encaisser manuellement</Button>}
-                                    {invoice ? (
-                                      <Button variant="secondary" className="!py-2 !px-3 !text-[10px] !rounded-xl" onClick={() => handleDownloadInvoice(invoice)}>
-                                        <DownloadIcon size={14} className="mr-1" /> JUSTIFICATIF
-                                      </Button>
-                                    ) : (
-                                      <Button variant="secondary" disabled={payment.status!=='paid'} className="!py-2 !px-3 !text-[10px] !rounded-xl" onClick={() => handleGenerateInvoice(payment)}>
-                                        <FileTextIcon size={14} className="mr-1" /> GÉNÉRER JUSTIFICATIF
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-zinc-500 text-sm italic">
-                          Aucun paiement enregistré pour ce membre.
-                        </div>
-                      )}
-                    </div>
-                  </section>
-</div>
-                  )}
+                  <MemberBilling
+state={state}
+                    memberTab={memberTab}
+                    adminSection={adminSection}
+                    selectedProfile={selectedProfile}
+                    billingBusy={billingBusy}
+                    handleUpdateCredits={handleUpdateCredits}
+                    handleUpdateSessionCredits={handleUpdateSessionCredits}
+                    stats={stats}
+                    isEditingSub={isEditingSub}
+                    subStartDate={subStartDate}
+                    setSubStartDate={setSubStartDate}
+                    subCommitmentDate={subCommitmentDate}
+                    setSubCommitmentDate={setSubCommitmentDate}
+                    handleFileUpload={handleFileUpload}
+                    subContractUrl={subContractUrl}
+                    setSubContractUrl={setSubContractUrl}
+                    setIsEditingSub={setIsEditingSub}
+                    handleUpdateSubscription={handleUpdateSubscription}
+                    isAssigningPlan={isAssigningPlan}
+                    billingMode={billingMode}
+                    setBillingMode={setBillingMode}
+                    selectedPlanId={selectedPlanId}
+                    setSelectedPlanId={setSelectedPlanId}
+                    setIsAssigningPlan={setIsAssigningPlan}
+                    handleAssignSubscription={handleAssignSubscription}
+                    setShowOnboardingEmailModal={setShowOnboardingEmailModal}
+                    handleCopyPaymentLink={handleCopyPaymentLink}
+                    isGeneratingLink={isGeneratingLink}
+                    setIsAddingPayment={setIsAddingPayment}
+                    isAddingPayment={isAddingPayment}
+                    newPayment={newPayment}
+                    setNewPayment={setNewPayment}
+                    handleAddPayment={handleAddPayment}
+                    isStripeConnected={isStripeConnected}
+                    handleCharge={handleCharge}
+                    isCharging={isCharging}
+                    handleGeneratePaymentLink={handleGeneratePaymentLink}
+                    isGeneratingLinkForPayment={isGeneratingLinkForPayment}
+                    handleRemind={handleRemind}
+                    handleManualPayment={handleManualPayment}
+                    handleDownloadInvoice={handleDownloadInvoice}
+                    handleGenerateInvoice={handleGenerateInvoice}
+                  />
 
                   {/* COACHING HISTORY */}
-                  {memberTab === 'administrative' && adminSection === 'profile' && (
-<section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-  <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Profil Adhérent</h3>
-  <div className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
-    <h4 className="text-base font-semibold text-zinc-900">Accès Velatra</h4>
-    <p className="mt-2 break-all text-sm text-zinc-700">Email : {selectedProfile.email || 'Non renseigné'}</p>
-    <p className="mt-1 text-sm text-zinc-700">Référent : {assignedCoach?.name || (resolveAccountType(state.currentClub) === 'studio' ? 'Coach à attribuer' : 'Indisponible')}</p>
-    <p className="mt-1 text-sm text-zinc-700">Lien de connexion : {window.location.origin}/login</p>
-    <div className="mt-3 flex flex-wrap gap-2">
-      <button type="button" onClick={handleCopyLoginLink} className="min-h-11 rounded-lg border border-zinc-300 px-3 text-sm font-semibold text-zinc-900 focus-visible:ring-2 focus-visible:ring-emerald-800">Copier le lien de connexion</button>
-      <button type="button" onClick={handleResetMemberPassword} disabled={!selectedProfile.email || isSendingAccessEmail} aria-busy={isSendingAccessEmail} className="min-h-11 rounded-lg border border-emerald-700 px-3 text-sm font-semibold text-emerald-900 focus-visible:ring-2 focus-visible:ring-emerald-800 disabled:opacity-50">{isSendingAccessEmail ? 'Envoi…' : 'Renvoyer l’email d’accès'}</button>
-    </div>
-  </div>
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-    {/* Profile & Notes */}
-    <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-4 shadow-sm">
-                    <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Profil & Objectifs</h3>
+                  <MemberProfile
+memberTab={memberTab}
+                    adminSection={adminSection}
+                    selectedProfile={selectedProfile}
+                    assignedCoach={assignedCoach}
+                    state={state}
+                    handleCopyLoginLink={handleCopyLoginLink}
+                    handleResetMemberPassword={handleResetMemberPassword}
+                    isSendingAccessEmail={isSendingAccessEmail}
+                    stats={stats}
+                    handleEditProgram={handleEditProgram}
+                  />
+<MemberProgress
+desktop={desktop}
+                    memberTab={memberTab}
+                    newScan={newScan}
+                    setNewScan={setNewScan}
+                    handleSaveScan={handleSaveScan}
+                    state={state}
+                    selectedProfile={selectedProfile}
+                    selectedDateForPhoto={selectedDateForPhoto}
+                    setSelectedDateForPhoto={setSelectedDateForPhoto}
+                    setSelectedEvolutionPhoto={setSelectedEvolutionPhoto}
+                    weightHistory={weightHistory}
+                    chartData={chartData}
+                    CustomTooltip={CustomTooltip}
+                    stats={stats}
+                    handleDeleteScan={handleDeleteScan}
+                  />
+<MemberCoaching
+desktop={desktop}
+                    coachingView={coachingView}
+                    memberTab={memberTab}
+                    selectedProfile={selectedProfile}
+                    state={state}
+                    stats={stats}
+                    hasDuration={hasDuration}
+                    progCompletion={progCompletion}
+                    currentWeek={currentWeek}
+                    currentSession={currentSession}
+                    showToast={showToast}
+                    setState={setState}
+                    setShowProgramOptions={setShowProgramOptions}
+                    showProgramOptions={showProgramOptions}
+                    setShowAssignProgramTemplateModal={setShowAssignProgramTemplateModal}
+                    canUseAI={canUseAI}
+                    openAIGeneratorModal={openAIGeneratorModal}
+                    isGeneratingProgram={isGeneratingProgram}
+                    handleEditProgram={handleEditProgram}
+                    visibleCoachingLogs={visibleCoachingLogs}
+                    setSelectedLog={setSelectedLog}
+                    setVisibleCoachingLogs={setVisibleCoachingLogs}
+                    isGeneratingReport={isGeneratingReport}
+                    generatedReport={generatedReport}
+                    handleGenerateReport={handleGenerateReport}
+                    isDetectingStagnation={isDetectingStagnation}
+                    stagnationResult={stagnationResult}
+                    handleDetectStagnation={handleDetectStagnation}
+                  />
                     
-                    {(selectedProfile.email || selectedProfile.phone) && (
-                      <div className="space-y-3 mb-6 pb-4 border-b ">
-                        {selectedProfile.email && (
-                          <div>
-                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Email</div>
-                            <div className="text-sm font-bold text-zinc-900">{selectedProfile.email}</div>
-                          </div>
-                        )}
-                        {selectedProfile.phone && (
-                          <div>
-                            <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Téléphone</div>
-                            <div className="text-sm font-bold text-zinc-900">{selectedProfile.phone}</div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Âge</div>
-                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.profileMeasurementsPending ? 'À compléter' : `${selectedProfile.age} ans`}</div>
-                      </div>
-                      {selectedProfile.birthDate && (
-                        <div>
-                          <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Date de naissance</div>
-                          <div className="text-sm font-bold text-zinc-900">{new Date(selectedProfile.birthDate).toLocaleDateString()}</div>
-                        </div>
-                      )}
-                      <div>
-                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Sexe</div>
-                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.profileMeasurementsPending ? 'À compléter' : selectedProfile.gender === 'M' ? 'Homme' : selectedProfile.gender === 'F' ? 'Femme' : 'Autre'}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Taille</div>
-                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.profileMeasurementsPending ? 'À compléter' : `${selectedProfile.height} cm`}</div>
-                      </div>
-                      <div>
-                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Poids Initial</div>
-                        <div className="text-sm font-bold text-zinc-900">{selectedProfile.profileMeasurementsPending ? 'À compléter' : `${selectedProfile.weight} kg`}</div>
-                      </div>
-                    </div>
-                    {selectedProfile.objectifs && selectedProfile.objectifs.length > 0 && (
-                      <div>
-                        <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Objectifs</div>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedProfile.objectifs.map((obj, idx) => (
-                            <span key={idx} className="px-2 py-1 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-full text-[9px] font-bold text-zinc-900 uppercase tracking-wider shadow-sm">
-                              {obj}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {selectedProfile.notes && (
-                    <div className="bg-zinc-50 border border-zinc-200 p-6 rounded-3xl space-y-2 shadow-sm">
-                      <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Notes d'Inscription</h3>
-                      <p className="text-xs text-zinc-500 leading-relaxed italic">"{selectedProfile.notes}"</p>
-                    </div>
-                  )}
-
-                  {/* Remarks Display */}
-                  {stats.program?.memberRemarks && (
-                    <div className="bg-orange-500/10 border border-orange-500/20 p-6 rounded-3xl space-y-3">
-                       <div className="flex items-center gap-2 text-orange-500">
-                          <MessageCircleIcon size={18} />
-                          <span className="text-xs font-black uppercase text-zinc-500 tracking-wider">Feedback Adhérent</span>
-                       </div>
-                       <p className="text-sm font-bold text-zinc-900 italic leading-relaxed">"{stats.program.memberRemarks}"</p>
-                       <div className="flex flex-col sm:flex-row gap-2">
-                         <Button variant="secondary" className="flex-1 !py-2 !text-[9px] !rounded-xl !bg-zinc-50 \!backdrop-blur-xl \!border-zinc-200 !text-zinc-900 hover:!bg-white shadow-sm" onClick={async () => {
-                           if (stats.program) {
-                             try {
-                               await updateDoc(doc(db, "programs", stats.program.id.toString()), { memberRemarks: "" });
-                               // No need to update local state manually as onSnapshot will handle it, 
-                               // but for immediate UI feedback we might want to refresh stats if they are derived from state
-                             } catch (err) {
-                               console.error("Error clearing memberRemarks:", err);
-                             }
-                           }
-                         }}>
-                            MARQUER COMME TRAITÉ
-                         </Button>
-                         <Button variant="primary" className="flex-1 !py-2 !text-[9px] !rounded-xl" onClick={() => handleEditProgram(selectedProfile)}>
-                            ADAPTER LE PLAN
-                         </Button>
-                       </div>
-                    </div>
-                  )}
-
-    
-  </div>
-</section>
-)}
-{memberTab === 'progress' && (
-<section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-4">
-    <div>
-      <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Suivi & Mensurations</h3>
-      <p className="text-xs text-zinc-500 mt-1">Gérez le scan corporel, l'évolution en photos et l'historique biométrique.</p>
-    </div>
-  </div>
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      <div className="space-y-6 bg-zinc-50 p-8 rounded-[32px] border border-zinc-200">
-        <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500 mb-2">Nouveau Scan</h3>
-        <div className="space-y-4">
-          <Input placeholder="Poids (kg)" type="number" className="!bg-zinc-50" value={newScan.weight || ''} onChange={e => setNewScan({...newScan, weight: e.target.value})} />
-          <div className="grid grid-cols-2 gap-4">
-            <Input placeholder="Gras (%)" type="number" className="!bg-zinc-50" value={newScan.fat || ''} onChange={e => setNewScan({...newScan, fat: e.target.value})} />
-            <Input placeholder="Muscle (kg)" type="number" className="!bg-zinc-50" value={newScan.muscle || ''} onChange={e => setNewScan({...newScan, muscle: e.target.value})} />
-          </div>
-          <Button variant="success" fullWidth onClick={handleSaveScan} className="!py-4 shadow-xl shadow-emerald-500/10">
-            <SaveIcon size={16} className="mr-2" /> ENREGISTRER SCAN
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {(() => {
-          const memberPhotos = state.progressPhotos?.filter(p => p.memberId === Number(selectedProfile.id) && p.visibility === 'coach') || [];
-          const photosByDate = memberPhotos.reduce((acc, photo) => {
-            const date = photo.date.split('T')[0];
-            if (!acc[date]) acc[date] = photo;
-            return acc;
-          }, {} as Record<string, import('../types').ProgressPhoto>);
-          const sortedDates = Object.keys(photosByDate).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
-          const latestDate = sortedDates[0];
-          
-          const activeDate = selectedDateForPhoto || latestDate;
-          const activePhoto = activeDate ? photosByDate[activeDate] : null;
-
-          if (!activePhoto) {
-            return (
-              <div className="bg-zinc-50 border border-zinc-200 rounded-[32px] p-8 shadow-sm text-center">
-                <ImageIcon size={32} className="mx-auto text-zinc-300 mb-3" />
-                <h4 className="font-black text-zinc-900 text-sm uppercase mb-1">Aucune photo d'évolution</h4>
-                <p className="text-xs text-zinc-500">Le membre n'a pas encore partagé ses photos d'évolution avec vous.</p>
-              </div>
-            );
-          }
-
-          return (
-            <div className="bg-zinc-50 border border-zinc-200 rounded-[32px] p-8 shadow-sm space-y-4">
-              <div className="flex justify-between items-center mb-4">
-                <span className="font-black text-zinc-900 text-sm uppercase font-display italic">Évolution corporelle</span>
-                
-                {sortedDates.length > 1 ? (
-                  <select 
-                    value={activeDate} 
-                    onChange={(e) => setSelectedDateForPhoto(e.target.value)}
-                    className="text-xs bg-white border border-zinc-200 rounded-lg px-2.5 py-1.5 font-bold outline-none focus:border-emerald-500 cursor-pointer text-zinc-800"
-                  >
-                    {sortedDates.map(d => (
-                      <option key={d} value={d}>
-                        {new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="text-[10px] font-bold text-zinc-500 uppercase bg-zinc-200 px-2 py-1 rounded">
-                    {new Date(activeDate).toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                {['frontUrl', 'sideUrl', 'backUrl'].map((type) => {
-                  const url = (activePhoto as any)[type];
-                  return (
-                    <div 
-                      key={type} 
-                      className="aspect-[3/4] bg-zinc-200 rounded-xl overflow-hidden cursor-pointer hover:opacity-90 transition-opacity border border-zinc-300/50 shadow-sm relative group" 
-                      onClick={() => url && setSelectedEvolutionPhoto(url)}
-                    >
-                      {url ? (
-                        <>
-                          <img src={url} alt={type} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                            <span className="text-[10px] text-white font-bold uppercase tracking-wider">Agrandir</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-400">
-                          <ImageIcon size={16} />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              
-              {activePhoto.measurements && Object.keys(activePhoto.measurements).length > 0 && (
-                <div className="bg-white rounded-2xl p-4 border border-zinc-200">
-                  <h4 className="text-xs font-black uppercase text-zinc-500 tracking-wider mb-3">Mensurations (cm)</h4>
-                  <div className="grid grid-cols-3 gap-y-3 gap-x-2">
-                    {[
-                      { key: 'chest', label: 'Poitrine' },
-                      { key: 'waist', label: 'Taille' },
-                      { key: 'hips', label: 'Hanches' },
-                      { key: 'arm', label: 'Bras' },
-                      { key: 'thigh', label: 'Cuisse' },
-                      { key: 'calf', label: 'Mollet' }
-                    ].map(m => activePhoto.measurements?.[m.key as any] ? (
-                      <div key={m.key}>
-                        <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{m.label}</div>
-                        <div className="text-sm font-black text-zinc-900">{activePhoto.measurements[m.key as any] || '--'}</div>
-                      </div>
-                    ) : null)}
-                  </div>
-                </div>
-              )}
-
-              {sortedDates.length > 1 && (
-                <div className="text-center pt-2">
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{sortedDates.length} relevés photos disponibles</span>
-                </div>
-              )}
-            </div>
-          );
-        })()}
-      </div>
-    </div>
-
-</section>
-)}
-{memberTab === 'coaching' && (
-                  <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    {selectedProfile.firebaseUid && <CoachFollowup memberUid={selectedProfile.firebaseUid} programs={state.programs.filter(program => program.memberId === selectedProfile.id)} section="journey" />}
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
-                                        <div className="space-y-4">
-                    <div className="flex items-center justify-between px-1">
-                       <h3 className="text-xs font-black uppercase text-zinc-500 tracking-widest text-emerald-500">Plan Actif</h3>
-                    </div>
-                    {stats.program ? (
-                      <div className="bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
-                        {/* Title & Phase Badge in a single line */}
-                        <div className="flex items-start justify-between gap-4 mb-2">
-                          <div className="font-black text-zinc-900 text-lg uppercase italic tracking-tight leading-tight shrink">
-                            {stats.program.name}
-                          </div>
-                          <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 bg-zinc-100/80 px-2.5 py-1 rounded-full shrink-0">
-                            {hasDuration ? `${progCompletion}% complété` : `Semaine ${currentWeek} • Jour ${currentSession}`}
-                          </div>
-                        </div>
-
-                        {/* Progress Bar (Thinner and sleeker) */}
-                        <div className="my-3">
-                          {hasDuration ? (
-                            <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden border border-zinc-200/50">
-                              <div className="h-full bg-emerald-500 rounded-full transition-all duration-1000" style={{ width: `${progCompletion}%` }} />
-                            </div>
-                          ) : (
-                            <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden border border-zinc-200/50 flex">
-                               <div className="h-full bg-emerald-500/80 w-full rounded-full" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Surcharge Progressive IA (Clean modern switch list item) */}
-                        <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div 
-                              className="w-8 h-4 bg-emerald-500 rounded-full relative cursor-pointer transition-colors" 
-                              onClick={() => showToast("Surcharge active : progression de charge automatique réglée à +2.5kg", "info")}
-                            >
-                              <div className="absolute right-0.5 top-0.5 w-3 h-3 bg-white rounded-full shadow-sm transition-all" />
-                            </div>
-                            <div>
-                              <span className="text-[10px] font-black text-zinc-900 uppercase tracking-widest block leading-tight">Surcharge Progressive IA</span>
-                              <span className="text-[8px] text-zinc-400 font-extrabold uppercase tracking-widest block mt-0.5">+2.5kg automatique par séance validée</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Action Buttons: 1 Giant CTA, 2 auxiliary actions */}
-                        <div className="mt-5 space-y-2">
-                          {/* Play Action */}
-                          <Button 
-                            variant="primary" 
-                            onClick={() => {
-                              setState(s => ({ ...s, workout: stats.program, workoutMember: selectedProfile }));
-                            }} 
-                            className="!py-3.5 !text-xs w-full !rounded-2xl shadow-md font-black uppercase tracking-wider flex items-center justify-center gap-2 text-zinc-900 !bg-emerald-500 hover:!bg-emerald-600 border-none select-none cursor-pointer"
-                          >
-                            <PlayCircleIcon size={16} />
-                            LANCER SÉANCE COACHING
-                          </Button>
-
-                          {/* Auxiliary controls */}
-                          <div className="flex gap-2">
-                            {/* Aperçu */}
-                            <button 
-                              type="button"
-                              onClick={() => setState({...state, viewingProg: stats.program})} 
-                              className="flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-800 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                            >
-                              <EyeIcon size={12} />
-                              Aperçu du plan
-                            </button>
-
-                            {/* Gérer (Saves space by bundling edit/ai/assign and whatsapp) */}
-                            <button 
-                              type="button"
-                              onClick={() => setShowProgramOptions(!showProgramOptions)} 
-                              className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest border rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                                showProgramOptions 
-                                  ? 'bg-zinc-900 border-zinc-900 text-white shadow-inner' 
-                                  : 'bg-zinc-50 hover:bg-zinc-100 border-zinc-200 text-zinc-800'
-                              }`}
-                            >
-                              <SettingsIcon size={12} />
-                              {showProgramOptions ? 'Masquer Options' : 'Options & Gérer'}
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Expanded Program Actions (Clean grid, extremely professional) */}
-                        {showProgramOptions && (
-                          <div className="mt-4 pt-4 border-t border-zinc-105 grid grid-cols-2 gap-2 animate-in slide-in-from-top-2 duration-200">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowAssignProgramTemplateModal(true);
-                                setShowProgramOptions(false);
-                              }}
-                              className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-50 hover:bg-emerald-500/10 border border-zinc-150 text-left transition-all hover:border-emerald-500/20 cursor-pointer group"
-                            >
-                              <PlusIcon size={14} className="text-emerald-500 shrink-0 group-hover:scale-110 transition-transform" />
-                              <div>
-                                <div className="text-[9px] font-black uppercase text-zinc-900 tracking-wider">Assigner Modèle</div>
-                                <div className="text-[7px] text-zinc-400 font-bold uppercase mt-0.5">Importer de la base</div>
-                              </div>
-                            </button>
-
-                            {canUseAI && <button
-                              type="button"
-                              onClick={() => {
-                                openAIGeneratorModal();
-                                setShowProgramOptions(false);
-                              }}
-                              disabled={isGeneratingProgram}
-                              className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-50 hover:bg-amber-500/10 border border-zinc-150 text-left transition-all hover:border-amber-500/20 cursor-pointer group disabled:opacity-50"
-                            >
-                              <SparklesIcon size={14} className="text-amber-500 shrink-0 group-hover:scale-110 transition-transform" />
-                              <div>
-                                <div className="text-[9px] font-black uppercase text-zinc-900 tracking-wider">Générer via IA</div>
-                                <div className="text-[7px] text-zinc-400 font-bold uppercase mt-0.5">Moteur Velatra AI</div>
-                              </div>
-                            </button>}
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                handleEditProgram(selectedProfile);
-                                setShowProgramOptions(false);
-                              }}
-                              className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-50 hover:bg-indigo-500/10 border border-zinc-150 text-left transition-all hover:border-indigo-500/20 cursor-pointer group"
-                            >
-                              <LayersIcon size={14} className="text-indigo-500 shrink-0 group-hover:scale-110 transition-transform" />
-                              <div>
-                                <div className="text-[9px] font-black uppercase text-zinc-900 tracking-wider">Créer/Modifier Ext.</div>
-                                <div className="text-[7px] text-zinc-400 font-bold uppercase mt-0.5">Éditeur à la carte</div>
-                              </div>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowProgramOptions(false);
-                                if (!selectedProfile.phone) return showToast("Adhérent sans numéro de téléphone", "error");
-                                const text = encodeURIComponent(`Salut ${selectedProfile.name} ! Ton nouveau programme ${stats.program?.name} est disponible sur l'application. Bon entraînement ! 💪`);
-                                window.open(`https://wa.me/${selectedProfile.phone.replace(/[^0-9]/g, '')}?text=${text}`, '_blank');
-                              }}
-                              className="flex items-center gap-2.5 p-3 rounded-xl bg-zinc-50 hover:bg-teal-500/10 border border-zinc-150 text-left transition-all hover:border-teal-500/20 cursor-pointer group"
-                            >
-                              <PhoneIcon size={14} className="text-emerald-500 shrink-0 group-hover:scale-110 transition-transform" />
-                              <div>
-                                <div className="text-[9px] font-black uppercase text-zinc-900 tracking-wider">Alerte WhatsApp</div>
-                                <div className="text-[7px] text-zinc-400 font-bold uppercase mt-0.5">Partagé avec l'athlète</div>
-                              </div>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="bg-white border border-dashed border-zinc-200 rounded-3xl p-6 text-center shadow-sm">
-                        <div className="w-12 h-12 rounded-2xl bg-zinc-50 flex items-center justify-center text-zinc-400 mx-auto mb-3 border border-zinc-100">
-                          <DumbbellIcon size={20} />
-                        </div>
-                        <h4 className="font-extrabold text-zinc-900 text-sm uppercase tracking-wider mb-1">Aucun cycle en cours</h4>
-                        <p className="text-[11px] text-zinc-500 max-w-xs mx-auto mb-5 leading-normal">
-                          Planifiez le parcours d'entraînement pour cet athlète en créant son programme.
-                        </p>
-
-                        <div className="grid grid-cols-3 gap-2">
-                          <button 
-                            type="button"
-                            onClick={() => handleEditProgram(selectedProfile)} 
-                            className="flex flex-col items-center justify-center p-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 transition-all text-center cursor-pointer group"
-                          >
-                            <LayersIcon size={14} className="text-zinc-600 mb-1.5 group-hover:scale-110 transition-transform" />
-                            <span className="text-[8px] font-black uppercase tracking-wider text-zinc-700 leading-tight">À la carte</span>
-                            <span className="text-[7px] text-zinc-400 font-extrabold uppercase mt-0.5">Créer</span>
-                          </button>
-
-                          {canUseAI && <button
-                            type="button"
-                            onClick={openAIGeneratorModal} 
-                            disabled={isGeneratingProgram} 
-                            className={`flex flex-col items-center justify-center p-3 rounded-xl bg-gradient-to-br from-emerald-500/5 to-emerald-600/5 hover:from-emerald-500/15 hover:to-emerald-600/15 border border-emerald-500/10 hover:border-emerald-500/20 transition-all text-center cursor-pointer group ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            <SparklesIcon size={14} className="text-emerald-500 mb-1.5 group-hover:scale-110 transition-transform" />
-                            <span className="text-[8px] font-black uppercase tracking-wider text-emerald-600 leading-tight">Moteur IA</span>
-                            <span className="text-[7px] text-emerald-400 font-extrabold uppercase mt-0.5">Générer</span>
-                          </button>}
-
-                          <button 
-                            type="button"
-                            onClick={() => setShowAssignProgramTemplateModal(true)} 
-                            className="flex flex-col items-center justify-center p-3 rounded-xl bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 transition-all text-center cursor-pointer group"
-                          >
-                            <PlusIcon size={14} className="text-zinc-600 mb-1.5 group-hover:scale-110 transition-transform" />
-                            <span className="text-[8px] font-black uppercase tracking-wider text-zinc-700 leading-tight">Modèle</span>
-                            <span className="text-[7px] text-zinc-400 font-extrabold uppercase mt-0.5">Importer</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CalendarIcon size={24} /></div>
-                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Historique des Séances</h3>
-                    </div>
-                    
-                      <div className="bg-zinc-50 border border-zinc-200 rounded-[40px] p-8 shadow-sm">
-                        {(() => {
-                          const allLogs = (state.logs || []).filter(log => log.memberId === Number(selectedProfile.id)).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                          if (allLogs.length === 0) {
-                            return (
-                              <div className="text-center py-8 text-zinc-500 text-sm italic">
-                                Aucune séance enregistrée pour ce membre.
-                              </div>
-                            );
-                          }
-                          return (
-                          <div className="space-y-4">
-                            {allLogs.slice(0, visibleCoachingLogs).map(log => {
-                              const isAutonomous = !log.isCoaching;
-                              const colorTheme = isAutonomous ? 'blue' : 'emerald';
-                              const bgColorClass = isAutonomous ? 'bg-blue-50 border-blue-200' : 'bg-emerald-50 border-emerald-200';
-                              const labelColors = isAutonomous ? 'bg-blue-500/20 text-blue-600' : 'bg-emerald-500/20 text-emerald-600';
-                              
-                              return (
-                                <div key={log.id} className={`flex flex-col gap-3 p-4 backdrop-blur-xl border rounded-2xl shadow-sm ${bgColorClass}`}>
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <div className="text-sm font-bold text-zinc-900">{new Date(log.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-                                      <div className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">
-                                        {isAutonomous ? 'Séance en Autonomie' : 'Séance Coaching'} • {log.dayName || 'Jour libre'} • Semaine {log.week}
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <span className={`px-3 py-1 rounded-full text-xs font-black uppercase text-zinc-500 tracking-wider ${labelColors}`}>
-                                        Terminée
-                                      </span>
-                                      <Button variant="secondary" className="!py-1 !px-2 !text-[10px] !rounded-lg bg-white/50 hover:bg-white" onClick={() => setSelectedLog(log)}>
-                                        VOIR RÉCAP
-                                      </Button>
-                                    </div>
-                                  </div>
-                                  {log.notes && (
-                                    <div className="mt-2 p-3 bg-white/50 rounded-lg border border-black/5">
-                                      <div className="flex items-start gap-2">
-                                        <MessageCircleIcon size={14} className={`mt-0.5 shrink-0 text-${colorTheme}-500`} />
-                                        <p className="text-xs text-zinc-600 leading-relaxed italic line-clamp-2">"{log.notes}"</p>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                            {allLogs.length > visibleCoachingLogs && (
-                              <Button variant="secondary" fullWidth onClick={() => setVisibleCoachingLogs(prev => prev + 5)} className="!mt-4 !py-3 !text-[10px] !rounded-xl">
-                                VOIR PLUS DE SÉANCES
-                              </Button>
-                            )}
-                          </div>
-                          );
-                        })()}
-                      </div>
-                  </section>
-                  )}
-
-                  {memberTab === 'coaching' && getProductCapabilities(state.currentClub, state.user).aiAssistance.usable && (
-                  <section className="space-y-8">
-                    <details className="va-member-assistance"><summary className="va-assistance-heading flex items-center gap-3">
-                       <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900"><BotIcon size={21} /></div>
-                       <span className="font-semibold">Programmation, nutrition et outils IA</span>
-                    </summary>
-
-                    <div className="va-assistance-grid grid grid-cols-1 gap-4 md:grid-cols-2">
-                      {/* Feature 1: Auto Program */}
-                      <div className="flex flex-col justify-between rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-                        <div>
-                          <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
-                            <LayersIcon size={17} className="text-emerald-800" /> Programme sportif
-                          </h4>
-                          <p className="mb-5 text-sm leading-relaxed text-zinc-700">Préparez un programme à partir des objectifs et du niveau de l’adhérent, puis vérifiez-le avant de l’attribuer.</p>
-                        </div>
-                        <div className="w-full space-y-2">
-                          <Button
-                            variant="secondary"
-                            fullWidth
-                            onClick={openAIGeneratorModal}
-                            disabled={isGeneratingProgram}
-                            className={`!min-h-11 !py-2.5 !text-sm !rounded-lg !border-emerald-200 !bg-emerald-50 !text-emerald-950 hover:!bg-emerald-100 transition-colors ${isGeneratingProgram ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            <SparklesIcon size={14} className="mr-2 inline" />
-                            {isGeneratingProgram ? 'Génération en cours…' : 'Préparer avec l’IA'}
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            fullWidth
-                            onClick={() => setShowAssignProgramTemplateModal(true)}
-                            className="!min-h-11 !py-2.5 !text-sm !rounded-lg !border-zinc-300 !bg-zinc-50 !text-zinc-800 hover:!bg-zinc-100 transition-colors"
-                          >
-                            <PlusIcon size={14} className="mr-2 inline" />
-                            Attribuer un modèle
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Feature 3: Auto Report */}
-                      <div className={`rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${isGeneratingReport ? 'opacity-60 pointer-events-none' : ''}`}>
-                        <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
-                          <BarChartIcon size={17} className="text-emerald-800" /> Rapport de progression
-                        </h4>
-                        <p className="mb-5 text-sm leading-relaxed text-zinc-700">Préparez un bilan à partir du poids, des mensurations et des performances de l’adhérent.</p>
-
-                        {generatedReport ? (
-                          <div className="space-y-4 relative z-10">
-                            <div className="bg-white border border-zinc-200 rounded-xl p-4 max-h-40 overflow-y-auto text-xs text-zinc-600 whitespace-pre-wrap">
-                              {generatedReport}
-                            </div>
-                            <div className="flex flex-col gap-2">
-                              <Button
-                                variant="primary"
-                                fullWidth
-                                className="!min-h-11 !py-2.5 !text-sm !rounded-lg !bg-[#25D366] hover:!bg-[#128C7E] border-none !text-zinc-950 flex items-center justify-center gap-2"
-                                onClick={() => {
-                                  const phone = selectedProfile.phone?.replace(/\D/g, '');
-                                  const url = phone
-                                    ? `https://wa.me/${phone}?text=${encodeURIComponent(generatedReport)}`
-                                    : `https://wa.me/?text=${encodeURIComponent(generatedReport)}`;
-                                  window.open(url, '_blank');
-                                }}
-                              >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                                </svg>
-                                Envoyer sur WhatsApp
-                              </Button>
-                              <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={handleGenerateReport} disabled={isGeneratingReport}>
-                                Régénérer le bilan
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={handleGenerateReport} disabled={isGeneratingReport}>
-                            {isGeneratingReport ? "Génération…" : "Générer le bilan"}
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Feature 4: Stagnation Detection */}
-                      <div className={`rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm ${isDetectingStagnation ? 'opacity-60 pointer-events-none' : ''}`}>
-                        <h4 className="mb-2 flex items-center gap-2 text-base font-semibold text-zinc-900">
-                          <TargetIcon size={17} className="text-emerald-800" /> Repérage d’un plateau
-                        </h4>
-                        <p className="mb-4 text-sm leading-relaxed text-zinc-700">Analysez les dernières séances afin d’identifier un éventuel ralentissement sur les exercices principaux.</p>
-
-                        {stagnationResult ? (
-                          <div className={`border rounded-xl p-3 flex flex-col gap-2 ${stagnationResult.hasStagnation ? 'bg-red-500/10 border-red-500/20' : 'bg-green-500/10 border-green-500/20'}`}>
-                            <span className={`text-sm font-semibold ${stagnationResult.hasStagnation ? 'text-red-800' : 'text-emerald-900'}`}>
-                              {stagnationResult.hasStagnation ? 'Stagnation détectée' : 'Progression OK'}
-                            </span>
-                            <p className="text-sm leading-relaxed text-zinc-700">{stagnationResult.advice}</p>
-                          </div>
-                        ) : (
-                          <Button variant="secondary" fullWidth className="!min-h-11 !py-2.5 !text-sm !rounded-lg" onClick={handleDetectStagnation} disabled={isDetectingStagnation}>
-                            {isDetectingStagnation ? "Analyse en cours…" : "Lancer l’analyse"}
-                          </Button>
-                        )}
-                      </div>
-
-                    </div>
-
-                    </details>
-                  </section>
-                  )}
-                  {memberTab === 'progress' && (
-                  <section className="space-y-8">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                      <div className="flex items-center gap-4">
-                         <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-500"><BarChartIcon size={24} /></div>
-                         <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Évolution Corporelle</h3>
-                      </div>
-
-                      <div className="flex gap-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                          <span className="text-[9px] font-black uppercase text-zinc-900 tracking-widest">Poids</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                          <span className="text-[9px] font-black uppercase text-zinc-900 tracking-widest">Muscle</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-blue-500" />
-                          <span className="text-[9px] font-black uppercase text-zinc-900 tracking-widest">Gras (%)</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-zinc-50 border border-zinc-200 rounded-[40px] p-6 h-80 relative overflow-hidden shadow-sm">
-                      {weightHistory.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={chartData}>
-                            <defs>
-                              <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                              </linearGradient>
-                              <linearGradient id="colorMuscle" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                              </linearGradient>
-                              <linearGradient id="colorFat" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
-                            <XAxis 
-                              dataKey="date" 
-                              stroke="#a1a1aa" 
-                              fontSize={10} 
-                              tickLine={false} 
-                              axisLine={false} 
-                              dy={10}
-                            />
-                            <YAxis 
-                              yAxisId="left"
-                              stroke="#a1a1aa" 
-                              fontSize={10} 
-                              tickLine={false} 
-                              axisLine={false} 
-                              dx={-10}
-                              domain={['dataMin - 2', 'dataMax + 2']}
-                            />
-                            <YAxis 
-                              yAxisId="right"
-                              orientation="right"
-                              stroke="#a1a1aa" 
-                              fontSize={10} 
-                              tickLine={false} 
-                              axisLine={false} 
-                              dx={10}
-                              domain={[0, 'dataMax + 5']}
-                            />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Area 
-                              yAxisId="left"
-                              type="monotone" 
-                              dataKey="weight" 
-                              name="Poids"
-                              stroke="#6366f1" 
-                              strokeWidth={4}
-                              fillOpacity={1} 
-                              fill="url(#colorWeight)" 
-                            />
-                            <Area 
-                              yAxisId="left"
-                              type="monotone" 
-                              dataKey="muscle" 
-                              name="Muscle"
-                              stroke="#10b981" 
-                              strokeWidth={4}
-                              fillOpacity={1} 
-                              fill="url(#colorMuscle)" 
-                            />
-                            <Area 
-                              yAxisId="right"
-                              type="monotone" 
-                              dataKey="fat" 
-                              name="Gras"
-                              stroke="#3b82f6" 
-                              strokeWidth={4}
-                              fillOpacity={1} 
-                              fill="url(#colorFat)" 
-                            />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-zinc-500 text-xs font-bold uppercase tracking-widest">
-                          Aucune donnée
-                        </div>
-                      )}
-                    </div>
-                  </section>
-                  )}
-
-                  {memberTab === 'progress' && (
-                  <section className="space-y-8">
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><DumbbellIcon size={24} /></div>
-                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Tableau des Records (PR)</h3>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      {stats.perfs.length > 0 ? stats.perfs.map(p => {
-                        const ex = (state.exercises || []).find(e => e.perfId === p.exId);
-                        return (
-                          <div key={p.id} className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 p-6 rounded-3xl flex justify-between items-center group hover:bg-white transition-all shadow-sm">
-                             <div>
-                               <div className="text-[9px] uppercase font-black text-emerald-500 tracking-widest mb-1">{ex?.cat || 'FORCE'}</div>
-                               <div className="font-black text-zinc-900 text-lg italic tracking-tight">{ex?.name || p.exId}</div>
-                             </div>
-                             <div className="text-right">
-                               <div className="text-2xl font-black text-zinc-900 tracking-tighter">{p.weight}kg</div>
-                               <div className="text-[10px] font-black text-zinc-900 uppercase tracking-widest">{p.reps} REPS</div>
-                             </div>
-                          </div>
-                        );
-                      }) : (
-                        <div className="col-span-full py-12 text-center bg-zinc-50 backdrop-blur-xl border border-dashed  rounded-[32px] text-[10px] uppercase font-black text-zinc-500 tracking-widest italic shadow-sm">Aucun PR enregistré</div>
-                      )}
-                    </div>
-                  </section>
-                  )}
-
-                  {memberTab === 'progress' && (
-                  <section className="space-y-8 pb-12">
-                    <div className="flex items-center gap-4">
-                       <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-500"><CheckIcon size={24} /></div>
-                       <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Journaux Biométriques</h3>
-                    </div>
-                    <div className="space-y-4">
-                       {stats.body.length > 0 ? stats.body.map(b => (
-                         <div key={b.id} className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 p-6 rounded-3xl flex justify-between items-center group hover:border-emerald-500/50 transition-all shadow-sm">
-                            <div className="flex flex-col">
-                              <span className="text-zinc-900 font-black text-sm uppercase tracking-widest italic">{new Date(b.date).toLocaleDateString('fr-FR', {month:'long', day:'numeric', year:'numeric'})}</span>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="text-[10px] text-zinc-900 font-black uppercase tracking-widest">Scan effectué en club</span>
-                                <button onClick={() => handleDeleteScan(b.id)} className="text-[10px] text-red-500/40 hover:text-red-500 font-black uppercase tracking-widest transition-colors opacity-0 group-hover:opacity-100">Supprimer</button>
-                              </div>
-                            </div>
-                            <div className="flex gap-10">
-                               <div className="text-center group-hover:scale-110 transition-transform">
-                                  <div className="text-[10px] font-black uppercase text-zinc-900 tracking-widest mb-1">POIDS</div>
-                                  <div className="text-xl font-black text-zinc-900">{b.weight}<span className="text-xs ml-0.5 opacity-50">KG</span></div>
-                               </div>
-                               <div className="text-center group-hover:scale-110 transition-transform">
-                                  <div className="text-[10px] font-black uppercase text-zinc-900 tracking-widest mb-1">GRAS</div>
-                                  <div className="text-xl font-black text-emerald-500">{b.fat}<span className="text-xs ml-0.5 opacity-50">%</span></div>
-                               </div>
-                               <div className="text-center group-hover:scale-110 transition-transform">
-                                  <div className="text-[10px] font-black uppercase text-zinc-900 tracking-widest mb-1">MUSCLE</div>
-                                  <div className="text-xl font-black text-emerald-500">{b.muscle}<span className="text-xs ml-0.5 opacity-50">KG</span></div>
-                               </div>
-                            </div>
-                         </div>
-                       )) : (
-                         <div className="py-12 text-center bg-zinc-50 backdrop-blur-xl border border-dashed  rounded-[32px] text-[10px] uppercase font-black text-zinc-500 tracking-widest italic shadow-sm">Aucun historique biométrique</div>
-                       )}
-                    </div>
-                  </section>
-                  )}
-                  {memberTab === 'communication' && (
-                    <section className="va-client-360-conversation" aria-label={`Conversation avec ${selectedProfile.name}`}>
-                      <ErrorBoundary><React.Suspense fallback={<p role="status" className="p-5 text-sm text-zinc-700">Ouverture de la conversation…</p>}>
-                        <ClientConversation state={state} setState={setState} showToast={showToast} embedded initialMemberId={Number(selectedProfile.id)} />
-                      </React.Suspense></ErrorBoundary>
-                    </section>
-                  )}
+                  <MemberMessages
+memberTab={memberTab}
+                    selectedProfile={selectedProfile}
+                    state={state}
+                    setState={setState}
+                    showToast={showToast}
+                  />
                   </ErrorBoundary>
                 </div>
               </div>
@@ -3756,13 +2267,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           </motion.div>
         );
       })()}
-      </AnimatePresence>,
-      document.body
-      )}
+      </AnimatePresence>
+      </Member360Mount>
 
-      {selectedProfile && memberTab === 'followup' && coachingNotes.trim() && createPortal(
+      {!desktop && selectedProfile && memberTab === 'followup' && coachingNotes.trim() && createPortal(
         <div className="va-client-360-floating-save">
-          <button type="button" onClick={handleSaveCoachingNotes} disabled={isSavingCoachingNotes || !coachingNotes.trim()} className="min-h-11 w-full rounded-xl bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-950">
+          <button type="button" onClick={handleSaveCoachingNotes} disabled={isSavingCoachingNotes || !coachingNotes.trim()} className="min-h-11 w-full rounded-xl bg-emerald-800 lg:bg-indigo-800 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-950 lg:focus-visible:ring-indigo-950">
             {isSavingCoachingNotes ? 'Enregistrement…' : 'Enregistrer la note'}
           </button>
         </div>, document.body
@@ -3775,7 +2285,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
+          className="m360-overlay fixed inset-0 bg-black/30 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
         >
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -3791,12 +2301,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               
               <div className="shrink-0">
                 <h2 className="text-2xl font-black mb-1 text-zinc-900 uppercase italic">Modifier Profil</h2>
-                <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-6">Informations de base de l'athlète</p>
+                <p className="text-[10px] text-emerald-500 lg:text-indigo-500 font-black uppercase tracking-widest mb-6">Informations de base de l'athlète</p>
               </div>
 
             <div className="space-y-5 overflow-y-auto custom-scrollbar pr-2 flex-1 min-h-0 pb-4">
               <div className="flex justify-center mb-6">
-                <div className="relative group w-24 h-24 rounded-[32px] bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-4xl font-black shadow-2xl overflow-hidden">
+                <div className="relative group w-24 h-24 rounded-[32px] bg-gradient-to-br from-emerald-500 lg:from-indigo-500 to-emerald-600 lg:to-indigo-600 flex items-center justify-center text-4xl font-black shadow-2xl overflow-hidden">
                   {editInfoData.avatar?.startsWith('http') ? (
                     <img src={editInfoData.avatar} alt={editInfoData.name} className="w-full h-full object-cover" />
                   ) : (
@@ -3842,7 +2352,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 <div className="space-y-1">
                   <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Genre</label>
                   <select 
-                    className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-emerald-500 outline-none appearance-none shadow-sm"
+                    className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-emerald-500 lg:focus:border-indigo-500 outline-none appearance-none shadow-sm"
                     value={editInfoData.gender}
                     onChange={e => setEditInfoData({...editInfoData, gender: e.target.value as Gender})}
                   >
@@ -3889,12 +2399,16 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 </div>
               </div>
 
+              {desktop && <div className="grid grid-cols-2 gap-4">
+                <label className="space-y-1 text-xs font-semibold text-zinc-600">Téléphone<Input type="tel" value={editInfoData.phone || ''} onChange={e => setEditInfoData({...editInfoData, phone:e.target.value})} /></label>
+                <label className="space-y-1 text-xs font-semibold text-zinc-600">Adresse<Input value={editInfoData.address || ''} onChange={e => setEditInfoData({...editInfoData, address:e.target.value})} /></label>
+              </div>}
               {canAssignCoach && (
                 <div className="space-y-2 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                   <label className="text-xs font-black uppercase text-zinc-500 tracking-widest">Coach responsable</label>
                   <div className="flex gap-2">
                     <select
-                      className="min-w-0 flex-1 bg-white border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 focus:border-emerald-500 outline-none"
+                      className="min-w-0 flex-1 bg-white border border-zinc-200 rounded-xl p-3 text-sm text-zinc-900 focus:border-emerald-500 lg:focus:border-indigo-500 outline-none"
                       value={coachAssignment}
                       onChange={event => setCoachAssignment(event.target.value)}
                     >
@@ -3926,7 +2440,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             : [...current, g];
                           setEditInfoData({...editInfoData, objectifs: next});
                         }}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase text-zinc-500 transition-all border ${isSelected ? 'bg-emerald-500 border-emerald-500 text-zinc-900' : 'bg-zinc-50 backdrop-blur-xl  text-zinc-900 hover:border-emerald-500/50 shadow-sm'}`}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase text-zinc-500 transition-all border ${isSelected ? 'bg-emerald-500 lg:bg-indigo-500 border-emerald-500 lg:border-indigo-500 text-zinc-900' : 'bg-zinc-50 backdrop-blur-xl  text-zinc-900 hover:border-emerald-500/50 lg:hover:border-indigo-500/50 shadow-sm'}`}
                       >
                         {g}
                       </button>
@@ -3938,7 +2452,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               <div className="space-y-1">
                 <label className="text-xs font-black uppercase text-zinc-500 text-zinc-500 tracking-widest ml-1">Notes d'Inscription</label>
                 <textarea 
-                  className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-emerald-500 outline-none h-24 resize-none shadow-sm"
+                  className="w-full bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-xl p-4 text-sm text-zinc-900 focus:border-emerald-500 lg:focus:border-indigo-500 outline-none h-24 resize-none shadow-sm"
                   value={editInfoData.notes || ""}
                   onChange={e => setEditInfoData({...editInfoData, notes: e.target.value})}
                   placeholder="Notes renseignées lors de l'inscription..."
@@ -3965,7 +2479,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 variant="secondary" 
                 fullWidth 
                 onClick={handleTogglePauseMember} 
-                className={selectedProfile?.status === 'paused' ? "!bg-emerald-500/10 !text-emerald-600 hover:!bg-emerald-500/20" : "!bg-orange-500/10 !text-orange-600 hover:!bg-orange-500/20"}
+                className={selectedProfile?.status === 'paused' ? "!bg-emerald-500/10 lg:!bg-indigo-500/10 !text-emerald-600 lg:!text-indigo-600 hover:!bg-emerald-500/20 lg:hover:!bg-indigo-500/20" : "!bg-orange-500/10 !text-orange-600 hover:!bg-orange-500/20"}
               >
                 {selectedProfile?.status === 'paused' ? "RÉACTIVER LE PROFIL" : "METTRE EN PAUSE"}
               </Button>
@@ -3988,7 +2502,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
+          className="m360-overlay fixed inset-0 bg-black/30 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
         >
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -4003,7 +2517,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </button>
               
               <h2 className="text-2xl font-black mb-1 text-zinc-900 uppercase italic">Cibles Nutritionnelles</h2>
-              <p className="text-[10px] text-emerald-500 font-black uppercase tracking-widest mb-8">Ajuster avant génération</p>
+              <p className="text-[10px] text-emerald-500 lg:text-indigo-500 font-black uppercase tracking-widest mb-8">Ajuster avant génération</p>
 
             <div className="space-y-5">
               <div className="space-y-1">
@@ -4064,7 +2578,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
+          className="m360-overlay fixed inset-0 bg-black/30 backdrop-blur-sm z-[600] flex items-center justify-center p-4"
         >
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -4107,23 +2621,23 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[700] flex items-start justify-center p-0 md:p-8 overflow-y-auto"
+          className="m360-overlay fixed inset-0 bg-black/30 backdrop-blur-sm z-[700] flex items-start justify-center p-0 md:p-8 overflow-y-auto"
         >
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="w-full max-w-[1450px] bg-zinc-100 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border border-emerald-500/20 shadow-[0_0_100px_rgba(16,185,129,0.1)] relative overflow-hidden my-0 md:my-8 p-8 md:p-12"
+            className="w-full max-w-[1450px] bg-zinc-100 backdrop-blur-2xl min-h-screen md:min-h-0 md:rounded-[48px] border border-emerald-500/20 lg:border-indigo-500/20 shadow-[0_0_100px_rgba(16,185,129,0.1)] relative overflow-hidden my-0 md:my-8 p-8 md:p-12"
           >
-            <button onClick={() => setNutritionPlan(null)} className="fixed top-4 right-4 md:top-10 md:right-10 p-4 bg-zinc-100 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[800] border border-zinc-200 hover:bg-red-50 hover:border-red-200 transition-all shadow-xl"><XIcon size={24} /></button>
+            <button onClick={() => setNutritionPlan(null)} className="m360-overlay fixed top-4 right-4 md:top-10 md:right-10 p-4 bg-zinc-100 backdrop-blur-md rounded-full text-zinc-500 hover:text-zinc-900 z-[800] border border-zinc-200 hover:bg-red-50 hover:border-red-200 transition-all shadow-xl"><XIcon size={24} /></button>
             
              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-2xl text-zinc-900 shadow-[0_0_20px_rgba(16,185,129,0.4)]"><CheckIcon size={24} /></div>
+                  <div className="p-3 bg-gradient-to-br from-emerald-400 lg:from-indigo-400 to-emerald-600 lg:to-indigo-600 rounded-2xl text-zinc-900 shadow-[0_0_20px_rgba(16,185,129,0.4)]"><CheckIcon size={24} /></div>
                   <div>
                     <h2 className="text-3xl font-black text-zinc-900 uppercase italic tracking-tight">Plan Nutritionnel</h2>
-                    <p className="text-[10px] text-emerald-400 font-black uppercase tracking-widest">
+                    <p className="text-[10px] text-emerald-400 lg:text-indigo-400 font-black uppercase tracking-widest">
                       {nutritionPlan.aiGenerated ? "Préparé avec Velatra AI" : "Plan actif de l’adhérent"}
                     </p>
                   </div>
@@ -4134,7 +2648,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                    setNewNutritionTemplateName(`Modèle ${selectedProfile?.name?.split(' ')[0] || ''} - ${nutritionPlan.targetCalories}kcal`);
                    setShowSaveNutritionTemplateModal(true);
                  }} 
-                 className="!py-3 !text-[11px] !rounded-xl !bg-emerald-500/10 hover:!bg-emerald-500/20 !text-emerald-600 border border-emerald-500/30 whitespace-nowrap self-start md:self-auto font-black italic tracking-wider"
+                 className="!py-3 !text-[11px] !rounded-xl !bg-emerald-500/10 lg:!bg-indigo-500/10 hover:!bg-emerald-500/20 lg:hover:!bg-indigo-500/20 !text-emerald-600 lg:!text-indigo-600 border border-emerald-500/30 lg:border-indigo-500/30 whitespace-nowrap self-start md:self-auto font-black italic tracking-wider"
                >
                  <SaveIcon size={14} className="mr-2 inline" /> SAUVEGARDER COMME MODÈLE
                </Button>
@@ -4147,7 +2661,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               </div>
               <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 text-center shadow-sm">
                 <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Protéines</div>
-                <div className="text-2xl font-black text-emerald-500">{nutritionPlan.protein}g</div>
+                <div className="text-2xl font-black text-emerald-500 lg:text-indigo-500">{nutritionPlan.protein}g</div>
               </div>
               <div className="bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-3xl p-6 text-center shadow-sm">
                 <div className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-2">Glucides</div>
@@ -4168,7 +2682,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                   <div className="flex justify-between items-center mb-3">
                     <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">{repas.name || `Repas ${idx + 1}`}</h4>
                     <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full uppercase tracking-widest">{repas.calories} kcal</span>
+                      <span className="text-[10px] font-black text-emerald-400 lg:text-indigo-400 bg-emerald-500/10 lg:bg-indigo-500/10 px-3 py-1 rounded-full uppercase tracking-widest">{repas.calories} kcal</span>
                       <span className="text-[10px] font-black text-blue-400 bg-blue-500/10 px-3 py-1 rounded-full uppercase tracking-widest">{repas.protein}g P</span>
                       <span className="text-[10px] font-black text-green-400 bg-green-500/10 px-3 py-1 rounded-full uppercase tracking-widest">{repas.carbs}g G</span>
                       <span className="text-[10px] font-black text-yellow-400 bg-yellow-500/10 px-3 py-1 rounded-full uppercase tracking-widest">{repas.fat}g L</span>
@@ -4186,7 +2700,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {nutritionPlan.liste_courses?.map((item: any, idx: number) => (
                   <li key={item.id || idx} className="text-sm text-zinc-600 flex items-center gap-3">
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${item.checked ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-zinc-200 bg-zinc-50'}`}>
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${item.checked ? 'bg-emerald-500 lg:bg-indigo-500 border-emerald-500 lg:border-indigo-500 text-white' : 'border-zinc-200 bg-zinc-50'}`}>
                       {item.checked && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
                     </div>
                     <span className={item.checked ? 'line-through text-zinc-400' : ''}>{item.name || item}</span>
@@ -4202,7 +2716,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       )}
 
       {showOnboardingEmailModal && selectedProfile && createPortal(
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
+        <div className="m360-overlay fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -4263,7 +2777,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       )}
 
       {showNutritionLog && selectedProfile && createPortal(
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onClick={() => setShowNutritionLog(false)}>
+        <div className="m360-overlay fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onClick={() => setShowNutritionLog(false)}>
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -4275,7 +2789,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Suivi Journalier Nutrition</h3>
                 <p className="text-sm text-zinc-500">{selectedProfile.name}</p>
               </div>
-              <button onClick={() => setShowNutritionLog(false)} className="p-2 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-full hover:bg-emerald-500/10 hover:text-emerald-500 transition-colors text-zinc-500 shadow-sm">
+              <button onClick={() => setShowNutritionLog(false)} className="p-2 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-full hover:bg-emerald-500/10 lg:hover:bg-indigo-500/10 hover:text-emerald-500 lg:hover:text-indigo-500 transition-colors text-zinc-500 shadow-sm">
                 <XIcon size={20} />
               </button>
             </div>
@@ -4289,7 +2803,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       )}
 
       {selectedLog && createPortal(
-        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
+        <div className="m360-overlay fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -4301,7 +2815,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 <h3 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tight">Récapitulatif</h3>
                 <p className="text-sm text-zinc-500">{new Date(selectedLog.date).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
-              <button onClick={() => setSelectedLog(null)} className="p-2 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-full hover:bg-emerald-500/10 hover:text-emerald-500 transition-colors text-zinc-500 shadow-sm">
+              <button onClick={() => setSelectedLog(null)} className="p-2 bg-zinc-50 backdrop-blur-xl border border-zinc-200 rounded-full hover:bg-emerald-500/10 lg:hover:bg-indigo-500/10 hover:text-emerald-500 lg:hover:text-indigo-500 transition-colors text-zinc-500 shadow-sm">
                 <XIcon size={20} />
               </button>
             </div>
@@ -4341,7 +2855,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               {selectedLog.notes && (
                 <div>
                   <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Notes du Coach</div>
-                  <div className="p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+                  <div className="p-4 bg-emerald-500/5 lg:bg-indigo-500/5 rounded-2xl border border-emerald-500/10 lg:border-indigo-500/10">
                     <p className="text-sm text-zinc-600 leading-relaxed italic">"{selectedLog.notes}"</p>
                   </div>
                 </div>
@@ -4351,7 +2865,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 <div>
                   <div className="text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2">Difficulté ressentie (RPE)</div>
                   <div className="flex items-center gap-2">
-                    <div className="text-2xl font-black text-emerald-500">{selectedLog.rpe}</div>
+                    <div className="text-2xl font-black text-emerald-500 lg:text-indigo-500">{selectedLog.rpe}</div>
                     <div className="text-sm text-zinc-500">/ 10</div>
                   </div>
                 </div>
@@ -4363,7 +2877,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       )}
 
       {confirmDeleteScanId && createPortal(
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+        <div className="m360-overlay fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -4381,7 +2895,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
       )}
 
       {confirmDeleteMemberId && createPortal(
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
+        <div className="m360-overlay fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -4404,7 +2918,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
+            className="m360-overlay fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
             onClick={() => setSelectedEvolutionPhoto(null)}
           >
             <button 
@@ -4421,12 +2935,12 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
       {/* AI GENERATOR MODAL */}
       {isAIGeneratorModalOpen && selectedProfile && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div className="m360-overlay fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 w-full max-w-xl shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 lg:bg-indigo-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
             <div className="flex justify-between items-center mb-6 relative z-10">
               <h3 className="text-lg font-black text-zinc-900 uppercase italic flex items-center gap-2">
-                <BotIcon size={20} className="text-emerald-500" /> Paramètres IA
+                <BotIcon size={20} className="text-emerald-500 lg:text-indigo-500" /> Paramètres IA
               </h3>
               <button onClick={() => setIsAIGeneratorModalOpen(false)} className="text-zinc-400 hover:text-zinc-900">
                 <XIcon size={20} />
@@ -4445,7 +2959,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               <div>
                 <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1 ml-1">Intensité de la programmation</label>
                 <select 
-                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-medium"
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-emerald-500 lg:focus:border-indigo-500 focus:ring-1 focus:ring-emerald-500 lg:focus:ring-indigo-500 transition-all font-medium"
                   value={aiGeneratorParams.intensity} 
                   onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, intensity: e.target.value})}
                 >
@@ -4460,7 +2974,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1 ml-1">Instructions supplémentaires</label>
                 <textarea 
                   placeholder="Ex: Éviter les mouvements avec haltères lourds, accent sur les fessiers..."
-                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-medium min-h-[80px]"
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-emerald-500 lg:focus:border-indigo-500 focus:ring-1 focus:ring-emerald-500 lg:focus:ring-indigo-500 transition-all font-medium min-h-[80px]"
                   value={aiGeneratorParams.extraNotes}
                   onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, extraNotes: e.target.value})}
                 />
@@ -4469,25 +2983,25 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               <div className="pt-2">
                 <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-2 ml-1">Options supplémentaires</label>
                 <div className="grid grid-cols-2 gap-2">
-                  <label className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${aiGeneratorParams.includeWarmup ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100'}`}>
+                  <label className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${aiGeneratorParams.includeWarmup ? 'border-emerald-500 lg:border-indigo-500 bg-emerald-500/10 lg:bg-indigo-500/10' : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100'}`}>
                     <input type="checkbox" className="hidden" checked={aiGeneratorParams.includeWarmup} onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, includeWarmup: e.target.checked})} />
-                    <div className={`w-4 h-4 rounded shadow-sm border flex shrink-0 items-center justify-center transition-all ${aiGeneratorParams.includeWarmup ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-zinc-300'}`}>
+                    <div className={`w-4 h-4 rounded shadow-sm border flex shrink-0 items-center justify-center transition-all ${aiGeneratorParams.includeWarmup ? 'bg-emerald-500 lg:bg-indigo-500 border-emerald-500 lg:border-indigo-500' : 'bg-white border-zinc-300'}`}>
                       {aiGeneratorParams.includeWarmup && <CheckIcon size={12} className="text-white" />}
                     </div>
                     <span className="text-[9px] font-bold text-zinc-900 uppercase">Échauffement / Mobilité</span>
                   </label>
                   
-                  <label className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${aiGeneratorParams.includeCardioFinisher ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100'}`}>
+                  <label className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${aiGeneratorParams.includeCardioFinisher ? 'border-emerald-500 lg:border-indigo-500 bg-emerald-500/10 lg:bg-indigo-500/10' : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100'}`}>
                     <input type="checkbox" className="hidden" checked={aiGeneratorParams.includeCardioFinisher} onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, includeCardioFinisher: e.target.checked})} />
-                    <div className={`w-4 h-4 rounded shadow-sm border flex shrink-0 items-center justify-center transition-all ${aiGeneratorParams.includeCardioFinisher ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-zinc-300'}`}>
+                    <div className={`w-4 h-4 rounded shadow-sm border flex shrink-0 items-center justify-center transition-all ${aiGeneratorParams.includeCardioFinisher ? 'bg-emerald-500 lg:bg-indigo-500 border-emerald-500 lg:border-indigo-500' : 'bg-white border-zinc-300'}`}>
                       {aiGeneratorParams.includeCardioFinisher && <CheckIcon size={12} className="text-white" />}
                     </div>
                     <span className="text-[9px] font-bold text-zinc-900 uppercase">Finisher Cardio</span>
                   </label>
                   
-                  <label className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${aiGeneratorParams.includeCoreFocus ? 'border-emerald-500 bg-emerald-500/10' : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100'}`}>
+                  <label className={`flex items-center gap-2 p-2 rounded-xl border cursor-pointer transition-all ${aiGeneratorParams.includeCoreFocus ? 'border-emerald-500 lg:border-indigo-500 bg-emerald-500/10 lg:bg-indigo-500/10' : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100'}`}>
                     <input type="checkbox" className="hidden" checked={aiGeneratorParams.includeCoreFocus} onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, includeCoreFocus: e.target.checked})} />
-                    <div className={`w-4 h-4 rounded shadow-sm border flex shrink-0 items-center justify-center transition-all ${aiGeneratorParams.includeCoreFocus ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-zinc-300'}`}>
+                    <div className={`w-4 h-4 rounded shadow-sm border flex shrink-0 items-center justify-center transition-all ${aiGeneratorParams.includeCoreFocus ? 'bg-emerald-500 lg:bg-indigo-500 border-emerald-500 lg:border-indigo-500' : 'bg-white border-zinc-300'}`}>
                       {aiGeneratorParams.includeCoreFocus && <CheckIcon size={12} className="text-white" />}
                     </div>
                     <span className="text-[9px] font-bold text-zinc-900 uppercase">Focus Abdos</span>
@@ -4498,7 +3012,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
               <div>
                 <label className="block text-xs font-black uppercase text-zinc-500 tracking-wider text-zinc-500 mb-1 ml-1">Durée cible de la séance</label>
                 <select 
-                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-medium"
+                  className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-sm rounded-xl px-4 py-3 outline-none focus:border-emerald-500 lg:focus:border-indigo-500 focus:ring-1 focus:ring-emerald-500 lg:focus:ring-indigo-500 transition-all font-medium"
                   value={aiGeneratorParams.timeConstraint} 
                   onChange={(e) => setAiGeneratorParams({...aiGeneratorParams, timeConstraint: e.target.value})}
                 >
@@ -4510,7 +3024,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 </select>
               </div>
               
-              <Button variant="primary" fullWidth onClick={handleGenerateProgram} className="!py-4 !mt-6 shadow-xl shadow-emerald-500/20 text-xs">
+              <Button variant="primary" fullWidth onClick={handleGenerateProgram} className="!py-4 !mt-6 shadow-xl shadow-emerald-500/20 lg:shadow-indigo-500/20 text-xs">
                 <SparklesIcon size={16} className="mr-2 inline" /> LANCER LA GÉNÉRATION
               </Button>
             </div>
@@ -4521,7 +3035,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
       {/* CSV IMPORT MODAL */}
       {isCsvImportModalOpen && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div className="m360-overlay fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-8 w-full max-w-4xl shadow-2xl relative max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center mb-6">
               <div>
@@ -4546,7 +3060,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         <div className="flex-1 w-full relative">
                           <SearchIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                           <input 
-                            className="w-full bg-white border border-zinc-200 rounded-lg pl-9 pr-3 py-2 text-xs font-medium focus:border-emerald-500 outline-none"
+                            className="w-full bg-white border border-zinc-200 rounded-lg pl-9 pr-3 py-2 text-xs font-medium focus:border-emerald-500 lg:focus:border-indigo-500 outline-none"
                             placeholder="Rechercher par nom ou email..."
                             value={importSearch}
                             onChange={(e) => setImportSearch(e.target.value)}
@@ -4564,7 +3078,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                                 setSelectedClientsToImport(parsedClients.map((_, i) => i));
                               }
                             }}
-                            className="text-[10px] font-bold text-emerald-500 hover:text-emerald-600 underline uppercase shrink-0"
+                            className="text-[10px] font-bold text-emerald-500 lg:text-indigo-500 hover:text-emerald-600 lg:hover:text-indigo-600 underline uppercase shrink-0"
                           >
                             {selectedClientsToImport.length === parsedClients.length ? 'Tout décocher' : 'Tout cocher'}
                           </button>
@@ -4585,7 +3099,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                         return (
                           <div 
                             key={index} 
-                            className={`p-4 rounded-2xl border transition-all flex items-start gap-4 ${isSelected ? 'border-emerald-500 bg-emerald-500/5' : 'border-zinc-200 bg-white opacity-60'} ${!hasEmail ? 'opacity-50 border-red-200 bg-red-50' : 'cursor-pointer hover:border-emerald-500/40'}`}
+                            className={`p-4 rounded-2xl border transition-all flex items-start gap-4 ${isSelected ? 'border-emerald-500 lg:border-indigo-500 bg-emerald-500/5 lg:bg-indigo-500/5' : 'border-zinc-200 bg-white opacity-60'} ${!hasEmail ? 'opacity-50 border-red-200 bg-red-50' : 'cursor-pointer hover:border-emerald-500/40 lg:hover:border-indigo-500/40'}`}
                             onClick={() => {
                               if (!hasEmail) return;
                               setSelectedClientsToImport(prev => 
@@ -4593,7 +3107,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                               );
                             }}
                           >
-                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-1 shrink-0 transition-colors ${isSelected ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-zinc-300'}`}>
+                            <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-1 shrink-0 transition-colors ${isSelected ? 'bg-emerald-500 lg:bg-indigo-500 border-emerald-500 lg:border-indigo-500 text-white' : 'border-zinc-300'}`}>
                               {isSelected && <CheckIcon size={14} />}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -4642,7 +3156,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 </>
               ) : (
                 <div className="space-y-4">
-                  <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800">
+                  <div className="p-5 rounded-2xl bg-emerald-50 lg:bg-indigo-50 border border-emerald-200 lg:border-indigo-200 text-emerald-800 lg:text-indigo-800">
                     <p className="text-sm font-medium">Vous êtes sur le point de créer un compte et d'envoyer un email de configuration de mot de passe aux {selectedClientsToImport.length} membres ci-dessous :</p>
                   </div>
                   <div className="space-y-2">
@@ -4703,14 +3217,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
       {/* MODAL ASSIGNATION DE PROGRAMME DE SEANCE */}
       {showAssignProgramTemplateModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div className="m360-overlay fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[85vh] flex flex-col">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 lg:bg-indigo-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
             
             <div className="flex justify-between items-center mb-6 relative z-10">
               <div>
                 <h3 className="text-xl font-black text-zinc-900 uppercase italic flex items-center gap-2">
-                  <LayersIcon size={20} className="text-emerald-500" /> Modèles de programmes
+                  <LayersIcon size={20} className="text-emerald-500 lg:text-indigo-500" /> Modèles de programmes
                 </h3>
                 <p className="text-xs text-zinc-500 font-medium mt-1">Assignez un programme type en 1 clic à cet adhérent.</p>
               </div>
@@ -4727,7 +3241,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 placeholder="Rechercher un modèle d'entraînement (Split, Full-Body, Force...)"
                 value={programPresetSearch}
                 onChange={(e) => setProgramPresetSearch(e.target.value)}
-                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-xs rounded-xl pl-10 pr-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-bold"
+                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-xs rounded-xl pl-10 pr-4 py-3 outline-none focus:border-emerald-500 lg:focus:border-indigo-500 focus:ring-1 focus:ring-emerald-500 lg:focus:ring-indigo-500 transition-all font-bold"
               />
             </div>
 
@@ -4735,7 +3249,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
             <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar pr-1 space-y-3 z-10 pb-4">
               {state.presets && state.presets.filter(p => !programPresetSearch || p.name.toLowerCase().includes(programPresetSearch.toLowerCase()) || (p.remarks || '').toLowerCase().includes(programPresetSearch.toLowerCase())).length > 0 ? (
                 state.presets.filter(p => !programPresetSearch || p.name.toLowerCase().includes(programPresetSearch.toLowerCase()) || (p.remarks || '').toLowerCase().includes(programPresetSearch.toLowerCase())).map((preset) => (
-                  <div key={preset.id} className="p-4 rounded-2xl border border-zinc-200 bg-white hover:border-emerald-500/50 hover:shadow-md transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div key={preset.id} className="p-4 rounded-2xl border border-zinc-200 bg-white hover:border-emerald-500/50 lg:hover:border-indigo-500/50 hover:shadow-md transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                         <span className="font-extrabold text-sm text-zinc-900 uppercase tracking-tight">{preset.name}</span>
@@ -4776,14 +3290,14 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
       {/* MODAL ASSIGNATION DE PROGRAMME NUTRITIONNEL */}
       {showAssignNutritionTemplateModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div className="m360-overlay fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl relative max-h-[85vh] flex flex-col">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 lg:bg-indigo-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
             
             <div className="flex justify-between items-center mb-6 relative z-10">
               <div>
                 <h3 className="text-xl font-black text-zinc-900 uppercase italic flex items-center gap-2">
-                  <CheckIcon size={20} className="text-emerald-500" /> Modèles nutritionnels
+                  <CheckIcon size={20} className="text-emerald-500 lg:text-indigo-500" /> Modèles nutritionnels
                 </h3>
                 <p className="text-xs text-zinc-500 font-medium mt-1">Choisissez un plan nutritionnel parmi les modèles existants.</p>
               </div>
@@ -4800,7 +3314,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                 placeholder="Rechercher un modèle de nutrition (Sèche, Prise de masse, Low Carb...)"
                 value={nutritionPresetSearch}
                 onChange={(e) => setNutritionPresetSearch(e.target.value)}
-                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-xs rounded-xl pl-10 pr-4 py-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-bold"
+                className="w-full bg-zinc-50 border border-zinc-200 text-zinc-900 text-xs rounded-xl pl-10 pr-4 py-3 outline-none focus:border-emerald-500 lg:focus:border-indigo-500 focus:ring-1 focus:ring-emerald-500 lg:focus:ring-indigo-500 transition-all font-bold"
               />
             </div>
 
@@ -4821,7 +3335,7 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
                 if (filtered.length > 0) {
                   return filtered.map((preset, idx) => (
-                    <div key={preset.id || idx} className="p-4 rounded-2xl border border-zinc-200 bg-white hover:border-emerald-500/50 hover:shadow-md transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div key={preset.id || idx} className="p-4 rounded-2xl border border-zinc-200 bg-white hover:border-emerald-500/50 lg:hover:border-indigo-500/50 hover:shadow-md transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <span className="font-extrabold text-sm text-zinc-900 uppercase tracking-tight">{preset.name}</span>
@@ -4839,8 +3353,8 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
                             <div className="text-xs font-black text-zinc-800">{preset.targetCalories}</div>
                           </div>
                           <div className="text-center">
-                            <div className="text-[10px] text-emerald-500 font-bold mb-0.5">Prot</div>
-                            <div className="text-xs font-black text-emerald-600">{preset.protein}g</div>
+                            <div className="text-[10px] text-emerald-500 lg:text-indigo-500 font-bold mb-0.5">Prot</div>
+                            <div className="text-xs font-black text-emerald-600 lg:text-indigo-600">{preset.protein}g</div>
                           </div>
                           <div className="text-center">
                             <div className="text-[10px] text-blue-500 font-bold mb-0.5">Gluc</div>
@@ -4884,13 +3398,13 @@ export const MembersPage: React.FC<{ state: AppState, setState: any, showToast: 
 
       {/* MODAL ENREGISTRER UN MODÈLE NUTRITIONNEL DEPUIS LE PLAN ACTUEL */}
       {showSaveNutritionTemplateModal && createPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+        <div className="m360-overlay fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 lg:bg-indigo-500/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
             
             <div className="flex justify-between items-center mb-4 relative z-10">
               <h3 className="text-sm font-black text-zinc-900 uppercase italic flex items-center gap-2">
-                <SaveIcon size={18} className="text-emerald-500" /> Sauvegarder comme modèle
+                <SaveIcon size={18} className="text-emerald-500 lg:text-indigo-500" /> Sauvegarder comme modèle
               </h3>
               <button onClick={() => setShowSaveNutritionTemplateModal(false)} className="text-zinc-400 hover:text-zinc-900">
                 <XIcon size={18} />

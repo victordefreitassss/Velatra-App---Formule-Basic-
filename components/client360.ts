@@ -72,17 +72,18 @@ export interface Client360Facts {
 
 export function getClient360Facts(member: User, state: Pick<AppState, 'bookings' | 'logs' | 'bodyData' | 'subscriptions' | 'programs'>, now = Date.now()): Client360Facts {
   const memberId = Number(member.id);
+  const own = (record: { clubId: string; memberId?: number }) => !!member.clubId && record.clubId === member.clubId && Number(record.memberId) === memberId;
   const latest = <T,>(items: T[], date: (item: T) => string) =>
     [...items].sort((a, b) => new Date(date(b)).getTime() - new Date(date(a)).getTime())[0] || null;
   const nextBooking = [...state.bookings]
-    .filter(booking => Number(booking.memberId) === memberId && booking.status === 'confirmed' && new Date(booking.startTime).getTime() >= now)
+    .filter(booking => own(booking) && booking.status === 'confirmed' && new Date(booking.startTime).getTime() >= now)
     .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())[0] || null;
   return {
     nextBooking,
-    lastActivity: latest(state.logs.filter(log => Number(log.memberId) === memberId), log => log.date),
-    lastBodyRecord: latest(state.bodyData.filter(record => Number(record.memberId) === memberId), record => record.date),
-    activeSubscription: state.subscriptions.find(subscription => Number(subscription.memberId) === memberId && subscription.status === 'active') || null,
+    lastActivity: latest(state.logs.filter(log => own(log)), log => log.date),
+    lastBodyRecord: latest(state.bodyData.filter(record => own(record)), record => record.date),
+    activeSubscription: state.subscriptions.find(subscription => own(subscription) && subscription.status === 'active') || null,
     lastNote: latest(member.coachingNotesHistory || [], note => note.date),
-    activeProgram: state.programs.find(program => Number(program.memberId) === memberId && !program.isPlannedSession) || null,
+    activeProgram: state.programs.find(program => own(program) && !program.isPlannedSession) || null,
   };
 }

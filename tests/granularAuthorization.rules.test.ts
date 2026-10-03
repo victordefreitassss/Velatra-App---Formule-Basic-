@@ -89,7 +89,7 @@ it('Manager live queries load the tenant, collaborators and clients without cros
   await assertSucceeds(getDocs(query(collection(db(), 'tasks'), where('clubId', '==', tenant))));
 });
 it('Client360 staff note history is bounded and cannot be forged by a Member', async () => {
-  const coachingNotesHistory = [{ id: 'note', date: '2026-10-01', content: 'Follow-up' }];
+  const coachingNotesHistory = [{ id: 'note', date: '2026-10-01', content: 'Follow-up', authorUid: 'authz-owner', authorName: 'Coach de recette' }];
   await assertSucceeds(updateDoc(doc(db(), 'users/authz-member'), { coachingNotesHistory }));
   await assertFails(updateDoc(doc(db(), 'users/authz-member'), { coachingNotesHistory: Array(201).fill(coachingNotesHistory[0]) }));
   await assertFails(updateDoc(doc(db('member'), 'users/authz-member'), { coachingNotesHistory: [] }));

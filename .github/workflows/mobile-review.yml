@@ -141,3 +141,27 @@ jobs:
           name: crm-workspace-evidence
           path: ${{ runner.temp }}/crm-workspace-evidence
           retention-days: 7
+
+  member360-workspace:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version-file: package.json
+          cache: npm
+      - run: npm ci
+      - name: Client 360 roles, contexts and responsive (isolated fixtures)
+        env:
+          VELATRA_MEMBER360_QA_OUTPUT: ${{ runner.temp }}/member360-workspace-evidence
+        run: node scripts/qa/member360-workspace-browser.mjs
+      - name: Client 360 evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: member360-workspace-evidence
+          path: ${{ runner.temp }}/member360-workspace-evidence
+          retention-days: 7

@@ -1,3 +1,4 @@
+import { getClient360MemberId } from './components/dashboardNavigation';
 import { isOrganizationActive } from './organizationAccess.ts';
 import { useNotificationBadge, usePushDeviceSync, disableCurrentPush, notificationRequest, notificationsChanged } from './notifications/client';
 import { safeNotificationDestination, type NotificationDestination } from './notifications/model';
@@ -242,6 +243,11 @@ export default function App() {
     if (location.pathname !== '/dashboard' || !state.user) return;
     if (lastDashboardLocation.current === null) {
       lastDashboardLocation.current = location.key;
+      // A refreshed Client 360 history entry must reopen its roster context.
+      // MembersPage resolves the current tenant and assignment before rendering it.
+      if (state.user.role !== 'member' && getClient360MemberId(location.state)) {
+        setState(previous => ({ ...previous, page: 'users' }));
+      }
       return;
     }
     if (lastDashboardLocation.current === location.key) return;
