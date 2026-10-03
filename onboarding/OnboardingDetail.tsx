@@ -5,8 +5,9 @@ import { useHomeDestination } from '../components/useHomeDestination';
 import { useOnboarding } from './useOnboarding';
 import { onboardingLabels } from './onboardingEngine';
 import './onboarding.css';
-export function OnboardingDetail({ state, setState, memberUid }: { state: AppState; setState: any; memberUid: string }) {
+export function OnboardingDetail({ state, setState, memberUid, summary = false }: { state: AppState; setState: any; memberUid: string; summary?: boolean }) {
   const feed = useOnboarding(state, { state: 'all', coach: 'all', search: '' }, memberUid), open = useHomeDestination(state, setState), a = feed.assessment;
+  if (summary) return <div data-onboarding-summary><span className="vi-eyebrow">Onboarding</span><h2>{a ? onboardingLabels[a.state] : 'Parcours d’accueil'}</h2>{feed.error && <p role="alert">{feed.error}</p>}{feed.loading && <p role="status">Chargement…</p>}{a && <><p>{a.completedSteps}/{a.totalSteps} étapes satisfaites</p>{a.state !== 'COMPLETED' && <p>{a.steps.find(step => !['complete', 'not_required'].includes(step.state))?.reason}</p>}</>}</div>;
   return <section className="va-onboarding min-w-0" data-onboarding-detail><Card className="space-y-3 min-w-0">
     <h3 className="text-lg font-semibold">Onboarding</h3>
     {feed.error && <p role="alert">{feed.error}</p>}{feed.loading && <p role="status">Chargement de l’onboarding…</p>}

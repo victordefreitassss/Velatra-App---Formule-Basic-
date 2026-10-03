@@ -29,7 +29,7 @@ it('never exposes a dossier or unrelated unimplemented features through neighbor
   assert.ok(!expected.includes('boutique'));
 });
 
-const member = { id: 7, coachingNotesHistory: [
+const member = { id: 7, clubId: 'club-1', coachingNotesHistory: [
   { id: '1', date: '2026-09-01T10:00:00.000Z', content: 'Ancienne note' },
   { id: '2', date: '2026-09-05T10:00:00.000Z', content: 'Nouvelle note' },
 ] } as User;
@@ -43,15 +43,15 @@ it('shows honest empty facts when a client has no program, appointment or subscr
 it('uses only the selected member’s existing records and chooses chronological facts', () => {
   const state = {
     bookings: [
-      { memberId: 8, status: 'confirmed', startTime: '2026-10-01T10:00:00.000Z' },
-      { memberId: 7, status: 'confirmed', startTime: '2026-10-03T10:00:00.000Z' },
-      { memberId: 7, status: 'cancelled', startTime: '2026-10-01T10:00:00.000Z' },
-      { memberId: 7, status: 'confirmed', startTime: '2026-10-02T10:00:00.000Z' },
+      { clubId: 'club-1', memberId: 8, status: 'confirmed', startTime: '2026-10-01T10:00:00.000Z' },
+      { clubId: 'club-1', memberId: 7, status: 'confirmed', startTime: '2026-10-03T10:00:00.000Z' },
+      { clubId: 'club-1', memberId: 7, status: 'cancelled', startTime: '2026-10-01T10:00:00.000Z' },
+      { clubId: 'club-1', memberId: 7, status: 'confirmed', startTime: '2026-10-02T10:00:00.000Z' },
     ],
-    logs: [{ memberId: 7, date: '2026-09-10' }, { memberId: 8, date: '2026-09-30' }, { memberId: 7, date: '2026-09-20' }],
-    bodyData: [{ memberId: 8, date: '2026-09-30', weight: 99 }, { memberId: 7, date: '2026-09-15', weight: 72 }],
-    subscriptions: [{ memberId: 8, status: 'active' }, { memberId: 7, status: 'expired' }, { memberId: 7, status: 'active', planName: 'Coaching' }],
-    programs: [{ memberId: 8, name: 'Autre' }, { memberId: 7, isPlannedSession: true, name: 'Séance' }, { memberId: 7, name: 'Programme réel' }],
+    logs: [{ clubId: 'club-1', memberId: 7, date: '2026-09-10' }, { clubId: 'club-1', memberId: 8, date: '2026-09-30' }, { clubId: 'club-1', memberId: 7, date: '2026-09-20' }],
+    bodyData: [{ clubId: 'club-1', memberId: 8, date: '2026-09-30', weight: 99 }, { clubId: 'club-1', memberId: 7, date: '2026-09-15', weight: 72 }],
+    subscriptions: [{ clubId: 'club-1', memberId: 8, status: 'active' }, { clubId: 'club-1', memberId: 7, status: 'expired' }, { clubId: 'club-1', memberId: 7, status: 'active', planName: 'Coaching' }],
+    programs: [{ clubId: 'club-1', memberId: 8, name: 'Autre' }, { clubId: 'club-1', memberId: 7, isPlannedSession: true, name: 'Séance' }, { clubId: 'club-1', memberId: 7, name: 'Programme réel' }],
   } as unknown as typeof emptyState;
   const facts = getClient360Facts(member, state, Date.parse('2026-09-30T00:00:00.000Z'));
   assert.equal(facts.nextBooking?.startTime, '2026-10-02T10:00:00.000Z');

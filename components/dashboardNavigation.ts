@@ -7,8 +7,8 @@ export type DashboardLocationState = {
   retentionMemberId?: number;
   onboardingMemberId?: number;
   client360MemberId?: number;
-  client360Section?: 'onboarding' | 'retention' | 'coaching' | 'followup' | 'communication' | 'administrative';
-  client360AdminSection?: 'billing';
+  client360Section?: import('./client360').Client360SectionId;
+  client360AdminSection?: import('./client360').Client360AdminSectionId;
   focusNote?: boolean;
   focusCoachAssignment?: boolean;
   planningBookingId?: string;
@@ -24,11 +24,11 @@ export const createPlanningLocationState = (memberId: number): DashboardLocation
   planningMemberId: memberId,
 });
 
-export const createClient360LocationState = (memberId: number, section?: DashboardLocationState['client360Section'], focusNote?: boolean, adminSection?: 'billing'): DashboardLocationState => ({
+export const createClient360LocationState = (memberId: number, section?: DashboardLocationState['client360Section'], focusNote?: boolean, adminSection?: import('./client360').Client360AdminSectionId): DashboardLocationState => ({
   velatraPage: 'users',
   client360MemberId: memberId,
   ...(section ? { client360Section: section } : {}),
-  ...(section === 'administrative' && adminSection === 'billing' ? { client360AdminSection: 'billing' as const } : {}),
+  ...(section === 'administrative' && adminSection ? { client360AdminSection: adminSection } : {}),
   ...(section === 'followup' && focusNote ? { focusNote: true } : {}),
 });
 export const createPlanningBookingLocationState = (bookingId: string): DashboardLocationState => ({ velatraPage: 'calendar', planningBookingId: bookingId });
@@ -42,7 +42,7 @@ export const getPlanningBookingId = (value: unknown) => getRecordId(value, 'cale
 export const getTaskId = (value: unknown) => getRecordId(value, 'crm_tasks', 'taskId');
 export const getClient360Section = (value: unknown) => {
   const state = value as DashboardLocationState | null;
-  return state?.velatraPage === 'users' && ['onboarding', 'retention', 'coaching', 'followup', 'communication', 'administrative'].includes(state.client360Section || '') ? state.client360Section : undefined;
+  return state?.velatraPage === 'users' && ['overview', 'onboarding', 'retention', 'coaching', 'progress', 'nutrition', 'calendar', 'followup', 'communication', 'administrative'].includes(state.client360Section || '') ? state.client360Section : undefined;
 };
 export const shouldFocusClientNote = (value: unknown) => getClient360Section(value) === 'followup' && (value as DashboardLocationState).focusNote === true;
 
@@ -74,7 +74,7 @@ export const resolveClient360Member = (users: User[], clubId: string | undefined
   ) || null;
 };
 
-export const getClient360AdminSection = (value: unknown) => getClient360Section(value) === 'administrative' && (value as DashboardLocationState).client360AdminSection === 'billing' ? 'billing' : undefined;
+export const getClient360AdminSection = (value: unknown) => getClient360Section(value) === 'administrative' && ['profile', 'billing', 'documents'].includes((value as DashboardLocationState).client360AdminSection || '') ? (value as DashboardLocationState).client360AdminSection : undefined;
 
 export const getRetentionMemberId = (value: unknown) => getMemberId(value, 'retention', 'retentionMemberId');
 export const createRetentionLocationState = (memberId: number): DashboardLocationState => ({ velatraPage: 'retention', retentionMemberId: memberId });

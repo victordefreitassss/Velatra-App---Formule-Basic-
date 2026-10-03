@@ -6,7 +6,7 @@ import { useHomeDestination } from '../components/useHomeDestination';
 import { interventionLabels, retentionLabels, type InterventionKind, type RetentionAssessment, type RetentionIntervention } from './retentionModel';
 import './retention.css';
 type Detail = { assessment: RetentionAssessment; interventions: RetentionIntervention[]; interventionsPartial: boolean };
-export function RetentionDetail({ state, setState, memberUid, light = false }: { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; memberUid: string; light?: boolean }) {
+export function RetentionDetail({ state, setState, memberUid, light = false, summary = false }: { state: AppState; setState: React.Dispatch<React.SetStateAction<AppState>>; memberUid: string; light?: boolean; summary?: boolean }) {
   const scope = `${state.user?.firebaseUid}/${state.user?.role}/${state.user?.clubId}/${memberUid}`;
   const [view, setView] = useState<{ scope: string; data: Detail | null; error: string | null }>({ scope: '', data: null, error: null });
   const [retry, setRetry] = useState(0), [busy, setBusy] = useState(false), [kind, setKind] = useState<InterventionKind>('contacted'), [note, setNote] = useState(''), [message, setMessage] = useState('');
@@ -32,6 +32,7 @@ export function RetentionDetail({ state, setState, memberUid, light = false }: {
   if (!current?.data) return <p role="status">Chargement du détail Retain…</p>;
   const { assessment: a, interventions, interventionsPartial } = current.data;
   const engagement = a.signals.filter(signal => signal.family !== 'BILLING'), commercial = a.signals.filter(signal => signal.family === 'BILLING');
+  if (summary) return <div data-retain-summary><span className="vi-eyebrow">Retain · Analyse</span><h2>{retentionLabels[a.state]}</h2><p>{engagement[0]?.evidence || (a.state === 'insufficient_data' ? 'Historique insuffisant pour évaluer l’engagement.' : 'Aucun signal significatif dans les données disponibles.')}</p>{a.partial && <small>Données partielles</small>}</div>;
   return <div data-retain-detail className="va-retain"><Card className="min-w-0 space-y-4">
     <header className="space-y-2"><h2 className="break-words">{a.memberName} · Rétention</h2><strong data-retain-state={a.state}>{retentionLabels[a.state]}</strong><p className="text-sm text-zinc-600">Des faits à examiner ; aucune prédiction de résiliation.</p></header>
     {a.partial && <p role="status">Historique partiel : le niveau ne peut pas être évalué complètement.</p>}
