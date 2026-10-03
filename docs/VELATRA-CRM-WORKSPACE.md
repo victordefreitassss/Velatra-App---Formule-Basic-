@@ -10,11 +10,11 @@ L'audit et le plan des sept phases sont dans [VELATRA-PRODUCT-PHASES.md](VELATRA
 Le catalogue existant, déjà filtré par permissions, reste la source d'autorité. Le desktop réordonne ses destinations :
 
 - Coach indépendant : Tableau de bord, Clients, Prospects, Planning, Coaching, Messages, Drive.
-- Owner Studio : Tableau de bord, Membres, Prospects, Planning, Équipe, Ventes, Messages, Drive.
+- Owner Studio : Tableau de bord, Membres, Prospects, Planning, Équipe, Messages, Drive.
 - Manager : même organisation, uniquement les destinations autorisées ; aucun nouvel accès financier accordé.
 - Coach salarié : Tableau de bord, Mes clients, Planning, Coaching, Messages, Drive.
 
-Notifications reste accessible. Les autres destinations sont conservées dans Gestion / Gestion du club et Paramètres. Les sous-navigations Clients, Coaching et Prospects réutilisent les vraies pages. Aucun onglet d'équipe sans fonctionnalité existante. La navigation mobile/tablette reste celle de l'application ; les pages CRM réorganisées restent utilisables sur ces formats.
+Notifications reste accessible. Finances reste dans Gestion du club pour le Studio, sous son libellé réel et selon les permissions existantes. Aucun espace Ventes n’est créé. Les autres destinations sont conservées dans Gestion / Gestion du club et Paramètres. Les sous-navigations Clients, Coaching et Prospects réutilisent les vraies pages. Aucun onglet d'équipe sans fonctionnalité existante. La navigation mobile/tablette reste celle de l'application ; les pages CRM réorganisées restent utilisables sur ces formats.
 
 ### CRM approfondi
 

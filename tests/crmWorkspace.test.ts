@@ -52,6 +52,12 @@ it('desktop navigation retains the authorized catalog for Solo, Owner, Manager a
   const all=[...menu.main,...menu.secondary,...menu.settings].map(i=>i.id);
   assert.equal(new Set(all).size,all.length);assert.deepEqual([...all].sort(),items.map(i=>i.id).sort());
   assert.ok(menu.main.some(i=>i.id==='chat'));
+  assert.ok(!menu.main.some(i=>i.id==='crm_finances'));
+  const finances=items.find(i=>i.id==='crm_finances');
+  assert.deepEqual(menu.secondary.find(i=>i.id==='crm_finances'),finances);
+  if(finances)assert.equal(finances.label,'Finances');
+  assert.ok(![...menu.main,...menu.secondary].some(i=>i.label==='Ventes'));
+  if(type==='studio'&&role!=='coach')assert.equal(menu.secondaryLabel,'Gestion du club');
   if(role==='coach')assert.ok(!all.includes('crm_pipeline'));
   assert.ok(desktopContextItems(items,'users').every(i=>all.includes(i.id)));
  }
