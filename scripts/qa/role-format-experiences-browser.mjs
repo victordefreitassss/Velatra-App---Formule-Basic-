@@ -127,16 +127,42 @@ try{
       if(width===1440){
         const nav=await page.$$eval('.vd-sidebar-navigation button',buttons=>buttons.map(b=>({label:b.textContent,selected:b.getAttribute('aria-current')})));
         check(experience+' dashboard selected',nav.some(b=>b.label.includes('Tableau de bord')&&b.selected==='page'));
+        check(experience+' sidebar uses approved copy',await page.$eval('.vd-sidebar-card',card=>card.textContent.includes('Passez au niveau supérieur')&&card.textContent.includes('Plus de possibilités pour accompagner encore plus de clients.')&&card.querySelector('button')?.textContent.includes('Découvrir')));
         await page.click('.va-topbar .va-mobile-profile');await page.waitForSelector('#va-profile-menu');check(experience+' topbar account menu works',await page.$eval('#va-profile-menu',menu=>{const box=menu.getBoundingClientRect();return box.top>=0&&box.bottom<=innerHeight&&box.height<500;}));await page.keyboard.press('Escape');await page.waitForSelector('#va-profile-menu',{hidden:true});check(experience+' account menu restores keyboard focus',await page.$eval('.va-topbar .va-mobile-profile',button=>document.activeElement===button));
+        check(experience+' widget rows have real statuses and collapsed secondary actions',await page.evaluate(()=>
+          document.querySelector('[data-home-member="901"] .vd-widget-badges')?.textContent.includes('Programme demandé') &&
+          document.querySelector('[data-home-booking] .vd-widget-badges')?.textContent.includes('Confirmé') &&
+          !document.querySelector('[data-home-member="901"] details')?.open));
+        const settleRender=async()=>page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+        const returnHome=async()=>{await page.goBack();await page.waitForFunction(()=>window.__qaGetState().page==='home'&&document.querySelector('[data-desktop-dashboard]'));await settleRender();};
+        const expandClient=async()=>{
+          await page.$eval('[data-home-member="901"] summary',element=>{element.scrollIntoView({block:'center'});element.focus();});
+          await page.keyboard.press('Enter');await page.waitForSelector('[data-home-member="901"] details[open]');
+        };
+        await expandClient();
+        check(experience+' secondary actions open with keyboard',true);
+        await clickText(page,'Ajouter une note','[data-home-member="901"] button');
+        await page.waitForFunction(()=>document.querySelector('#client-360-section')?.value==='followup'&&document.activeElement?.tagName==='TEXTAREA');
+        check(experience+' desktop note still focuses existing editor',true);await returnHome();
+        await expandClient();await clickText(page,'Préparer le programme','[data-home-member="901"] button');
+        await page.waitForFunction(()=>document.querySelector('#client-360-section')?.value==='coaching');
+        check(experience+' desktop programme keeps existing destination',true);await returnHome();
+        await expandClient();await clickText(page,'Message','[data-home-member="901"] button');
+        await page.waitForFunction(()=>document.body.innerText.includes('Bonjour Coach'));
+        check(experience+' desktop message keeps existing conversation',true);await returnHome();
+        await clickSelector(page,'[data-home-booking] .vd-row-primary');await page.waitForSelector('[data-planning-dialog="active"]');
+        check(experience+' agenda row opens actual booking',await page.$eval('[data-planning-dialog="active"]',element=>element.textContent.includes('Emma Martin')));await returnHome();
+        await clickSelector(page,'[data-home-member="901"] .vd-row-primary');await page.waitForSelector('#client-360-section');
+        check(experience+' CRM row opens existing client profile',true);await returnHome();
+        const writes=await page.evaluate(()=>window.__qaWrites);
+        check(experience+' only existing conversation read receipt is written',writes.every(write=>write.path==='messages/600'&&Object.keys(write.patch).join()==='read'&&write.patch.read===true),writes);
         for(const label of ['Drive',...(role!=='coach'?['Prospects']:[])]){
           await clickText(page,label,'.vd-sidebar-navigation button');
-          // Wait for the destination and its history entry, not the Suspense fallback.
+          // A removed dashboard can mean Suspense, not a ready destination. Wait for
+          // the real page and router state before exercising browser Back.
           await page.waitForFunction(({destination,title})=>window.__qaGetState().page===destination&&history.state?.usr?.velatraPage===destination&&document.querySelector('.va-page-body h1')?.textContent.includes(title),{},
             {destination:label==='Drive'?'drive':'crm_pipeline',title:label==='Drive'?'Drive Intégré':'Pipeline Commercial'});
-          await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
-          check(experience+' desktop navigation '+label,await page.evaluate(()=>!!document.querySelector('.vd-shell')));
-          await page.goBack();await page.waitForFunction(()=>window.__qaGetState().page==='home'&&document.querySelector('[data-desktop-dashboard]'));
-          await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+          await settleRender();check(experience+' desktop navigation '+label,await page.evaluate(()=>!!document.querySelector('.vd-shell')));await returnHome();
         }
       }
       await page.close();
@@ -211,4 +237,4 @@ try{
   }
 }catch(error){const pages=await browser.pages();for(const page of pages){if(page.url().startsWith(origin)){console.log(JSON.stringify(await page.evaluate(()=>({state:history.state,body:document.body.innerText.slice(0,1600),tab:document.querySelector('#client-360-section')?.value,active:document.activeElement?.tagName,notes:document.querySelectorAll('textarea').length})),null,2));await page.screenshot({path:path.join(evidence,'scenario-failure.png')});}}errors.push({label:'Browser scenario',details:error.stack});}
 finally{await browser.close();await new Promise(resolve=>server.close(resolve));await writeFile(path.join(evidence,'results.json'),JSON.stringify({checks:records,failures:errors,environment:'RootApp with isolated Firebase fixture; all external requests blocked; no production data'},null,2));}
-console.log(JSON.stringify({checks:records.length,failures:errors.length,evidence,errors:errors.map(error=>({label:error.label,details:typeof error.details==='string'?error.details:{overflow:error.details.overflow,shortActions:error.details.shortActions,financialListeners:error.details.financialListeners}}))},null,2));if(errors.length)process.exitCode=1;
+console.log(JSON.stringify({checks:records.length,failures:errors.length,evidence,errors:errors.map(error=>({label:error.label,details:error.details==null?null:typeof error.details==='string'?error.details:{overflow:error.details.overflow,shortActions:error.details.shortActions,financialListeners:error.details.financialListeners}}))},null,2));if(errors.length)process.exitCode=1;
