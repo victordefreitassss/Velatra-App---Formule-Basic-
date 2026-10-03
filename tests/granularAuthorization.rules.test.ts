@@ -69,9 +69,9 @@ it('Storage supports Manager member documents and own Drive assets but protects 
   await assertFails(deleteObject(memberDoc));
   for (const path of ['avatars/authz-owner/photo.png', 'users/authz-owner/documents/test.pdf', 'contracts/authz-member/contract.pdf', 'users/authz-other/documents/test.pdf'])
     await assertFails(uploadBytes(ref(manager, path), content, { contentType: path.endsWith('.png') ? 'image/png' : 'application/pdf' }));
-  const drive = ref(manager, `drive/${tenant}/authz-manager/authz-drive/report.pdf`);
+  const drive = ref(manager, `driveUploads/${tenant}/authz-manager/authz-drive/report.pdf`);
   await assertSucceeds(uploadBytes(drive, content, { contentType: 'application/pdf' }));
-  await assertSucceeds(getBytes(drive));
+  await assertFails(getBytes(drive));
   await assertSucceeds(deleteObject(drive));
   await assertFails(uploadBytes(ref(manager, `drive/authz-other/authz-manager/cross/report.pdf`), content, { contentType: 'application/pdf' }));
   const ownerAvatar = ref(storage('owner'), 'avatars/authz-owner/owner-kept.png');

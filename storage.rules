@@ -138,42 +138,22 @@ service firebase.storage {
       allow delete: if (signedIn() && request.auth.uid == uploaderUid && operationalStaffInClub(clubId)) || ownerInClub(clubId);
     }
 
-    match /drive/{clubId}/{uploaderUid}/{fileId}/{fileName} {
-      function driveFileExists() {
-        return firestore.exists(/databases/(default)/documents/driveFiles/$(fileId));
-      }
-
-      function driveFile() {
-        return firestore.get(/databases/(default)/documents/driveFiles/$(fileId)).data;
-      }
-
-      function matchingDriveFile() {
-        return driveFileExists() && driveFile().id == fileId &&
-          driveFile().clubId == clubId && driveFile().name == fileName &&
-          driveFile().path == 'drive/' + clubId + '/' + uploaderUid + '/' + fileId + '/' + fileName;
-      }
-
-      function canReadDriveFile() {
-        return signedIn() && profileExists() && (profile().clubId == clubId || isSuperAdmin()) && (
-          // Staff read before metadata is created: upload -> download URL -> Firestore.
-          operationalStaffInClub(clubId) ||
-          (matchingDriveFile() &&
-            'sharedWith' in driveFile() && driveFile().sharedWith is list &&
-            driveFile().sharedWith.hasAny([profile().id]))
-        );
-      }
-
-      function canDeleteDriveFile() {
-        return signedIn() && profileExists() && (profile().clubId == clubId || isSuperAdmin()) && (
-          (request.auth.uid == uploaderUid && operationalStaffInClub(clubId)) ||
-          isSuperAdmin() || ownerInClub(clubId)
-        );
-      }
-
-      allow read: if canReadDriveFile();
-      allow create, update: if signedIn() && request.auth.uid == uploaderUid && operationalStaffInClub(clubId) &&
+    // Only temporary uploads use the client SDK. Never publish their bearer URL.
+    match /driveUploads/{clubId}/{uploaderUid}/{fileId}/{fileName} {
+      allow read, update: if false;
+      allow create: if resource == null && signedIn() && request.auth.uid == uploaderUid && operationalStaffInClub(clubId) &&
         (documentUpload(25 * 1024 * 1024) || imageUpload(25 * 1024 * 1024) || videoUpload(25 * 1024 * 1024));
-      allow delete: if canDeleteDriveFile();
+      allow delete: if signedIn() && request.auth.uid == uploaderUid && operationalStaffInClub(clubId);
+    }
+
+    match /drive/{clubId}/{uploaderUid}/{fileId}/{fileName} {
+      // Backend rechecks the current ACL on every byte request. Client metadata
+      // reads (getDownloadURL) and writes cannot mint another public token.
+      allow read, create, update: if false;
+      allow delete: if signedIn() && profileExists() && (
+        (request.auth.uid == uploaderUid && operationalStaffInClub(clubId)) ||
+        isSuperAdmin() || ownerInClub(clubId)
+      );
     }
 
     match /{allPaths=**} {

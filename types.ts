@@ -689,7 +689,8 @@ export interface DriveFile {
   id: string;
   clubId: string;
   name: string;
-  url: string;
+  /** Legacy bearer URL; ignored by all Drive readers. */
+  url?: string;
   path: string;
   size: number;
   type: string;

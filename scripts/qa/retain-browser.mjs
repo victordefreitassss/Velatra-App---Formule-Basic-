@@ -117,7 +117,28 @@ if(pathname==='/__qa/pulse'){
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin=`http://127.0.0.1:${server.address().port}`;const browser=await puppeteer.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
 const records=[],errors=[];
 const check=(label,passed,details)=>{records.push({label,passed,details});if(!passed)errors.push({label,details});};
-const clickText=async(page,text,selector='button')=>{await page.waitForFunction((selector,label)=>[...document.querySelectorAll(selector)].some(button=>button.offsetHeight&&button.textContent?.trim()===label),{},selector,text);const handle=await page.evaluateHandle((selector,label)=>[...document.querySelectorAll(selector)].find(button=>button.offsetHeight&&button.textContent?.trim()===label),selector,text);const button=handle.asElement();assert.ok(button,`Missing action ${text}`);await button.evaluate(element=>element.scrollIntoView({block:'center'}));await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));await button.click();await handle.dispose();};
+// Home changes height while the fixture's portfolio and Pulse requests settle.
+// Use one physical click only after the target is stable and wins hit testing;
+// a visible bounding box alone can still lie under the fixed app navigation.
+const clickText=async(page,text,selector='button')=>{
+ await page.waitForFunction((selector,label)=>[...document.querySelectorAll(selector)].some(button=>button.offsetHeight&&button.textContent?.trim()===label),{},selector,text);
+ const handle=await page.evaluateHandle((selector,label)=>[...document.querySelectorAll(selector)].find(button=>button.offsetHeight&&button.textContent?.trim()===label),selector,text);
+ const button=handle.asElement();assert.ok(button,`Missing action ${text}`);
+ try {
+  await button.evaluate(element=>{element.dataset.qaClickReceived='false';element.addEventListener('click',()=>{element.dataset.qaClickReceived='true';},{once:true});element.scrollIntoView({block:'center',inline:'center',behavior:'instant'});});
+  const target=await page.waitForFunction(async element=>{
+   const first=element.getBoundingClientRect();await new Promise(resolve=>requestAnimationFrame(resolve));
+   const rect=element.getBoundingClientRect(),x=rect.x+rect.width/2,y=rect.y+rect.height/2;
+   const hit=document.elementFromPoint(x,y);
+   if(!element.isConnected||element.disabled||!rect.width||!rect.height)return false;
+   if(x<0||x>=innerWidth||y<0||y>=innerHeight||!hit||!element.contains(hit)){element.scrollIntoView({block:'center',inline:'center',behavior:'instant'});return false;}
+   return first.x===rect.x&&first.y===rect.y&&first.width===rect.width&&first.height===rect.height?{x,y}:false;
+  },{},button);
+  const point=await target.jsonValue();await target.dispose();
+  await page.mouse.click(point.x,point.y);
+  await page.waitForFunction(element=>element.dataset.qaClickReceived==='true',{timeout:3000},button);
+ }finally{await handle.dispose();}
+};
 async function open(role,type,width,height,count){const page=await browser.newPage();page.setDefaultTimeout(15000);page.setDefaultNavigationTimeout(30000);await page.setViewport({width,height,deviceScaleFactor:1});await page.setRequestInterception(true);page.on('request',r=>r.url().startsWith(origin)?void r.continue():void r.abort());page.on('console',message=>{if(message.type()==='error'&&message.text().includes('Fixture UI error'))console.log(message.text());});page.on('pageerror',error=>errors.push({label:'Runtime exception',details:error.message}));await page.goto(`${origin}/dashboard?role=${role}&accountType=${type}&clients=${count}`,{waitUntil:'domcontentloaded'});await page.waitForSelector('[data-home-retain]');return page;}
 async function inspect(page,name,surface){const data=await page.evaluate(surface=>({overflow:document.documentElement.scrollWidth>innerWidth,short:[...document.querySelectorAll(`${surface} button,${surface} select,${surface} input`)].filter(el=>el.offsetHeight&&el.getBoundingClientRect().height<43.9).map(el=>el.textContent),finance:window.__qaListeners.filter(row=>['subscriptions','payments','invoices','plans'].includes(row.path)),writes:window.__qaWrites.length}),surface);check(name+' layout/touch',!data.overflow&&!data.short.length,data);return data;}
 const compositions=new Map();

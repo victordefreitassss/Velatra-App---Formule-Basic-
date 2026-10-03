@@ -1,3 +1,5 @@
+import { registerDrive } from './server/drive.ts';
+import { getStorage } from 'firebase-admin/storage';
 import { registerNotifications, dispatchPendingPush, notificationActor } from './server/notifications.ts';
 import { isOrganizationActive } from './organizationAccess.ts';
 import { registerOrganizationAuthority } from './server/organizationAuthority.ts';
@@ -417,6 +419,7 @@ app.post("/api/register-member", verifyFirebaseSession, async (req: any, res: an
 // All remaining API routes require a verified session and a server-side profile.
 app.use("/api", verifyFirebaseSession, requireUserProfile);
 registerOrganizationAuthority(app, admin.firestore());
+registerDrive(app, admin.firestore(), () => getStorage().bucket(process.env.FIREBASE_STORAGE_EMULATOR_HOST ? 'demo-velatra.appspot.com' : (process.env.FIREBASE_STORAGE_BUCKET || 'velatra-75daa.firebasestorage.app')));
 registerNotifications(app, admin.firestore());
 registerMessages(app, admin.firestore());
 registerCoachingFollowup(app, admin.firestore());
